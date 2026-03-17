@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { PM_OPTIONS, PROJECT_STATUSES, PROJECT_TYPES } from "@/lib/types";
+import { PM_OPTIONS, PROJECT_STATUSES, PROJECT_TYPES, getPMName } from "@/lib/types";
 import { BUDGET_FIELDS } from "@/lib/constants";
 import {
   Card,
@@ -32,7 +32,7 @@ export default function NewProjectPage() {
   const [projectId, setProjectId] = useState("");
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
-  const [pm, setPm] = useState<string>(PM_OPTIONS[0]);
+  const [pm, setPm] = useState<string>("");
   const [status, setStatus] = useState<string>("Active");
   const [closeDate, setCloseDate] = useState("");
   const [contractAmount, setContractAmount] = useState("");
@@ -53,6 +53,10 @@ export default function NewProjectPage() {
     }
     if (!name.trim()) {
       toast.error("Project Name is required.");
+      return;
+    }
+    if (!pm) {
+      toast.error("PM is required.");
       return;
     }
 
@@ -100,13 +104,15 @@ export default function NewProjectPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="projectId">Project ID</Label>
+                <Label htmlFor="projectId">Project ID *</Label>
                 <Input
                   id="projectId"
                   value={projectId}
                   onChange={(e) => setProjectId(e.target.value)}
                   placeholder="e.g. 26023"
+                  required
                 />
+                <p className="text-xs text-muted-foreground">MDP Job Number (matches HubSpot/QBO)</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Project Name *</Label>
@@ -130,15 +136,15 @@ export default function NewProjectPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>PM</Label>
+                <Label>PM *</Label>
                 <Select value={pm} onValueChange={(v) => v !== null && setPm(v)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="Select PM" />
                   </SelectTrigger>
                   <SelectContent>
                     {PM_OPTIONS.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {option}
+                        {getPMName(option)}
                       </SelectItem>
                     ))}
                   </SelectContent>

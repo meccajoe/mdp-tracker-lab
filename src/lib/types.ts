@@ -62,7 +62,25 @@ export interface CogsCategory {
   definition: string | null;
 }
 
-export const PM_OPTIONS = ["VW", "GM", "MS", "AS", "NG", "PM"] as const;
+export const PM_OPTIONS = ["VW", "GM", "MS", "AS", "NG", "PM", "KM", "KS", "CC", "MM"] as const;
+
+// Full PM name lookup
+export const PM_NAMES: Record<string, string> = {
+  VW: "Vanessa Warfield",
+  GM: "Greg Mayberry",
+  MS: "Molly Strader",
+  AS: "Aaron Schindehette",
+  NG: "Nick Gonzales",
+  PM: "Paul Mecca",
+  KM: "Kristina Morland",
+  KS: "Kristin Schilling",
+  CC: "Carlos Chaidez",
+  MM: "Mary Mecca",
+};
+
+export function getPMName(initials: string): string {
+  return PM_NAMES[initials] ?? initials;
+}
 
 export const PROJECT_STATUSES = ["Active", "Completed", "On Hold"] as const;
 

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { ProjectSummary, PM_OPTIONS, PROJECT_STATUSES } from "@/lib/types";
-import { formatCurrency, getBudgetHealthBadge } from "@/lib/constants";
+import { ProjectSummary, PM_OPTIONS, PROJECT_STATUSES, getPMName } from "@/lib/types";
+import { formatCurrency, getBudgetHealthClasses } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -14,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -33,10 +33,13 @@ type SortField =
 type SortDir = "asc" | "desc";
 
 export default function ProjectsPage() {
+  const searchParams = useSearchParams();
+  const urlPm = searchParams.get("pm");
+
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [pmFilter, setPmFilter] = useState<string>("All");
+  const [pmFilter, setPmFilter] = useState<string>(urlPm ?? "All");
   const [sortField, setSortField] = useState<SortField>("close_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -89,20 +92,18 @@ export default function ProjectsPage() {
     return sortDir === "asc" ? " ↑" : " ↓";
   };
 
-  const statusVariant = (
-    status: string
-  ): "default" | "secondary" | "destructive" | "outline" => {
+  function statusBadgeClasses(status: string): string {
     switch (status) {
       case "Active":
-        return "default";
+        return "bg-green-100 text-green-700 border border-green-200";
       case "Completed":
-        return "secondary";
+        return "bg-red-100 text-red-700 border border-red-200";
       case "On Hold":
-        return "outline";
+        return "bg-gray-100 text-gray-500 border border-gray-200";
       default:
-        return "default";
+        return "bg-gray-100 text-gray-500 border border-gray-200";
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -134,14 +135,14 @@ export default function ProjectsPage() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">PM:</span>
           <Select value={pmFilter} onValueChange={(v) => v !== null && setPmFilter(v)}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All</SelectItem>
               {PM_OPTIONS.map((pm) => (
                 <SelectItem key={pm} value={pm}>
-                  {pm}
+                  {getPMName(pm)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -175,10 +176,10 @@ export default function ProjectsPage() {
                 Contract Amount{sortIndicator("contract_amount")}
               </TableHead>
               <TableHead
-                className="cursor-pointer select-none text-right"
+                className="cursor-pointer select-none w-[200px]"
                 onClick={() => handleSort("pct_budget_used")}
               >
-                Budget Used %{sortIndicator("pct_budget_used")}
+                Budget Used{sortIndicator("pct_budget_used")}
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none"
@@ -202,46 +203,71 @@ export default function ProjectsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              sorted.map((project) => (
-                <TableRow key={project.id} className="hover:bg-muted/50">
-                  <TableCell className="font-mono text-sm">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="hover:underline"
-                    >
-                      {project.id.slice(0, 8)}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="hover:underline"
-                    >
-                      {project.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{project.client}</TableCell>
-                  <TableCell>{project.pm}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(project.status)}>
-                      {project.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(project.contract_amount)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={getBudgetHealthBadge(project.pct_budget_used)}>
-                      {project.pct_budget_used?.toFixed(1) ?? "0.0"}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {project.close_date
-                      ? new Date(project.close_date).toLocaleDateString()
-                      : "N/A"}
-                  </TableCell>
-                </TableRow>
-              ))
+              sorted.map((project) => {
+                const pct = project.pct_budget_used;
+                const clampedPct = Math.min(pct, 100);
+                const health = getBudgetHealthClasses(pct);
+
+                return (
+                  <TableRow key={project.id} className="hover:bg-muted/50">
+                    <TableCell className="font-mono text-sm">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="hover:underline"
+                      >
+                        {project.id.slice(0, 8)}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="hover:underline"
+                      >
+                        {project.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>{project.client}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/pm/${project.pm}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {getPMName(project.pm)}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadgeClasses(project.status)}`}
+                      >
+                        {project.status}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(project.contract_amount)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${health.bar}`}
+                            style={{ width: `${clampedPct}%` }}
+                          />
+                        </div>
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full border ${health.pill}`}
+                        >
+                          {pct?.toFixed(1) ?? "0.0"}%
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {project.close_date
+                        ? new Date(project.close_date).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { ProjectSummary, Expense } from "@/lib/types";
+import { ProjectSummary, Expense, PM_OPTIONS, getPMName } from "@/lib/types";
 import {
   formatCurrency,
-  formatNumber,
-  getBudgetHealthColor,
-  getBudgetHealthBadge,
+  getBudgetHealthClasses,
 } from "@/lib/constants";
 import {
   Card,
@@ -24,17 +22,55 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+
+const EMAIL_TO_PM: Record<string, string> = {
+  "victoria@meccadesign.com": "VW",
+  "greg@meccadesign.com": "GM",
+  "matt@meccadesign.com": "MS",
+  "ashley@meccadesign.com": "AS",
+  "nicole@meccadesign.com": "NG",
+  "paul@meccadesign.com": "PM",
+  "kevin@meccadesign.com": "KM",
+  "kyle@meccadesign.com": "KS",
+  "chad@meccadesign.com": "CC",
+  "mike@meccadesign.com": "MM",
+};
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pmFilter, setPmFilter] = useState<string>("All");
+  const [defaultPmSet, setDefaultPmSet] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Determine user role and default PM filter
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) {
+        const email = session.user.email.toLowerCase();
+        const pmInitials = EMAIL_TO_PM[email];
+        const isAdmin = email === "paul@meccadesign.com" || !pmInitials;
+        if (!isAdmin && pmInitials) {
+          setPmFilter(pmInitials);
+        }
+      }
+      setDefaultPmSet(true);
+    });
+  }, []);
+
+  // Fetch data once default PM is determined
+  useEffect(() => {
+    if (!defaultPmSet) return;
+
     async function fetchData() {
       setLoading(true);
+
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const sinceDate = fourteenDaysAgo.toISOString().split("T")[0];
+
       const [projectsRes, expensesRes] = await Promise.all([
         supabase
           .from("project_summary")
@@ -43,35 +79,53 @@ export default function Dashboard() {
         supabase
           .from("expenses")
           .select("*")
-          .order("date", { ascending: false })
-          .limit(10),
+          .gte("date", sinceDate)
+          .order("date", { ascending: false }),
       ]);
 
       if (projectsRes.data) setProjects(projectsRes.data as ProjectSummary[]);
-      if (expensesRes.data) setExpenses(expensesRes.data as Expense[]);
+      if (expensesRes.data) setRecentExpenses(expensesRes.data as Expense[]);
       setLoading(false);
     }
 
     fetchData();
-  }, []);
+  }, [defaultPmSet]);
 
-  const activeProjects = projects.filter((p) => p.status === "Active");
-  const overBudgetProjects = projects.filter(
-    (p) => p.status === "Active" && p.total_spent > p.total_budget && p.total_budget > 0
+  const filteredProjects =
+    pmFilter === "All"
+      ? projects.filter((p) => p.status === "Active")
+      : projects.filter((p) => p.status === "Active" && p.pm === pmFilter);
+
+  const overBudgetProjects = filteredProjects.filter(
+    (p) => p.total_spent > p.total_budget && p.total_budget > 0
   );
 
-  const totalContractValue = activeProjects.reduce(
+  const totalContractValue = filteredProjects.reduce(
     (sum, p) => sum + (p.contract_amount ?? 0),
     0
   );
-  const totalCommittedSpend = activeProjects.reduce(
+  const totalCommittedSpend = filteredProjects.reduce(
     (sum, p) => sum + p.total_spent,
     0
   );
-  const totalRemainingBudget = activeProjects.reduce(
+  const totalRemainingBudget = filteredProjects.reduce(
     (sum, p) => sum + Math.max(0, p.total_budget - p.total_spent),
     0
   );
+
+  const filterLabel =
+    pmFilter === "All"
+      ? "All Projects"
+      : `${getPMName(pmFilter)} projects`;
+
+  function scrollExpenses(dir: "left" | "right") {
+    if (!scrollRef.current) return;
+    const amount = 320;
+    scrollRef.current.scrollBy({
+      left: dir === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  }
 
   if (loading) {
     return (
@@ -82,12 +136,39 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 p-8 max-w-7xl mx-auto">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Portfolio overview and project cost tracking
+          Showing: {filterLabel}
         </p>
+      </div>
+
+      {/* PM Filter Tags */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setPmFilter("All")}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            pmFilter === "All"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          All
+        </button>
+        {PM_OPTIONS.map((initials) => (
+          <button
+            key={initials}
+            onClick={() => setPmFilter(initials)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              pmFilter === initials
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            {getPMName(initials)}
+          </button>
+        ))}
       </div>
 
       {/* Portfolio Summary Cards */}
@@ -99,14 +180,14 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{activeProjects.length}</p>
+            <p className="text-3xl font-bold">{filteredProjects.length}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Contract Value
+              Contract Value
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -119,7 +200,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Committed Spend
+              Committed Spend
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -172,7 +253,9 @@ export default function Dashboard() {
                         {p.pct_budget_used.toFixed(0)}% used)
                       </p>
                     </div>
-                    <Badge variant="destructive">Over Budget</Badge>
+                    <span className="bg-red-100 text-red-700 border border-red-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                      Over Budget
+                    </span>
                   </div>
                 );
               })}
@@ -187,7 +270,7 @@ export default function Dashboard() {
           <CardTitle>Active Projects</CardTitle>
         </CardHeader>
         <CardContent>
-          {activeProjects.length === 0 ? (
+          {filteredProjects.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center">
               No active projects found.
             </p>
@@ -200,19 +283,15 @@ export default function Dashboard() {
                   <TableHead>Client</TableHead>
                   <TableHead>PM</TableHead>
                   <TableHead className="text-right">Contract</TableHead>
-                  <TableHead className="w-[180px]">Budget Used</TableHead>
+                  <TableHead className="w-[200px]">Budget Used</TableHead>
                   <TableHead>Close Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeProjects.map((project) => {
-                  const pct = Math.min(project.pct_budget_used, 100);
-                  const healthColor = getBudgetHealthColor(
-                    project.pct_budget_used
-                  );
-                  const badgeVariant = getBudgetHealthBadge(
-                    project.pct_budget_used
-                  );
+                {filteredProjects.map((project) => {
+                  const pct = project.pct_budget_used;
+                  const clampedPct = Math.min(pct, 100);
+                  const health = getBudgetHealthClasses(pct);
 
                   return (
                     <TableRow key={project.id}>
@@ -228,16 +307,30 @@ export default function Dashboard() {
                         </Link>
                       </TableCell>
                       <TableCell>{project.client}</TableCell>
-                      <TableCell>{project.pm}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/pm/${project.pm}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {getPMName(project.pm)}
+                        </Link>
+                      </TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(project.contract_amount)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Progress value={pct} className="h-2 flex-1" />
-                          <Badge variant={badgeVariant} className="text-xs w-14 justify-center">
-                            {project.pct_budget_used.toFixed(0)}%
-                          </Badge>
+                          <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${health.bar}`}
+                              style={{ width: `${clampedPct}%` }}
+                            />
+                          </div>
+                          <span
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full border ${health.pill}`}
+                          >
+                            {pct.toFixed(0)}%
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -261,70 +354,90 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Expenses Feed */}
+      {/* Recent Expenses — last 14 days */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Expenses</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>
+            <Link href="/expenses" className="hover:underline">
+              Recent Expenses (last 14 days)
+            </Link>
+          </CardTitle>
+          <Link href="/expenses">
+            <Button variant="outline" size="sm">
+              See all expenses &rarr;
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent>
-          {expenses.length === 0 ? (
+          {recentExpenses.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center">
-              No recent expenses.
+              No expenses in the last 14 days.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses.map((expense) => {
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 rounded-full shadow"
+                onClick={() => scrollExpenses("left")}
+              >
+                &lsaquo;
+              </Button>
+              <div
+                ref={scrollRef}
+                className="flex gap-4 overflow-x-auto px-10 pb-2 scrollbar-hide"
+              >
+                {recentExpenses.map((expense) => {
                   const project = projects.find(
                     (p) => p.id === expense.project_id
                   );
                   return (
-                    <TableRow key={expense.id}>
-                      <TableCell>
-                        {new Date(expense.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </TableCell>
-                      <TableCell>
+                    <div
+                      key={expense.id}
+                      className="min-w-[280px] max-w-[300px] flex-shrink-0 rounded-lg border bg-card p-4 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(expense.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                        <span className="font-mono font-semibold text-sm">
+                          {formatCurrency(expense.amount)}
+                        </span>
+                      </div>
+                      <div>
                         {project ? (
                           <Link
                             href={`/projects/${project.id}`}
-                            className="text-blue-600 hover:underline"
+                            className="text-sm font-medium text-blue-600 hover:underline"
                           >
                             {project.name}
                           </Link>
                         ) : (
-                          expense.project_id
+                          <span className="text-sm font-medium">
+                            {expense.project_id}
+                          </span>
                         )}
-                      </TableCell>
-                      <TableCell>{expense.category}</TableCell>
-                      <TableCell>{expense.vendor ?? "-"}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(expense.amount)}
-                      </TableCell>
-                      <TableCell>
-                        {expense.amount_pending ? (
-                          <Badge variant="secondary">Pending</Badge>
-                        ) : (
-                          <Badge variant="default">Confirmed</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{expense.vendor ?? "-"}</span>
+                        <span>{expense.category}</span>
+                      </div>
+                    </div>
                   );
                 })}
-              </TableBody>
-            </Table>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 rounded-full shadow"
+                onClick={() => scrollExpenses("right")}
+              >
+                &rsaquo;
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
