@@ -51,19 +51,14 @@ export default function Sidebar() {
   const [bonusItems, setBonusItems] = useState<BonusNavItem[]>([]);
 
   useEffect(() => {
-    async function loadRole() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) return;
-
-      const email = session.user.email.toLowerCase();
+    async function loadRole(email: string) {
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role, pm_initials")
-        .eq("email", email)
+        .eq("email", email.toLowerCase())
         .single();
 
       if (roleData?.role === "admin") {
-        // Show "Team Bonuses" with links to all PMs
         const items: BonusNavItem[] = Object.keys(PM_NAMES).map((init) => ({
           href: `/pm/${init}`,
           label: PM_NAMES[init],
@@ -79,9 +74,20 @@ export default function Sidebar() {
           icon: bonusIcon,
         }]);
       }
-      // No role found → no bonus nav items
     }
-    loadRole();
+
+    // Load on mount from existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) loadRole(session.user.email);
+    });
+
+    // Also reload when auth state changes (e.g. after OAuth redirect)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email) loadRole(session.user.email);
+      else setBonusItems([]);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   if (pathname === "/login") return null;

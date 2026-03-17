@@ -323,82 +323,53 @@ export default function PMBonusPage() {
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as TimePeriod)}
       >
-        <TabsList className="flex-wrap">
-          {tabs.map((t) => (
-            <TabsTrigger key={t.value} value={t.value}>
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <Card>
+          <CardHeader className="pb-0">
+            <TabsList className="h-auto bg-transparent p-0 border-b w-full flex-wrap">
+              {tabs.map((t) => (
+                <TabsTrigger key={t.value} value={t.value} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-4 py-2 -mb-px font-medium">
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {tabs.map((t) => (
+              <TabsContent key={t.value} value={t.value} className="mt-0 space-y-6">
+                {/* Period label */}
+                <p className="text-sm text-muted-foreground font-medium">
+                  {getPeriodLabel(t.value)}
+                </p>
 
-        {tabs.map((t) => (
-          <TabsContent key={t.value} value={t.value} className="space-y-6">
-            {/* Period label */}
-            <p className="text-sm text-muted-foreground font-medium">
-              {getPeriodLabel(t.value)}
-            </p>
+                {/* Summary stats for this period */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Total Projects</p>
+                    <p className="text-2xl font-bold mt-1">{bonusRows.length}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Contract Value</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.contract)}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Total Spent</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.spent)}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Gross Profit</p>
+                    <p className={`text-2xl font-bold mt-1 ${totals.gp >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                      {formatCurrency(totals.gp)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-green-200 dark:border-green-900 p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Bonus Earned</p>
+                    <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
+                      {formatCurrency(totals.bonus)}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Summary card for this period */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    Total Projects
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{bonusRows.length}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    Contract Value
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(totals.contract)}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    Total Spent
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(totals.spent)}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    Gross Profit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className={`text-2xl font-bold ${totals.gp >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {formatCurrency(totals.gp)}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-green-200 dark:border-green-900">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-medium text-muted-foreground">
-                    Bonus Earned
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(totals.bonus)}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Bonus breakdown table */}
-            <Card>
-              <CardContent className="p-0">
+                {/* Bonus breakdown table */}
                 {bonusRows.length === 0 ? (
                   <p className="text-muted-foreground py-8 text-center">
                     No completed projects in this period.
@@ -498,10 +469,10 @@ export default function PMBonusPage() {
                     </TableFooter>
                   </Table>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
+              </TabsContent>
+            ))}
+          </CardContent>
+        </Card>
       </Tabs>
     </div>
   );

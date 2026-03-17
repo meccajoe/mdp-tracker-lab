@@ -441,161 +441,277 @@ export default function ProjectDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Tabs: Expenses and Labor */}
+      {/* Expenses & Labor Card */}
       <Tabs defaultValue="expenses">
-        <TabsList>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="labor">Labor</TabsTrigger>
-        </TabsList>
-
-        {/* Expenses Tab */}
-        <TabsContent value="expenses">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Expenses</CardTitle>
-              <Dialog
-                open={expenseDialogOpen}
-                onOpenChange={setExpenseDialogOpen}
-              >
-                <DialogTrigger
-                  render={<Button size="sm" />}
-                >
-                  + Add Expense
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Add Expense</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="expense-date">Date</Label>
-                      <Input
-                        id="expense-date"
-                        type="date"
-                        value={expenseForm.date}
-                        onChange={(e) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            date: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Category</Label>
-                      <Select
-                        value={expenseForm.category}
-                        onValueChange={(val) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            category: val as string,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {cogsCategories.map((cat) => (
-                            <SelectItem key={cat.code} value={cat.name}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="expense-vendor">Vendor</Label>
-                      <Input
-                        id="expense-vendor"
-                        value={expenseForm.vendor}
-                        onChange={(e) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            vendor: e.target.value,
-                          })
-                        }
-                        placeholder="Vendor name"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="expense-amount">Amount</Label>
-                      <Input
-                        id="expense-amount"
-                        type="number"
-                        step="0.01"
-                        value={expenseForm.amount}
-                        onChange={(e) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            amount: e.target.value,
-                          })
-                        }
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="expense-pending"
-                        type="checkbox"
-                        checked={expenseForm.amount_pending}
-                        onChange={(e) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            amount_pending: e.target.checked,
-                          })
-                        }
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="expense-pending">Pending</Label>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="expense-purchaser">Purchaser</Label>
-                      <Input
-                        id="expense-purchaser"
-                        value={expenseForm.purchaser}
-                        onChange={(e) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            purchaser: e.target.value,
-                          })
-                        }
-                        placeholder="Who made the purchase"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="expense-notes">Notes</Label>
-                      <Textarea
-                        id="expense-notes"
-                        value={expenseForm.notes}
-                        onChange={(e) =>
-                          setExpenseForm({
-                            ...expenseForm,
-                            notes: e.target.value,
-                          })
-                        }
-                        placeholder="Optional notes"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setExpenseDialogOpen(false)}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-0">
+            <TabsList className="h-auto bg-transparent p-0 border-b w-full">
+              <TabsTrigger value="expenses" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-4 py-2 -mb-px font-medium">Expenses</TabsTrigger>
+              <TabsTrigger value="labor" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-4 py-2 -mb-px font-medium">Labor</TabsTrigger>
+              <div className="ml-auto flex items-center -mb-px pb-2">
+                <TabsContent value="expenses" className="mt-0 p-0">
+                  <Dialog
+                    open={expenseDialogOpen}
+                    onOpenChange={setExpenseDialogOpen}
+                  >
+                    <DialogTrigger
+                      render={<Button size="sm" />}
                     >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleAddExpense}
-                      disabled={expenseSubmitting}
+                      + Add Expense
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Add Expense</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="expense-date">Date</Label>
+                          <Input
+                            id="expense-date"
+                            type="date"
+                            value={expenseForm.date}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                date: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Category</Label>
+                          <Select
+                            value={expenseForm.category}
+                            onValueChange={(val) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                category: val as string,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cogsCategories.map((cat) => (
+                                <SelectItem key={cat.code} value={cat.name}>
+                                  {cat.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="expense-vendor">Vendor</Label>
+                          <Input
+                            id="expense-vendor"
+                            value={expenseForm.vendor}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                vendor: e.target.value,
+                              })
+                            }
+                            placeholder="Vendor name"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="expense-amount">Amount</Label>
+                          <Input
+                            id="expense-amount"
+                            type="number"
+                            step="0.01"
+                            value={expenseForm.amount}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                amount: e.target.value,
+                              })
+                            }
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="expense-pending"
+                            type="checkbox"
+                            checked={expenseForm.amount_pending}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                amount_pending: e.target.checked,
+                              })
+                            }
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <Label htmlFor="expense-pending">Pending</Label>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="expense-purchaser">Purchaser</Label>
+                          <Input
+                            id="expense-purchaser"
+                            value={expenseForm.purchaser}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                purchaser: e.target.value,
+                              })
+                            }
+                            placeholder="Who made the purchase"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="expense-notes">Notes</Label>
+                          <Textarea
+                            id="expense-notes"
+                            value={expenseForm.notes}
+                            onChange={(e) =>
+                              setExpenseForm({
+                                ...expenseForm,
+                                notes: e.target.value,
+                              })
+                            }
+                            placeholder="Optional notes"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setExpenseDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleAddExpense}
+                          disabled={expenseSubmitting}
+                        >
+                          {expenseSubmitting ? "Adding..." : "Add Expense"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </TabsContent>
+                <TabsContent value="labor" className="mt-0 p-0">
+                  <Dialog
+                    open={laborDialogOpen}
+                    onOpenChange={setLaborDialogOpen}
+                  >
+                    <DialogTrigger
+                      render={<Button size="sm" />}
                     >
-                      {expenseSubmitting ? "Adding..." : "Add Expense"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
+                      + Log Hours
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Log Hours</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="labor-date">Date</Label>
+                          <Input
+                            id="labor-date"
+                            type="date"
+                            value={laborForm.date}
+                            onChange={(e) =>
+                              setLaborForm({
+                                ...laborForm,
+                                date: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="labor-person">Person</Label>
+                          <Input
+                            id="labor-person"
+                            value={laborForm.person}
+                            onChange={(e) =>
+                              setLaborForm({
+                                ...laborForm,
+                                person: e.target.value,
+                              })
+                            }
+                            placeholder="Name"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="labor-hours">Hours</Label>
+                          <Input
+                            id="labor-hours"
+                            type="number"
+                            step="0.25"
+                            value={laborForm.hours}
+                            onChange={(e) =>
+                              setLaborForm({
+                                ...laborForm,
+                                hours: e.target.value,
+                              })
+                            }
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Type</Label>
+                          <Select
+                            value={laborForm.labor_type}
+                            onValueChange={(val) =>
+                              setLaborForm({
+                                ...laborForm,
+                                labor_type: val as string,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {LABOR_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="labor-notes">Notes</Label>
+                          <Textarea
+                            id="labor-notes"
+                            value={laborForm.notes}
+                            onChange={(e) =>
+                              setLaborForm({
+                                ...laborForm,
+                                notes: e.target.value,
+                              })
+                            }
+                            placeholder="Optional notes"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setLaborDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleAddLabor}
+                          disabled={laborSubmitting}
+                        >
+                          {laborSubmitting ? "Logging..." : "Log Hours"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </TabsContent>
+              </div>
+            </TabsList>
+          </CardHeader>
+          <CardContent>
+            {/* Expenses Tab */}
+            <TabsContent value="expenses" className="mt-0">
               {expenses.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
                   No expenses recorded yet
@@ -638,129 +754,10 @@ export default function ProjectDetailPage() {
                   </TableBody>
                 </Table>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        {/* Labor Tab */}
-        <TabsContent value="labor">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Labor</CardTitle>
-              <Dialog
-                open={laborDialogOpen}
-                onOpenChange={setLaborDialogOpen}
-              >
-                <DialogTrigger
-                  render={<Button size="sm" />}
-                >
-                  + Log Hours
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Log Hours</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="labor-date">Date</Label>
-                      <Input
-                        id="labor-date"
-                        type="date"
-                        value={laborForm.date}
-                        onChange={(e) =>
-                          setLaborForm({
-                            ...laborForm,
-                            date: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="labor-person">Person</Label>
-                      <Input
-                        id="labor-person"
-                        value={laborForm.person}
-                        onChange={(e) =>
-                          setLaborForm({
-                            ...laborForm,
-                            person: e.target.value,
-                          })
-                        }
-                        placeholder="Name"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="labor-hours">Hours</Label>
-                      <Input
-                        id="labor-hours"
-                        type="number"
-                        step="0.25"
-                        value={laborForm.hours}
-                        onChange={(e) =>
-                          setLaborForm({
-                            ...laborForm,
-                            hours: e.target.value,
-                          })
-                        }
-                        placeholder="0"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Type</Label>
-                      <Select
-                        value={laborForm.labor_type}
-                        onValueChange={(val) =>
-                          setLaborForm({
-                            ...laborForm,
-                            labor_type: val as string,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {LABOR_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="labor-notes">Notes</Label>
-                      <Textarea
-                        id="labor-notes"
-                        value={laborForm.notes}
-                        onChange={(e) =>
-                          setLaborForm({
-                            ...laborForm,
-                            notes: e.target.value,
-                          })
-                        }
-                        placeholder="Optional notes"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setLaborDialogOpen(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleAddLabor}
-                      disabled={laborSubmitting}
-                    >
-                      {laborSubmitting ? "Logging..." : "Log Hours"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
+            {/* Labor Tab */}
+            <TabsContent value="labor" className="mt-0">
               {laborEntries.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
                   No labor entries recorded yet
@@ -793,9 +790,9 @@ export default function ProjectDetailPage() {
                   </TableBody>
                 </Table>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
+          </CardContent>
+        </Card>
       </Tabs>
     </div>
   );
