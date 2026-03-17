@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# CSV data files (may contain sensitive project data)
+/data/*.csv
+
 # vercel
 .vercel
 
