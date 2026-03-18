@@ -41,7 +41,7 @@ function getOnePasswordValue(item: string, field: string) {
   const escapedItem = item.replaceAll("\"", "\\\"");
   const escapedField = field.replaceAll("\"", "\\\"");
   return runSecretCommand(
-    `source ~/.config/archie/credentials/1password.env && op item get "${escapedItem}" --vault Archie --fields "${escapedField}"`
+    `source ~/.config/archie/credentials/1password.env && op item get "${escapedItem}" --vault Archie --fields "${escapedField}" --reveal`
   );
 }
 

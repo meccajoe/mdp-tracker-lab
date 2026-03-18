@@ -219,7 +219,7 @@ export default function DataEntryPage() {
   }
 
   async function handleJobNumberBlur() {
-    const trimmed = String(formData.job_number ?? "").trim();
+    const trimmed = String(formData.id ?? formData.job_number ?? "").trim();
     if (!trimmed) {
       setLookupResult(null);
       return;
@@ -526,28 +526,20 @@ export default function DataEntryPage() {
                           {/* Row 1 */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField label="Job # (MDP Number)">
-                              <input
-                                type="text"
-                                className={inputClass}
-                                value={(formData.id as string) ?? ""}
-                                readOnly={!formData._isNew}
-                                onChange={(e) =>
-                                  updateForm("id", e.target.value)
-                                }
-                                placeholder="e.g. 24-1001"
-                              />
-                            </FormField>
-                            <FormField label="Job Number">
                               <div className="space-y-2">
                                 <input
                                   type="text"
                                   className={inputClass}
-                                  value={(formData.job_number as string) ?? ""}
-                                  onChange={(e) =>
-                                    handleJobNumberChange(e.target.value)
-                                  }
-                                  onBlur={handleJobNumberBlur}
-                                  placeholder="Lookup HubSpot and QBO"
+                                  value={(formData.id as string) ?? ""}
+                                  readOnly={!formData._isNew}
+                                  onChange={(e) => {
+                                    updateForm("id", e.target.value);
+                                    handleJobNumberChange(e.target.value);
+                                  }}
+                                  onBlur={(e) => {
+                                    handleJobNumberBlur();
+                                  }}
+                                  placeholder="e.g. 26058"
                                 />
                                 <ProjectLookupStatus loading={lookupLoading} result={lookupResult} />
                               </div>
