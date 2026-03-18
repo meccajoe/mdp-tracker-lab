@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-lookups";
 import { Project, PM_OPTIONS, PM_NAMES } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
+import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { Button } from "@/components/ui/button";
 
 type EditableProject = Project & { _isNew?: boolean };
@@ -60,6 +62,8 @@ export default function DataEntryPage() {
   const [search, setSearch] = useState("");
   const [filterPM, setFilterPM] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<ProjectLookupResult | null>(null);
 
   useEffect(() => {
     async function checkAccess() {
@@ -104,8 +108,13 @@ export default function DataEntryPage() {
       client: project.client ?? "",
       pm: project.pm ?? "",
       status: project.status ?? "Active",
+      job_number: project.job_number ?? "",
       close_date: project.close_date ?? "",
       contract_amount: project.contract_amount ?? "",
+      hubspot_deal_id: project.hubspot_deal_id ?? null,
+      hubspot_deal_url: project.hubspot_deal_url ?? null,
+      qbo_project_id: project.qbo_project_id ?? null,
+      qbo_project_url: project.qbo_project_url ?? null,
       budget_hrs: project.budget_hrs ?? "",
       budget_design: project.budget_design ?? "",
       budget_pm: project.budget_pm ?? "",
@@ -118,6 +127,7 @@ export default function DataEntryPage() {
       notes: project.notes ?? "",
       _isNew: project._isNew ?? false,
     });
+    setLookupResult(null);
   }
 
   function openNewProject() {
@@ -130,8 +140,13 @@ export default function DataEntryPage() {
       client: "",
       pm: "",
       status: "Active",
+      job_number: null,
       close_date: null,
       contract_amount: null,
+      hubspot_deal_id: null,
+      hubspot_deal_url: null,
+      qbo_project_id: null,
+      qbo_project_url: null,
       budget_hrs: null,
       budget_design: null,
       budget_pm: null,
@@ -156,8 +171,13 @@ export default function DataEntryPage() {
       client: "",
       pm: "",
       status: "Active",
+      job_number: "",
       close_date: "",
       contract_amount: "",
+      hubspot_deal_id: null,
+      hubspot_deal_url: null,
+      qbo_project_id: null,
+      qbo_project_url: null,
       budget_hrs: "",
       budget_design: "",
       budget_pm: "",
@@ -170,6 +190,7 @@ export default function DataEntryPage() {
       notes: "",
       _isNew: true,
     });
+    setLookupResult(null);
   }
 
   function cancelEdit() {
@@ -178,10 +199,49 @@ export default function DataEntryPage() {
     setExpandedId(null);
     setFormData({});
     setDeleting(null);
+    setLookupResult(null);
   }
 
   function updateForm(field: string, value: unknown) {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleJobNumberChange(value: string) {
+    setLookupResult(null);
+    setFormData((prev) => ({
+      ...prev,
+      job_number: value,
+      hubspot_deal_id: null,
+      hubspot_deal_url: null,
+      qbo_project_id: null,
+      qbo_project_url: null,
+    }));
+  }
+
+  async function handleJobNumberBlur() {
+    const trimmed = String(formData.job_number ?? "").trim();
+    if (!trimmed) {
+      setLookupResult(null);
+      return;
+    }
+
+    setLookupLoading(true);
+    try {
+      const result = await fetchProjectLookup(trimmed);
+      setLookupResult(result);
+      setFormData((prev) => ({
+        ...prev,
+        job_number: trimmed,
+        hubspot_deal_id: result.hubspot_deal_id,
+        hubspot_deal_url: result.hubspot_deal_url,
+        qbo_project_id: result.qbo_project_id,
+        qbo_project_url: result.qbo_project_url,
+      }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
   }
 
   function numVal(v: unknown): number | null {
@@ -211,8 +271,13 @@ export default function DataEntryPage() {
       client: (formData.client as string).trim(),
       pm: formData.pm as string,
       status: formData.status as string,
+      job_number: (formData.job_number as string).trim() || null,
       close_date: (formData.close_date as string) || null,
       contract_amount: numVal(formData.contract_amount),
+      hubspot_deal_id: formData.hubspot_deal_id ?? null,
+      hubspot_deal_url: formData.hubspot_deal_url ?? null,
+      qbo_project_id: formData.qbo_project_id ?? null,
+      qbo_project_url: formData.qbo_project_url ?? null,
       budget_hrs: numVal(formData.budget_hrs),
       budget_design: numVal(formData.budget_design),
       budget_pm: numVal(formData.budget_pm),
@@ -471,6 +536,21 @@ export default function DataEntryPage() {
                                 }
                                 placeholder="e.g. 24-1001"
                               />
+                            </FormField>
+                            <FormField label="Job Number">
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  className={inputClass}
+                                  value={(formData.job_number as string) ?? ""}
+                                  onChange={(e) =>
+                                    handleJobNumberChange(e.target.value)
+                                  }
+                                  onBlur={handleJobNumberBlur}
+                                  placeholder="Lookup HubSpot and QBO"
+                                />
+                                <ProjectLookupStatus loading={lookupLoading} result={lookupResult} />
+                              </div>
                             </FormField>
                             <FormField label="Project Name">
                               <input

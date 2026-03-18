@@ -3,10 +3,15 @@ export interface Project {
   name: string;
   client: string;
   pm: string;
+  job_number: string | null;
   close_date: string | null;
   contract_amount: number | null;
   status: "Active" | "Completed" | "On Hold";
   notes: string | null;
+  hubspot_deal_id: string | null;
+  hubspot_deal_url: string | null;
+  qbo_project_id: string | null;
+  qbo_project_url: string | null;
   budget_hrs: number | null;
   budget_design: number | null;
   budget_pm: number | null;

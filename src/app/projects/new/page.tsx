@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-lookups";
 import { PM_OPTIONS, PROJECT_STATUSES, PROJECT_TYPES, getPMName } from "@/lib/types";
 import { BUDGET_FIELDS } from "@/lib/constants";
+import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import {
   Card,
   CardContent,
@@ -33,15 +35,53 @@ export default function NewProjectPage() {
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
   const [pm, setPm] = useState<string>("");
+  const [jobNumber, setJobNumber] = useState("");
   const [status, setStatus] = useState<string>("Active");
   const [closeDate, setCloseDate] = useState("");
   const [contractAmount, setContractAmount] = useState("");
   const [projectType, setProjectType] = useState<string>(PROJECT_TYPES[0]);
   const [notes, setNotes] = useState("");
   const [budgets, setBudgets] = useState<Record<string, string>>({});
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<ProjectLookupResult | null>(null);
+  const [hubspotDealId, setHubspotDealId] = useState<string | null>(null);
+  const [hubspotDealUrl, setHubspotDealUrl] = useState<string | null>(null);
+  const [qboProjectId, setQboProjectId] = useState<string | null>(null);
+  const [qboProjectUrl, setQboProjectUrl] = useState<string | null>(null);
 
   function updateBudget(key: string, value: string) {
     setBudgets((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleJobNumberChange(value: string) {
+    setJobNumber(value);
+    setLookupResult(null);
+    setHubspotDealId(null);
+    setHubspotDealUrl(null);
+    setQboProjectId(null);
+    setQboProjectUrl(null);
+  }
+
+  async function handleJobNumberBlur() {
+    const trimmed = jobNumber.trim();
+    if (!trimmed) {
+      setLookupResult(null);
+      return;
+    }
+
+    setLookupLoading(true);
+    try {
+      const result = await fetchProjectLookup(trimmed);
+      setLookupResult(result);
+      setHubspotDealId(result.hubspot_deal_id);
+      setHubspotDealUrl(result.hubspot_deal_url);
+      setQboProjectId(result.qbo_project_id);
+      setQboProjectUrl(result.qbo_project_url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -67,11 +107,16 @@ export default function NewProjectPage() {
       name: name.trim(),
       client: client.trim(),
       pm,
+      job_number: jobNumber.trim() || null,
       status,
       close_date: closeDate || null,
       contract_amount: contractAmount ? Number(contractAmount) : null,
       project_type: projectType,
       notes: notes.trim() || null,
+      hubspot_deal_id: hubspotDealId,
+      hubspot_deal_url: hubspotDealUrl,
+      qbo_project_id: qboProjectId,
+      qbo_project_url: qboProjectUrl,
     };
 
     for (const field of BUDGET_FIELDS) {
@@ -123,6 +168,18 @@ export default function NewProjectPage() {
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="jobNumber">Job Number</Label>
+              <Input
+                id="jobNumber"
+                value={jobNumber}
+                onChange={(e) => handleJobNumberChange(e.target.value)}
+                onBlur={handleJobNumberBlur}
+                placeholder="Used for HubSpot and QBO lookup"
+              />
+              <ProjectLookupStatus loading={lookupLoading} result={lookupResult} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ProjectSummary, PM_OPTIONS, PROJECT_STATUSES, getPMName } from "@/lib/types";
 import { formatCurrency, getBudgetHealthClasses } from "@/lib/constants";
+import { ProjectLinkIcons } from "@/components/project-link-icons";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -219,12 +220,18 @@ export default function ProjectsPage() {
                       </Link>
                     </TableCell>
                     <TableCell className="font-medium">
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="hover:underline"
-                      >
-                        {project.name}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="hover:underline"
+                        >
+                          {project.name}
+                        </Link>
+                        <ProjectLinkIcons
+                          hubspotUrl={project.hubspot_deal_url}
+                          qboUrl={project.qbo_project_url}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>{project.client}</TableCell>
                     <TableCell>

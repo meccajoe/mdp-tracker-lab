@@ -56,6 +56,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Combobox } from "@/components/ui/combobox";
+import { ProjectLinkIcons } from "@/components/project-link-icons";
 import {
   BarChart,
   Bar,
@@ -411,8 +412,13 @@ export default function ProjectDetailPage() {
             <Badge variant={getStatusVariant(project.status)}>
               {project.status}
             </Badge>
+            <ProjectLinkIcons
+              hubspotUrl={project.hubspot_deal_url}
+              qboUrl={project.qbo_project_url}
+            />
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {project.job_number && <span>Job #: {project.job_number}</span>}
             {project.client && <span>Client: {project.client}</span>}
             {project.pm && <span>PM: {project.pm}</span>}
             {project.close_date && (
