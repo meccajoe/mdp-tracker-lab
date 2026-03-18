@@ -182,6 +182,17 @@ export default function NewProjectPage() {
               <ProjectLookupStatus loading={lookupLoading} result={lookupResult} />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="qboProjectUrl">QBO Project URL</Label>
+              <Input
+                id="qboProjectUrl"
+                value={qboProjectUrl ?? ""}
+                onChange={(e) => setQboProjectUrl(e.target.value || null)}
+                placeholder="Paste from QuickBooks project page"
+              />
+              <p className="text-xs text-muted-foreground">Open the project in QBO and copy the URL from your browser</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="client">Client *</Label>
