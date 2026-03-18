@@ -345,6 +345,7 @@ export default function DataEntryPage() {
       toast.success(`Saved ${projectId}`);
     }
 
+    // Save actuals — use field.label as key to match project details page
     for (const [category, amountStr] of Object.entries(actuals)) {
       if (category === "labor_hours_used") continue;
       const amount = amountStr === "" ? null : Number(amountStr);
@@ -361,18 +362,23 @@ export default function DataEntryPage() {
       }
     }
 
+    // Save labor hours as a labor_entry row
     const laborHrsStr = actuals["labor_hours_used"];
     if (laborHrsStr && Number(laborHrsStr) > 0) {
-      await supabase.from("labor_entries").upsert(
-        {
-          project_id: projectId,
-          hours: Number(laborHrsStr),
-          labor_type: "Manual Entry",
-          notes: "Updated via data entry",
-          date: new Date().toISOString().split("T")[0],
-        },
-        { onConflict: "project_id,labor_type" }
-      );
+      // Delete any existing "Data Entry" manual labor rows for this project, then insert fresh
+      await supabase
+        .from("labor_entries")
+        .delete()
+        .eq("project_id", projectId)
+        .eq("person", "Data Entry");
+      await supabase.from("labor_entries").insert({
+        project_id: projectId,
+        hours: Number(laborHrsStr),
+        labor_type: "Production Labor",
+        person: "Data Entry",
+        notes: "Manual entry via data entry form",
+        date: new Date().toISOString().split("T")[0],
+      });
     }
 
     setExpandedId(null);
@@ -853,11 +859,11 @@ export default function DataEntryPage() {
                                         type="number"
                                         step="1"
                                         className={inputClass}
-                                        value={actuals[field.key] ?? ""}
+                                        value={actuals[field.label] ?? ""}
                                         onChange={(e) =>
                                           setActuals((prev) => ({
                                             ...prev,
-                                            [field.key]: e.target.value,
+                                            [field.label]: e.target.value,
                                           }))
                                         }
                                         placeholder={`Budget: $${formData[field.key] || 0}`}
