@@ -11,6 +11,7 @@ import {
   LaborEntry,
   CogsCategory,
   LABOR_TYPES,
+  getPMName,
 } from "@/lib/types";
 import {
   formatCurrency,
@@ -418,9 +419,9 @@ export default function ProjectDetailPage() {
             />
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {project.job_number && <span>Job #: {project.job_number}</span>}
+            {project.job_number && <span className="font-medium text-foreground">Job #{project.job_number}</span>}
             {project.client && <span>Client: {project.client}</span>}
-            {project.pm && <span>PM: {project.pm}</span>}
+            {project.pm && <span>PM: {getPMName(project.pm)}</span>}
             {project.close_date && (
               <span>Close: {project.close_date}</span>
             )}
