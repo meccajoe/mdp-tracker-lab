@@ -177,7 +177,7 @@ async function lookupQbo(jobNumber: string) {
 
     return {
       qbo_project_id: customer.Id,
-      qbo_project_url: `https://app.qbo.intuit.com/app/projectdetail?projectId=${customer.Id}`,
+      qbo_project_url: `https://app.qbo.intuit.com/app/customerdetail?nameId=${customer.Id}`,
       qbo_project_name: customer.DisplayName ?? null,
     };
   } catch (error) {
