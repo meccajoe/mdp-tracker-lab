@@ -8,6 +8,7 @@ import { ProjectSummary, PM_OPTIONS, PROJECT_STATUSES, getPMName } from "@/lib/t
 import { formatCurrency, getBudgetHealthClasses } from "@/lib/constants";
 import { ProjectLinkIcons } from "@/components/project-link-icons";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/select";
 
 type SortField =
+  | "id"
   | "status"
   | "pm"
   | "close_date"
@@ -39,10 +41,11 @@ export default function ProjectsPage() {
 
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [statusFilter, setStatusFilter] = useState<string>("Active");
   const [pmFilter, setPmFilter] = useState<string>(urlPm ?? "All");
-  const [sortField, setSortField] = useState<SortField>("close_date");
+  const [sortField, setSortField] = useState<SortField>("id");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function fetchProjects() {
@@ -72,11 +75,24 @@ export default function ProjectsPage() {
   const filtered = projects.filter((p) => {
     if (statusFilter !== "All" && p.status !== statusFilter) return false;
     if (pmFilter !== "All" && p.pm !== pmFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (
+        !p.name?.toLowerCase().includes(q) &&
+        !p.client?.toLowerCase().includes(q) &&
+        !String(p.id).includes(q)
+      ) {
+        return false;
+      }
+    }
     return true;
   });
 
   const sorted = [...filtered].sort((a, b) => {
     const dir = sortDir === "asc" ? 1 : -1;
+    if (sortField === "id") {
+      return String(a.id).localeCompare(String(b.id), undefined, { numeric: true }) * dir;
+    }
     const valA = a[sortField];
     const valB = b[sortField];
     if (valA == null && valB == null) return 0;
@@ -115,7 +131,7 @@ export default function ProjectsPage() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">Status:</span>
           <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
@@ -149,13 +165,26 @@ export default function ProjectsPage() {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="w-full max-w-sm">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects..."
+          />
+        </div>
       </div>
 
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">ID</TableHead>
+              <TableHead
+                className="w-[80px] cursor-pointer select-none"
+                onClick={() => handleSort("id")}
+              >
+                Job #{sortIndicator("id")}
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Client</TableHead>
               <TableHead

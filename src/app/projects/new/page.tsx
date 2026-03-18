@@ -75,8 +75,6 @@ export default function NewProjectPage() {
       setLookupResult(result);
       setHubspotDealId(result.hubspot_deal_id);
       setHubspotDealUrl(result.hubspot_deal_url);
-      setQboProjectId(result.qbo_project_id);
-      setQboProjectUrl(result.qbo_project_url);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Lookup failed");
     } finally {

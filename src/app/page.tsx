@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const EMAIL_TO_PM: Record<string, string> = {
   "victoria@meccadesign.com": "VW",
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const [pmFilter, setPmFilter] = useState<string>("All");
   const [defaultPmSet, setDefaultPmSet] = useState(false);
   const [expensePage, setExpensePage] = useState(0);
+  const [search, setSearch] = useState("");
   const EXPENSES_PER_PAGE = 10;
 
   // Determine user role and default PM filter
@@ -96,6 +98,21 @@ export default function Dashboard() {
     pmFilter === "All"
       ? projects.filter((p) => p.status === "Active")
       : projects.filter((p) => p.status === "Active" && p.pm === pmFilter);
+
+  const searchFiltered = search
+    ? filteredProjects.filter((p) => {
+        const q = search.toLowerCase();
+        return (
+          p.name?.toLowerCase().includes(q) ||
+          p.client?.toLowerCase().includes(q) ||
+          String(p.id).includes(q)
+        );
+      })
+    : filteredProjects;
+
+  const displayedProjects = [...searchFiltered].sort((a, b) =>
+    String(b.id).localeCompare(String(a.id), undefined, { numeric: true })
+  );
 
   // Filter expenses to match the active PM filter
   const filteredExpenses = pmFilter === "All"
@@ -268,11 +285,18 @@ export default function Dashboard() {
 
       {/* Active Projects Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Active Projects</CardTitle>
+          <div className="w-full max-w-sm">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search projects..."
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          {filteredProjects.length === 0 ? (
+          {displayedProjects.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center">
               No active projects found.
             </p>
@@ -290,7 +314,7 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProjects.map((project) => {
+                {displayedProjects.map((project) => {
                   const pct = project.pct_budget_used;
                   const clampedPct = Math.min(pct, 100);
                   const health = getBudgetHealthClasses(pct);
