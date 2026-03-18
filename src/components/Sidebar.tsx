@@ -9,179 +9,160 @@ import { PM_NAMES } from "@/lib/types";
 import UserMenu from "@/components/UserMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 
-const bonusIcon = (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+const ChevronDown = () => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
 
-const navItems = [
-  {
-    href: "/",
-    label: "Dashboard",
-    exact: true,
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
-  },
-  {
-    href: "/projects",
-    label: "Projects",
-    exact: false,
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
-    ),
-  },
-];
+const ChevronRight = () => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
 
-interface BonusNavItem {
-  href: string;
-  label: string;
-  exact: boolean;
-  icon: React.ReactNode;
+function NavLink({ href, label, icon, collapsed, exact }: {
+  href: string; label: string; icon: React.ReactNode; collapsed: boolean; exact?: boolean;
+}) {
+  const pathname = usePathname();
+  const active = exact ? pathname === href : pathname.startsWith(href);
+  return (
+    <Link
+      href={href}
+      title={collapsed ? label : undefined}
+      className={`flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors
+        ${active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}
+        ${collapsed ? "justify-center" : ""}`}
+    >
+      <span className="flex-shrink-0">{icon}</span>
+      {!collapsed && <span className="truncate">{label}</span>}
+    </Link>
+  );
+}
+
+function SectionHeader({ label, open, onToggle, collapsed }: {
+  label: string; open: boolean; onToggle: () => void; collapsed: boolean;
+}) {
+  if (collapsed) return null;
+  return (
+    <button
+      onClick={onToggle}
+      className="flex items-center justify-between w-full px-2.5 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+    >
+      <span>{label}</span>
+      {open ? <ChevronDown /> : <ChevronRight />}
+    </button>
+  );
 }
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [bonusItems, setBonusItems] = useState<BonusNavItem[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [pmInitials, setPmInitials] = useState<string | null>(null);
+  const [bonusOpen, setBonusOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     async function loadRole(email: string) {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role, pm_initials")
-        .eq("email", email.toLowerCase())
-        .single();
-
-      if (roleData?.role === "admin") {
-        const items: BonusNavItem[] = Object.keys(PM_NAMES).map((init) => ({
-          href: `/pm/${init}`,
-          label: PM_NAMES[init],
-          exact: false,
-          icon: bonusIcon,
-        }));
-        setBonusItems(items);
-      } else if (roleData?.role === "pm" && roleData.pm_initials) {
-        setBonusItems([{
-          href: `/pm/${roleData.pm_initials}`,
-          label: "My Bonus",
-          exact: false,
-          icon: bonusIcon,
-        }]);
-      }
+      const { data } = await supabase.from("user_roles").select("role, pm_initials").eq("email", email.toLowerCase()).single();
+      setIsAdmin(data?.role === "admin");
+      setPmInitials(data?.pm_initials ?? null);
     }
-
-    // Load on mount from existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.email) loadRole(session.user.email);
     });
-
-    // Also reload when auth state changes (e.g. after OAuth redirect)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.email) loadRole(session.user.email);
-      else setBonusItems([]);
+      else { setIsAdmin(false); setPmInitials(null); }
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
+  // Auto-open settings if on an admin page
+  useEffect(() => {
+    if (pathname.startsWith("/admin")) setSettingsOpen(true);
+  }, [pathname]);
+
   if (pathname === "/login") return null;
 
-  const isAdmin = bonusItems.length > 1;
+  const dashIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
+  const projectsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>;
+  const bonusIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+  const purchasingIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>;
+  const usersIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
+  const dataEntryIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 18h18M3 6h18M7 3v18" /></svg>;
+  const settingsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
   return (
-    <aside
-      className={`
-        flex flex-col h-screen sticky top-0 flex-shrink-0 transition-all duration-200 ease-in-out
-        bg-background border-r border-border
-        ${collapsed ? "w-16" : "w-56"}
-      `}
-    >
-      {/* Logo + title */}
+    <aside className={`flex flex-col h-screen sticky top-0 flex-shrink-0 transition-all duration-200 ease-in-out bg-background border-r border-border ${collapsed ? "w-16" : "w-56"}`}>
+      {/* Logo */}
       <div className="flex items-center h-14 px-3 border-b border-border gap-2.5 overflow-hidden">
         <div className="w-7 h-7 rounded overflow-hidden flex-shrink-0">
           <Image src="/mdp-logo.jpg" alt="MDP" width={28} height={28} className="object-contain w-full h-full" />
         </div>
-        {!collapsed && (
-          <span className="text-sm font-semibold whitespace-nowrap text-foreground tracking-wide">
-            Project Tracker
-          </span>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
-          )}
-        </button>
+        {!collapsed && <span className="text-sm font-semibold whitespace-nowrap text-foreground tracking-wide">Project Tracker</span>}
       </div>
+
+      {/* Collapse toggle */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className={`flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border-b border-border ${collapsed ? "justify-center" : "justify-end"}`}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed
+          ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+          : <><span>Collapse</span><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg></>
+        }
+      </button>
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
-          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`
-                flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors
-                ${active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }
-                ${collapsed ? "justify-center" : ""}
-              `}
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          );
-        })}
+        {/* Core nav */}
+        <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
+        <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
 
-        {/* Bonus nav items */}
-        {bonusItems.length > 0 && (
+        {/* Team Bonuses section */}
+        {(isAdmin || pmInitials) && (
           <>
-            {!collapsed && isAdmin && (
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2.5 pt-4 pb-1">
-                Team Bonuses
-              </p>
+            <SectionHeader label="Team Bonuses" open={bonusOpen} onToggle={() => setBonusOpen(!bonusOpen)} collapsed={collapsed} />
+            {collapsed ? (
+              // Collapsed: single icon only
+              <NavLink
+                href={isAdmin ? `/pm/${Object.keys(PM_NAMES)[0]}` : `/pm/${pmInitials ?? ""}`}
+                label="Bonuses"
+                icon={bonusIcon}
+                collapsed={true}
+                exact={false}
+              />
+            ) : bonusOpen && (
+              // Expanded + open: full list
+              isAdmin
+                ? Object.keys(PM_NAMES).map((init) => (
+                    <NavLink key={init} href={`/pm/${init}`} label={PM_NAMES[init]} icon={bonusIcon} collapsed={false} exact={false} />
+                  ))
+                : pmInitials && (
+                    <NavLink href={`/pm/${pmInitials}`} label="My Bonus" icon={bonusIcon} collapsed={false} exact={false} />
+                  )
             )}
-            {bonusItems.map((item) => {
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={collapsed ? item.label : undefined}
-                  className={`
-                    flex items-center gap-3 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors
-                    ${active
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    }
-                    ${collapsed ? "justify-center" : ""}
-                  `}
-                >
-                  <span className="flex-shrink-0">{item.icon}</span>
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
+          </>
+        )}
+
+        {/* Settings section (admin only) */}
+        {isAdmin && (
+          <>
+            <SectionHeader label="Settings" open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} collapsed={collapsed} />
+            {collapsed ? (
+              // Collapsed: single icon only
+              <NavLink href="/admin/vendors" label="Settings" icon={settingsIcon} collapsed={true} exact={false} />
+            ) : settingsOpen && (
+              // Expanded + open: full list
+              <>
+                <NavLink href="/admin/data-entry" label="Data Entry" icon={dataEntryIcon} collapsed={false} exact={false} />
+                <NavLink href="/admin/vendors" label="Purchasing" icon={purchasingIcon} collapsed={false} exact={false} />
+                <NavLink href="/admin/users" label="Users" icon={usersIcon} collapsed={false} exact={false} />
+              </>
+            )}
           </>
         )}
       </nav>

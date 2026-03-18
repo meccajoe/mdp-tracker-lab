@@ -75,7 +75,7 @@ export const PM_NAMES: Record<string, string> = {
   KM: "Kristina Morland",
   KS: "Kristin Schilling",
   CC: "Carlos Chaidez",
-  MM: "Mary Mecca",
+  MM: "Maria Mecca",
 };
 
 export function getPMName(initials: string): string {

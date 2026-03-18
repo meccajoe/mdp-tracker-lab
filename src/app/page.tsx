@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { ProjectSummary, Expense, PM_OPTIONS, getPMName } from "@/lib/types";
@@ -43,7 +43,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [pmFilter, setPmFilter] = useState<string>("All");
   const [defaultPmSet, setDefaultPmSet] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [expensePage, setExpensePage] = useState(0);
+  const EXPENSES_PER_PAGE = 10;
 
   // Determine user role and default PM filter
   useEffect(() => {
@@ -96,6 +97,14 @@ export default function Dashboard() {
       ? projects.filter((p) => p.status === "Active")
       : projects.filter((p) => p.status === "Active" && p.pm === pmFilter);
 
+  // Filter expenses to match the active PM filter
+  const filteredExpenses = pmFilter === "All"
+    ? recentExpenses
+    : recentExpenses.filter((e) => {
+        const proj = projects.find((p) => p.id === e.project_id);
+        return proj?.pm === pmFilter;
+      });
+
   const overBudgetProjects = filteredProjects.filter(
     (p) => p.total_spent > p.total_budget && p.total_budget > 0
   );
@@ -118,14 +127,7 @@ export default function Dashboard() {
       ? "All Projects"
       : `${getPMName(pmFilter)} projects`;
 
-  function scrollExpenses(dir: "left" | "right") {
-    if (!scrollRef.current) return;
-    const amount = 320;
-    scrollRef.current.scrollBy({
-      left: dir === "left" ? -amount : amount,
-      behavior: "smooth",
-    });
-  }
+
 
   if (loading) {
     return (
@@ -147,7 +149,7 @@ export default function Dashboard() {
       {/* PM Filter Tags */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setPmFilter("All")}
+          onClick={() => { setPmFilter("All"); setExpensePage(0); }}
           className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
             pmFilter === "All"
               ? "bg-primary text-primary-foreground"
@@ -159,7 +161,7 @@ export default function Dashboard() {
         {PM_OPTIONS.map((initials) => (
           <button
             key={initials}
-            onClick={() => setPmFilter(initials)}
+            onClick={() => { setPmFilter(initials); setExpensePage(0); }}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               pmFilter === initials
                 ? "bg-primary text-primary-foreground"
@@ -354,91 +356,89 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Expenses — last 14 days */}
+      {/* Recent Expenses — last 14 days, paginated */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>
-            <Link href="/expenses" className="hover:underline">
-              Recent Expenses (last 14 days)
-            </Link>
+          <CardTitle className="text-base">
+            Recent Expenses
+            <span className="text-muted-foreground font-normal text-sm ml-2">(last 14 days)</span>
           </CardTitle>
           <Link href="/expenses">
-            <Button variant="outline" size="sm">
-              See all expenses &rarr;
-            </Button>
+            <Button variant="outline" size="sm">See all →</Button>
           </Link>
         </CardHeader>
-        <CardContent>
-          {recentExpenses.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center">
-              No expenses in the last 14 days.
-            </p>
-          ) : (
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 rounded-full shadow"
-                onClick={() => scrollExpenses("left")}
-              >
-                &lsaquo;
-              </Button>
-              <div
-                ref={scrollRef}
-                className="flex gap-4 overflow-x-auto px-10 pb-2 scrollbar-hide"
-              >
-                {recentExpenses.map((expense) => {
-                  const project = projects.find(
-                    (p) => p.id === expense.project_id
-                  );
-                  return (
-                    <div
-                      key={expense.id}
-                      className="min-w-[280px] max-w-[300px] flex-shrink-0 rounded-lg border bg-card p-4 space-y-2"
+        <CardContent className="p-0">
+          {filteredExpenses.length === 0 ? (
+            <p className="text-muted-foreground py-8 text-center text-sm">No expenses in the last 14 days.</p>
+          ) : (() => {
+            const totalPages = Math.ceil(filteredExpenses.length / EXPENSES_PER_PAGE);
+            const pageExpenses = filteredExpenses.slice(expensePage * EXPENSES_PER_PAGE, (expensePage + 1) * EXPENSES_PER_PAGE);
+            return (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pageExpenses.map((expense) => {
+                      const project = projects.find((p) => p.id === expense.project_id);
+                      return (
+                        <TableRow key={expense.id}>
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                            {new Date(expense.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </TableCell>
+                          <TableCell>
+                            {project ? (
+                              <Link href={`/projects/${project.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+                                {project.name}
+                              </Link>
+                            ) : (
+                              <span className="text-sm">{expense.project_id}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">{expense.vendor ?? "-"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{expense.category}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">{formatCurrency(expense.amount)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 py-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-full"
+                      disabled={expensePage === 0}
+                      onClick={() => setExpensePage((p) => p - 1)}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(expense.date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                        <span className="font-mono font-semibold text-sm">
-                          {formatCurrency(expense.amount)}
-                        </span>
-                      </div>
-                      <div>
-                        {project ? (
-                          <Link
-                            href={`/projects/${project.id}`}
-                            className="text-sm font-medium text-blue-600 hover:underline"
-                          >
-                            {project.name}
-                          </Link>
-                        ) : (
-                          <span className="text-sm font-medium">
-                            {expense.project_id}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{expense.vendor ?? "-"}</span>
-                        <span>{expense.category}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 rounded-full shadow"
-                onClick={() => scrollExpenses("right")}
-              >
-                &rsaquo;
-              </Button>
-            </div>
-          )}
+                      ‹
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      {expensePage + 1} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-full"
+                      disabled={expensePage >= totalPages - 1}
+                      onClick={() => setExpensePage((p) => p + 1)}
+                    >
+                      ›
+                    </Button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>
