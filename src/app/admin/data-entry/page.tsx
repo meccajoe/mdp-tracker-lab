@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-lookups";
 import { Project, PM_OPTIONS, PM_NAMES } from "@/lib/types";
-import { formatCurrency } from "@/lib/constants";
+import { BUDGET_FIELDS, formatCurrency } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { Button } from "@/components/ui/button";
 
@@ -64,6 +64,8 @@ export default function DataEntryPage() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState<ProjectLookupResult | null>(null);
+  const [actuals, setActuals] = useState<Record<string, string>>({});
+  const [actualsLoading, setActualsLoading] = useState(false);
 
   useEffect(() => {
     async function checkAccess() {
@@ -99,7 +101,7 @@ export default function DataEntryPage() {
     fetchProjects();
   }, [fetchProjects]);
 
-  function openEdit(project: EditableProject) {
+  async function openEdit(project: EditableProject) {
     setExpandedId(project.id);
     setDeleting(null);
     setFormData({
@@ -128,6 +130,33 @@ export default function DataEntryPage() {
       _isNew: project._isNew ?? false,
     });
     setLookupResult(null);
+    setActuals({});
+
+    if (!project._isNew) {
+      setActualsLoading(true);
+      const { data } = await supabase
+        .from("project_actuals")
+        .select("category, manual_amount")
+        .eq("project_id", project.id);
+      const map: Record<string, string> = {};
+      if (data) {
+        data.forEach((r: { category: string; manual_amount: number | null }) => {
+          if (r.manual_amount != null) map[r.category] = String(r.manual_amount);
+        });
+      }
+      const { data: laborData } = await supabase
+        .from("labor_entries")
+        .select("hours")
+        .eq("project_id", project.id);
+      const totalHrs =
+        laborData?.reduce(
+          (sum: number, e: { hours: number }) => sum + (e.hours || 0),
+          0
+        ) ?? 0;
+      if (totalHrs > 0) map["labor_hours_used"] = String(totalHrs);
+      setActuals(map);
+      setActualsLoading(false);
+    }
   }
 
   function openNewProject() {
@@ -191,6 +220,8 @@ export default function DataEntryPage() {
       _isNew: true,
     });
     setLookupResult(null);
+    setActuals({});
+    setActualsLoading(false);
   }
 
   function cancelEdit() {
@@ -200,6 +231,8 @@ export default function DataEntryPage() {
     setFormData({});
     setDeleting(null);
     setLookupResult(null);
+    setActuals({});
+    setActualsLoading(false);
   }
 
   function updateForm(field: string, value: unknown) {
@@ -312,8 +345,39 @@ export default function DataEntryPage() {
       toast.success(`Saved ${projectId}`);
     }
 
+    for (const [category, amountStr] of Object.entries(actuals)) {
+      if (category === "labor_hours_used") continue;
+      const amount = amountStr === "" ? null : Number(amountStr);
+      if (amount !== null) {
+        await supabase.from("project_actuals").upsert(
+          {
+            project_id: projectId,
+            category,
+            manual_amount: amount,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "project_id,category" }
+        );
+      }
+    }
+
+    const laborHrsStr = actuals["labor_hours_used"];
+    if (laborHrsStr && Number(laborHrsStr) > 0) {
+      await supabase.from("labor_entries").upsert(
+        {
+          project_id: projectId,
+          hours: Number(laborHrsStr),
+          labor_type: "Manual Entry",
+          notes: "Updated via data entry",
+          date: new Date().toISOString().split("T")[0],
+        },
+        { onConflict: "project_id,labor_type" }
+      );
+    }
+
     setExpandedId(null);
     setFormData({});
+    setActuals({});
     setSaving(false);
     await fetchProjects();
   }
@@ -544,6 +608,15 @@ export default function DataEntryPage() {
                                 <ProjectLookupStatus loading={lookupLoading} result={lookupResult} />
                               </div>
                             </FormField>
+                            <FormField label="QBO Project URL">
+                              <input
+                                type="text"
+                                className={inputClass}
+                                value={(formData.qbo_project_url as string) ?? ""}
+                                onChange={(e) => updateForm("qbo_project_url", e.target.value)}
+                                placeholder="Paste from QuickBooks project page"
+                              />
+                            </FormField>
                             <FormField label="Project Name">
                               <input
                                 type="text"
@@ -742,6 +815,59 @@ export default function DataEntryPage() {
                               />
                             </FormField>
                           </div>
+
+                          {!formData._isNew && (
+                            <div className="border-t border-border pt-4">
+                              <h4 className="text-sm font-semibold text-foreground mb-3">
+                                Actual Spend
+                              </h4>
+                              {actualsLoading ? (
+                                <p className="text-sm text-muted-foreground">
+                                  Loading actuals...
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  <FormField label="Labor Hours Used">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="number"
+                                        step="0.5"
+                                        className={inputClass}
+                                        value={actuals["labor_hours_used"] ?? ""}
+                                        onChange={(e) =>
+                                          setActuals((prev) => ({
+                                            ...prev,
+                                            labor_hours_used: e.target.value,
+                                          }))
+                                        }
+                                        placeholder={`Budget: ${formData.budget_hrs || 0} hrs`}
+                                      />
+                                    </div>
+                                  </FormField>
+                                  {BUDGET_FIELDS.filter((f) => !f.isHours).map((field) => (
+                                    <FormField
+                                      key={field.key}
+                                      label={`${field.label} Actual $`}
+                                    >
+                                      <input
+                                        type="number"
+                                        step="1"
+                                        className={inputClass}
+                                        value={actuals[field.key] ?? ""}
+                                        onChange={(e) =>
+                                          setActuals((prev) => ({
+                                            ...prev,
+                                            [field.key]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder={`Budget: $${formData[field.key] || 0}`}
+                                      />
+                                    </FormField>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Row 6 — Notes */}
                           <FormField label="Notes">
