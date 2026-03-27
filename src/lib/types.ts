@@ -25,6 +25,13 @@ export interface Project {
   created_at: string;
   updated_at: string;
   // Quote amounts (admin-only, entered by Emily from the proposal)
+  budget_materials: number | null;
+  // Quote amounts (admin-only, not shown to PMs)
+  quote_labor: number | null;
+  quote_materials: number | null;
+  // Per-project L&M pct overrides
+  pct_labor: number | null;
+  pct_materials: number | null;
   quote_design: number | null;
   quote_pm: number | null;
   quote_shipping: number | null;

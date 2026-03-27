@@ -73,6 +73,7 @@ import {
 
 // Map budget field keys to expense category names (best-effort matching)
 const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
+  budget_materials: ["Fabrication", "fabrication", "Materials", "materials", "Fab Supplies and Small Equipment"],
   budget_design: ["Design", "design"],
   budget_pm: ["Project Management", "PM", "pm"],
   budget_shipping: ["Shipping", "shipping", "Freight"],

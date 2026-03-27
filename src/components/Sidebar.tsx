@@ -151,7 +151,7 @@ export default function Sidebar() {
         {/* Settings section (admin only) */}
         {isAdmin && (
           <>
-            <SectionHeader label="Settings" open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} collapsed={collapsed} />
+            <SectionHeader label="Budgets" open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} collapsed={collapsed} />
             {collapsed ? (
               // Collapsed: single icon only
               <NavLink href="/admin/vendors" label="Settings" icon={settingsIcon} collapsed={true} exact={false} />

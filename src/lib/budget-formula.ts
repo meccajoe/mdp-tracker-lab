@@ -1,4 +1,6 @@
 export const HARDCODED_DEFAULT_PCTS: Record<string, number> = {
+  labor: 25,
+  materials: 25,
   design: 50,
   pm: 75,
   shipping: 70,
@@ -10,7 +12,6 @@ export const HARDCODED_DEFAULT_PCTS: Record<string, number> = {
 };
 
 export const LABOR_RATE_PER_HR = 30;
-export const LABOR_MATERIALS_PCT = 0.25; // 25% of contract amount each
 
 export const BUDGET_CATEGORIES = [
   { key: "design",    label: "Design",            quoteKey: "quote_design",    budgetKey: "budget_design",    pctKey: "pct_design" },
@@ -30,12 +31,12 @@ export function calcBudget(quote: number | null | undefined, pct: number): numbe
   return Math.round(quote * pct / 100);
 }
 
-export function calcLaborHrs(contractAmount: number | null | undefined): number | null {
+export function calcLaborHrs(contractAmount: number | null | undefined, pct: number): number | null {
   if (!contractAmount) return null;
-  return Math.round((contractAmount * LABOR_MATERIALS_PCT) / LABOR_RATE_PER_HR);
+  return Math.round((contractAmount * pct / 100) / LABOR_RATE_PER_HR);
 }
 
-export function calcMaterialsBudget(contractAmount: number | null | undefined): number | null {
+export function calcMaterialsBudget(contractAmount: number | null | undefined, pct: number): number | null {
   if (!contractAmount) return null;
-  return Math.round(contractAmount * LABOR_MATERIALS_PCT);
+  return Math.round(contractAmount * pct / 100);
 }

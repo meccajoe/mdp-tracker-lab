@@ -7,6 +7,7 @@ import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-look
 import { Project, PM_OPTIONS, PM_NAMES } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
 import { BUDGET_CATEGORIES, HARDCODED_DEFAULT_PCTS, calcBudget, calcLaborHrs, calcMaterialsBudget, LABOR_RATE_PER_HR } from "@/lib/budget-formula";
+import { formatNumber } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { Button } from "@/components/ui/button";
 import { BUDGET_FIELDS } from "@/lib/constants";
@@ -46,46 +47,178 @@ const smallInputClass = "rounded-md border border-border bg-background px-2 py-1
 interface BudgetFormulaSectionProps {
   contractAmount: number | null;
   globalPcts: Record<string, number>;
-  quotes: Record<string, string>;
-  setQuotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   projectPcts: Record<string, string>;
   setProjectPcts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   budgetOverrides: Record<string, string>;
   setBudgetOverrides: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  budgetHrsOverride: string;
-  setBudgetHrsOverride: (v: string) => void;
+  quotes: Record<string, string>;
+  setQuotes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}
+
+function OverrideRow({
+  label,
+  catKey,
+  formulaValue,
+  formulaDisplay,
+  globalPcts,
+  projectPcts,
+  setProjectPcts,
+  budgetOverrides,
+  setBudgetOverrides,
+  hideQuote = false,
+  quoteLabel,
+}: {
+  label: string;
+  catKey: string;
+  formulaValue: number | null;
+  formulaDisplay: React.ReactNode;
+  globalPcts: Record<string, number>;
+  projectPcts: Record<string, string>;
+  setProjectPcts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  budgetOverrides: Record<string, string>;
+  setBudgetOverrides: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  hideQuote?: boolean;
+  quoteLabel?: string;
+}) {
+  const isProjectPctOverridden = projectPcts[catKey] !== undefined && projectPcts[catKey] !== "";
+  const effectivePct = isProjectPctOverridden
+    ? Number(projectPcts[catKey])
+    : (globalPcts[catKey] ?? HARDCODED_DEFAULT_PCTS[catKey]);
+  const isBudgetOverridden = budgetOverrides[catKey] !== undefined && budgetOverrides[catKey] !== "";
+
+  return (
+    <div className="grid grid-cols-[160px_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
+      <span className="text-sm font-medium">{label}</span>
+
+      {/* % input */}
+      <div className="flex items-center gap-1">
+        <input
+          type="number" step="1" min="1" max="100"
+          className={smallInputClass + " w-14 text-center"}
+          value={projectPcts[catKey] ?? effectivePct}
+          onChange={(e) => setProjectPcts((prev) => ({ ...prev, [catKey]: e.target.value }))}
+        />
+        <span className="text-xs text-muted-foreground">%</span>
+      </div>
+
+      {/* Reset % */}
+      <div className="flex items-center justify-center">
+        {isProjectPctOverridden && (
+          <button
+            onClick={() => setProjectPcts((prev) => { const n = { ...prev }; delete n[catKey]; return n; })}
+            title="Reset to global default"
+            className="text-muted-foreground hover:text-foreground text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
+          >↺</button>
+        )}
+      </div>
+
+      {/* Formula result + override */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {!isBudgetOverridden && (
+          <span className={`text-sm font-medium min-w-[90px] ${formulaValue ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+            {formulaDisplay}
+          </span>
+        )}
+        {isBudgetOverridden ? (
+          <>
+            <input
+              type="number" step="1" min="0"
+              className={smallInputClass + " w-28"}
+              value={budgetOverrides[catKey] ?? ""}
+              onChange={(e) => setBudgetOverrides((prev) => ({ ...prev, [catKey]: e.target.value }))}
+            />
+            <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded font-medium whitespace-nowrap">✏ manual</span>
+            <button onClick={() => setBudgetOverrides((prev) => { const n = { ...prev }; delete n[catKey]; return n; })} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+            {formulaValue && <span className="text-xs text-muted-foreground whitespace-nowrap">(formula: {typeof formulaDisplay === "string" ? formulaDisplay : formulaValue})</span>}
+          </>
+        ) : (
+          <button
+            onClick={() => setBudgetOverrides((prev) => ({ ...prev, [catKey]: formulaValue ? String(formulaValue) : "" }))}
+            className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed"
+          >override</button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function BudgetFormulaSection({
   contractAmount,
   globalPcts,
-  quotes,
-  setQuotes,
   projectPcts,
   setProjectPcts,
   budgetOverrides,
   setBudgetOverrides,
-  budgetHrsOverride,
-  setBudgetHrsOverride,
+  quotes,
+  setQuotes,
 }: BudgetFormulaSectionProps) {
-  const autoLaborHrs = calcLaborHrs(contractAmount);
-  const autoMaterials = calcMaterialsBudget(contractAmount);
+  const laborPct = projectPcts["labor"] !== undefined && projectPcts["labor"] !== ""
+    ? Number(projectPcts["labor"])
+    : (globalPcts["labor"] ?? HARDCODED_DEFAULT_PCTS["labor"]);
+  const materialsPct = projectPcts["materials"] !== undefined && projectPcts["materials"] !== ""
+    ? Number(projectPcts["materials"])
+    : (globalPcts["materials"] ?? HARDCODED_DEFAULT_PCTS["materials"]);
+
+  const autoLaborHrs = calcLaborHrs(contractAmount, laborPct);
+  const autoLaborDollars = autoLaborHrs != null ? autoLaborHrs * LABOR_RATE_PER_HR : null;
+  const autoMaterials = calcMaterialsBudget(contractAmount, materialsPct);
+
+  const rowProps = { globalPcts, projectPcts, setProjectPcts, budgetOverrides, setBudgetOverrides };
 
   return (
     <div className="space-y-4">
+      {/* Labor & Materials — first */}
+      <div>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          Labor &amp; Materials <span className="normal-case font-normal">(% of contract amount)</span>
+        </h4>
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="grid grid-cols-[160px_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
+            <span>Category</span>
+            <span>% of Contract</span>
+            <span />
+            <span>Budget</span>
+          </div>
+
+          {/* Labor */}
+          <OverrideRow
+            label="Labor"
+            catKey="labor"
+            formulaValue={autoLaborHrs}
+            formulaDisplay={contractAmount ? (
+              <span>
+                <span className="font-medium">{autoLaborHrs ?? "—"} hrs</span>
+                <span className="text-xs text-muted-foreground ml-1">({formatCurrency(autoLaborDollars)})</span>
+              </span>
+            ) : <span className="text-muted-foreground/60 text-xs">Enter contract amount</span>}
+            {...rowProps}
+          />
+
+          {/* Materials */}
+          <OverrideRow
+            label="Materials"
+            catKey="materials"
+            formulaValue={autoMaterials}
+            formulaDisplay={contractAmount
+              ? <span className="font-medium">{formatCurrency(autoMaterials)}</span>
+              : <span className="text-muted-foreground/60 text-xs">Enter contract amount</span>}
+            {...rowProps}
+          />
+        </div>
+      </div>
+
       {/* Non-L&M Categories */}
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Non-Labor &amp; Materials Budget
         </h4>
         <div className="rounded-lg border border-border overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-[160px_1fr_80px_auto_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-[160px_1fr_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
             <span>Category</span>
             <span>Quote Amount</span>
             <span>% Rate</span>
             <span className="w-6" />
-            <span>Budget (saved to project)</span>
+            <span>Budget</span>
           </div>
           {BUDGET_CATEGORIES.map((cat) => {
             const effectivePct = projectPcts[cat.key] !== undefined && projectPcts[cat.key] !== ""
@@ -95,176 +228,53 @@ function BudgetFormulaSection({
             const quoteVal = quotes[cat.key] ? Number(quotes[cat.key]) : null;
             const formulaResult = calcBudget(quoteVal, effectivePct);
             const isBudgetOverridden = budgetOverrides[cat.key] !== undefined && budgetOverrides[cat.key] !== "";
-            const displayBudget = isBudgetOverridden ? Number(budgetOverrides[cat.key]) : formulaResult;
 
             return (
-              <div
-                key={cat.key}
-                className="grid grid-cols-[160px_1fr_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors"
-              >
-                {/* Label */}
+              <div key={cat.key} className="grid grid-cols-[160px_1fr_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                 <span className="text-sm font-medium">{cat.label}</span>
-
-                {/* Quote $ */}
                 <input
-                  type="number"
-                  step="1"
-                  min="0"
+                  type="number" step="1" min="0"
                   className={smallInputClass + " w-full"}
                   value={quotes[cat.key] ?? ""}
                   onChange={(e) => setQuotes((prev) => ({ ...prev, [cat.key]: e.target.value }))}
                   placeholder="Quote $"
                 />
-
-                {/* % input */}
                 <div className="flex items-center gap-1">
                   <input
-                    type="number"
-                    step="1"
-                    min="1"
-                    max="100"
+                    type="number" step="1" min="1" max="100"
                     className={smallInputClass + " w-14 text-center"}
                     value={projectPcts[cat.key] ?? effectivePct}
                     onChange={(e) => setProjectPcts((prev) => ({ ...prev, [cat.key]: e.target.value }))}
                   />
                   <span className="text-xs text-muted-foreground">%</span>
                 </div>
-
-                {/* Reset % button */}
                 <div className="flex items-center justify-center">
                   {isProjectPctOverridden && (
-                    <button
-                      onClick={() => setProjectPcts((prev) => { const n = { ...prev }; delete n[cat.key]; return n; })}
-                      title="Reset to global default"
-                      className="text-muted-foreground hover:text-foreground text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
-                    >
-                      ↺
-                    </button>
+                    <button onClick={() => setProjectPcts((prev) => { const n = { ...prev }; delete n[cat.key]; return n; })} title="Reset to global default" className="text-muted-foreground hover:text-foreground text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-muted transition-colors">↺</button>
                   )}
                 </div>
-
-                {/* Budget result / override */}
                 <div className="flex items-center gap-2">
-                  {/* Formula result */}
                   {!isBudgetOverridden && (
                     <span className={`text-sm font-medium min-w-[80px] ${formulaResult ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
                       {formulaResult ? formatCurrency(formulaResult) : "—"}
                     </span>
                   )}
-
-                  {/* Override input */}
                   <div className="flex items-center gap-1.5 flex-1">
                     {isBudgetOverridden ? (
                       <>
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          className={smallInputClass + " w-28"}
-                          value={budgetOverrides[cat.key] ?? ""}
-                          onChange={(e) => setBudgetOverrides((prev) => ({ ...prev, [cat.key]: e.target.value }))}
-                        />
-                        <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded font-medium whitespace-nowrap">
-                          ✏ manual
-                        </span>
-                        <button
-                          onClick={() => setBudgetOverrides((prev) => { const n = { ...prev }; delete n[cat.key]; return n; })}
-                          title="Remove override, use formula"
-                          className="text-muted-foreground hover:text-foreground text-xs"
-                        >
-                          ✕
-                        </button>
-                        {formulaResult && (
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            (formula: {formatCurrency(formulaResult)})
-                          </span>
-                        )}
+                        <input type="number" step="1" min="0" className={smallInputClass + " w-28"} value={budgetOverrides[cat.key] ?? ""} onChange={(e) => setBudgetOverrides((prev) => ({ ...prev, [cat.key]: e.target.value }))} />
+                        <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded font-medium whitespace-nowrap">✏ manual</span>
+                        <button onClick={() => setBudgetOverrides((prev) => { const n = { ...prev }; delete n[cat.key]; return n; })} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+                        {formulaResult && <span className="text-xs text-muted-foreground whitespace-nowrap">(formula: {formatCurrency(formulaResult)})</span>}
                       </>
                     ) : (
-                      <button
-                        onClick={() => setBudgetOverrides((prev) => ({ ...prev, [cat.key]: formulaResult ? String(formulaResult) : "" }))}
-                        className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed"
-                      >
-                        override
-                      </button>
+                      <button onClick={() => setBudgetOverrides((prev) => ({ ...prev, [cat.key]: formulaResult ? String(formulaResult) : "" }))} className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed">override</button>
                     )}
                   </div>
                 </div>
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Labor & Materials (from contract amount) */}
-      <div>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Labor &amp; Materials <span className="normal-case font-normal">(25% of contract amount each)</span>
-        </h4>
-        <div className="rounded-lg border border-border overflow-hidden">
-          {/* Labor Hours */}
-          <div className="grid grid-cols-[160px_1fr_1fr] gap-4 items-center px-4 py-3 border-b border-border/50 hover:bg-muted/20 transition-colors">
-            <span className="text-sm font-medium">Labor Hours</span>
-            <div className="text-sm text-muted-foreground">
-              {contractAmount ? (
-                <span>
-                  {formatCurrency(contractAmount)} × 25% ÷ ${LABOR_RATE_PER_HR}/hr
-                  {" = "}
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                    {autoLaborHrs} hrs
-                  </span>
-                  {" "}
-                  <span className="text-xs">({formatCurrency((autoLaborHrs ?? 0) * LABOR_RATE_PER_HR)})</span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground/60">Enter contract amount above</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                step="0.5"
-                min="0"
-                className={smallInputClass + " w-28"}
-                value={budgetHrsOverride}
-                onChange={(e) => setBudgetHrsOverride(e.target.value)}
-                placeholder={autoLaborHrs ? `${autoLaborHrs} hrs (auto)` : "hrs override"}
-              />
-              {budgetHrsOverride && (
-                <>
-                  <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded font-medium">
-                    ✏ manual
-                  </span>
-                  <button
-                    onClick={() => setBudgetHrsOverride("")}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    ✕
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Materials (info only) */}
-          <div className="grid grid-cols-[160px_1fr_1fr] gap-4 items-center px-4 py-3 hover:bg-muted/20 transition-colors">
-            <span className="text-sm font-medium">Materials Budget</span>
-            <div className="text-sm text-muted-foreground">
-              {contractAmount ? (
-                <span>
-                  {formatCurrency(contractAmount)} × 25%
-                  {" = "}
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                    {formatCurrency(autoMaterials)}
-                  </span>
-                  <span className="text-xs ml-2 text-muted-foreground/70">(tracked via expense categories)</span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground/60">Enter contract amount above</span>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground italic">Informational — tracked through expenses</span>
-          </div>
         </div>
       </div>
     </div>
@@ -294,7 +304,6 @@ export default function DataEntryPage() {
   const [quotes, setQuotes] = useState<Record<string, string>>({});
   const [projectPcts, setProjectPcts] = useState<Record<string, string>>({});
   const [budgetOverrides, setBudgetOverrides] = useState<Record<string, string>>({});
-  const [budgetHrsOverride, setBudgetHrsOverride] = useState<string>("");
 
   useEffect(() => {
     async function checkAccess() {
@@ -366,11 +375,20 @@ export default function DataEntryPage() {
       }
     }
 
+    // L&M pct overrides
+    if ((project as unknown as Record<string, unknown>)["pct_labor"] != null)
+      newProjectPcts["labor"] = String((project as unknown as Record<string, unknown>)["pct_labor"]);
+    if ((project as unknown as Record<string, unknown>)["pct_materials"] != null)
+      newProjectPcts["materials"] = String((project as unknown as Record<string, unknown>)["pct_materials"]);
+
+    // If budget_hrs or budget_materials exist with no contract to derive them, treat as overrides
+    if (project.budget_hrs != null) newBudgetOverrides["labor"] = String(project.budget_hrs);
+    if ((project as unknown as Record<string, unknown>)["budget_materials"] != null)
+      newBudgetOverrides["materials"] = String((project as unknown as Record<string, unknown>)["budget_materials"]);
+
     setQuotes(newQuotes);
     setProjectPcts(newProjectPcts);
     setBudgetOverrides(newBudgetOverrides);
-    // budget_hrs: if no contract-based auto calc, treat existing as override
-    setBudgetHrsOverride(project.budget_hrs != null ? String(project.budget_hrs) : "");
 
     setLookupResult(null);
     setActuals({});
@@ -397,6 +415,9 @@ export default function DataEntryPage() {
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
       budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
       budget_flooring: null, notes: null, project_type: null, created_at: "", updated_at: "",
+      budget_materials: null,
+      quote_labor: null, quote_materials: null,
+      pct_labor: null, pct_materials: null,
       quote_design: null, quote_pm: null, quote_shipping: null, quote_id_labor: null,
       quote_travel: null, quote_props: null, quote_equipment: null, quote_flooring: null,
       pct_design: null, pct_pm: null, pct_shipping: null, pct_id_labor: null,
@@ -413,7 +434,6 @@ export default function DataEntryPage() {
     setQuotes({});
     setProjectPcts({});
     setBudgetOverrides({});
-    setBudgetHrsOverride("");
   }
 
   function cancelEdit() {
@@ -426,7 +446,6 @@ export default function DataEntryPage() {
     setQuotes({});
     setProjectPcts({});
     setBudgetOverrides({});
-    setBudgetHrsOverride("");
   }
 
   function updateForm(field: string, value: unknown) {
@@ -474,8 +493,20 @@ export default function DataEntryPage() {
         budgets[cat.budgetKey] = null;
       }
     }
-    // Labor hours
-    budgets["budget_hrs"] = budgetHrsOverride ? Number(budgetHrsOverride) : calcLaborHrs(contractAmount);
+    // Labor hours (from labor % or override)
+    const laborPct = projectPcts["labor"] !== undefined && projectPcts["labor"] !== ""
+      ? Number(projectPcts["labor"])
+      : (globalPcts["labor"] ?? HARDCODED_DEFAULT_PCTS["labor"]);
+    const materialsPct = projectPcts["materials"] !== undefined && projectPcts["materials"] !== ""
+      ? Number(projectPcts["materials"])
+      : (globalPcts["materials"] ?? HARDCODED_DEFAULT_PCTS["materials"]);
+
+    budgets["budget_hrs"] = budgetOverrides["labor"]
+      ? Number(budgetOverrides["labor"])
+      : calcLaborHrs(contractAmount, laborPct);
+    budgets["budget_materials"] = budgetOverrides["materials"]
+      ? Number(budgetOverrides["materials"])
+      : calcMaterialsBudget(contractAmount, materialsPct);
     return budgets;
   }
 
@@ -504,9 +535,11 @@ export default function DataEntryPage() {
       qbo_project_id: formData.qbo_project_id ?? null,
       qbo_project_url: formData.qbo_project_url ?? null,
       notes: (formData.notes as string).trim() || null,
-      // Computed budgets
+      // Computed budgets (includes budget_hrs, budget_materials, and all non-L&M)
       ...budgets,
       // Quote amounts
+      quote_labor: null, // L&M uses contract %, no quote
+      quote_materials: null,
       quote_design: numVal(quotes.design),
       quote_pm: numVal(quotes.pm),
       quote_shipping: numVal(quotes.shipping),
@@ -516,6 +549,8 @@ export default function DataEntryPage() {
       quote_equipment: numVal(quotes.equipment),
       quote_flooring: numVal(quotes.flooring),
       // Per-project % overrides
+      pct_labor: projectPcts.labor ? Number(projectPcts.labor) : null,
+      pct_materials: projectPcts.materials ? Number(projectPcts.materials) : null,
       pct_design: projectPcts.design ? Number(projectPcts.design) : null,
       pct_pm: projectPcts.pm ? Number(projectPcts.pm) : null,
       pct_shipping: projectPcts.shipping ? Number(projectPcts.shipping) : null,
@@ -557,7 +592,6 @@ export default function DataEntryPage() {
     setQuotes({});
     setProjectPcts({});
     setBudgetOverrides({});
-    setBudgetHrsOverride("");
     setSaving(false);
     await fetchProjects();
   }
@@ -734,8 +768,6 @@ export default function DataEntryPage() {
                                 setProjectPcts={setProjectPcts}
                                 budgetOverrides={budgetOverrides}
                                 setBudgetOverrides={setBudgetOverrides}
-                                budgetHrsOverride={budgetHrsOverride}
-                                setBudgetHrsOverride={setBudgetHrsOverride}
                               />
                             </div>
 
