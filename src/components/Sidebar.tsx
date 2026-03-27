@@ -60,7 +60,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pmInitials, setPmInitials] = useState<string | null>(null);
-  const [bonusOpen, setBonusOpen] = useState(true);
+  const [bonusOpen, setBonusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {

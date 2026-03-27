@@ -155,7 +155,7 @@ export default function Dashboard() {
       ? "All Projects"
       : `${getPMName(pmFilter)} projects`;
 
-
+  const [chartOpen, setChartOpen] = useState(false);
 
   if (loading) {
     return (
@@ -294,57 +294,6 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Budget vs Spend Bar Chart */}
-      {displayedProjects.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Budget vs Spend — Active Projects</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Blue = total budget · Green = committed spend · Red bar = over budget
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(280, displayedProjects.length * 32)}>
-              <BarChart
-                layout="vertical"
-                data={displayedProjects.map((p) => ({
-                  name: p.name.length > 22 ? p.name.slice(0, 22) + "…" : p.name,
-                  Budget: Math.round(p.total_budget),
-                  Spend: Math.round(p.total_spent),
-                  overBudget: p.total_spent > p.total_budget && p.total_budget > 0,
-                }))}
-                margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
-              >
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fontSize: 11 }}
-                  width={160}
-                />
-                <Tooltip
-                  formatter={(value, name) => [formatCurrency(Number(value)), String(name)]}
-                />
-                <Legend />
-                <Bar dataKey="Budget" fill="#3b82f6" radius={[0, 3, 3, 0]} maxBarSize={14} />
-                <Bar dataKey="Spend" radius={[0, 3, 3, 0]} maxBarSize={14}>
-                  {displayedProjects.map((p, i) => (
-                    <Cell
-                      key={i}
-                      fill={p.total_spent > p.total_budget && p.total_budget > 0 ? "#ef4444" : "#10b981"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Active Projects Table */}
       <Card>
         <CardHeader className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -441,6 +390,71 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Budget vs Spend Bar Chart — collapsible */}
+      {displayedProjects.length > 0 && (
+        <Card>
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setChartOpen((o) => !o)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Budget vs Spend — Active Projects</CardTitle>
+                {chartOpen && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Blue = total budget · Green = committed spend · Red bar = over budget
+                  </p>
+                )}
+              </div>
+              <span className="text-muted-foreground text-sm ml-4">
+                {chartOpen ? "▲ Hide" : "▼ Show"}
+              </span>
+            </div>
+          </CardHeader>
+          {chartOpen && (
+            <CardContent>
+              <ResponsiveContainer width="100%" height={Math.max(280, displayedProjects.length * 32)}>
+                <BarChart
+                  layout="vertical"
+                  data={displayedProjects.map((p) => ({
+                    name: p.name.length > 22 ? p.name.slice(0, 22) + "…" : p.name,
+                    Budget: Math.round(p.total_budget),
+                    Spend: Math.round(p.total_spent),
+                    overBudget: p.total_spent > p.total_budget && p.total_budget > 0,
+                  }))}
+                  margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
+                >
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    width={160}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => [formatCurrency(Number(value)), String(name)]}
+                  />
+                  <Legend />
+                  <Bar dataKey="Budget" fill="#3b82f6" radius={[0, 3, 3, 0]} maxBarSize={14} />
+                  <Bar dataKey="Spend" radius={[0, 3, 3, 0]} maxBarSize={14}>
+                    {displayedProjects.map((p, i) => (
+                      <Cell
+                        key={i}
+                        fill={p.total_spent > p.total_budget && p.total_budget > 0 ? "#ef4444" : "#10b981"}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Recent Expenses — last 14 days, paginated */}
       <Card>
