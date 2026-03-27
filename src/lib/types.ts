@@ -6,7 +6,7 @@ export interface Project {
   job_number: string | null;
   close_date: string | null;
   contract_amount: number | null;
-  status: "Active" | "Completed" | "On Hold";
+  status: "Active" | "Completed" | "On Hold" | "Pending";
   notes: string | null;
   hubspot_deal_id: string | null;
   hubspot_deal_url: string | null;
@@ -24,6 +24,24 @@ export interface Project {
   project_type: string | null;
   created_at: string;
   updated_at: string;
+  // Quote amounts (admin-only, entered by Emily from the proposal)
+  quote_design: number | null;
+  quote_pm: number | null;
+  quote_shipping: number | null;
+  quote_id_labor: number | null;
+  quote_travel: number | null;
+  quote_props: number | null;
+  quote_equipment: number | null;
+  quote_flooring: number | null;
+  // Per-project % overrides (null = use global default)
+  pct_design: number | null;
+  pct_pm: number | null;
+  pct_shipping: number | null;
+  pct_id_labor: number | null;
+  pct_travel: number | null;
+  pct_props: number | null;
+  pct_equipment: number | null;
+  pct_flooring: number | null;
 }
 
 export interface ProjectSummary extends Project {

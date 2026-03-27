@@ -161,6 +161,7 @@ export default function Sidebar() {
                 <NavLink href="/admin/data-entry" label="Data Entry" icon={dataEntryIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/vendors" label="Purchasing" icon={purchasingIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/users" label="Users" icon={usersIcon} collapsed={false} exact={false} />
+                <NavLink href="/admin/settings" label="Settings" icon={settingsIcon} collapsed={false} exact={false} />
               </>
             )}
           </>
