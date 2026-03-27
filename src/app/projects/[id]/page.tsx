@@ -71,17 +71,81 @@ import {
   Cell,
 } from "recharts";
 
-// Map budget field keys to expense category names (best-effort matching)
+// Map budget field keys to expense/COGS category names
+// Based on HubSpot SKUs and COGS codes — confirmed with Paul & Emily 2026-03-27
 const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
-  budget_materials: ["Fabrication", "fabrication", "Materials", "materials", "Fab Supplies and Small Equipment"],
-  budget_design: ["Design", "design"],
-  budget_pm: ["Project Management", "PM", "pm"],
-  budget_shipping: ["Shipping", "shipping", "Freight"],
-  budget_id_labor: ["I&D Labor", "I&D", "id_labor", "Install", "Dismantle"],
-  budget_travel: ["Travel", "travel"],
-  budget_props: ["Props", "props"],
-  budget_equipment: ["Equipment", "equipment", "AV", "Rental"],
-  budget_flooring: ["Flooring", "flooring"],
+  // Labor: internal production labor (tracked via labor_entries, but also COGS 500100)
+  budget_hrs: ["Production Labor"],
+  // Materials: fabrication, crating, fab supplies
+  budget_materials: [
+    "Fabrication",                       // HubSpot 400100 / COGS 500200
+    "Custom Crating",                    // HubSpot 400404
+    "Fab Supplies and Small Equipment",  // COGS 501200
+  ],
+  // Design: design work only (graphics = flooring substrate per Paul)
+  budget_design: [
+    "Design",                            // HubSpot 400700 / COGS 501300
+    "Design, Engineering, CAD",          // HubSpot 400701
+    "Design Labor",                      // COGS 500700
+  ],
+  // Project Management: PM, admin, show prep, site services
+  budget_pm: [
+    "Project Management",                // HubSpot 409001
+    "Admin",                             // HubSpot 409000
+    "Show Prep",                         // HubSpot 400600 / COGS 501000
+    "Receiving Client Items",            // HubSpot 400607
+    "AV - Programming",                  // HubSpot 400608
+    "AV Programming",
+    "Assemble/Build Client Items",       // HubSpot 400609
+    "Prep, Pack, Crate or Palletize",    // HubSpot 400610
+    "Disposal",                          // HubSpot 400611
+  ],
+  // Shipping: freight, trucks, storage
+  budget_shipping: [
+    "Shipping",                          // HubSpot 400400 / COGS 500400
+    "Shipping/Delivery - 53' Truck",     // HubSpot 400402
+    "Shipping/Delivery - 30' Truck",     // HubSpot 400403
+    "Shipping/Trucking",                 // COGS 500400
+    "Fuel Costs",                        // COGS 500450
+    "Storage",                           // HubSpot 400500/400501 / COGS 500500
+  ],
+  // I&D Labor: third-party install/dismantle labor only
+  budget_id_labor: [
+    "Install/Strike",                    // HubSpot 400300 / COGS 501400
+    "Installation - Labor (Standard Time)", // HubSpot 400303
+    "Lead Installer - Install",          // HubSpot 400306
+    "Lead Installer - Dismantle",        // HubSpot 400305
+    "Dismantle - Labor (Standard time)", // HubSpot 400311
+    "I&D Labor",                         // COGS 500150
+  ],
+  // Travel: all travel variants + meals
+  budget_travel: [
+    "Travel",                            // HubSpot 400900 / COGS 505000
+    "Travel - Project Manager",          // HubSpot 400901
+    "Travel - Project Manager - Install",// HubSpot 400902
+    "Travel - Project Manager - Dismantle", // HubSpot 400903
+    "Travel - Lead Installer - Dismantle",  // HubSpot 400908
+    "Travel - Lead Installer - Install",    // HubSpot 400909
+    "Travel-Hotels",                     // COGS 500510
+    "Travel-Per Diem",                   // COGS 500520
+    "Travel-Airfare & Baggage Fees",     // COGS 500530
+    "Production Meals",                  // COGS 501500
+  ],
+  // Equipment: on-site services (non-labor), rentals, machinery
+  budget_equipment: [
+    "On-site Show Services",             // HubSpot 400200 / COGS 500300
+    "Rental",                            // HubSpot 408000 — wait, Rental → Props per Joe
+    "Forklifts and Trucks",              // COGS 500900
+    "Machinery Repairs & Maintenance",   // COGS 501700
+  ],
+  // Props/Decor: rentals (physical items rented for display)
+  budget_props: [
+    "Rental",                            // HubSpot 408000 / COGS 500800
+  ],
+  // Flooring: custom printed marley/carpet = goes under Graphics per Paul
+  budget_flooring: [
+    "Graphics",                          // HubSpot 400800 / COGS 500600
+  ],
 };
 
 function getStatusVariant(
@@ -540,7 +604,7 @@ export default function ProjectDetailPage() {
                       {field.label}
                       {field.isHours && (
                         <span className="text-muted-foreground text-xs ml-1">
-                          (at ${LABOR_RATE}/hr = {formatCurrency(budgeted * LABOR_RATE)})
+                          @ ${LABOR_RATE}/hr
                         </span>
                       )}
                     </TableCell>
@@ -553,12 +617,20 @@ export default function ProjectDetailPage() {
                           value={budgetEdits[field.key] ?? ""}
                           onChange={(e) => setBudgetEdits((prev) => ({ ...prev, [field.key]: e.target.value }))}
                         />
-                      ) : (
-                        field.isHours ? `${formatNumber(budgeted)} hrs` : formatCurrency(budgeted)
-                      )}
+                      ) : field.isHours ? (
+                        <span>
+                          <span className="font-mono">{formatNumber(budgeted)} hrs</span>
+                          <span className="text-muted-foreground text-xs ml-1">({formatCurrency(budgeted * LABOR_RATE)})</span>
+                        </span>
+                      ) : formatCurrency(budgeted)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {field.isHours ? `${formatNumber(actual)} hrs` : formatCurrency(actual)}
+                      {field.isHours ? (
+                        <span>
+                          <span className="font-mono">{formatNumber(actual)} hrs</span>
+                          <span className="text-muted-foreground text-xs ml-1">({formatCurrency(actual * LABOR_RATE)})</span>
+                        </span>
+                      ) : formatCurrency(actual)}
                     </TableCell>
                     {editingBudget && (
                       <TableCell className="text-right">
@@ -573,9 +645,12 @@ export default function ProjectDetailPage() {
                       </TableCell>
                     )}
                     <TableCell className={`text-right ${varianceColor}`}>
-                      {field.isHours
-                        ? `${variance >= 0 ? "+" : ""}${formatNumber(variance)} hrs`
-                        : `${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
+                      {field.isHours ? (
+                        <span>
+                          <span>{variance >= 0 ? "+" : ""}{formatNumber(variance)} hrs</span>
+                          <span className="text-xs ml-1">({variance >= 0 ? "+" : ""}{formatCurrency(variance * LABOR_RATE)})</span>
+                        </span>
+                      ) : `${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
                     </TableCell>
                   </TableRow>
                 );
