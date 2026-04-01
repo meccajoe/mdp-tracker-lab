@@ -32,7 +32,9 @@ type SortField =
   | "pm"
   | "close_date"
   | "contract_amount"
-  | "pct_budget_used";
+  | "pct_budget_used"
+  | "qbo_total_hours"
+  | "qbo_labor_cost";
 type SortDir = "asc" | "desc";
 
 export default function ProjectsPage() {
@@ -212,6 +214,18 @@ export default function ProjectsPage() {
                 Budget Used{sortIndicator("pct_budget_used")}
               </TableHead>
               <TableHead
+                className="cursor-pointer select-none text-right"
+                onClick={() => handleSort("qbo_total_hours")}
+              >
+                Total Hours{sortIndicator("qbo_total_hours")}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none text-right"
+                onClick={() => handleSort("qbo_labor_cost")}
+              >
+                Labor Cost{sortIndicator("qbo_labor_cost")}
+              </TableHead>
+              <TableHead
                 className="cursor-pointer select-none"
                 onClick={() => handleSort("close_date")}
               >
@@ -222,13 +236,13 @@ export default function ProjectsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={10} className="text-center py-8">
                   Loading projects...
                 </TableCell>
               </TableRow>
             ) : sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={10} className="text-center py-8">
                   No projects found.
                 </TableCell>
               </TableRow>
@@ -295,6 +309,12 @@ export default function ProjectsPage() {
                           {pct?.toFixed(1) ?? "0.0"}%
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {project.qbo_total_hours > 0 ? project.qbo_total_hours.toFixed(1) : "-"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {project.qbo_labor_cost > 0 ? formatCurrency(project.qbo_labor_cost) : "-"}
                     </TableCell>
                     <TableCell>
                       {project.close_date

@@ -59,6 +59,9 @@ export interface ProjectSummary extends Project {
   pct_hrs_used: number;
   total_budget: number;
   pct_budget_used: number;
+  qbo_total_hours: number;
+  qbo_labor_cost: number;
+  qbo_last_synced: string | null;
 }
 
 export interface Expense {
@@ -84,6 +87,18 @@ export interface LaborEntry {
   labor_type: string | null;
   notes: string | null;
   created_at: string;
+}
+
+export interface QboLaborEntry {
+  id: string;
+  project_id: string;
+  employee_name: string;
+  date: string;
+  reg_hours: number;
+  ot_hours: number;
+  hourly_rate: number;
+  qbo_entry_id: string;
+  synced_at: string;
 }
 
 export interface CogsCategory {

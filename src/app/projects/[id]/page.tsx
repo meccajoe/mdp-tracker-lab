@@ -9,8 +9,8 @@ import {
   ProjectSummary,
   Expense,
   LaborEntry,
+  QboLaborEntry,
   CogsCategory,
-  LABOR_TYPES,
   getPMName,
 } from "@/lib/types";
 import {
@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +57,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Combobox } from "@/components/ui/combobox";
 import { ProjectLinkIcons } from "@/components/project-link-icons";
+import { QboLaborTable } from "@/components/qbo-labor-table";
 import {
   BarChart,
   Bar,
@@ -194,16 +194,14 @@ export default function ProjectDetailPage() {
   });
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
 
-  // Labor form state
-  const [laborDialogOpen, setLaborDialogOpen] = useState(false);
-  const [laborForm, setLaborForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    person: "",
-    hours: "",
-    labor_type: "",
-    notes: "",
-  });
-  const [laborSubmitting, setLaborSubmitting] = useState(false);
+  // QBO Labor state
+  const [qboLaborEntries, setQboLaborEntries] = useState<QboLaborEntry[]>([]);
+  const [laborSyncing, setLaborSyncing] = useState(false);
+  const [laborView, setLaborView] = useState<"employee" | "date">("employee");
+  const [laborDateFilter, setLaborDateFilter] = useState<"all" | "week" | "month" | "custom">("all");
+  const [laborCustomStart, setLaborCustomStart] = useState("");
+  const [laborCustomEnd, setLaborCustomEnd] = useState("");
+  const [expandedLaborRows, setExpandedLaborRows] = useState<Set<string>>(new Set());
 
   // Vendor/purchaser options for comboboxes
   const [vendorOptions, setVendorOptions] = useState<string[]>([]);
@@ -269,6 +267,20 @@ export default function ProjectDetailPage() {
     setLaborEntries(data as LaborEntry[]);
   }, [projectId]);
 
+  const fetchQboLabor = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("qbo_labor_entries")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("date", { ascending: false });
+
+    if (error) {
+      console.error("Failed to load QBO labor entries:", error);
+      return;
+    }
+    setQboLaborEntries((data as QboLaborEntry[]) ?? []);
+  }, [projectId]);
+
   const fetchCogsCategories = useCallback(async () => {
     const { data, error } = await supabase
       .from("cogs_categories")
@@ -313,6 +325,7 @@ export default function ProjectDetailPage() {
       fetchProject(),
       fetchExpenses(),
       fetchLaborEntries(),
+      fetchQboLabor(),
       fetchCogsCategories(),
       fetchActuals(),
       checkAdmin(),
@@ -320,7 +333,7 @@ export default function ProjectDetailPage() {
       fetchPurchasers(),
     ]);
     setLoading(false);
-  }, [fetchProject, fetchExpenses, fetchLaborEntries, fetchCogsCategories, fetchActuals, checkAdmin, fetchVendors, fetchPurchasers]);
+  }, [fetchProject, fetchExpenses, fetchLaborEntries, fetchQboLabor, fetchCogsCategories, fetchActuals, checkAdmin, fetchVendors, fetchPurchasers]);
 
   useEffect(() => {
     if (projectId) {
@@ -331,8 +344,10 @@ export default function ProjectDetailPage() {
   // Compute actual spend per budget category from expenses
   function getActualForBudgetField(key: string): number {
     if (key === "budget_hrs") {
-      // Labor hours actual comes from labor entries
-      return laborEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      // Labor hours: QBO labor entries (reg + OT) + manual labor entries
+      const qboHrs = qboLaborEntries.reduce((sum, e) => sum + e.reg_hours + e.ot_hours, 0);
+      const manualHrs = laborEntries.reduce((sum, entry) => sum + entry.hours, 0);
+      return qboHrs + manualHrs;
     }
     const categoryMatches = BUDGET_TO_CATEGORY_MAP[key];
     if (!categoryMatches) return 0;
@@ -384,38 +399,57 @@ export default function ProjectDetailPage() {
     await Promise.all([fetchExpenses(), fetchProject()]);
   }
 
-  async function handleAddLabor() {
-    if (!laborForm.date || !laborForm.person || !laborForm.hours) {
-      toast.error("Please fill in date, person, and hours");
-      return;
+  async function handleSyncLabor() {
+    setLaborSyncing(true);
+    try {
+      const response = await fetch("/api/qbo/sync-labor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        toast.error("Sync failed: " + (result.error ?? "Unknown error"));
+      } else {
+        toast.success(`Synced ${result.synced} time entries from QBO`);
+        await Promise.all([fetchQboLabor(), fetchProject()]);
+      }
+    } catch {
+      toast.error("Sync request failed");
     }
+    setLaborSyncing(false);
+  }
 
-    setLaborSubmitting(true);
-    const { error } = await supabase.from("labor_entries").insert({
-      project_id: projectId,
-      date: laborForm.date,
-      person: laborForm.person,
-      hours: parseFloat(laborForm.hours),
-      labor_type: laborForm.labor_type || null,
-      notes: laborForm.notes || null,
+  function toggleLaborRow(key: string) {
+    setExpandedLaborRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
     });
-    setLaborSubmitting(false);
+  }
 
-    if (error) {
-      toast.error("Failed to log hours: " + error.message);
-      return;
-    }
-
-    toast.success("Hours logged");
-    setLaborDialogOpen(false);
-    setLaborForm({
-      date: new Date().toISOString().split("T")[0],
-      person: "",
-      hours: "",
-      labor_type: "",
-      notes: "",
+  // Filter QBO labor entries by date range
+  function getFilteredQboLabor(): QboLaborEntry[] {
+    const now = new Date();
+    return qboLaborEntries.filter((e) => {
+      if (laborDateFilter === "all") return true;
+      const d = new Date(e.date);
+      if (laborDateFilter === "week") {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return d >= weekAgo;
+      }
+      if (laborDateFilter === "month") {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      if (laborDateFilter === "custom") {
+        if (laborCustomStart && d < new Date(laborCustomStart)) return false;
+        if (laborCustomEnd && d > new Date(laborCustomEnd)) return false;
+        return true;
+      }
+      return true;
     });
-    await Promise.all([fetchLaborEntries(), fetchProject()]);
   }
 
   if (loading) {
@@ -798,7 +832,7 @@ export default function ProjectDetailPage() {
               </button>
             </div>
             <div className="pb-2">
-              {activeExpenseTab === "expenses" ? (
+              {activeExpenseTab === "expenses" && (
                   <Dialog
                     open={expenseDialogOpen}
                     onOpenChange={setExpenseDialogOpen}
@@ -943,42 +977,6 @@ export default function ProjectDetailPage() {
                       </div>
                     </DialogContent>
                   </Dialog>
-              ) : (
-                <Dialog open={laborDialogOpen} onOpenChange={setLaborDialogOpen}>
-                  <DialogTrigger render={<Button size="sm" />}>+ Log Hours</DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Log Hours</DialogTitle></DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="labor-date">Date</Label>
-                        <Input id="labor-date" type="date" value={laborForm.date} onChange={(e) => setLaborForm({ ...laborForm, date: e.target.value })} />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="labor-person">Person</Label>
-                        <Input id="labor-person" value={laborForm.person} onChange={(e) => setLaborForm({ ...laborForm, person: e.target.value })} placeholder="Name" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="labor-hours">Hours</Label>
-                        <Input id="labor-hours" type="number" step="0.25" value={laborForm.hours} onChange={(e) => setLaborForm({ ...laborForm, hours: e.target.value })} placeholder="0" />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Type</Label>
-                        <Select value={laborForm.labor_type} onValueChange={(val) => setLaborForm({ ...laborForm, labor_type: val ?? "" })}>
-                          <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
-                          <SelectContent>{LABOR_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="labor-notes">Notes</Label>
-                        <Textarea id="labor-notes" value={laborForm.notes} onChange={(e) => setLaborForm({ ...laborForm, notes: e.target.value })} placeholder="Optional notes" />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setLaborDialogOpen(false)}>Cancel</Button>
-                      <Button onClick={handleAddLabor} disabled={laborSubmitting}>{laborSubmitting ? "Logging..." : "Log Hours"}</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
               )}
             </div>
           </CardHeader>
@@ -1017,37 +1015,73 @@ export default function ProjectDetailPage() {
                   </TableBody>
                 </Table>
               )
-            ) : (
-              laborEntries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
-                  <svg className="w-8 h-8 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <p className="text-sm">No labor entries recorded yet</p>
+            ) : (() => {
+              const filtered = getFilteredQboLabor();
+              const totalReg = filtered.reduce((s, e) => s + e.reg_hours, 0);
+              const totalOt = filtered.reduce((s, e) => s + e.ot_hours, 0);
+              const totalHrs = totalReg + totalOt;
+              const totalCost = filtered.reduce((s, e) => s + (e.reg_hours + e.ot_hours) * e.hourly_rate, 0);
+              const lastSynced = qboLaborEntries.length > 0
+                ? qboLaborEntries.reduce((latest, e) => e.synced_at > latest ? e.synced_at : latest, qboLaborEntries[0].synced_at)
+                : null;
+
+              return (
+                <div>
+                  {/* Summary bar */}
+                  <div className="flex flex-wrap items-center gap-4 px-6 py-4 border-b bg-muted/30">
+                    <div className="text-sm"><span className="text-muted-foreground">Reg Hrs:</span> <span className="font-mono font-medium">{totalReg.toFixed(1)}</span></div>
+                    <div className="text-sm"><span className="text-muted-foreground">OT Hrs:</span> <span className="font-mono font-medium">{totalOt.toFixed(1)}</span></div>
+                    <div className="text-sm"><span className="text-muted-foreground">Total Hrs:</span> <span className="font-mono font-medium">{totalHrs.toFixed(1)}</span></div>
+                    <div className="text-sm"><span className="text-muted-foreground">Total Cost:</span> <span className="font-mono font-medium">{formatCurrency(totalCost)}</span></div>
+                    <div className="ml-auto flex items-center gap-2">
+                      {lastSynced && (
+                        <span className="text-xs text-muted-foreground">
+                          Last synced: {new Date(lastSynced).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                        </span>
+                      )}
+                      <Button size="sm" variant="outline" onClick={handleSyncLabor} disabled={laborSyncing}>
+                        {laborSyncing ? "Syncing..." : "Sync"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Date filter + View toggle */}
+                  <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b">
+                    <div className="flex gap-1">
+                      {(["all", "week", "month", "custom"] as const).map((f) => (
+                        <Button
+                          key={f}
+                          size="sm"
+                          variant={laborDateFilter === f ? "default" : "ghost"}
+                          onClick={() => setLaborDateFilter(f)}
+                          className="text-xs h-7"
+                        >
+                          {f === "all" ? "All Time" : f === "week" ? "This Week" : f === "month" ? "This Month" : "Custom"}
+                        </Button>
+                      ))}
+                    </div>
+                    {laborDateFilter === "custom" && (
+                      <div className="flex items-center gap-2">
+                        <Input type="date" className="h-7 text-xs w-36" value={laborCustomStart} onChange={(e) => setLaborCustomStart(e.target.value)} />
+                        <span className="text-xs text-muted-foreground">to</span>
+                        <Input type="date" className="h-7 text-xs w-36" value={laborCustomEnd} onChange={(e) => setLaborCustomEnd(e.target.value)} />
+                      </div>
+                    )}
+                    <div className="ml-auto flex gap-1">
+                      <Button size="sm" variant={laborView === "employee" ? "default" : "ghost"} onClick={() => { setLaborView("employee"); setExpandedLaborRows(new Set()); }} className="text-xs h-7">By Employee</Button>
+                      <Button size="sm" variant={laborView === "date" ? "default" : "ghost"} onClick={() => { setLaborView("date"); setExpandedLaborRows(new Set()); }} className="text-xs h-7">By Date</Button>
+                    </div>
+                  </div>
+
+                  <QboLaborTable
+                    entries={filtered}
+                    view={laborView}
+                    expandedRows={expandedLaborRows}
+                    onToggleRow={toggleLaborRow}
+                  />
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Person</TableHead>
-                      <TableHead className="text-right">Hours</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {laborEntries.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="whitespace-nowrap">{new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</TableCell>
-                        <TableCell>{entry.person}</TableCell>
-                        <TableCell className="text-right">{formatNumber(entry.hours)}</TableCell>
-                        <TableCell>{entry.labor_type ?? "-"}</TableCell>
-                        <TableCell className="max-w-48 truncate text-muted-foreground">{entry.notes ?? "-"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
     </div>
