@@ -19,6 +19,7 @@ interface QboTimeActivity {
   EmployeeRef?: { name?: string; value?: string };
   CustomerRef?: { value?: string; name?: string };
   ItemRef?: { value?: string; name?: string };
+  VendorRef?: { value?: string; name?: string };
   TxnDate?: string;
   Hours?: number;
   Minutes?: number;
@@ -145,30 +146,40 @@ async function getQboJobMap(accessToken: string): Promise<Map<string, string>> {
   return map;
 }
 
-// Fetch ALL time activities via CDC (Change Data Capture) — returns full objects unlike query API
-// changedSince defaults to 2 years ago to get all history on first sync
-async function fetchAllTimeActivitiesViaCDC(
+// Fetch time activity IDs for a customer, then fetch full records via REST
+async function fetchTimeActivitiesForCustomer(
   accessToken: string,
-  changedSince?: string
+  customerRefId: string
 ): Promise<QboTimeActivity[]> {
-  const since = changedSince ?? new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
-  const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/cdc?entities=TimeActivity&changedSince=${encodeURIComponent(since)}`;
+  // Step 1: get IDs via query (only Id+TxnDate are reliably queryable)
+  const idQuery = `SELECT Id, TxnDate FROM TimeActivity WHERE CustomerRef = '${customerRefId}' MAXRESULTS 1000`;
+  const idData = await qboQuery<QboQueryResponse>(accessToken, idQuery);
+  const sparse = idData.QueryResponse?.TimeActivity ?? [];
   
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
+  if (sparse.length === 0) return [];
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`QBO CDC fetch failed (${response.status}): ${text}`);
+  // Step 2: fetch full records in parallel batches of 10
+  const fullActivities: QboTimeActivity[] = [];
+  const batchSize = 10;
+  
+  for (let i = 0; i < sparse.length; i += batchSize) {
+    const batch = sparse.slice(i, i + batchSize);
+    const fetched = await Promise.all(
+      batch.map(async (entry) => {
+        const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/timeactivity/${entry.Id}`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!res.ok) return null;
+        const data = await res.json() as { TimeActivity?: QboTimeActivity };
+        return data.TimeActivity ?? null;
+      })
+    );
+    fullActivities.push(...fetched.filter(Boolean) as QboTimeActivity[]);
   }
 
-  const data = await response.json() as { CDCResponse?: Array<{ QueryResponse?: Array<{ TimeActivity?: QboTimeActivity[] }> }> };
-  return data.CDCResponse?.[0]?.QueryResponse?.[0]?.TimeActivity ?? [];
+  return fullActivities;
 }
 
 function parseHoursMinutes(hours?: number, minutes?: number): number {
@@ -209,19 +220,6 @@ export async function POST(request: NextRequest) {
     // Build job number -> QBO customer ID map
     const jobMap = await getQboJobMap(accessToken);
 
-    // Fetch all time activities via CDC (full objects with CustomerRef, EmployeeRef, Hours)
-    // Use changedSince=2 years ago for initial full sync; subsequent syncs can use a recent date
-    const allActivities = await fetchAllTimeActivitiesViaCDC(accessToken);
-
-    // Build a map of QBO customer ID -> activities for fast lookup
-    const activitiesByCustomerId = new Map<string, QboTimeActivity[]>();
-    for (const activity of allActivities) {
-      const custId = activity.CustomerRef?.value;
-      if (!custId) continue;
-      if (!activitiesByCustomerId.has(custId)) activitiesByCustomerId.set(custId, []);
-      activitiesByCustomerId.get(custId)!.push(activity);
-    }
-
     const results: Array<{ projectId: string; jobNumber: string; synced: number; error?: string }> = [];
     let totalSynced = 0;
 
@@ -235,17 +233,17 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const activities = activitiesByCustomerId.get(qboCustomerId) ?? [];
+        const activities = await fetchTimeActivitiesForCustomer(accessToken, qboCustomerId);
 
         const rows = activities
-          .filter((a) => a.NameOf === "Employee" || a.EmployeeRef?.name)
+          .filter((a) => a.Id) // include all valid entries regardless of NameOf
           .map((a) => {
             const totalHours = parseHoursMinutes(a.Hours, a.Minutes);
             // Detect OT from ItemRef name (e.g. "DESIGN OVERTIME", "FIELD OVERTIME")
             const isOT = /overtime|OT/i.test(a.ItemRef?.name ?? "");
             return {
               project_id: project.id,
-              employee_name: a.EmployeeRef?.name ?? "Unknown",
+              employee_name: a.EmployeeRef?.name ?? a.VendorRef?.name ?? a.NameOf ?? "Unknown",
               date: a.TxnDate ?? new Date().toISOString().split("T")[0],
               reg_hours: isOT ? 0 : totalHours,
               ot_hours: isOT ? totalHours : 0,
