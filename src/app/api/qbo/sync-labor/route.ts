@@ -16,8 +16,9 @@ interface QboTokenResponse {
 
 interface QboTimeActivity {
   Id: string;
-  EmployeeRef?: { name?: string };
+  EmployeeRef?: { name?: string; value?: string };
   CustomerRef?: { value?: string; name?: string };
+  ItemRef?: { value?: string; name?: string };
   TxnDate?: string;
   Hours?: number;
   Minutes?: number;
@@ -144,27 +145,30 @@ async function getQboJobMap(accessToken: string): Promise<Map<string, string>> {
   return map;
 }
 
-// Fetch time activities for a specific QBO customer ID
-async function fetchTimeActivities(
+// Fetch ALL time activities via CDC (Change Data Capture) — returns full objects unlike query API
+// changedSince defaults to 2 years ago to get all history on first sync
+async function fetchAllTimeActivitiesViaCDC(
   accessToken: string,
-  customerRefId: string
+  changedSince?: string
 ): Promise<QboTimeActivity[]> {
-  const allActivities: QboTimeActivity[] = [];
-  let startPosition = 1;
-  const pageSize = 1000;
+  const since = changedSince ?? new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
+  const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/cdc?entities=TimeActivity&changedSince=${encodeURIComponent(since)}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const query = `SELECT * FROM TimeActivity WHERE CustomerRef = '${customerRefId}' STARTPOSITION ${startPosition} MAXRESULTS ${pageSize}`;
-    const data = await qboQuery<QboQueryResponse>(accessToken, query);
-    const activities = data.QueryResponse?.TimeActivity ?? [];
-    allActivities.push(...activities);
-
-    if (activities.length < pageSize) break;
-    startPosition += pageSize;
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`QBO CDC fetch failed (${response.status}): ${text}`);
   }
 
-  return allActivities;
+  const data = await response.json() as { CDCResponse?: Array<{ QueryResponse?: Array<{ TimeActivity?: QboTimeActivity[] }> }> };
+  return data.CDCResponse?.[0]?.QueryResponse?.[0]?.TimeActivity ?? [];
 }
 
 function parseHoursMinutes(hours?: number, minutes?: number): number {
@@ -205,6 +209,19 @@ export async function POST(request: NextRequest) {
     // Build job number -> QBO customer ID map
     const jobMap = await getQboJobMap(accessToken);
 
+    // Fetch all time activities via CDC (full objects with CustomerRef, EmployeeRef, Hours)
+    // Use changedSince=2 years ago for initial full sync; subsequent syncs can use a recent date
+    const allActivities = await fetchAllTimeActivitiesViaCDC(accessToken);
+
+    // Build a map of QBO customer ID -> activities for fast lookup
+    const activitiesByCustomerId = new Map<string, QboTimeActivity[]>();
+    for (const activity of allActivities) {
+      const custId = activity.CustomerRef?.value;
+      if (!custId) continue;
+      if (!activitiesByCustomerId.has(custId)) activitiesByCustomerId.set(custId, []);
+      activitiesByCustomerId.get(custId)!.push(activity);
+    }
+
     const results: Array<{ projectId: string; jobNumber: string; synced: number; error?: string }> = [];
     let totalSynced = 0;
 
@@ -218,20 +235,20 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const activities = await fetchTimeActivities(accessToken, qboCustomerId);
+        const activities = activitiesByCustomerId.get(qboCustomerId) ?? [];
 
         const rows = activities
           .filter((a) => a.NameOf === "Employee" || a.EmployeeRef?.name)
           .map((a) => {
             const totalHours = parseHoursMinutes(a.Hours, a.Minutes);
-            // QBO doesn't separate reg/OT in TimeActivity — all hours come as total
-            // We report all as reg_hours; OT tracking will need payroll data in future
+            // Detect OT from ItemRef name (e.g. "DESIGN OVERTIME", "FIELD OVERTIME")
+            const isOT = /overtime|OT/i.test(a.ItemRef?.name ?? "");
             return {
               project_id: project.id,
               employee_name: a.EmployeeRef?.name ?? "Unknown",
               date: a.TxnDate ?? new Date().toISOString().split("T")[0],
-              reg_hours: totalHours,
-              ot_hours: 0,
+              reg_hours: isOT ? 0 : totalHours,
+              ot_hours: isOT ? totalHours : 0,
               hourly_rate: a.HourlyRate?.value ?? 30,
               qbo_entry_id: a.Id,
               synced_at: new Date().toISOString(),
@@ -239,7 +256,6 @@ export async function POST(request: NextRequest) {
           });
 
         if (rows.length > 0) {
-          // Upsert in batches of 100
           for (let i = 0; i < rows.length; i += 100) {
             const batch = rows.slice(i, i + 100);
             const { error: upsertError } = await supabase
