@@ -5,6 +5,7 @@ export interface Project {
   pm: string;
   job_number: string | null;
   close_date: string | null;
+  due_date: string | null;
   contract_amount: number | null;
   status: "Active" | "Completed" | "On Hold" | "Pending";
   notes: string | null;

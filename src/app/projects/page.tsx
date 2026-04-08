@@ -230,6 +230,7 @@ export default function ProjectsPage() {
               >
                 Due Date{sortIndicator("close_date")}
               </TableHead>
+              <TableHead>Close Date</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -319,6 +320,12 @@ export default function ProjectsPage() {
                       })()}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
+                      {(() => {
+                        const dd = (project as unknown as Record<string, string>).due_date;
+                        return dd ? new Date(dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+                      })()}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
                       {project.close_date
                         ? new Date(project.close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                         : "—"}

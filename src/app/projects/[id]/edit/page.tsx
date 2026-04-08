@@ -46,6 +46,7 @@ export default function EditProjectPage() {
   const [jobNumber, setJobNumber] = useState("");
   const [status, setStatus] = useState<string>("Active");
   const [closeDate, setCloseDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [contractAmount, setContractAmount] = useState("");
   const [projectType, setProjectType] = useState<string>(PROJECT_TYPES[0]);
   const [notes, setNotes] = useState("");
@@ -79,6 +80,7 @@ export default function EditProjectPage() {
       setJobNumber(project.job_number ?? "");
       setStatus(project.status);
       setCloseDate(project.close_date ?? "");
+      setDueDate((project as unknown as Record<string, unknown>).due_date as string ?? "");
       setContractAmount(
         project.contract_amount != null ? String(project.contract_amount) : ""
       );
@@ -151,6 +153,7 @@ export default function EditProjectPage() {
       job_number: jobNumber.trim() || null,
       status,
       close_date: closeDate || null,
+      due_date: dueDate || null,
       contract_amount: contractAmount ? Number(contractAmount) : null,
       project_type: projectType,
       notes: notes.trim() || null,
@@ -289,6 +292,17 @@ export default function EditProjectPage() {
                   value={closeDate}
                   onChange={(e) => setCloseDate(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">When the deal closed</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">When the project must be completed</p>
               </div>
             </div>
 

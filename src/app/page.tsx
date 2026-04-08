@@ -157,10 +157,12 @@ export default function Dashboard() {
       return (ac - bc) * dir;
     }
     if (dashSort.field === "close_date") {
-      if (!a.close_date && !b.close_date) return 0;
-      if (!a.close_date) return 1;
-      if (!b.close_date) return -1;
-      return a.close_date.localeCompare(b.close_date) * dir;
+      const ad = (a as unknown as Record<string, string>).due_date;
+      const bd = (b as unknown as Record<string, string>).due_date;
+      if (!ad && !bd) return 0;
+      if (!ad) return 1;
+      if (!bd) return -1;
+      return ad.localeCompare(bd) * dir;
     }
     return 0;
   });
@@ -409,9 +411,10 @@ export default function Dashboard() {
                         {formatCurrency(totalCost)}
                       </TableCell>
                       <TableCell className="text-sm px-2 whitespace-nowrap">
-                        {project.close_date
-                          ? new Date(project.close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                          : "TBD"}
+                        {(() => {
+                          const dd = (project as unknown as Record<string, string>).due_date;
+                          return dd ? new Date(dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+                        })()}
                       </TableCell>
                     </TableRow>
                   );

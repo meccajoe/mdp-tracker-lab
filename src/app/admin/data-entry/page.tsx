@@ -349,6 +349,7 @@ export default function DataEntryPage() {
       status: project.status ?? "Active",
       job_number: project.job_number ?? "",
       close_date: project.close_date ?? "",
+      due_date: (project as unknown as Record<string, unknown>).due_date as string ?? "",
       contract_amount: project.contract_amount ?? "",
       hubspot_deal_id: project.hubspot_deal_id ?? null,
       hubspot_deal_url: project.hubspot_deal_url ?? null,
@@ -429,7 +430,7 @@ export default function DataEntryPage() {
     setProjects((prev) => prev.filter((p) => !p._isNew));
     const blank: EditableProject = {
       id: "__NEW__", name: "", client: "", pm: "", status: "Active",
-      job_number: null, close_date: null, contract_amount: null,
+      job_number: null, close_date: null, due_date: null, contract_amount: null,
       hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null,
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
       budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
@@ -446,7 +447,7 @@ export default function DataEntryPage() {
     setProjects((prev) => [blank, ...prev]);
     setExpandedId("__NEW__");
     setDeleting(null);
-    setFormData({ id: "", name: "", client: "", pm: "", status: "Active", job_number: "", close_date: "", contract_amount: "", hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null, notes: "", _isNew: true });
+    setFormData({ id: "", name: "", client: "", pm: "", status: "Active", job_number: "", close_date: "", due_date: "", contract_amount: "", hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null, notes: "", _isNew: true });
     setLookupResult(null);
     setActuals({});
     setActualsLoading(false);
@@ -548,6 +549,7 @@ export default function DataEntryPage() {
       status: formData.status as string,
       job_number: (formData.job_number as string).trim() || null,
       close_date: (formData.close_date as string) || null,
+      due_date: (formData.due_date as string) || null,
       contract_amount: contractAmount,
       hubspot_deal_id: formData.hubspot_deal_id ?? null,
       hubspot_deal_url: formData.hubspot_deal_url ?? null,
@@ -765,6 +767,9 @@ export default function DataEntryPage() {
                               </FormField>
                               <FormField label="Close Date">
                                 <input type="date" className={inputClass} value={(formData.close_date as string) ?? ""} onChange={(e) => updateForm("close_date", e.target.value)} />
+                              </FormField>
+                              <FormField label="Due Date">
+                                <input type="date" className={inputClass} value={(formData.due_date as string) ?? ""} onChange={(e) => updateForm("due_date", e.target.value)} />
                               </FormField>
                               <FormField label="Contract Amount">
                                 <input type="number" step="1" className={inputClass} value={formData.contract_amount as string ?? ""} onChange={(e) => updateForm("contract_amount", e.target.value)} placeholder="0" />

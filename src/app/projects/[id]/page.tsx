@@ -521,8 +521,11 @@ export default function ProjectDetailPage() {
             {project.job_number && <span className="font-medium text-foreground">Job #{project.job_number}</span>}
             {project.client && <span>Client: {project.client}</span>}
             {project.pm && <span>PM: {getPMName(project.pm)}</span>}
+            {(project as unknown as Record<string, string>).due_date && (
+              <span className="font-medium">Due: {new Date((project as unknown as Record<string, string>).due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+            )}
             {project.close_date && (
-              <span>Close: {project.close_date}</span>
+              <span className="text-xs">Closed: {project.close_date}</span>
             )}
             {project.contract_amount != null && (
               <span>
