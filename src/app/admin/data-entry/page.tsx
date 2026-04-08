@@ -291,6 +291,8 @@ export default function DataEntryPage() {
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [syncingQboUrls, setSyncingQboUrls] = useState(false);
+  const [qboSyncResult, setQboSyncResult] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterPM, setFilterPM] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
@@ -403,6 +405,23 @@ export default function DataEntryPage() {
       if (totalHrs > 0) map["labor_hours_used"] = String(totalHrs);
       setActuals(map);
       setActualsLoading(false);
+    }
+  }
+
+  async function handleSyncQboUrls() {
+    setSyncingQboUrls(true);
+    setQboSyncResult(null);
+    try {
+      const res = await fetch("/api/qbo/sync-project-urls", { method: "POST" });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setQboSyncResult(`✅ Updated ${data.updated} project QBO links`);
+      await fetchProjects();
+    } catch (err) {
+      setQboSyncResult(`❌ ${err instanceof Error ? err.message : "Sync failed"}`);
+    } finally {
+      setSyncingQboUrls(false);
+      setTimeout(() => setQboSyncResult(null), 4000);
     }
   }
 
@@ -624,7 +643,13 @@ export default function DataEntryPage() {
             <h1 className="text-xl font-bold">Data Entry Hub</h1>
             <p className="text-sm text-muted-foreground">Manage projects, budgets, and details</p>
           </div>
-          <Button size="sm" variant="outline" onClick={openNewProject}>+ New Project</Button>
+          <div className="flex items-center gap-2">
+            {qboSyncResult && <span className="text-xs text-muted-foreground">{qboSyncResult}</span>}
+            <Button size="sm" variant="outline" onClick={handleSyncQboUrls} disabled={syncingQboUrls}>
+              {syncingQboUrls ? "Syncing..." : "🔗 Sync QBO Links"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={openNewProject}>+ New Project</Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3 mt-4">
           <div className="relative flex-1 min-w-48">

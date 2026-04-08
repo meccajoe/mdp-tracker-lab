@@ -110,15 +110,30 @@ async function getQboAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function qboFetch(url: string, accessToken: string, retries = 5): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (response.status === 429) {
+      const backoff = Math.min(1000 * Math.pow(2, attempt), 30000);
+      console.warn(`QBO rate limit (429), backing off ${backoff}ms (attempt ${attempt + 1}/${retries + 1})`);
+      await sleep(backoff);
+      continue;
+    }
+    return response;
+  }
+  throw new Error(`QBO request failed after ${retries + 1} attempts (persistent 429)`);
+}
+
 async function qboQuery<T>(accessToken: string, query: string): Promise<T> {
   const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/query?query=${encodeURIComponent(query)}`;
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
+  const response = await qboFetch(url, accessToken);
 
   if (!response.ok) {
     const text = await response.text();
@@ -128,21 +143,35 @@ async function qboQuery<T>(accessToken: string, query: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-// Fetch all QBO sub-customers (jobs) and build a map: jobNumber -> customerId
+// Fetch ALL QBO sub-customers (jobs) with pagination and build a map: jobNumber -> customerId
 async function getQboJobMap(accessToken: string): Promise<Map<string, string>> {
-  const data = await qboQuery<QboCustomerQueryResponse>(
-    accessToken,
-    "SELECT Id, DisplayName FROM Customer WHERE Job = true MAXRESULTS 1000"
-  );
-
   const map = new Map<string, string>();
-  for (const customer of data.QueryResponse?.Customer ?? []) {
-    // QBO DisplayName like "MDP-63222 Deal Name" or "63222 Deal Name"
-    const match = customer.DisplayName.match(/(?:MDP-?)?(\d{4,6})\b/);
-    if (match) {
-      map.set(match[1], customer.Id);
+  const pageSize = 1000;
+  let startPosition = 1;
+  let keepFetching = true;
+
+  while (keepFetching) {
+    const data = await qboQuery<QboCustomerQueryResponse>(
+      accessToken,
+      `SELECT Id, DisplayName FROM Customer WHERE Job = true STARTPOSITION ${startPosition} MAXRESULTS ${pageSize}`
+    );
+    const customers = data.QueryResponse?.Customer ?? [];
+
+    for (const customer of customers) {
+      // QBO DisplayName formats: "26029-Kopari Beauty", "25207 - Versace", "MDP-63222 Deal"
+      const match = customer.DisplayName.match(/(?:MDP-?)?(\d{4,6})\b/);
+      if (match) {
+        map.set(match[1], customer.Id);
+      }
+    }
+
+    if (customers.length < pageSize) {
+      keepFetching = false;
+    } else {
+      startPosition += pageSize;
     }
   }
+
   return map;
 }
 
@@ -151,32 +180,45 @@ async function fetchTimeActivitiesForCustomer(
   accessToken: string,
   customerRefId: string
 ): Promise<QboTimeActivity[]> {
-  // Step 1: get IDs via query (only Id+TxnDate are reliably queryable)
-  const idQuery = `SELECT Id, TxnDate FROM TimeActivity WHERE CustomerRef = '${customerRefId}' MAXRESULTS 1000`;
-  const idData = await qboQuery<QboQueryResponse>(accessToken, idQuery);
-  const sparse = idData.QueryResponse?.TimeActivity ?? [];
-  
+  // Step 1: get ALL IDs via paginated query
+  const allSparse: QboTimeActivity[] = [];
+  const pageSize = 1000;
+  let startPosition = 1;
+  let keepFetching = true;
+
+  while (keepFetching) {
+    const idQuery = `SELECT Id, TxnDate FROM TimeActivity WHERE CustomerRef = '${customerRefId}' STARTPOSITION ${startPosition} MAXRESULTS ${pageSize}`;
+    const idData = await qboQuery<QboQueryResponse>(accessToken, idQuery);
+    const page = idData.QueryResponse?.TimeActivity ?? [];
+    allSparse.push(...page);
+    if (page.length < pageSize) {
+      keepFetching = false;
+    } else {
+      startPosition += pageSize;
+    }
+  }
+
+  const sparse = allSparse;
   if (sparse.length === 0) return [];
 
-  // Step 2: fetch full records in parallel batches of 10
+  // Step 2: fetch full records in small parallel batches (3) to avoid QBO rate limits
   const fullActivities: QboTimeActivity[] = [];
-  const batchSize = 10;
-  
+  const batchSize = 3;
+
   for (let i = 0; i < sparse.length; i += batchSize) {
     const batch = sparse.slice(i, i + batchSize);
     const fetched = await Promise.all(
       batch.map(async (entry) => {
         const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/timeactivity/${entry.Id}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-          cache: "no-store",
-        });
+        const res = await qboFetch(url, accessToken);
         if (!res.ok) return null;
         const data = await res.json() as { TimeActivity?: QboTimeActivity };
         return data.TimeActivity ?? null;
       })
     );
     fullActivities.push(...fetched.filter(Boolean) as QboTimeActivity[]);
+    // Small pause between batches to stay under rate limit
+    if (i + batchSize < sparse.length) await sleep(300);
   }
 
   return fullActivities;
@@ -201,9 +243,8 @@ export async function POST(request: NextRequest) {
 
     if (targetProjectId) {
       projectsQuery = projectsQuery.eq("id", targetProjectId);
-    } else {
-      projectsQuery = projectsQuery.eq("status", "Active");
     }
+    // Sync all projects (Active + Completed) — labor data needed for full history
 
     const { data: projects, error: projectsError } = await projectsQuery;
     if (projectsError) {

@@ -42,6 +42,7 @@ export default function ProjectsPage() {
   const urlPm = searchParams.get("pm");
 
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [activePMs, setActivePMs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("Active");
   const [pmFilter, setPmFilter] = useState<string>(urlPm ?? "All");
@@ -52,14 +53,16 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function fetchProjects() {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("project_summary")
-        .select("*");
+      const [{ data, error }, { data: pmRows }] = await Promise.all([
+        supabase.from("project_summary").select("*"),
+        supabase.from("user_roles").select("pm_initials").eq("show_in_filters", true).not("pm_initials", "is", null),
+      ]);
       if (error) {
         console.error("Error fetching projects:", error);
       } else {
         setProjects((data as ProjectSummary[]) ?? []);
       }
+      if (pmRows) setActivePMs(pmRows.map((r) => r.pm_initials as string).sort());
       setLoading(false);
     }
     fetchProjects();
@@ -159,7 +162,7 @@ export default function ProjectsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="All">All</SelectItem>
-              {PM_OPTIONS.map((pm) => (
+              {activePMs.map((pm) => (
                 <SelectItem key={pm} value={pm}>
                   {getPMName(pm)}
                 </SelectItem>
@@ -224,6 +227,11 @@ export default function ProjectsPage() {
                 onClick={() => handleSort("qbo_labor_cost")}
               >
                 Labor Cost{sortIndicator("qbo_labor_cost")}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none text-right"
+              >
+                P&amp;L to Date
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none"
@@ -315,6 +323,20 @@ export default function ProjectsPage() {
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {project.qbo_labor_cost > 0 ? formatCurrency(project.qbo_labor_cost) : "-"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {(() => {
+                        if (!project.contract_amount) return <span className="text-muted-foreground">—</span>;
+                        const totalCost = (project.total_spent ?? 0) + (project.qbo_labor_cost ?? 0);
+                        const pnl = project.contract_amount - totalCost;
+                        const marginPct = project.contract_amount > 0 ? (pnl / project.contract_amount) * 100 : 0;
+                        return (
+                          <span className={pnl >= 0 ? "text-emerald-600 font-semibold" : "text-red-600 font-semibold"}>
+                            {pnl >= 0 ? "+" : ""}{formatCurrency(pnl)}
+                            <span className="text-xs font-normal ml-1 opacity-70">({marginPct.toFixed(0)}%)</span>
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       {project.close_date

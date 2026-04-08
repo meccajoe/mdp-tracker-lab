@@ -579,6 +579,58 @@ export default function ProjectDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Projected P&L Card */}
+      {project.contract_amount != null && (() => {
+        const laborCost = project.qbo_labor_cost ?? 0;
+        const expenseCost = project.total_spent ?? 0;
+        const totalCost = laborCost + expenseCost;
+        const pnl = project.contract_amount - totalCost;
+        const marginPct = project.contract_amount > 0 ? (pnl / project.contract_amount) * 100 : 0;
+        const isProfitable = pnl >= 0;
+        return (
+          <Card className={isProfitable ? "border-emerald-200" : "border-red-200"}>
+            <CardHeader>
+              <CardTitle>P&amp;L to Date</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Contract Value</p>
+                  <p className="text-xl font-bold">{formatCurrency(project.contract_amount)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Labor Cost</p>
+                  <p className="text-xl font-bold">{formatCurrency(laborCost)}</p>
+                  <p className="text-xs text-muted-foreground">{(project.qbo_total_hours ?? 0).toFixed(1)} hrs @ $30/hr</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Expense Cost</p>
+                  <p className="text-xl font-bold">{formatCurrency(expenseCost)}</p>
+                  <p className="text-xs text-muted-foreground">Materials &amp; other</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">P&amp;L to Date</p>
+                  <p className={`text-2xl font-bold ${isProfitable ? "text-emerald-600" : "text-red-600"}`}>
+                    {pnl >= 0 ? "+" : ""}{formatCurrency(pnl)}
+                  </p>
+                  <p className={`text-sm font-medium ${isProfitable ? "text-emerald-600" : "text-red-600"}`}>
+                    {marginPct.toFixed(1)}% margin
+                  </p>
+                </div>
+              </div>
+              {!isProfitable && (
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-700 dark:text-red-400 font-medium">
+                    ⚠️ This project is currently in the red by {formatCurrency(Math.abs(pnl))}.
+                    Total cost to date ({formatCurrency(totalCost)}) exceeds contract value ({formatCurrency(project.contract_amount)}).
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Budget Breakdown Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

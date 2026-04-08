@@ -35,6 +35,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const EMAIL_TO_PM: Record<string, string> = {
   "victoria@meccadesign.com": "VW",
@@ -52,6 +59,7 @@ const EMAIL_TO_PM: Record<string, string> = {
 export default function Dashboard() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
+  const [activePMs, setActivePMs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [pmFilter, setPmFilter] = useState<string>("All");
   const [defaultPmSet, setDefaultPmSet] = useState(false);
@@ -85,7 +93,7 @@ export default function Dashboard() {
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
       const sinceDate = fourteenDaysAgo.toISOString().split("T")[0];
 
-      const [projectsRes, expensesRes] = await Promise.all([
+      const [projectsRes, expensesRes, pmRes] = await Promise.all([
         supabase
           .from("project_summary")
           .select("*")
@@ -95,10 +103,16 @@ export default function Dashboard() {
           .select("*")
           .gte("date", sinceDate)
           .order("date", { ascending: false }),
+        supabase
+          .from("user_roles")
+          .select("pm_initials")
+          .eq("show_in_filters", true)
+          .not("pm_initials", "is", null),
       ]);
 
       if (projectsRes.data) setProjects(projectsRes.data as ProjectSummary[]);
       if (expensesRes.data) setRecentExpenses(expensesRes.data as Expense[]);
+      if (pmRes.data) setActivePMs(pmRes.data.map((r) => r.pm_initials as string).sort());
       setLoading(false);
     }
 
@@ -150,6 +164,19 @@ export default function Dashboard() {
     0
   );
 
+  // P&L calculations
+  // Total cost = expenses (total_spent) + labor (qbo_labor_cost)
+  // Projected P&L = contract_amount - total_cost
+  const totalLaborCost = filteredProjects.reduce(
+    (sum, p) => sum + (p.qbo_labor_cost ?? 0),
+    0
+  );
+  const totalProjectedCost = totalCommittedSpend + totalLaborCost;
+  const totalProjectedPnL = totalContractValue - totalProjectedCost;
+  const portfolioMarginPct = totalContractValue > 0
+    ? (totalProjectedPnL / totalContractValue) * 100
+    : 0;
+
   const filterLabel =
     pmFilter === "All"
       ? "All Projects"
@@ -170,44 +197,17 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Showing: {filterLabel}
+          {filteredProjects.length} active project{filteredProjects.length !== 1 ? "s" : ""}{pmFilter !== "All" ? ` · ${getPMName(pmFilter)}` : ""}
         </p>
       </div>
 
-      {/* PM Filter Tags */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => { setPmFilter("All"); setExpensePage(0); }}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            pmFilter === "All"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          }`}
-        >
-          All
-        </button>
-        {PM_OPTIONS.map((initials) => (
-          <button
-            key={initials}
-            onClick={() => { setPmFilter(initials); setExpensePage(0); }}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              pmFilter === initials
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            {getPMName(initials)}
-          </button>
-        ))}
-      </div>
+
 
       {/* Portfolio Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active Projects
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Projects</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{filteredProjects.length}</p>
@@ -216,39 +216,35 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Contract Value
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Contract Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {formatCurrency(totalContractValue)}
-            </p>
+            <p className="text-3xl font-bold">{formatCurrency(totalContractValue)}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Committed Spend
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost to Date</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {formatCurrency(totalCommittedSpend)}
+            <p className="text-3xl font-bold">{formatCurrency(totalProjectedCost)}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatCurrency(totalCommittedSpend)} expenses + {formatCurrency(totalLaborCost)} labor
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={totalProjectedPnL >= 0 ? "border-emerald-200" : "border-red-200"}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Remaining Budget
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">P&amp;L to Date</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {formatCurrency(totalRemainingBudget)}
+            <p className={`text-3xl font-bold ${totalProjectedPnL >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              {totalProjectedPnL >= 0 ? "+" : ""}{formatCurrency(totalProjectedPnL)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {portfolioMarginPct.toFixed(1)}% margin · {filteredProjects.filter(p => p.contract_amount).length} priced projects
             </p>
           </CardContent>
         </Card>
@@ -298,11 +294,23 @@ export default function Dashboard() {
       <Card>
         <CardHeader className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Active Projects</CardTitle>
-          <div className="w-full max-w-sm">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Select value={pmFilter} onValueChange={(v) => { setPmFilter(v ?? "All"); setExpensePage(0); }}>
+              <SelectTrigger className="w-44">
+                <SelectValue>{pmFilter === "All" ? "All PMs" : getPMName(pmFilter)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All PMs</SelectItem>
+                {activePMs.map((initials) => (
+                  <SelectItem key={initials} value={initials}>{getPMName(initials)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search projects..."
+              className="w-full sm:w-56"
             />
           </div>
         </CardHeader>

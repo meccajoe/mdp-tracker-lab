@@ -16,6 +16,7 @@ interface UserRole {
   email: string;
   pm_initials: string | null;
   role: string;
+  show_in_filters: boolean;
 }
 
 export default function UsersPage() {
@@ -82,6 +83,13 @@ export default function UsersPage() {
     await fetchUsers();
   }
 
+  async function handleToggleFilter(email: string, current: boolean) {
+    const { error } = await supabase.from("user_roles").update({ show_in_filters: !current }).eq("email", email);
+    if (error) { toast.error("Failed to update"); return; }
+    setUsers((prev) => prev.map((u) => u.email === email ? { ...u, show_in_filters: !current } : u));
+    toast.success(!current ? "Shown in filters" : "Hidden from filters");
+  }
+
   async function handleDelete(email: string) {
     if (!confirm(`Remove ${email} from user roles?`)) return;
     await supabase.from("user_roles").delete().eq("email", email);
@@ -131,6 +139,7 @@ export default function UsersPage() {
                 <TableHead>Email</TableHead>
                 <TableHead className="w-24">Role</TableHead>
                 <TableHead className="w-40">PM</TableHead>
+                <TableHead className="w-36 text-center">Show in filters</TableHead>
                 <TableHead className="text-right w-36">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -166,6 +175,19 @@ export default function UsersPage() {
                         {user.pm_initials ? `${user.pm_initials} — ${PM_NAMES[user.pm_initials] ?? user.pm_initials}` : "—"}
                       </span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      onClick={() => handleToggleFilter(user.email, user.show_in_filters ?? true)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                        (user.show_in_filters ?? true) ? "bg-primary" : "bg-muted"
+                      }`}
+                      title={(user.show_in_filters ?? true) ? "Visible in PM filters" : "Hidden from PM filters"}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                        (user.show_in_filters ?? true) ? "translate-x-4" : "translate-x-0.5"
+                      }`} />
+                    </button>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
