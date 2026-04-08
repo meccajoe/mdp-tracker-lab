@@ -135,9 +135,35 @@ export default function Dashboard() {
       })
     : filteredProjects;
 
-  const displayedProjects = [...searchFiltered].sort((a, b) =>
-    String(b.id).localeCompare(String(a.id), undefined, { numeric: true })
-  );
+  type DashSortField = "name" | "pm" | "pct_budget_used" | "total_cost" | "close_date";
+  const [dashSort, setDashSort] = useState<{ field: DashSortField; dir: "asc" | "desc" }>({ field: "close_date", dir: "asc" });
+
+  function handleDashSort(field: DashSortField) {
+    setDashSort((prev) =>
+      prev.field === field
+        ? { field, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { field, dir: "asc" }
+    );
+  }
+
+  const displayedProjects = [...searchFiltered].sort((a, b) => {
+    const dir = dashSort.dir === "asc" ? 1 : -1;
+    if (dashSort.field === "name") return (a.name ?? "").localeCompare(b.name ?? "") * dir;
+    if (dashSort.field === "pm") return (a.pm ?? "").localeCompare(b.pm ?? "") * dir;
+    if (dashSort.field === "pct_budget_used") return ((a.pct_budget_used ?? 0) - (b.pct_budget_used ?? 0)) * dir;
+    if (dashSort.field === "total_cost") {
+      const ac = (a.total_spent ?? 0) + (a.qbo_labor_cost ?? 0);
+      const bc = (b.total_spent ?? 0) + (b.qbo_labor_cost ?? 0);
+      return (ac - bc) * dir;
+    }
+    if (dashSort.field === "close_date") {
+      if (!a.close_date && !b.close_date) return 0;
+      if (!a.close_date) return 1;
+      if (!b.close_date) return -1;
+      return a.close_date.localeCompare(b.close_date) * dir;
+    }
+    return 0;
+  });
 
   // Filter expenses to match the active PM filter
   const filteredExpenses = pmFilter === "All"
@@ -323,71 +349,68 @@ export default function Dashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[100px]">ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>PM</TableHead>
-                  <TableHead className="text-right">Contract</TableHead>
-                  <TableHead className="w-[200px]">Budget Used</TableHead>
-                  <TableHead>Close Date</TableHead>
+                  <TableHead className="w-[80px] text-xs px-2">ID</TableHead>
+                  <TableHead className="cursor-pointer select-none text-xs px-2" onClick={() => handleDashSort("name")}>
+                    Name {dashSort.field === "name" ? (dashSort.dir === "asc" ? "↑" : "↓") : <span className="opacity-30">↕</span>}
+                  </TableHead>
+                  <TableHead className="text-xs px-2">Client</TableHead>
+                  <TableHead className="cursor-pointer select-none text-xs px-2" onClick={() => handleDashSort("pm")}>
+                    PM {dashSort.field === "pm" ? (dashSort.dir === "asc" ? "↑" : "↓") : <span className="opacity-30">↕</span>}
+                  </TableHead>
+                  <TableHead className="text-right text-xs px-2">Contract</TableHead>
+                  <TableHead className="cursor-pointer select-none text-xs px-2" onClick={() => handleDashSort("pct_budget_used")}>
+                    Budget {dashSort.field === "pct_budget_used" ? (dashSort.dir === "asc" ? "↑" : "↓") : <span className="opacity-30">↕</span>}
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none text-right text-xs px-2" onClick={() => handleDashSort("total_cost")}>
+                    Total Cost {dashSort.field === "total_cost" ? (dashSort.dir === "asc" ? "↑" : "↓") : <span className="opacity-30">↕</span>}
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none text-xs px-2" onClick={() => handleDashSort("close_date")}>
+                    Due Date {dashSort.field === "close_date" ? (dashSort.dir === "asc" ? "↑" : "↓") : <span className="opacity-30">↕</span>}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {displayedProjects.map((project) => {
                   const pct = project.pct_budget_used;
-                  const clampedPct = Math.min(pct, 100);
                   const health = getBudgetHealthClasses(pct);
+                  const totalCost = (project.total_spent ?? 0) + (project.qbo_labor_cost ?? 0);
 
                   return (
                     <TableRow key={project.id}>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="font-mono text-xs px-2">
                         {project.id}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-2">
                         <Link
                           href={`/projects/${project.id}`}
-                          className="font-medium text-blue-600 hover:underline"
+                          className="font-medium text-blue-600 hover:underline text-sm"
                         >
                           {project.name}
                         </Link>
                       </TableCell>
-                      <TableCell>{project.client}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm px-2">{project.client}</TableCell>
+                      <TableCell className="px-2">
                         <Link
                           href={`/pm/${project.pm}`}
-                          className="text-blue-600 hover:underline"
+                          className="text-blue-600 hover:underline text-sm"
                         >
                           {getPMName(project.pm)}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-sm px-2">
                         {formatCurrency(project.contract_amount)}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${health.bar}`}
-                              style={{ width: `${clampedPct}%` }}
-                            />
-                          </div>
-                          <span
-                            className={`text-xs font-medium px-2 py-0.5 rounded-full border ${health.pill}`}
-                          >
-                            {pct.toFixed(0)}%
-                          </span>
-                        </div>
+                      <TableCell className="px-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${health.pill}`}>
+                          {pct.toFixed(0)}%
+                        </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right font-mono text-sm px-2">
+                        {formatCurrency(totalCost)}
+                      </TableCell>
+                      <TableCell className="text-sm px-2 whitespace-nowrap">
                         {project.close_date
-                          ? new Date(project.close_date).toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              }
-                            )
+                          ? new Date(project.close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                           : "TBD"}
                       </TableCell>
                     </TableRow>

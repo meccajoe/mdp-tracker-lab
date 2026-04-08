@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -11,6 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -21,6 +30,8 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 import { PM_NAMES } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface Expense {
   id: string;
@@ -52,7 +63,7 @@ type SortField = "date" | "amount" | "vendor" | "category" | "project";
 type SortDir = "asc" | "desc";
 
 export default function ExpensesClient({
-  expenses,
+  expenses: initialExpenses,
   projects,
   activePMs,
 }: {
@@ -60,6 +71,7 @@ export default function ExpensesClient({
   projects: Project[];
   activePMs: string[];
 }) {
+  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [search, setSearch] = useState("");
   const [pmFilter, setPmFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -68,6 +80,63 @@ export default function ExpensesClient({
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
+
+  // Add Expense modal state
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [vendorOptions, setVendorOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [purchaserOptions, setPurchaserOptions] = useState<{ initials: string; full_name: string }[]>([]);
+  const [addForm, setAddForm] = useState({
+    project_id: "",
+    date: new Date().toISOString().split("T")[0],
+    category: "",
+    vendor: "",
+    amount: "",
+    amount_pending: false,
+    purchaser: "",
+    notes: "",
+  });
+
+  const fetchDropdownData = useCallback(async () => {
+    const [vendorsRes, catsRes, purchasersRes] = await Promise.all([
+      supabase.from("vendors").select("name").eq("active", true).order("name"),
+      supabase.from("cogs_categories").select("name").order("name"),
+      supabase.from("purchasers").select("initials, full_name").eq("active", true).order("full_name"),
+    ]);
+    if (vendorsRes.data) setVendorOptions(vendorsRes.data.map((v: { name: string }) => v.name));
+    if (catsRes.data) setCategoryOptions(catsRes.data.map((c: { name: string }) => c.name));
+    if (purchasersRes.data) setPurchaserOptions(purchasersRes.data as { initials: string; full_name: string }[]);
+  }, []);
+
+  useEffect(() => { fetchDropdownData(); }, [fetchDropdownData]);
+
+  async function handleAddExpense() {
+    if (!addForm.project_id || !addForm.date || !addForm.category || !addForm.amount) {
+      toast.error("Please fill in project, date, category, and amount");
+      return;
+    }
+    setAddSubmitting(true);
+    const { error } = await supabase.from("expenses").insert({
+      id: "",
+      project_id: addForm.project_id,
+      date: addForm.date,
+      category: addForm.category,
+      vendor: addForm.vendor || null,
+      amount: parseFloat(addForm.amount),
+      amount_pending: addForm.amount_pending,
+      purchaser: addForm.purchaser || null,
+      notes: addForm.notes || null,
+    });
+    setAddSubmitting(false);
+    if (error) { toast.error("Failed to add expense: " + error.message); return; }
+    toast.success("Expense added");
+    setAddOpen(false);
+    setAddForm({ project_id: "", date: new Date().toISOString().split("T")[0], category: "", vendor: "", amount: "", amount_pending: false, purchaser: "", notes: "" });
+    // Refresh expenses list
+    const { data } = await supabase.from("expenses").select("*").order("date", { ascending: false });
+    if (data) setExpenses(data as Expense[]);
+  }
 
   const projectMap = useMemo(() => {
     const m = new Map<string, Project>();
@@ -168,9 +237,83 @@ export default function ExpensesClient({
             {filtered.length} expense{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalAmount)} total
           </p>
         </div>
-        <Link href="/">
-          <Button variant="outline" size="sm">← Dashboard</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger>
+              <Button size="sm">+ Add Expense</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Expense</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <Label>Project *</Label>
+                  <Select value={addForm.project_id} onValueChange={(v) => setAddForm((f) => ({ ...f, project_id: v ?? "" }))}>
+                    <SelectTrigger><SelectValue placeholder="Select project…" /></SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {[...projects].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.job_number ? `${p.job_number} · ` : ""}{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Date *</Label>
+                    <Input type="date" value={addForm.date} onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Amount *</Label>
+                    <Input type="number" step="0.01" placeholder="0.00" value={addForm.amount} onChange={(e) => setAddForm((f) => ({ ...f, amount: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Category *</Label>
+                  <Select value={addForm.category} onValueChange={(v) => setAddForm((f) => ({ ...f, category: v ?? "" }))}>
+                    <SelectTrigger><SelectValue placeholder="Select category…" /></SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Vendor</Label>
+                  <Select value={addForm.vendor} onValueChange={(v) => setAddForm((f) => ({ ...f, vendor: v ?? "" }))}>
+                    <SelectTrigger><SelectValue placeholder="Select vendor…" /></SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {vendorOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Purchaser</Label>
+                  <Select value={addForm.purchaser} onValueChange={(v) => setAddForm((f) => ({ ...f, purchaser: v ?? "" }))}>
+                    <SelectTrigger><SelectValue placeholder="Select purchaser…" /></SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {purchaserOptions.map((p) => <SelectItem key={p.initials} value={p.initials}>{p.full_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="pending" checked={addForm.amount_pending} onChange={(e) => setAddForm((f) => ({ ...f, amount_pending: e.target.checked }))} className="h-4 w-4" />
+                  <Label htmlFor="pending" className="font-normal cursor-pointer">Amount pending (estimate)</Label>
+                </div>
+                <div className="space-y-1">
+                  <Label>Notes</Label>
+                  <Textarea rows={2} value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Optional notes…" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+                  <Button onClick={handleAddExpense} disabled={addSubmitting}>{addSubmitting ? "Saving…" : "Add Expense"}</Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Link href="/">
+            <Button variant="outline" size="sm">← Dashboard</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

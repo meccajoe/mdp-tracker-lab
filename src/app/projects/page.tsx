@@ -131,9 +131,6 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <Link href="/projects/new">
-          <Button>+ New Project</Button>
-        </Link>
       </div>
 
       <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">
@@ -211,22 +208,16 @@ export default function ProjectsPage() {
                 Contract Amount{sortIndicator("contract_amount")}
               </TableHead>
               <TableHead
-                className="cursor-pointer select-none w-[200px]"
+                className="cursor-pointer select-none"
                 onClick={() => handleSort("pct_budget_used")}
               >
                 Budget Used{sortIndicator("pct_budget_used")}
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none text-right"
-                onClick={() => handleSort("qbo_total_hours")}
-              >
-                Total Hours{sortIndicator("qbo_total_hours")}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer select-none text-right"
                 onClick={() => handleSort("qbo_labor_cost")}
               >
-                Labor Cost{sortIndicator("qbo_labor_cost")}
+                Total Cost{sortIndicator("qbo_labor_cost")}
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none text-right"
@@ -237,7 +228,7 @@ export default function ProjectsPage() {
                 className="cursor-pointer select-none"
                 onClick={() => handleSort("close_date")}
               >
-                Close Date{sortIndicator("close_date")}
+                Due Date{sortIndicator("close_date")}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -304,25 +295,14 @@ export default function ProjectsPage() {
                       {formatCurrency(project.contract_amount)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${health.bar}`}
-                            style={{ width: `${clampedPct}%` }}
-                          />
-                        </div>
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full border ${health.pill}`}
-                        >
-                          {pct?.toFixed(1) ?? "0.0"}%
-                        </span>
-                      </div>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full border ${health.pill}`}
+                      >
+                        {pct?.toFixed(1) ?? "0.0"}%
+                      </span>
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {project.qbo_total_hours > 0 ? project.qbo_total_hours.toFixed(1) : "-"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {project.qbo_labor_cost > 0 ? formatCurrency(project.qbo_labor_cost) : "-"}
+                      {formatCurrency((project.total_spent ?? 0) + (project.qbo_labor_cost ?? 0))}
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {(() => {
@@ -338,10 +318,10 @@ export default function ProjectsPage() {
                         );
                       })()}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       {project.close_date
-                        ? new Date(project.close_date).toLocaleDateString()
-                        : "N/A"}
+                        ? new Date(project.close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : "—"}
                     </TableCell>
                   </TableRow>
                 );

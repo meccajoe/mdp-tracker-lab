@@ -675,9 +675,18 @@ export default function ProjectDetailPage() {
             </TableHeader>
             <TableBody>
               {BUDGET_FIELDS.map((field) => {
+                // Use stored value; if null, fall back to derived value from contract amount (for legacy spreadsheet-synced projects)
+                const storedVal = project[field.key as keyof ProjectSummary] as number | null;
+                const fallbackVal = (() => {
+                  if (storedVal != null) return storedVal;
+                  if (!project.contract_amount) return 0;
+                  if (field.key === "budget_materials") return Math.round(project.contract_amount * 0.25);
+                  if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / 30);
+                  return 0;
+                })();
                 const budgeted = editingBudget && budgetEdits[field.key] !== undefined
                   ? (budgetEdits[field.key] === "" ? 0 : Number(budgetEdits[field.key]))
-                  : ((project[field.key as keyof ProjectSummary] as number) ?? 0);
+                  : fallbackVal;
                 const expenseActual = getActualForBudgetField(field.key);
                 const manualOverride = savedActuals[field.label] ?? 0;
                 const actual = expenseActual + manualOverride;

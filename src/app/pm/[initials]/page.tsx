@@ -315,6 +315,7 @@ export default function PMBonusPage() {
           <p className="text-sm text-muted-foreground mt-1">
             1% of gross profit across {projects.length} completed project{projects.length !== 1 ? "s" : ""}
           </p>
+          <p className="text-xs text-muted-foreground italic mt-1">Projected — subject to change until finalized</p>
         </CardContent>
       </Card>
 
@@ -366,6 +367,7 @@ export default function PMBonusPage() {
                     <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
                       {formatCurrency(totals.bonus)}
                     </p>
+                    <p className="text-xs text-muted-foreground italic mt-0.5">Projected — subject to change</p>
                   </div>
                 </div>
 

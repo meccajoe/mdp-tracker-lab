@@ -53,19 +53,22 @@ export function ProjectLinkIcons({
   qboUrl,
   className = "",
 }: ProjectLinkIconsProps) {
-  if (!hubspotUrl && !qboUrl) {
+  const hs = hubspotUrl?.trim();
+  const qbo = qboUrl?.trim();
+
+  if (!hs && !qbo) {
     return null;
   }
 
   return (
     <div className={`inline-flex items-center gap-1 ${className}`}>
-      {hubspotUrl ? (
-        <LinkIcon href={hubspotUrl} label="Open in HubSpot">
+      {hs ? (
+        <LinkIcon href={hs} label="Open in HubSpot">
           <HubSpotIcon />
         </LinkIcon>
       ) : null}
-      {qboUrl ? (
-        <LinkIcon href={qboUrl} label="Open in QuickBooks">
+      {qbo ? (
+        <LinkIcon href={qbo} label="Open in QuickBooks">
           <QBOIcon />
         </LinkIcon>
       ) : null}
