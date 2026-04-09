@@ -58,7 +58,9 @@ function SectionHeader({ label, open, onToggle, collapsed }: {
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isProduction, setIsProduction] = useState(false);
   const [pmInitials, setPmInitials] = useState<string | null>(null);
   const [bonusOpen, setBonusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -67,7 +69,10 @@ export default function Sidebar() {
   useEffect(() => {
     async function loadRole(email: string) {
       const { data } = await supabase.from("user_roles").select("role, pm_initials").eq("email", email.toLowerCase()).single();
-      setIsAdmin(data?.role === "admin");
+      const r = data?.role ?? null;
+      setRole(r);
+      setIsAdmin(r === "admin");
+      setIsProduction(r === "production");
       setPmInitials(data?.pm_initials ?? null);
     }
     // Load active PMs (show_in_filters = true)
@@ -129,12 +134,11 @@ export default function Sidebar() {
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
 
-        {/* Team Bonuses section */}
-        {(isAdmin || pmInitials) && (
+        {/* Team Bonuses — admin and PM only (not production/viewer) */}
+        {(isAdmin || (pmInitials && role === "pm")) && (
           <>
             <SectionHeader label="Team Bonuses" open={bonusOpen} onToggle={() => setBonusOpen(!bonusOpen)} collapsed={collapsed} />
             {collapsed ? (
-              // Collapsed: single icon only
               <NavLink
                 href={isAdmin ? `/pm/${Object.keys(PM_NAMES)[0]}` : `/pm/${pmInitials ?? ""}`}
                 label="Bonuses"
@@ -143,7 +147,6 @@ export default function Sidebar() {
                 exact={false}
               />
             ) : bonusOpen && (
-              // Expanded + open: full list
               isAdmin
                 ? activePMs.map((init) => (
                     <NavLink key={init} href={`/pm/${init}`} label={PM_NAMES[init] ?? init} icon={bonusIcon} collapsed={false} exact={false} />
@@ -155,15 +158,18 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* Settings section (admin only) */}
+        {/* Purchasing — production role sees vendors only */}
+        {isProduction && (
+          <NavLink href="/admin/vendors" label="Purchasing" icon={purchasingIcon} collapsed={collapsed} exact={false} />
+        )}
+
+        {/* Settings section — admin only */}
         {isAdmin && (
           <>
             <SectionHeader label="Settings" open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} collapsed={collapsed} />
             {collapsed ? (
-              // Collapsed: single icon only
               <NavLink href="/admin/vendors" label="Settings" icon={settingsIcon} collapsed={true} exact={false} />
             ) : settingsOpen && (
-              // Expanded + open: full list
               <>
                 <NavLink href="/admin/data-entry" label="Data Entry" icon={dataEntryIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/vendors" label="Purchasing" icon={purchasingIcon} collapsed={false} exact={false} />

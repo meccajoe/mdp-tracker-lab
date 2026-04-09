@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const ROLES = ["admin", "pm", "viewer"] as const;
+const ROLES = ["admin", "pm", "production", "viewer"] as const;
 type Role = typeof ROLES[number];
 
 const ROLE_DESCRIPTIONS: Record<Role, string> = {
-  admin: "Full access — can see all projects, budgets, bonuses, and settings",
-  pm: "Project manager — sees own projects and can log expenses",
+  admin: "Full access — all projects, budgets, bonuses, settings, reconciliation",
+  pm: "Project manager — sees own projects, can log expenses and view bonuses",
+  production: "Production staff — sees all projects, adds expenses and purchasing; no budgets, bonuses, data entry, or settings",
   viewer: "Read-only — can view projects and labor data, cannot create or edit",
 };
 
@@ -53,7 +54,6 @@ export default function UsersPage() {
       .from("user_roles")
       .select("*")
       .order("role")
-      .order("full_name", { nullsFirst: false })
       .order("email");
     if (data) setUsers(data as UserRoleRow[]);
   }, []);

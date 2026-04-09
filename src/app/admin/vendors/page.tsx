@@ -39,7 +39,7 @@ export default function VendorManagementPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.email) { router.push("/"); return false; }
     const { data } = await supabase.from("user_roles").select("role").eq("email", session.user.email).single();
-    if (data?.role !== "admin") { router.push("/"); return false; }
+    if (data?.role !== "admin" && data?.role !== "production") { router.push("/"); return false; }
     return true;
   }, [router]);
 
