@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -138,6 +139,58 @@ export default function ExpensesClient({
     if (data) setExpenses(data as Expense[]);
   }
 
+  // Bulk expense state
+  const EMPTY_ROW = () => ({ project_id: "", date: new Date().toISOString().split("T")[0], category: "", vendor: "", amount: "", purchaser: "", notes: "" });
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkRows, setBulkRows] = useState(() => Array.from({ length: 5 }, EMPTY_ROW));
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+  function updateBulkRow(idx: number, field: string, value: string) {
+    setBulkRows((rows) => rows.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  }
+
+  async function handleBulkSubmit() {
+    const valid = bulkRows.filter((r) => r.project_id && r.date && r.category && r.amount);
+    if (!valid.length) { toast.error("Fill in at least one complete row (project, date, category, amount)"); return; }
+    setBulkSubmitting(true);
+    const { error } = await supabase.from("expenses").insert(
+      valid.map((r) => ({
+        id: "",
+        project_id: r.project_id,
+        date: r.date,
+        category: r.category,
+        vendor: r.vendor || null,
+        amount: parseFloat(r.amount),
+        amount_pending: false,
+        purchaser: r.purchaser || null,
+        notes: r.notes || null,
+      }))
+    );
+    setBulkSubmitting(false);
+    if (error) { toast.error("Failed: " + error.message); return; }
+    toast.success(`${valid.length} expense${valid.length !== 1 ? "s" : ""} added`);
+    setBulkOpen(false);
+    setBulkRows(Array.from({ length: 5 }, EMPTY_ROW));
+    const { data } = await supabase.from("expenses").select("*").order("date", { ascending: false });
+    if (data) setExpenses(data as Expense[]);
+  }
+
+  // Searchable project options for comboboxes
+  const projectOptions = useMemo(() =>
+    [...projects].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (p.job_number ? `${p.job_number} · ${p.name}` : p.name)),
+    [projects]
+  );
+  const projectLabelToId = useMemo(() => {
+    const m: Record<string, string> = {};
+    projects.forEach((p) => { m[p.job_number ? `${p.job_number} · ${p.name}` : p.name] = p.id; });
+    return m;
+  }, [projects]);
+  const projectIdToLabel = useMemo(() => {
+    const m: Record<string, string> = {};
+    projects.forEach((p) => { m[p.id] = p.job_number ? `${p.job_number} · ${p.name}` : p.name; });
+    return m;
+  }, [projects]);
+
   const projectMap = useMemo(() => {
     const m = new Map<string, Project>();
     projects.forEach((p) => m.set(p.id, p));
@@ -238,25 +291,22 @@ export default function ExpensesClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Single expense */}
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger>
-              <Button size="sm">+ Add Expense</Button>
+              <Button size="sm" variant="outline">+ Add Expense</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add Expense</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Add Expense</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-1">
                   <Label>Project *</Label>
-                  <Select value={addForm.project_id} onValueChange={(v) => setAddForm((f) => ({ ...f, project_id: v ?? "" }))}>
-                    <SelectTrigger><SelectValue placeholder="Select project…" /></SelectTrigger>
-                    <SelectContent className="max-h-56">
-                      {[...projects].sort((a, b) => a.name.localeCompare(b.name)).map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.job_number ? `${p.job_number} · ` : ""}{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={projectOptions}
+                    value={projectIdToLabel[addForm.project_id] ?? ""}
+                    onChange={(v) => setAddForm((f) => ({ ...f, project_id: projectLabelToId[v] ?? "" }))}
+                    placeholder="Search project…"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -270,30 +320,20 @@ export default function ExpensesClient({
                 </div>
                 <div className="space-y-1">
                   <Label>Category *</Label>
-                  <Select value={addForm.category} onValueChange={(v) => setAddForm((f) => ({ ...f, category: v ?? "" }))}>
-                    <SelectTrigger><SelectValue placeholder="Select category…" /></SelectTrigger>
-                    <SelectContent className="max-h-56">
-                      {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Combobox options={categoryOptions} value={addForm.category} onChange={(v) => setAddForm((f) => ({ ...f, category: v }))} placeholder="Search category…" />
                 </div>
                 <div className="space-y-1">
                   <Label>Vendor</Label>
-                  <Select value={addForm.vendor} onValueChange={(v) => setAddForm((f) => ({ ...f, vendor: v ?? "" }))}>
-                    <SelectTrigger><SelectValue placeholder="Select vendor…" /></SelectTrigger>
-                    <SelectContent className="max-h-56">
-                      {vendorOptions.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Combobox options={vendorOptions} value={addForm.vendor} onChange={(v) => setAddForm((f) => ({ ...f, vendor: v }))} placeholder="Search vendor…" allowCustom />
                 </div>
                 <div className="space-y-1">
                   <Label>Purchaser</Label>
-                  <Select value={addForm.purchaser} onValueChange={(v) => setAddForm((f) => ({ ...f, purchaser: v ?? "" }))}>
-                    <SelectTrigger><SelectValue placeholder="Select purchaser…" /></SelectTrigger>
-                    <SelectContent className="max-h-56">
-                      {purchaserOptions.map((p) => <SelectItem key={p.initials} value={p.initials}>{p.full_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={purchaserOptions.map((p) => p.full_name)}
+                    value={purchaserOptions.find((p) => p.initials === addForm.purchaser)?.full_name ?? ""}
+                    onChange={(v) => setAddForm((f) => ({ ...f, purchaser: purchaserOptions.find((p) => p.full_name === v)?.initials ?? v }))}
+                    placeholder="Search purchaser…"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <input type="checkbox" id="pending" checked={addForm.amount_pending} onChange={(e) => setAddForm((f) => ({ ...f, amount_pending: e.target.checked }))} className="h-4 w-4" />
@@ -310,6 +350,84 @@ export default function ExpensesClient({
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Bulk expense */}
+          <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+            <DialogTrigger>
+              <Button size="sm">+ Add Bulk</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-5xl w-full">
+              <DialogHeader><DialogTitle>Add Multiple Expenses</DialogTitle></DialogHeader>
+              <div className="pt-2 space-y-3">
+                <p className="text-sm text-muted-foreground">Fill in each row. Leave blank rows empty — only complete rows (project + date + category + amount) will be saved.</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left font-medium pb-2 pr-2 min-w-[200px]">Project *</th>
+                        <th className="text-left font-medium pb-2 pr-2 w-32">Date *</th>
+                        <th className="text-left font-medium pb-2 pr-2 min-w-[160px]">Category *</th>
+                        <th className="text-left font-medium pb-2 pr-2 min-w-[140px]">Vendor</th>
+                        <th className="text-left font-medium pb-2 pr-2 w-24">Amount *</th>
+                        <th className="text-left font-medium pb-2 pr-2 min-w-[120px]">Purchaser</th>
+                        <th className="text-left font-medium pb-2">Notes</th>
+                        <th className="w-6"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkRows.map((row, idx) => (
+                        <tr key={idx} className="border-b border-border/40 hover:bg-muted/20">
+                          <td className="py-1.5 pr-2">
+                            <Combobox
+                              options={projectOptions}
+                              value={projectIdToLabel[row.project_id] ?? ""}
+                              onChange={(v) => updateBulkRow(idx, "project_id", projectLabelToId[v] ?? "")}
+                              placeholder="Project…"
+                            />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <input type="date" className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm outline-none focus:border-ring" value={row.date} onChange={(e) => updateBulkRow(idx, "date", e.target.value)} />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <Combobox options={categoryOptions} value={row.category} onChange={(v) => updateBulkRow(idx, "category", v)} placeholder="Category…" />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <Combobox options={vendorOptions} value={row.vendor} onChange={(v) => updateBulkRow(idx, "vendor", v)} placeholder="Vendor…" allowCustom />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <input type="number" step="0.01" placeholder="0.00" className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm outline-none focus:border-ring" value={row.amount} onChange={(e) => updateBulkRow(idx, "amount", e.target.value)} />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <Combobox
+                              options={purchaserOptions.map((p) => p.full_name)}
+                              value={purchaserOptions.find((p) => p.initials === row.purchaser)?.full_name ?? ""}
+                              onChange={(v) => updateBulkRow(idx, "purchaser", purchaserOptions.find((p) => p.full_name === v)?.initials ?? v)}
+                              placeholder="Purchaser…"
+                            />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <input type="text" placeholder="Notes…" className="h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm outline-none focus:border-ring" value={row.notes} onChange={(e) => updateBulkRow(idx, "notes", e.target.value)} />
+                          </td>
+                          <td className="py-1.5">
+                            <button type="button" onClick={() => setBulkRows((rows) => rows.filter((_, i) => i !== idx))} className="text-muted-foreground hover:text-destructive text-xs px-1" title="Remove row">×</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setBulkRows((r) => [...r, EMPTY_ROW()])}>+ Add Row</Button>
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">{bulkRows.filter((r) => r.project_id && r.date && r.category && r.amount).length} complete row(s) ready to save</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setBulkOpen(false); setBulkRows(Array.from({ length: 5 }, EMPTY_ROW)); }}>Cancel</Button>
+                    <Button onClick={handleBulkSubmit} disabled={bulkSubmitting}>{bulkSubmitting ? "Saving…" : "Save All"}</Button>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Link href="/">
             <Button variant="outline" size="sm">← Dashboard</Button>
           </Link>
