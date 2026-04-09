@@ -107,9 +107,9 @@ export async function POST(req: NextRequest) {
   try {
     const accessToken = await getQboAccessToken();
 
-    // Fetch projects with a QBO project ID
+    // Fetch projects with a QBO project ID (use view for computed fields)
     const query = supabase
-      .from("projects")
+      .from("project_summary")
       .select("id, name, qbo_project_id, contract_amount, total_spent")
       .not("qbo_project_id", "is", null);
 
