@@ -356,7 +356,7 @@ export default function ExpensesClient({
             <DialogTrigger>
               <Button size="sm">+ Add Bulk</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl w-full">
+            <DialogContent className="!max-w-5xl w-full max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Add Multiple Expenses</DialogTitle></DialogHeader>
               <div className="pt-2 space-y-3">
                 <p className="text-sm text-muted-foreground">Fill in each row. Leave blank rows empty — only complete rows (project + date + category + amount) will be saved.</p>
