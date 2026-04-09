@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-lookups";
-import { Project, PM_OPTIONS, PM_NAMES } from "@/lib/types";
+import { Project } from "@/lib/types";
+import { useUserRoles, resolvePMName } from "@/hooks/useUserRoles";
 import { formatCurrency } from "@/lib/constants";
 import { BUDGET_CATEGORIES, HARDCODED_DEFAULT_PCTS, calcBudget, calcLaborHrs, calcMaterialsBudget, LABOR_RATE_PER_HR } from "@/lib/budget-formula";
 import { formatNumber } from "@/lib/constants";
@@ -284,6 +285,7 @@ function BudgetFormulaSection({
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
 export default function DataEntryPage() {
+  const { users: dbUsers, allPMs } = useUserRoles();
   const [projects, setProjects] = useState<EditableProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -663,7 +665,7 @@ export default function DataEntryPage() {
           </div>
           <select value={filterPM} onChange={(e) => setFilterPM(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring">
             <option value="All">All PMs</option>
-            {PM_OPTIONS.map((init) => <option key={init} value={init}>{PM_NAMES[init] ?? init}</option>)}
+            {allPMs.map((pm) => <option key={pm.initials} value={pm.initials}>{pm.fullName}</option>)}
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring">
             <option value="All">All Statuses</option>
@@ -697,7 +699,7 @@ export default function DataEntryPage() {
             {projects.filter((project) => {
               const q = search.toLowerCase();
               if (q) {
-                const pmName = (PM_NAMES[project.pm] ?? project.pm ?? "").toLowerCase();
+                const pmName = resolvePMName(project.pm ?? "", dbUsers).toLowerCase();
                 if (!project.id.toLowerCase().includes(q) && !(project.name ?? "").toLowerCase().includes(q) && !(project.client ?? "").toLowerCase().includes(q) && !pmName.includes(q)) return false;
               }
               if (filterPM !== "All" && project.pm !== filterPM) return false;
@@ -714,7 +716,7 @@ export default function DataEntryPage() {
                     <td className="px-4 py-3 font-mono text-xs w-28">{project._isNew ? "NEW" : project.id}</td>
                     <td className="px-4 py-3 font-medium max-w-[200px] truncate">{project.name || <span className="text-muted-foreground italic">Untitled</span>}</td>
                     <td className="px-4 py-3 text-muted-foreground truncate hidden sm:table-cell max-w-[160px]">{project.client}</td>
-                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{PM_NAMES[project.pm] ?? project.pm}</td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{resolvePMName(project.pm ?? "", dbUsers)}</td>
                     <td className="px-4 py-3 w-28"><StatusBadge status={project.status} /></td>
                     <td className="px-4 py-3 text-right font-mono text-xs hidden lg:table-cell w-32">{project.contract_amount ? formatCurrency(project.contract_amount) : "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell w-32">{project.close_date ?? "—"}</td>
@@ -754,7 +756,7 @@ export default function DataEntryPage() {
                               <FormField label="PM">
                                 <select className={selectClass} value={(formData.pm as string) ?? ""} onChange={(e) => updateForm("pm", e.target.value)}>
                                   <option value="">Select PM</option>
-                                  {PM_OPTIONS.map((pm) => <option key={pm} value={pm}>{PM_NAMES[pm]}</option>)}
+                                  {allPMs.map((pm) => <option key={pm.initials} value={pm.initials}>{pm.fullName}</option>)}
                                 </select>
                               </FormField>
                               <FormField label="Status">

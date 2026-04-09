@@ -110,7 +110,7 @@ export interface CogsCategory {
 
 export const PM_OPTIONS = ["VW", "GM", "MS", "AS", "NG", "PM", "KM", "KS", "CC", "MM"] as const;
 
-// Full PM name lookup
+// Full PM name lookup — fallback for hardcoded initials; prefer DB-driven lookup where possible
 export const PM_NAMES: Record<string, string> = {
   VW: "Vanessa Warfield",
   GM: "Greg Mayberry",
@@ -124,8 +124,21 @@ export const PM_NAMES: Record<string, string> = {
   MM: "Maria Mecca",
 };
 
-export function getPMName(initials: string): string {
+export function getPMName(initials: string, dbUsers?: { pm_initials: string | null; full_name: string | null }[]): string {
+  if (dbUsers) {
+    const match = dbUsers.find((u) => u.pm_initials === initials);
+    if (match?.full_name) return match.full_name;
+  }
   return PM_NAMES[initials] ?? initials;
+}
+
+// User roles — extended with full_name
+export interface UserRoleRow {
+  email: string;
+  role: string;
+  pm_initials: string | null;
+  full_name: string | null;
+  show_in_filters: boolean;
 }
 
 export const PROJECT_STATUSES = ["Active", "Completed", "On Hold"] as const;

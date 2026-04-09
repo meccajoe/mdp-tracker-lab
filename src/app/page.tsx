@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { ProjectSummary, Expense, PM_OPTIONS, getPMName } from "@/lib/types";
+import { ProjectSummary, Expense } from "@/lib/types";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import {
   formatCurrency,
   getBudgetHealthClasses,
@@ -57,6 +58,7 @@ const EMAIL_TO_PM: Record<string, string> = {
 };
 
 export default function Dashboard() {
+  const { activePMs: dbActivePMs, resolveName } = useUserRoles();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [recentExpenses, setRecentExpenses] = useState<Expense[]>([]);
   const [activePMs, setActivePMs] = useState<string[]>([]);
@@ -208,7 +210,7 @@ export default function Dashboard() {
   const filterLabel =
     pmFilter === "All"
       ? "All Projects"
-      : `${getPMName(pmFilter)} projects`;
+      : `${resolveName(pmFilter)} projects`;
 
   const [chartOpen, setChartOpen] = useState(false);
 
@@ -225,7 +227,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          {filteredProjects.length} active project{filteredProjects.length !== 1 ? "s" : ""}{pmFilter !== "All" ? ` · ${getPMName(pmFilter)}` : ""}
+          {filteredProjects.length} active project{filteredProjects.length !== 1 ? "s" : ""}{pmFilter !== "All" ? ` · ${resolveName(pmFilter)}` : ""}
         </p>
       </div>
 
@@ -325,12 +327,12 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select value={pmFilter} onValueChange={(v) => { setPmFilter(v ?? "All"); setExpensePage(0); }}>
               <SelectTrigger className="w-44">
-                <SelectValue>{pmFilter === "All" ? "All PMs" : getPMName(pmFilter)}</SelectValue>
+                <SelectValue>{pmFilter === "All" ? "All PMs" : resolveName(pmFilter)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All PMs</SelectItem>
                 {activePMs.map((initials) => (
-                  <SelectItem key={initials} value={initials}>{getPMName(initials)}</SelectItem>
+                  <SelectItem key={initials} value={initials}>{resolveName(initials)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -396,7 +398,7 @@ export default function Dashboard() {
                           href={`/pm/${project.pm}`}
                           className="text-blue-600 hover:underline text-sm"
                         >
-                          {getPMName(project.pm)}
+                          {resolveName(project.pm)}
                         </Link>
                       </TableCell>
                       <TableCell className="text-right text-sm px-2">

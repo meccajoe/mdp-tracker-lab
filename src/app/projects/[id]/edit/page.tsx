@@ -5,11 +5,11 @@ import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-lookups";
 import {
-  PM_OPTIONS,
   PROJECT_STATUSES,
   PROJECT_TYPES,
   Project,
 } from "@/lib/types";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { BUDGET_FIELDS } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import {
@@ -42,7 +42,8 @@ export default function EditProjectPage() {
 
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
-  const [pm, setPm] = useState<string>(PM_OPTIONS[0]);
+  const { allPMs } = useUserRoles();
+  const [pm, setPm] = useState<string>("");
   const [jobNumber, setJobNumber] = useState("");
   const [status, setStatus] = useState<string>("Active");
   const [closeDate, setCloseDate] = useState("");
@@ -258,9 +259,9 @@ export default function EditProjectPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PM_OPTIONS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
+                    {allPMs.map((option) => (
+                      <SelectItem key={option.initials} value={option.initials}>
+                        {option.fullName}
                       </SelectItem>
                     ))}
                   </SelectContent>

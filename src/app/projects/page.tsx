@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { ProjectSummary, PM_OPTIONS, PROJECT_STATUSES, getPMName } from "@/lib/types";
+import { ProjectSummary, PROJECT_STATUSES } from "@/lib/types";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { formatCurrency, getBudgetHealthClasses } from "@/lib/constants";
 import { ProjectLinkIcons } from "@/components/project-link-icons";
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,7 @@ type SortField =
 type SortDir = "asc" | "desc";
 
 export default function ProjectsPage() {
+  const { activePMs: dbActivePMs, resolveName } = useUserRoles();
   const searchParams = useSearchParams();
   const urlPm = searchParams.get("pm");
 
@@ -161,7 +163,7 @@ export default function ProjectsPage() {
               <SelectItem value="All">All</SelectItem>
               {activePMs.map((pm) => (
                 <SelectItem key={pm} value={pm}>
-                  {getPMName(pm)}
+                  {resolveName(pm)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -282,7 +284,7 @@ export default function ProjectsPage() {
                         href={`/pm/${project.pm}`}
                         className="text-blue-600 hover:underline"
                       >
-                        {getPMName(project.pm)}
+                        {resolveName(project.pm)}
                       </Link>
                     </TableCell>
                     <TableCell>
