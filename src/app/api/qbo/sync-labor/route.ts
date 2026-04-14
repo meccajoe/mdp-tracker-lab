@@ -107,6 +107,19 @@ async function getQboAccessToken(): Promise<string> {
     throw new Error("QBO token refresh returned no access token");
   }
 
+  // Rotate refresh token back to 1Password — QBO issues a new one on every refresh
+  if (data.refresh_token && data.refresh_token !== refreshToken) {
+    try {
+      execSync(
+        `source ~/.config/archie/credentials/1password.env && op item edit "QBO - Mecca HubSpot Integration" --vault Archie refresh_token="${data.refresh_token}"`,
+        { shell: "/bin/zsh", stdio: "pipe" }
+      );
+      console.log("QBO refresh token rotated successfully");
+    } catch (e) {
+      console.warn("Failed to rotate QBO refresh token in 1Password:", e);
+    }
+  }
+
   return data.access_token;
 }
 
