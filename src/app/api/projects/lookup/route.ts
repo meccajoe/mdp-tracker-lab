@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
-import { Buffer } from "node:buffer";
 import { NextRequest, NextResponse } from "next/server";
 import type { ProjectLookupResult } from "@/lib/project-lookups";
+import { getQboAccessToken } from "@/lib/qbo-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,10 +14,6 @@ interface HubSpotSearchResponse {
       job_number?: string;
     };
   }>;
-}
-
-interface QboTokenResponse {
-  access_token?: string;
 }
 
 interface QboQueryResponse {
@@ -109,51 +105,18 @@ async function lookupHubSpot(jobNumber: string) {
   }
 }
 
+const QBO_REALM_ID = "9130350693918016";
+
 async function lookupQbo(jobNumber: string) {
   try {
-    const [clientId, clientSecret, refreshToken, realmId] = [
-      getOnePasswordValue("QBO - Mecca HubSpot Integration", "client ID"),
-      getOnePasswordValue("QBO - Mecca HubSpot Integration", "client secret"),
-      getOnePasswordValue("QBO - Mecca HubSpot Integration", "refresh_token"),
-      getOnePasswordValue("QBO - Mecca HubSpot Integration", "realm_id"),
-    ];
-
-    const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString(
-      "base64"
-    );
-
-    const tokenResponse = await fetch(
-      "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${authHeader}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: refreshToken,
-        }),
-        cache: "no-store",
-      }
-    );
-
-    if (!tokenResponse.ok) {
-      throw new Error(`QBO token refresh failed: ${tokenResponse.status}`);
-    }
-
-    const tokenData = (await tokenResponse.json()) as QboTokenResponse;
-    if (!tokenData.access_token) {
-      throw new Error("QBO token refresh returned no access token");
-    }
+    const accessToken = await getQboAccessToken();
 
     const query = `SELECT Id, DisplayName FROM Customer WHERE Job = true AND DisplayName LIKE '${jobNumber}%'`;
     const qboResponse = await fetch(
-      `https://quickbooks.api.intuit.com/v3/company/${realmId}/query?query=${encodeURIComponent(query)}`,
+      `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/query?query=${encodeURIComponent(query)}`,
       {
         headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
           Accept: "application/json",
         },
         cache: "no-store",

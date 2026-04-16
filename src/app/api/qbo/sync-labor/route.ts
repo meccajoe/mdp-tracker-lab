@@ -1,18 +1,12 @@
-import { execSync } from "node:child_process";
-import { Buffer } from "node:buffer";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getQboAccessToken } from "@/lib/qbo-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const QBO_REALM_ID = "9130350693918016";
-
-interface QboTokenResponse {
-  access_token?: string;
-  refresh_token?: string;
-}
 
 interface QboTimeActivity {
   Id: string;
@@ -52,75 +46,11 @@ interface QboCustomerQueryResponse {
   };
 }
 
-function runSecretCommand(command: string): string {
-  return execSync(command, {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: "/bin/zsh",
-  }).trim();
-}
-
-function getOnePasswordValue(field: string): string {
-  return runSecretCommand(
-    `source ~/.config/archie/credentials/1password.env && op item get "QBO - Mecca HubSpot Integration" --vault Archie --fields "${field}" --reveal`
-  );
-}
-
 function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-}
-
-async function getQboAccessToken(): Promise<string> {
-  const clientId = getOnePasswordValue("client ID");
-  const clientSecret = getOnePasswordValue("client secret");
-  const refreshToken = getOnePasswordValue("refresh_token");
-
-  const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-
-  const response = await fetch(
-    "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${authHeader}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-      }),
-      cache: "no-store",
-    }
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`QBO token refresh failed (${response.status}): ${text}`);
-  }
-
-  const data = (await response.json()) as QboTokenResponse;
-  if (!data.access_token) {
-    throw new Error("QBO token refresh returned no access token");
-  }
-
-  // Rotate refresh token back to 1Password — QBO issues a new one on every refresh
-  if (data.refresh_token && data.refresh_token !== refreshToken) {
-    try {
-      execSync(
-        `source ~/.config/archie/credentials/1password.env && op item edit "QBO - Mecca HubSpot Integration" --vault Archie refresh_token="${data.refresh_token}"`,
-        { shell: "/bin/zsh", stdio: "pipe" }
-      );
-      console.log("QBO refresh token rotated successfully");
-    } catch (e) {
-      console.warn("Failed to rotate QBO refresh token in 1Password:", e);
-    }
-  }
-
-  return data.access_token;
 }
 
 async function sleep(ms: number): Promise<void> {
