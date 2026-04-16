@@ -43,10 +43,8 @@ function getOnePasswordValue(item: string, field: string) {
 
 async function lookupHubSpot(jobNumber: string) {
   try {
-    const token = getOnePasswordValue(
-      "HubSpot - Mecca QBO Integration",
-      "credential"
-    );
+    const token = process.env.HUBSPOT_API_KEY;
+    if (!token) throw new Error("HUBSPOT_API_KEY not set in environment");
 
     const response = await fetch(
       "https://api.hubapi.com/crm/v3/objects/deals/search",
