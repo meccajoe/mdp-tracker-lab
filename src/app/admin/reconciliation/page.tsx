@@ -45,7 +45,7 @@ export default function ReconciliationPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null); // projectId or "all"
   const [statusFilter, setStatusFilter] = useState<"all" | "flagged">("all");
-  const [projectFilter, setProjectFilter] = useState<"all" | "Active" | "Completed">("all");
+  const [projectFilter, setProjectFilter] = useState<"all" | "Active" | "Completed">("Active");
 
   const checkAdmin = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
