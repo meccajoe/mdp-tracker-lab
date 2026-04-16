@@ -44,7 +44,7 @@ export default function ReconciliationPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null); // projectId or "all"
-  const [statusFilter, setStatusFilter] = useState<"all" | "flagged">("flagged");
+  const [statusFilter, setStatusFilter] = useState<"all" | "flagged">("all");
   const [projectFilter, setProjectFilter] = useState<"all" | "Active" | "Completed">("all");
 
   const checkAdmin = useCallback(async () => {
@@ -70,7 +70,7 @@ export default function ReconciliationPage() {
     const built: ReconciliationRow[] = (projectsRes.data ?? [])
       .filter((p) => p.qbo_project_id) // only projects with QBO link
       .map((p) => {
-        const pnl = pnlMap.get(p.id);
+        const pnl = pnlMap.get(p.id) ?? pnlMap.get(String(p.qbo_project_id));
         const trackerExpenses = p.total_spent ?? 0;
         const trackerLabor = p.qbo_labor_cost ?? 0;
         const trackerTotalCost = trackerExpenses + trackerLabor;
