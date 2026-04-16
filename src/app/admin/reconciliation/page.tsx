@@ -155,6 +155,13 @@ export default function ReconciliationPage() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-800 px-4 py-3 flex items-start gap-3">
+        <span className="text-xl mt-0.5">🚧</span>
+        <div>
+          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Under Development</p>
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">This page is a work in progress and has not been reviewed yet. Data may be incomplete or inaccurate.</p>
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">QBO Reconciliation</h1>
