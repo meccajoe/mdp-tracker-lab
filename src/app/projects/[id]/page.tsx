@@ -43,6 +43,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { EditExpenseDialog } from "@/components/EditExpenseDialog";
+import { Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -193,6 +205,9 @@ export default function ProjectDetailPage() {
     notes: "",
   });
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   // QBO Labor state
   const [qboLaborEntries, setQboLaborEntries] = useState<QboLaborEntry[]>([]);
@@ -397,6 +412,18 @@ export default function ProjectDetailPage() {
       notes: "",
     });
     await Promise.all([fetchExpenses(), fetchProject()]);
+  }
+
+  async function handleDeleteExpense() {
+    if (!deletingExpenseId) return;
+    setDeleteSubmitting(true);
+    const { error } = await supabase.from("expenses").delete().eq("id", deletingExpenseId);
+    setDeleteSubmitting(false);
+    if (error) { toast.error("Failed to delete expense: " + error.message); return; }
+    toast.success("Expense deleted");
+    setExpenses((prev) => prev.filter((e) => e.id !== deletingExpenseId));
+    setDeletingExpenseId(null);
+    fetchProject();
   }
 
   async function handleSyncLabor() {
@@ -1052,6 +1079,7 @@ export default function ProjectDetailPage() {
                   <p className="text-sm">No expenses recorded yet</p>
                 </div>
               ) : (
+                <>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1062,6 +1090,7 @@ export default function ProjectDetailPage() {
                       <TableHead>Status</TableHead>
                       <TableHead>Purchaser</TableHead>
                       <TableHead>Notes</TableHead>
+                      <TableHead className="w-16"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1074,10 +1103,50 @@ export default function ProjectDetailPage() {
                         <TableCell>{expense.amount_pending ? <Badge variant="outline">Pending</Badge> : <Badge variant="secondary">Confirmed</Badge>}</TableCell>
                         <TableCell>{expense.purchaser ?? "-"}</TableCell>
                         <TableCell className="max-w-48 truncate text-muted-foreground">{expense.notes ?? "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingExpense(expense)}
+                              className="p-1 text-muted-foreground hover:text-foreground rounded"
+                              title="Edit expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingExpenseId(expense.id)}
+                              className="p-1 text-muted-foreground hover:text-destructive rounded"
+                              title="Delete expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                {editingExpense && (
+                  <EditExpenseDialog
+                    expense={editingExpense}
+                    onSave={(updated) => setExpenses((prev) => prev.map((e) => e.id === updated.id ? updated : e))}
+                    onClose={() => setEditingExpense(null)}
+                  />
+                )}
+                <AlertDialog open={deletingExpenseId !== null} onOpenChange={(open) => { if (!open) setDeletingExpenseId(null); }}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+                      <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setDeletingExpenseId(null)}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteExpense} disabled={deleteSubmitting} className="bg-destructive text-white hover:bg-destructive/90">
+                        {deleteSubmitting ? "Deleting…" : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                </>
               )
             ) : (() => {
               const filtered = getFilteredQboLabor();

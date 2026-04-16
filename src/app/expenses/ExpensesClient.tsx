@@ -30,9 +30,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { PM_NAMES } from "@/lib/types";
+import { PM_NAMES, Expense as LibExpense } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { EditExpenseDialog } from "@/components/EditExpenseDialog";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface Expense {
   id: string;
@@ -73,6 +85,9 @@ export default function ExpensesClient({
   activePMs: string[];
 }) {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+  const [editingExpense, setEditingExpense] = useState<LibExpense | null>(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [pmFilter, setPmFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -137,6 +152,17 @@ export default function ExpensesClient({
     // Refresh expenses list
     const { data } = await supabase.from("expenses").select("*").order("date", { ascending: false });
     if (data) setExpenses(data as Expense[]);
+  }
+
+  async function handleDeleteExpense() {
+    if (!deletingExpenseId) return;
+    setDeleteSubmitting(true);
+    const { error } = await supabase.from("expenses").delete().eq("id", deletingExpenseId);
+    setDeleteSubmitting(false);
+    if (error) { toast.error("Failed to delete expense: " + error.message); return; }
+    toast.success("Expense deleted");
+    setExpenses((prev) => prev.filter((e) => e.id !== deletingExpenseId));
+    setDeletingExpenseId(null);
   }
 
   // Bulk expense state
@@ -532,6 +558,7 @@ export default function ExpensesClient({
                     <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("amount")}>
                       Amount <SortIcon field="amount" />
                     </TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -563,11 +590,52 @@ export default function ExpensesClient({
                         <TableCell className="text-right text-sm font-medium">
                           {formatCurrency(expense.amount)}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingExpense(expense as unknown as LibExpense)}
+                              className="p-1 text-muted-foreground hover:text-foreground rounded"
+                              title="Edit expense"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingExpenseId(expense.id)}
+                              className="p-1 text-muted-foreground hover:text-destructive rounded"
+                              title="Delete expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
+              {editingExpense && (
+                <EditExpenseDialog
+                  expense={editingExpense}
+                  projects={projects}
+                  showProjectField
+                  onSave={(updated) => setExpenses((prev) => prev.map((e) => e.id === updated.id ? updated as unknown as Expense : e))}
+                  onClose={() => setEditingExpense(null)}
+                />
+              )}
+              <AlertDialog open={deletingExpenseId !== null} onOpenChange={(open) => { if (!open) setDeletingExpenseId(null); }}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeletingExpenseId(null)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteExpense} disabled={deleteSubmitting} className="bg-destructive text-white hover:bg-destructive/90">
+                      {deleteSubmitting ? "Deleting…" : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
