@@ -77,6 +77,13 @@ export interface Expense {
   purchaser: string | null;
   notes: string | null;
   created_at: string;
+  flagged?: boolean;
+  flag_note?: string | null;
+  flagged_by?: string | null;
+  flagged_at?: string | null;
+  source?: string | null;
+  external_id?: string | null;
+  synced_at?: string | null;
 }
 
 export interface LaborEntry {

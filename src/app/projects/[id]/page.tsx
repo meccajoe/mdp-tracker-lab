@@ -54,7 +54,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Flag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -69,6 +69,8 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Combobox } from "@/components/ui/combobox";
 import { ProjectLinkIcons } from "@/components/project-link-icons";
+import { CountdownClock } from "@/components/countdown-clock";
+import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import {
   BarChart,
@@ -150,9 +152,10 @@ const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
     "Forklifts and Trucks",              // COGS 500900
     "Machinery Repairs & Maintenance",   // COGS 501700
   ],
-  // Props/Decor: rentals (physical items rented for display)
+  // Props/Decor: rentals and props/decor items
   budget_props: [
     "Rental",                            // HubSpot 408000 / COGS 500800
+    "Props/Decor",                       // COGS 505001
   ],
   // Flooring: custom printed marley/carpet = goes under Graphics per Paul
   budget_flooring: [
@@ -208,6 +211,10 @@ export default function ProjectDetailPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [flaggingExpense, setFlaggingExpense] = useState<Expense | null>(null);
+  const [flagNote, setFlagNote] = useState("");
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
 
   // QBO Labor state
   const [qboLaborEntries, setQboLaborEntries] = useState<QboLaborEntry[]>([]);
@@ -326,6 +333,7 @@ export default function ProjectDetailPage() {
   const checkAdmin = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user?.email) return;
+    setCurrentUserEmail(session.user.email);
     const { data } = await supabase
       .from("user_roles")
       .select("role")
@@ -383,7 +391,7 @@ export default function ProjectDetailPage() {
 
     setExpenseSubmitting(true);
     const { error } = await supabase.from("expenses").insert({
-      id: "",
+      id: crypto.randomUUID(),
       project_id: projectId,
       date: expenseForm.date,
       category: expenseForm.category,
@@ -424,6 +432,37 @@ export default function ProjectDetailPage() {
     setExpenses((prev) => prev.filter((e) => e.id !== deletingExpenseId));
     setDeletingExpenseId(null);
     fetchProject();
+  }
+
+  async function handleFlagExpense() {
+    if (!flaggingExpense) return;
+    setFlagSubmitting(true);
+    const { error } = await supabase.from("expenses").update({
+      flagged: true,
+      flag_note: flagNote || null,
+      flagged_by: currentUserEmail,
+      flagged_at: new Date().toISOString(),
+    }).eq("id", flaggingExpense.id);
+    setFlagSubmitting(false);
+    if (error) { toast.error("Failed to flag expense: " + error.message); return; }
+    toast.success("Expense flagged");
+    setExpenses((prev) => prev.map((e) => e.id === flaggingExpense.id ? { ...e, flagged: true, flag_note: flagNote || null, flagged_by: currentUserEmail, flagged_at: new Date().toISOString() } : e));
+    setFlaggingExpense(null);
+    setFlagNote("");
+  }
+
+  async function handleUnflagExpense(id: string) {
+    const { error } = await supabase.from("expenses").update({
+      flagged: false,
+      flag_note: null,
+      flagged_by: null,
+      flagged_at: null,
+    }).eq("id", id);
+    if (error) { toast.error("Failed to remove flag: " + error.message); return; }
+    toast.success("Flag removed");
+    setExpenses((prev) => prev.map((e) => e.id === id ? { ...e, flagged: false, flag_note: null, flagged_by: null, flagged_at: null } : e));
+    setFlaggingExpense(null);
+    setFlagNote("");
   }
 
   async function handleSyncLabor() {
@@ -543,14 +582,25 @@ export default function ProjectDetailPage() {
               hubspotUrl={project.hubspot_deal_url}
               qboUrl={project.qbo_project_url}
             />
+            {project.job_number && (
+              <MondayButton
+                jobNumber={project.job_number}
+                projectId={project.id}
+                cachedBoardUrl={(project as unknown as Record<string, string>).monday_board_url}
+              />
+            )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {project.job_number && <span className="font-medium text-foreground">Job #{project.job_number}</span>}
             {project.client && <span>Client: {project.client}</span>}
             {project.pm && <span>PM: {getPMName(project.pm)}</span>}
-            {(project as unknown as Record<string, string>).due_date && (
-              <span className="font-medium">Due: {new Date((project as unknown as Record<string, string>).due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-            )}
+          </div>
+          {project.notes && (
+            <div className="mt-2 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
+              <span className="font-medium text-foreground">Note: </span>{project.notes}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {project.close_date && (
               <span className="text-xs">Closed: {project.close_date}</span>
             )}
@@ -560,6 +610,12 @@ export default function ProjectDetailPage() {
               </span>
             )}
           </div>
+          {(project as unknown as Record<string, string>).due_date && (
+            <CountdownClock
+              dueDate={(project as unknown as Record<string, string>).due_date}
+              closeDate={project.close_date ?? undefined}
+            />
+          )}
         </div>
         <Link href={`/projects/${projectId}/edit`}>
           <Button variant="outline" size="sm">Edit Project</Button>
@@ -656,6 +712,24 @@ export default function ProjectDetailPage() {
                   </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Flagged Costs Card */}
+      {expenses.filter((e) => e.flagged).length > 0 && (() => {
+        const flagged = expenses.filter((e) => e.flagged);
+        const flaggedTotal = flagged.reduce((s, e) => s + e.amount, 0);
+        return (
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+            <CardContent className="py-4 px-6 flex items-center gap-4">
+              <span className="text-lg">🚩</span>
+              <div>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">Flagged Costs</p>
+                <p className="text-xs text-red-600 dark:text-red-500">{flagged.length} item{flagged.length !== 1 ? "s" : ""}</p>
+              </div>
+              <p className="ml-auto text-xl font-bold text-red-700 dark:text-red-400">{formatCurrency(flaggedTotal)}</p>
             </CardContent>
           </Card>
         );
@@ -1098,26 +1172,44 @@ export default function ProjectDetailPage() {
                       <TableRow key={expense.id}>
                         <TableCell className="whitespace-nowrap">{new Date(expense.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</TableCell>
                         <TableCell>{expense.category}</TableCell>
-                        <TableCell>{expense.vendor ?? "-"}</TableCell>
+                        <TableCell>
+                          <span className="flex items-center gap-1.5">
+                            {expense.vendor ?? "-"}
+                            {expense.source === "billcom" && (
+                              <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right font-mono">{formatCurrency(expense.amount)}</TableCell>
                         <TableCell>{expense.amount_pending ? <Badge variant="outline">Pending</Badge> : <Badge variant="secondary">Confirmed</Badge>}</TableCell>
                         <TableCell>{expense.purchaser ?? "-"}</TableCell>
                         <TableCell className="max-w-48 truncate text-muted-foreground">{expense.notes ?? "-"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
+                            {expense.source !== "billcom" && (
+                              <>
+                                <button
+                                  onClick={() => setEditingExpense(expense)}
+                                  className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                  title="Edit expense"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setDeletingExpenseId(expense.id)}
+                                  className="p-1 text-muted-foreground hover:text-destructive rounded"
+                                  title="Delete expense"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                             <button
-                              onClick={() => setEditingExpense(expense)}
-                              className="p-1 text-muted-foreground hover:text-foreground rounded"
-                              title="Edit expense"
+                              onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
+                              className="p-1 rounded"
+                              title={expense.flagged ? "Remove flag" : "Flag this expense"}
                             >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingExpenseId(expense.id)}
-                              className="p-1 text-muted-foreground hover:text-destructive rounded"
-                              title="Delete expense"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Flag className={`w-3.5 h-3.5 ${expense.flagged ? "text-red-500 fill-red-500" : "text-muted-foreground"}`} />
                             </button>
                           </div>
                         </TableCell>
@@ -1146,6 +1238,55 @@ export default function ProjectDetailPage() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+
+                <Dialog open={flaggingExpense !== null} onOpenChange={(open) => { if (!open) { setFlaggingExpense(null); setFlagNote(""); } }}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Flag Expense</DialogTitle>
+                    </DialogHeader>
+                    {flaggingExpense && (
+                      <div className="space-y-4 pt-2">
+                        <div className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">{flaggingExpense.vendor || flaggingExpense.category}</span>
+                          {" · "}
+                          {formatCurrency(flaggingExpense.amount)}
+                        </div>
+                        {flaggingExpense.flagged ? (
+                          <>
+                            {flaggingExpense.flag_note && (
+                              <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                                {flaggingExpense.flag_note}
+                              </div>
+                            )}
+                            <p className="text-xs text-muted-foreground">Flagged by {flaggingExpense.flagged_by}</p>
+                            <div className="flex justify-end gap-2 pt-2">
+                              <Button variant="outline" onClick={() => { setFlaggingExpense(null); setFlagNote(""); }}>Cancel</Button>
+                              <Button variant="destructive" onClick={() => handleUnflagExpense(flaggingExpense.id)}>Remove Flag</Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="space-y-1">
+                              <label className="text-sm font-medium">Note</label>
+                              <Textarea
+                                rows={3}
+                                placeholder="What went wrong?"
+                                value={flagNote}
+                                onChange={(e) => setFlagNote(e.target.value)}
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                              <Button variant="outline" onClick={() => { setFlaggingExpense(null); setFlagNote(""); }}>Cancel</Button>
+                              <Button variant="destructive" onClick={handleFlagExpense} disabled={flagSubmitting}>
+                                {flagSubmitting ? "Flagging…" : "Flag It"}
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
                 </>
               )
             ) : (() => {

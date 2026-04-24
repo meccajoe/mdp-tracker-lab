@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Flag } from "lucide-react";
 
 interface Expense {
   id: string;
@@ -57,6 +57,11 @@ interface Expense {
   amount_pending: number;
   purchaser: string;
   notes: string;
+  flagged?: boolean;
+  flag_note?: string | null;
+  flagged_by?: string | null;
+  flagged_at?: string | null;
+  source?: string | null;
 }
 
 interface Project {
@@ -88,6 +93,10 @@ export default function ExpensesClient({
   const [editingExpense, setEditingExpense] = useState<LibExpense | null>(null);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [flaggingExpense, setFlaggingExpense] = useState<Expense | null>(null);
+  const [flagNote, setFlagNote] = useState("");
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [search, setSearch] = useState("");
   const [pmFilter, setPmFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -127,6 +136,12 @@ export default function ExpensesClient({
 
   useEffect(() => { fetchDropdownData(); }, [fetchDropdownData]);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) setCurrentUserEmail(session.user.email);
+    });
+  }, []);
+
   async function handleAddExpense() {
     if (!addForm.project_id || !addForm.date || !addForm.category || !addForm.amount) {
       toast.error("Please fill in project, date, category, and amount");
@@ -134,7 +149,7 @@ export default function ExpensesClient({
     }
     setAddSubmitting(true);
     const { error } = await supabase.from("expenses").insert({
-      id: "",
+      id: crypto.randomUUID(),
       project_id: addForm.project_id,
       date: addForm.date,
       category: addForm.category,
@@ -165,6 +180,37 @@ export default function ExpensesClient({
     setDeletingExpenseId(null);
   }
 
+  async function handleFlagExpense() {
+    if (!flaggingExpense) return;
+    setFlagSubmitting(true);
+    const { error } = await supabase.from("expenses").update({
+      flagged: true,
+      flag_note: flagNote || null,
+      flagged_by: currentUserEmail,
+      flagged_at: new Date().toISOString(),
+    }).eq("id", flaggingExpense.id);
+    setFlagSubmitting(false);
+    if (error) { toast.error("Failed to flag expense: " + error.message); return; }
+    toast.success("Expense flagged");
+    setExpenses((prev) => prev.map((e) => e.id === flaggingExpense.id ? { ...e, flagged: true, flag_note: flagNote || null, flagged_by: currentUserEmail, flagged_at: new Date().toISOString() } : e));
+    setFlaggingExpense(null);
+    setFlagNote("");
+  }
+
+  async function handleUnflagExpense(id: string) {
+    const { error } = await supabase.from("expenses").update({
+      flagged: false,
+      flag_note: null,
+      flagged_by: null,
+      flagged_at: null,
+    }).eq("id", id);
+    if (error) { toast.error("Failed to remove flag: " + error.message); return; }
+    toast.success("Flag removed");
+    setExpenses((prev) => prev.map((e) => e.id === id ? { ...e, flagged: false, flag_note: null, flagged_by: null, flagged_at: null } : e));
+    setFlaggingExpense(null);
+    setFlagNote("");
+  }
+
   // Bulk expense state
   const EMPTY_ROW = () => ({ project_id: "", date: new Date().toISOString().split("T")[0], category: "", vendor: "", amount: "", purchaser: "", notes: "" });
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -181,7 +227,7 @@ export default function ExpensesClient({
     setBulkSubmitting(true);
     const { error } = await supabase.from("expenses").insert(
       valid.map((r) => ({
-        id: "",
+        id: crypto.randomUUID(),
         project_id: r.project_id,
         date: r.date,
         category: r.category,
@@ -582,7 +628,14 @@ export default function ExpensesClient({
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                           {project?.pm ?? "—"}
                         </TableCell>
-                        <TableCell className="text-sm">{expense.vendor || "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          <span className="flex items-center gap-1.5">
+                            {expense.vendor || "—"}
+                            {expense.source === "billcom" && (
+                              <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-sm">{expense.category || "—"}</TableCell>
                         <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                           {expense.purchaser || "—"}
@@ -592,19 +645,30 @@ export default function ExpensesClient({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
+                            {expense.source !== "billcom" && (
+                              <>
+                                <button
+                                  onClick={() => setEditingExpense(expense as unknown as LibExpense)}
+                                  className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                  title="Edit expense"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setDeletingExpenseId(expense.id)}
+                                  className="p-1 text-muted-foreground hover:text-destructive rounded"
+                                  title="Delete expense"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                             <button
-                              onClick={() => setEditingExpense(expense as unknown as LibExpense)}
-                              className="p-1 text-muted-foreground hover:text-foreground rounded"
-                              title="Edit expense"
+                              onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
+                              className="p-1 rounded"
+                              title={expense.flagged ? "Remove flag" : "Flag this expense"}
                             >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingExpenseId(expense.id)}
-                              className="p-1 text-muted-foreground hover:text-destructive rounded"
-                              title="Delete expense"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Flag className={`w-3.5 h-3.5 ${expense.flagged ? "text-red-500 fill-red-500" : "text-muted-foreground"}`} />
                             </button>
                           </div>
                         </TableCell>
@@ -636,6 +700,55 @@ export default function ExpensesClient({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+              <Dialog open={flaggingExpense !== null} onOpenChange={(open) => { if (!open) { setFlaggingExpense(null); setFlagNote(""); } }}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Flag Expense</DialogTitle>
+                  </DialogHeader>
+                  {flaggingExpense && (
+                    <div className="space-y-4 pt-2">
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{flaggingExpense.vendor || flaggingExpense.category}</span>
+                        {" · "}
+                        {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(flaggingExpense.amount)}
+                      </div>
+                      {flaggingExpense.flagged ? (
+                        <>
+                          {flaggingExpense.flag_note && (
+                            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                              {flaggingExpense.flag_note}
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground">Flagged by {flaggingExpense.flagged_by}</p>
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="outline" onClick={() => { setFlaggingExpense(null); setFlagNote(""); }}>Cancel</Button>
+                            <Button variant="destructive" onClick={() => handleUnflagExpense(flaggingExpense.id)}>Remove Flag</Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium">Note</label>
+                            <Textarea
+                              rows={3}
+                              placeholder="What went wrong?"
+                              value={flagNote}
+                              onChange={(e) => setFlagNote(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="outline" onClick={() => { setFlaggingExpense(null); setFlagNote(""); }}>Cancel</Button>
+                            <Button variant="destructive" onClick={handleFlagExpense} disabled={flagSubmitting}>
+                              {flagSubmitting ? "Flagging…" : "Flag It"}
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
 
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">

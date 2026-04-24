@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { HARDCODED_DEFAULT_PCTS, LABOR_RATE_PER_HR } from "@/lib/budget-formula";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/constants";
 
 interface SettingRow {
   category: string;
@@ -13,6 +14,18 @@ interface SettingRow {
   default_pct: number;
   editing: boolean;
   editValue: string;
+}
+
+interface FlaggedExpense {
+  id: string;
+  date: string;
+  vendor: string | null;
+  category: string;
+  amount: number;
+  flag_note: string | null;
+  flagged_by: string | null;
+  flagged_at: string | null;
+  projects: { name: string } | null;
 }
 
 const LM_CATEGORIES = ["labor", "materials"];
@@ -23,6 +36,12 @@ export default function SettingsPage() {
   const [tableExists, setTableExists] = useState(true);
   const [settings, setSettings] = useState<SettingRow[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"settings" | "flags" | "billcom">("settings");
+  const [flaggedExpenses, setFlaggedExpenses] = useState<FlaggedExpense[]>([]);
+  const [flagsLoading, setFlagsLoading] = useState(false);
+  const [billcomSyncState, setBillcomSyncState] = useState<{ last_sync_at: string | null; billcom_expense_count: number } | null>(null);
+  const [billcomSyncing, setBillcomSyncing] = useState(false);
+  const [billcomResult, setBillcomResult] = useState<{ synced: number; skipped: number; errors: string[] } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -64,6 +83,57 @@ export default function SettingsPage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "flags" && isAdmin) {
+      loadFlaggedExpenses();
+    }
+    if (activeTab === "billcom" && isAdmin) {
+      loadBillcomState();
+    }
+  }, [activeTab, isAdmin]);
+
+  async function loadBillcomState() {
+    const res = await fetch("/api/billcom/sync");
+    if (res.ok) {
+      const data = await res.json() as { last_sync_at: string | null; billcom_expense_count: number };
+      setBillcomSyncState(data);
+    }
+  }
+
+  async function runBillcomSync() {
+    setBillcomSyncing(true);
+    setBillcomResult(null);
+    try {
+      const res = await fetch("/api/billcom/sync", { method: "POST" });
+      const data = await res.json() as { synced: number; skipped: number; errors: string[]; error?: string };
+      if (!res.ok) {
+        toast.error("Sync failed: " + (data.error ?? "Unknown error"));
+      } else {
+        setBillcomResult(data);
+        toast.success(`Synced ${data.synced} expense${data.synced !== 1 ? "s" : ""} from Bill.com`);
+        await loadBillcomState();
+      }
+    } catch {
+      toast.error("Sync request failed");
+    }
+    setBillcomSyncing(false);
+  }
+
+  async function loadFlaggedExpenses() {
+    setFlagsLoading(true);
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*, projects(name)")
+      .eq("flagged", true)
+      .order("flagged_at", { ascending: false });
+    if (error) {
+      toast.error("Failed to load flagged expenses: " + error.message);
+    } else {
+      setFlaggedExpenses((data ?? []) as FlaggedExpense[]);
+    }
+    setFlagsLoading(false);
+  }
 
   function startEdit(category: string) {
     setSettings((prev) => prev.map((r) => r.category === category ? { ...r, editing: true } : r));
@@ -151,46 +221,204 @@ export default function SettingsPage() {
     );
   }
 
+  // Group flagged expenses by flagged_by
+  const flagGroups: Record<string, FlaggedExpense[]> = {};
+  for (const exp of flaggedExpenses) {
+    const key = exp.flagged_by ?? "Unknown";
+    if (!flagGroups[key]) flagGroups[key] = [];
+    flagGroups[key].push(exp);
+  }
+  const grandTotal = flaggedExpenses.reduce((s, e) => s + e.amount, 0);
+
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Budget Formula Settings</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Global default percentages used to calculate budgets. Can be overridden per-project in the Data Entry Hub.
-        </p>
+        <h1 className="text-2xl font-bold">Admin Settings</h1>
       </div>
 
-      {!tableExists && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-          ⚠ Using hardcoded defaults — changes won&apos;t persist until the migration is applied.
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-border -mb-6">
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "settings" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Budget Formula
+        </button>
+        <button
+          onClick={() => setActiveTab("flags")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "flags" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Flags
+        </button>
+        <button
+          onClick={() => setActiveTab("billcom")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "billcom" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Bill.com Sync
+        </button>
+      </div>
+
+      {activeTab === "settings" && (
+        <div className="space-y-6 pt-2">
+          <p className="text-muted-foreground text-sm">
+            Global default percentages used to calculate budgets. Can be overridden per-project in the Data Entry Hub.
+          </p>
+
+          {!tableExists && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+              ⚠ Using hardcoded defaults — changes won&apos;t persist until the migration is applied.
+            </div>
+          )}
+
+          {/* Labor & Materials — first */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Labor &amp; Materials</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Calculated as a % of the total contract amount. Labor budget ÷ ${LABOR_RATE_PER_HR}/hr = budget hours.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SettingsTable rows={lmSettings} />
+            </CardContent>
+          </Card>
+
+          {/* Non-L&M */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Non-Labor &amp; Materials</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Budget = Quote Amount × Default %. Emily can override the % per project when needed.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SettingsTable rows={nonLMSettings} />
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Labor & Materials — first */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Labor &amp; Materials</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Calculated as a % of the total contract amount. Labor budget ÷ ${LABOR_RATE_PER_HR}/hr = budget hours.
+      {activeTab === "billcom" && (
+        <div className="space-y-6 pt-2">
+          <p className="text-muted-foreground text-sm">
+            Pull bills from Bill.com and sync matching line items as expenses on MDP projects. Line items are matched by job number.
           </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <SettingsTable rows={lmSettings} />
-        </CardContent>
-      </Card>
 
-      {/* Non-L&M */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Non-Labor &amp; Materials</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Budget = Quote Amount × Default %. Emily can override the % per project when needed.
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Sync Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-6 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Last Synced</p>
+                  <p className="font-medium">
+                    {billcomSyncState?.last_sync_at
+                      ? new Date(billcomSyncState.last_sync_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
+                      : "Never"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Synced Expenses</p>
+                  <p className="font-medium">{billcomSyncState?.billcom_expense_count ?? 0}</p>
+                </div>
+              </div>
+
+              <Button onClick={runBillcomSync} disabled={billcomSyncing}>
+                {billcomSyncing ? "Syncing…" : "Sync Now"}
+              </Button>
+
+              {billcomResult && (
+                <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm space-y-1">
+                  <p><span className="font-medium text-green-700 dark:text-green-400">{billcomResult.synced}</span> expenses synced</p>
+                  <p><span className="font-medium">{billcomResult.skipped}</span> line items skipped</p>
+                  {billcomResult.errors.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">{billcomResult.errors.length} error(s):</p>
+                      {billcomResult.errors.slice(0, 5).map((e, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">{e}</p>
+                      ))}
+                      {billcomResult.errors.length > 5 && (
+                        <p className="text-xs text-muted-foreground">…and {billcomResult.errors.length - 5} more</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "flags" && (
+        <div className="space-y-6 pt-2">
+          <p className="text-muted-foreground text-sm">
+            All flagged expenses across all projects.
           </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <SettingsTable rows={nonLMSettings} />
-        </CardContent>
-      </Card>
+
+          {flagsLoading ? (
+            <p className="text-muted-foreground text-sm">Loading...</p>
+          ) : flaggedExpenses.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground text-sm">
+                No flagged expenses.
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40">
+                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Date Flagged</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Project</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Expense Date</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Vendor</th>
+                      <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">Amount</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Note</th>
+                      <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Flagged By</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(flagGroups).map(([person, exps]) => {
+                      const subtotal = exps.reduce((s, e) => s + e.amount, 0);
+                      return (
+                        <>
+                          {exps.map((exp) => (
+                            <tr key={exp.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
+                                {exp.flagged_at ? new Date(exp.flagged_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                              </td>
+                              <td className="px-4 py-2.5">{exp.projects?.name ?? "—"}</td>
+                              <td className="px-4 py-2.5 whitespace-nowrap">{exp.date}</td>
+                              <td className="px-4 py-2.5">{exp.vendor || exp.category}</td>
+                              <td className="px-4 py-2.5 text-right font-mono">{formatCurrency(exp.amount)}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground max-w-xs truncate">{exp.flag_note ?? "—"}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground">{exp.flagged_by ?? "—"}</td>
+                            </tr>
+                          ))}
+                          <tr className="border-b border-border bg-muted/30">
+                            <td colSpan={4} className="px-4 py-2 text-xs font-semibold text-muted-foreground">
+                              Subtotal — {person}
+                            </td>
+                            <td className="px-4 py-2 text-right text-xs font-semibold font-mono">{formatCurrency(subtotal)}</td>
+                            <td colSpan={2}></td>
+                          </tr>
+                        </>
+                      );
+                    })}
+                    <tr className="bg-muted/50">
+                      <td colSpan={4} className="px-4 py-3 text-sm font-bold">Grand Total</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold font-mono">{formatCurrency(grandTotal)}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }
