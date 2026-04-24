@@ -594,20 +594,11 @@ export default function ProjectDetailPage() {
             {project.job_number && <span className="font-medium text-foreground">Job #{project.job_number}</span>}
             {project.client && <span>Client: {project.client}</span>}
             {project.pm && <span>PM: {getPMName(project.pm)}</span>}
-          </div>
-          {project.notes && (
-            <div className="mt-2 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
-              <span className="font-medium text-foreground">Note: </span>{project.notes}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {project.close_date && (
-              <span className="text-xs">Closed: {project.close_date}</span>
-            )}
             {project.contract_amount != null && (
-              <span>
-                Contract: {formatCurrency(project.contract_amount)}
-              </span>
+              <span>Contract: {formatCurrency(project.contract_amount)}</span>
+            )}
+            {project.close_date && (
+              <span>Closed: {project.close_date}</span>
             )}
           </div>
           {(project as unknown as Record<string, string>).due_date && (
@@ -615,6 +606,19 @@ export default function ProjectDetailPage() {
               dueDate={(project as unknown as Record<string, string>).due_date}
               closeDate={project.close_date ?? undefined}
             />
+          )}
+          {project.notes && (
+            <details className="mt-1 group">
+              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
+                <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="font-medium">Notes</span>
+              </summary>
+              <div className="mt-1.5 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
+                {project.notes}
+              </div>
+            </details>
           )}
         </div>
         <Link href={`/projects/${projectId}/edit`}>
