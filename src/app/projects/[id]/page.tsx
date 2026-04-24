@@ -621,9 +621,11 @@ export default function ProjectDetailPage() {
             </details>
           )}
         </div>
-        <Link href={`/projects/${projectId}/edit`}>
-          <Button variant="outline" size="sm">Edit Project</Button>
-        </Link>
+        {isAdmin && (
+          <Link href={`/projects/${projectId}/edit`}>
+            <Button variant="outline" size="sm">Edit Project</Button>
+          </Link>
+        )}
       </div>
 
       <Separator />

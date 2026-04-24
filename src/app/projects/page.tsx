@@ -274,7 +274,6 @@ export default function ProjectsPage() {
                         </Link>
                         <ProjectLinkIcons
                           hubspotUrl={project.hubspot_deal_url}
-                          qboUrl={project.qbo_project_url}
                         />
                       </div>
                     </TableCell>
