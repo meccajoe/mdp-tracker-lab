@@ -105,47 +105,85 @@ async function postSlackNotification(
   contractAmount: number,
   parsed: ParsedQuote,
   budgets: CalculatedBudgets,
-  reclassified: ParsedQuote["reclassified"]
+  reclassified: ParsedQuote["reclassified"],
+  dealId: number,
+  portalId: string
 ) {
   const pcts = HARDCODED_DEFAULT_PCTS;
   const q = parsed.quotes;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://projects.meccadesign.com";
+  const hubspotUrl = `https://app-na2.hubspot.com/contacts/${portalId || "23392178"}/deal/${dealId}`;
 
-  const lines: string[] = [
-    `✅ *New project created:* ${projectName}`,
-    `Client: ${client} | PM: TBD | Contract: ${fmt(contractAmount)}`,
-    `Due: Not set`,
-    ``,
-    `*Budget snapshot:*`,
+  // Budget lines — only show categories with a non-zero quote amount
+  const budgetLines: string[] = [
     `• Labor: ${budgets.budget_hrs ?? 0} hrs / ${fmt(Math.round(contractAmount * pcts.labor / 100))} (${pcts.labor}%)`,
     `• Materials: ${fmt(Math.round(contractAmount * pcts.materials / 100))} (${pcts.materials}%)`,
   ];
-
   const categories: Array<{ label: string; quoteVal: number; budgetVal: number | null; pct: number }> = [
-    { label: "Design", quoteVal: q.design, budgetVal: budgets.budget_design, pct: pcts.design },
-    { label: "PM", quoteVal: q.pm, budgetVal: budgets.budget_pm, pct: pcts.pm },
-    { label: "Shipping", quoteVal: q.shipping, budgetVal: budgets.budget_shipping, pct: pcts.shipping },
-    { label: "I&D Labor", quoteVal: q.id_labor, budgetVal: budgets.budget_id_labor, pct: pcts.id_labor },
-    { label: "Travel", quoteVal: q.travel, budgetVal: budgets.budget_travel, pct: pcts.travel },
-    { label: "Props/Decor", quoteVal: q.props, budgetVal: budgets.budget_props, pct: pcts.props },
-    { label: "Equipment", quoteVal: q.equipment, budgetVal: budgets.budget_equipment, pct: pcts.equipment },
-    { label: "Flooring", quoteVal: q.flooring, budgetVal: budgets.budget_flooring, pct: pcts.flooring },
+    { label: "Design",      quoteVal: q.design,    budgetVal: budgets.budget_design,    pct: pcts.design },
+    { label: "PM",          quoteVal: q.pm,        budgetVal: budgets.budget_pm,        pct: pcts.pm },
+    { label: "Shipping",    quoteVal: q.shipping,  budgetVal: budgets.budget_shipping,  pct: pcts.shipping },
+    { label: "I&D Labor",   quoteVal: q.id_labor,  budgetVal: budgets.budget_id_labor,  pct: pcts.id_labor },
+    { label: "Travel",      quoteVal: q.travel,    budgetVal: budgets.budget_travel,    pct: pcts.travel },
+    { label: "Props/Decor", quoteVal: q.props,     budgetVal: budgets.budget_props,     pct: pcts.props },
+    { label: "Equipment",   quoteVal: q.equipment, budgetVal: budgets.budget_equipment, pct: pcts.equipment },
+    { label: "Flooring",    quoteVal: q.flooring,  budgetVal: budgets.budget_flooring,  pct: pcts.flooring },
   ];
-
   for (const cat of categories) {
     if (cat.quoteVal > 0) {
-      lines.push(`• ${cat.label}: ${fmt(cat.quoteVal)} → ${fmt(cat.budgetVal ?? 0)} (${cat.pct}%)`);
+      budgetLines.push(`• ${cat.label}: ${fmt(cat.quoteVal)} → ${fmt(cat.budgetVal ?? 0)} (${cat.pct}%)`);
     }
   }
 
-  if (reclassified.length > 0) {
-    const items = reclassified.map((r) => `"${r.name}" (${r.originalSku} → ${r.toCategory})`).join(", ");
-    lines.push(``, `⚠️ ${reclassified.length} item${reclassified.length > 1 ? "s" : ""} reclassified: ${items}`);
-  }
+  const text = `✅ New project created: ${projectName} | ${client} | ${fmt(contractAmount)}`;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://projects.meccadesign.com";
-  lines.push(``, `View project → ${siteUrl}/projects/${projectId}`);
-
-  const text = lines.join("\n");
+  const blocks: object[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "✅ New Project Created", emoji: true },
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Project*\n<${siteUrl}/projects/${projectId}|${projectName}>` },
+        { type: "mrkdwn", text: `*Job #*\n${projectId}` },
+        { type: "mrkdwn", text: `*Client*\n${client}` },
+        { type: "mrkdwn", text: `*Contract*\n${fmt(contractAmount)}` },
+        { type: "mrkdwn", text: `*PM*\nTBD — assign in tracker` },
+        { type: "mrkdwn", text: `*Due Date*\nNot set` },
+      ],
+    },
+    { type: "divider" },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `*Budget Snapshot*\n${budgetLines.join("\n")}` },
+    },
+    ...(reclassified.length > 0 ? [{
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `⚠️ *${reclassified.length} item${reclassified.length > 1 ? "s" : ""} reclassified:* ${reclassified.map((r) => `"${r.name}" (${r.originalSku} → ${r.toCategory})`).join(", ")}`,
+      },
+    }] : []),
+    { type: "divider" },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "📋 View Project", emoji: true },
+          url: `${siteUrl}/projects/${projectId}`,
+          action_id: "view_mdp_project",
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "💼 View Deal", emoji: true },
+          url: hubspotUrl,
+          action_id: "view_hs_deal",
+        },
+      ],
+    },
+  ];
 
   // Prefer bot token + channel (supports DMs), fall back to incoming webhook
   if (SLACK_BOT_TOKEN && SLACK_NOTIFY_CHANNEL) {
@@ -153,7 +191,8 @@ async function postSlackNotification(
       const res = await fetch("https://slack.com/api/chat.postMessage", {
         method: "POST",
         headers: { "Authorization": `Bearer ${SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ channel: SLACK_NOTIFY_CHANNEL, text, mrkdwn: true }),
+        body: JSON.stringify({ channel: SLACK_NOTIFY_CHANNEL, text, blocks }),
+
       });
       const data = await res.json() as { ok: boolean; error?: string };
       if (!data.ok) console.error("[hubspot webhook] Slack error:", data.error);
@@ -165,7 +204,7 @@ async function postSlackNotification(
       const res = await fetch(SLACK_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, blocks }),
       });
       if (!res.ok) console.error("[hubspot webhook] Slack webhook failed:", res.status);
     } catch (err) {
@@ -377,7 +416,9 @@ export async function POST(req: NextRequest) {
         parsed.contractAmount,
         parsed,
         budgets,
-        parsed.reclassified
+        parsed.reclassified,
+        dealId,
+        portalId
       ).catch((err) => console.error("[hubspot webhook] Slack error:", err));
 
       results.push({ dealId, status: "created" });
