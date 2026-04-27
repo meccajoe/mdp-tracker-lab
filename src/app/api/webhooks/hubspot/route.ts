@@ -142,7 +142,8 @@ async function postSlackNotification(
     lines.push(``, `⚠️ ${reclassified.length} item${reclassified.length > 1 ? "s" : ""} reclassified: ${items}`);
   }
 
-  lines.push(``, `View project → https://projects.meccanics.com/projects/${projectId}`);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://projects.meccadesign.com";
+  lines.push(``, `View project → ${siteUrl}/projects/${projectId}`);
 
   const text = lines.join("\n");
 
