@@ -168,13 +168,13 @@ async function fetchGlobalPcts(): Promise<Record<string, number>> {
     const supabase = createClient(supabaseUrl, serviceKey);
     const { data, error } = await supabase
       .from("budget_formula_settings")
-      .select("category, pct");
+      .select("category, default_pct");
 
     if (error || !data) throw new Error(error?.message ?? "No data");
 
     const pcts: Record<string, number> = {};
-    for (const row of data as Array<{ category: string; pct: number }>) {
-      pcts[row.category] = row.pct;
+    for (const row of data as Array<{ category: string; default_pct: number }>) {
+      pcts[row.category] = row.default_pct;
     }
     return pcts;
   } catch (err) {
