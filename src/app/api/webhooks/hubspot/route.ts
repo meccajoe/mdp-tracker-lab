@@ -171,23 +171,27 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
   const url = new URL(req.url);
 
-  // --- Auth: Workflow secret token (query param) or native signature ---
-  const querySecret = url.searchParams.get("secret");
-  const isWorkflowRequest = querySecret !== null;
+  // --- Auth ---
+  // Requests from localhost (mecca-qbo-poll running on the same machine) are
+  // trusted without a secret. External requests validate via secret query param
+  // or native HubSpot signature.
+  const forwarded = req.headers.get("x-forwarded-for");
+  const remoteIp = forwarded?.split(",")[0].trim() ?? "";
+  const isLocalRequest = remoteIp === "127.0.0.1" || remoteIp === "::1" || remoteIp === "";
 
-  if (isWorkflowRequest) {
-    // HubSpot Workflow: validate simple secret token
-    if (HUBSPOT_WEBHOOK_SECRET && querySecret !== HUBSPOT_WEBHOOK_SECRET) {
-      console.error("[hubspot webhook] Invalid workflow secret token");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!HUBSPOT_WEBHOOK_SECRET) {
-      console.warn("[hubspot webhook] HUBSPOT_WEBHOOK_SECRET not set — skipping token validation (dev mode)");
-    }
-  } else {
-    // Native webhook subscription: validate HubSpot signature
-    if (!validateSignature(req, body)) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  if (!isLocalRequest) {
+    const querySecret = url.searchParams.get("secret");
+    if (querySecret !== null) {
+      // External caller using secret token
+      if (HUBSPOT_WEBHOOK_SECRET && querySecret !== HUBSPOT_WEBHOOK_SECRET) {
+        console.error("[hubspot webhook] Invalid secret token");
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    } else {
+      // Native HubSpot webhook subscription signature
+      if (!validateSignature(req, body)) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      }
     }
   }
 
