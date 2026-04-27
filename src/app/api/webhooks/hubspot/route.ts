@@ -26,6 +26,8 @@ const HUBSPOT_CLIENT_SECRET = process.env.HUBSPOT_CLIENT_SECRET;
 const HUBSPOT_WEBHOOK_SECRET = process.env.HUBSPOT_WEBHOOK_SECRET;
 const HUBSPOT_PORTAL_ID = process.env.HUBSPOT_PORTAL_ID ?? "";
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
+const SLACK_NOTIFY_CHANNEL = process.env.SLACK_NOTIFY_CHANNEL;
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -144,22 +146,32 @@ async function postSlackNotification(
 
   const text = lines.join("\n");
 
-  if (!SLACK_WEBHOOK_URL) {
-    console.log("[hubspot webhook] SLACK_WEBHOOK_URL not set — Slack message:\n" + text);
-    return;
-  }
-
-  try {
-    const res = await fetch(SLACK_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) {
-      console.error("[hubspot webhook] Slack notification failed:", res.status, await res.text());
+  // Prefer bot token + channel (supports DMs), fall back to incoming webhook
+  if (SLACK_BOT_TOKEN && SLACK_NOTIFY_CHANNEL) {
+    try {
+      const res = await fetch("https://slack.com/api/chat.postMessage", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: SLACK_NOTIFY_CHANNEL, text, mrkdwn: true }),
+      });
+      const data = await res.json() as { ok: boolean; error?: string };
+      if (!data.ok) console.error("[hubspot webhook] Slack error:", data.error);
+    } catch (err) {
+      console.error("[hubspot webhook] Slack notification error:", err);
     }
-  } catch (err) {
-    console.error("[hubspot webhook] Slack notification error:", err);
+  } else if (SLACK_WEBHOOK_URL) {
+    try {
+      const res = await fetch(SLACK_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) console.error("[hubspot webhook] Slack webhook failed:", res.status);
+    } catch (err) {
+      console.error("[hubspot webhook] Slack notification error:", err);
+    }
+  } else {
+    console.log("[hubspot webhook] No Slack config — message:\n" + text);
   }
 }
 
