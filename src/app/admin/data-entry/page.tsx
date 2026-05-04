@@ -436,7 +436,7 @@ export default function DataEntryPage() {
       hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null,
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
       budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
-      budget_flooring: null, notes: null, project_type: null, created_at: "", updated_at: "",
+      budget_rental: null, budget_flooring: null, notes: null, project_type: null, created_at: "", updated_at: "",
       budget_materials: null,
       quote_labor: null, quote_materials: null,
       pct_labor: null, pct_materials: null,

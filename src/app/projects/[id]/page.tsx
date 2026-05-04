@@ -152,10 +152,13 @@ const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
     "Forklifts and Trucks",              // COGS 500900
     "Machinery Repairs & Maintenance",   // COGS 501700
   ],
-  // Props/Decor: rentals and props/decor items
+  // Props/Decor: props and decor items
   budget_props: [
-    "Rental",                            // HubSpot 408000 / COGS 500800
     "Props/Decor",                       // COGS 505001
+  ],
+  // Rental: equipment and item rentals
+  budget_rental: [
+    "Rental",                            // HubSpot 408000 / COGS 500800
   ],
   // Flooring: custom printed marley/carpet = goes under Graphics per Paul
   budget_flooring: [

@@ -21,6 +21,7 @@ export interface Project {
   budget_travel: number | null;
   budget_props: number | null;
   budget_equipment: number | null;
+  budget_rental: number | null;
   budget_flooring: number | null;
   project_type: string | null;
   created_at: string;
