@@ -41,6 +41,7 @@ export interface Project {
   quote_travel: number | null;
   quote_props: number | null;
   quote_equipment: number | null;
+  quote_rental: number | null;
   quote_flooring: number | null;
   // Per-project % overrides (null = use global default)
   pct_design: number | null;
@@ -50,6 +51,7 @@ export interface Project {
   pct_travel: number | null;
   pct_props: number | null;
   pct_equipment: number | null;
+  pct_rental: number | null;
   pct_flooring: number | null;
 }
 

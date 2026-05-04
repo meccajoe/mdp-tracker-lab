@@ -437,7 +437,7 @@ export default function DataEntryPage() {
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
       budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
       budget_rental: null, budget_flooring: null, notes: null, project_type: null, created_at: "", updated_at: "",
-      budget_materials: null,
+      budget_materials: null, quote_rental: null, pct_rental: null,
       quote_labor: null, quote_materials: null,
       pct_labor: null, pct_materials: null,
       quote_design: null, quote_pm: null, quote_shipping: null, quote_id_labor: null,
@@ -570,6 +570,7 @@ export default function DataEntryPage() {
       quote_travel: numVal(quotes.travel),
       quote_props: numVal(quotes.props),
       quote_equipment: numVal(quotes.equipment),
+      quote_rental: numVal(quotes.rental),
       quote_flooring: numVal(quotes.flooring),
       // Per-project % overrides
       pct_labor: projectPcts.labor ? Number(projectPcts.labor) : null,
@@ -581,6 +582,7 @@ export default function DataEntryPage() {
       pct_travel: projectPcts.travel ? Number(projectPcts.travel) : null,
       pct_props: projectPcts.props ? Number(projectPcts.props) : null,
       pct_equipment: projectPcts.equipment ? Number(projectPcts.equipment) : null,
+      pct_rental: projectPcts.rental ? Number(projectPcts.rental) : null,
       pct_flooring: projectPcts.flooring ? Number(projectPcts.flooring) : null,
     };
 

@@ -21,6 +21,7 @@ export const BUDGET_CATEGORIES = [
   { key: "travel",    label: "Travel",             quoteKey: "quote_travel",    budgetKey: "budget_travel",    pctKey: "pct_travel" },
   { key: "props",     label: "Props/Decor",        quoteKey: "quote_props",     budgetKey: "budget_props",     pctKey: "pct_props" },
   { key: "equipment", label: "Equipment",          quoteKey: "quote_equipment", budgetKey: "budget_equipment", pctKey: "pct_equipment" },
+  { key: "rental",    label: "Rental",             quoteKey: "quote_rental",    budgetKey: "budget_rental",    pctKey: "pct_rental" },
   { key: "flooring",  label: "Flooring",           quoteKey: "quote_flooring",  budgetKey: "budget_flooring",  pctKey: "pct_flooring" },
 ] as const;
 
