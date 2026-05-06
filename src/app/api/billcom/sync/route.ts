@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const BASE_URL = process.env.BILLCOM_BASE_URL!;
-const DEV_KEY = process.env.BILLCOM_DEV_KEY!;
-const ORG_ID = process.env.BILLCOM_ORG_ID!;
-const EMAIL = process.env.BILLCOM_EMAIL!;
-const PASSWORD = process.env.BILLCOM_PASSWORD!;
+// Bill Spend & Expense API (v3) — uses apiToken header, not legacy devKey/session auth
+const API_TOKEN = process.env.BILLCOM_API_TOKEN!;
+const BASE_URL = process.env.BILLCOM_BASE_URL ?? "https://gateway.prod.bill.com/connect";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -18,91 +17,110 @@ function getSupabaseAdmin() {
   );
 }
 
-async function billcomPost(path: string, sessionId: string | null, params: Record<string, unknown>) {
-  const body = new URLSearchParams();
-  body.set("devKey", DEV_KEY);
-  if (sessionId) body.set("sessionId", sessionId);
-  body.set("data", JSON.stringify(params));
+interface BillTransaction {
+  uuid: string;
+  transactionType: "CLEAR" | "AUTHORIZATION" | "DECLINE";
+  amount: number;
+  merchantName: string;
+  occurredTime: string;
+  updatedTime: string;
+  userName: string;
+  tags: Array<{
+    tagType: { name: string };
+    selectedTagValues: string[];
+  }>;
+}
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
+interface TransactionListResponse {
+  results: BillTransaction[];
+  cursor?: string;
+}
+
+async function fetchTransactions(params: Record<string, string>): Promise<TransactionListResponse> {
+  const url = new URL(`${BASE_URL}/v3/spend/transactions`);
+  for (const [k, v] of Object.entries(params)) {
+    url.searchParams.set(k, v);
+  }
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      apiToken: API_TOKEN,
+      Accept: "application/json",
+    },
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Bill.com ${path} failed (${res.status}): ${text}`);
+    throw new Error(`Bill.com API ${res.status}: ${text.slice(0, 200)}`);
   }
 
-  const json = await res.json() as { response_status: number; response_message: string; response_data: unknown };
-  if (json.response_status !== 0) {
-    throw new Error(`Bill.com ${path} error ${json.response_status}: ${json.response_message}`);
-  }
-  return json.response_data;
+  return res.json() as Promise<TransactionListResponse>;
 }
 
-async function login(): Promise<string> {
-  const data = await billcomPost("/Login.json", null, {
-    orgId: ORG_ID,
-    userName: EMAIL,
-    password: PASSWORD,
-  }) as { sessionId: string };
-  return data.sessionId;
+/** Parse job number from Project tag value like "26056-Good TV-Musgraves..." */
+function parseJobNumber(projectTagValue: string): string | null {
+  const match = projectTagValue.match(/^(\d+)-/);
+  return match ? match[1] : null;
 }
 
-async function fetchList<T>(sessionId: string, entity: string, filters: Record<string, unknown>[] = []): Promise<T[]> {
-  const allItems: T[] = [];
-  let start = 0;
-  const max = 200;
-
-  while (true) {
-    const data = await billcomPost(`/List/${entity}.json`, sessionId, {
-      start,
-      max,
-      filters,
-    }) as T[];
-
-    allItems.push(...data);
-    if (data.length < max) break;
-    start += max;
-  }
-
-  return allItems;
+/** Get a named tag value from a transaction's tags array */
+function getTag(tx: BillTransaction, tagName: string): string | null {
+  const tag = tx.tags.find(t => t.tagType.name === tagName);
+  return tag?.selectedTagValues?.[0] ?? null;
 }
 
-interface BillLineItem {
-  id: string;
-  billId: string;
-  amount: number;
-  description: string | null;
-  jobId: string | null;
-  customerId: string | null;
-  chartOfAccountId: string | null;
-}
+/**
+ * Map Bill.com Spend & Expense category string to MDP COGS category name.
+ *
+ * Bill.com format: "COS - Production : COS - [Specific]" or legacy "500XXX COS - ..."
+ * Specific part maps directly to MDP cogs_categories.name values.
+ */
+const BILLCOM_CATEGORY_MAP: Record<string, string> = {
+  // Exact matches from Bill.com "COS - Production : COS - X" → MDP category name
+  "Fabrication":                       "Fabrication",
+  "Fab Supplies and Small Equipment":  "Fab Supplies and Small Equipment",
+  "Graphics":                          "Graphics",
+  "Graphics Supplies":                 "Fab Supplies and Small Equipment",
+  "Design Labor":                      "Design Labor",
+  "Design":                            "Design",
+  "Production Labor":                  "Production Labor",
+  "Install/Strike":                    "Install/Strike",
+  "On-site Show Services":             "On-site Show Services",
+  "Shipping/Trucking":                 "Shipping/Trucking",
+  "Fuel Costs":                        "Fuel Costs",
+  "Storage":                           "Storage",
+  "Travel-Hotels":                     "Travel-Hotels",
+  "Travel-Per Diem":                   "Travel-Per Diem",
+  "Travel-Airfare & Baggage Fees":     "Travel-Airfare & Baggage Fees",
+  "Travel":                            "Travel",
+  "Rental":                            "Rental",
+  "Forklifts and Trucks":              "Forklifts and Trucks",
+  "Show Prep":                         "Show Prep",
+  "Production Meals":                  "Production Meals",
+  "Machinery Repairs & Maintenance":   "Machinery Repairs & Maintenance",
+  "Props/Decor":                       "Props/Decor",
+  "I&D Labor":                         "I&D Labor",
+  // Generic/unresolved fallback
+  "Administration":                    "Fabrication",
+  "Other":                             "Fabrication",
+};
 
-interface Bill {
-  id: string;
-  vendorId: string;
-  invoiceDate: string | null;
-  isActive: string;
-  updatedTime: string;
-  billLineItems: BillLineItem[];
-}
+function mapCategory(billCategory: string | null): string {
+  if (!billCategory) return "Fabrication";
 
-interface BillcomJob {
-  id: string;
-  name: string;
-  isActive: string;
-}
+  // Extract specific part from "COS - Production : COS - [Specific]"
+  const colonMatch = billCategory.match(/:\s*COS\s*-\s*(.+)$/);
+  const specific = colonMatch ? colonMatch[1].trim() : billCategory.trim();
 
-interface BillcomVendor {
-  id: string;
-  name: string;
+  // Strip leading numeric codes like "500600 COS - Production : COS - Graphics"
+  const stripped = specific.replace(/^\d+\s+/, "");
+
+  return BILLCOM_CATEGORY_MAP[stripped] ?? BILLCOM_CATEGORY_MAP[specific] ?? "Fabrication";
 }
 
 export async function GET() {
   const supabase = getSupabaseAdmin();
+
   const { data: state } = await supabase
     .from("billcom_sync_state")
     .select("last_sync_at, last_bill_updated_time")
@@ -128,24 +146,18 @@ export async function POST(_request: NextRequest) {
   let skipped = 0;
 
   try {
-    // Step 1: Login
-    const sessionId = await login();
+    // Load MDP projects → Map<job_number, project_id>
+    const { data: projects } = await supabase
+      .from("projects")
+      .select("id, job_number")
+      .not("job_number", "is", null);
 
-    // Step 2: Fetch jobs → Map<jobId, jobName>
-    const jobs = await fetchList<BillcomJob>(sessionId, "Job", [{ field: "isActive", op: "=", value: "1" }]);
-    const jobMap = new Map<string, string>();
-    for (const job of jobs) {
-      jobMap.set(job.id, job.name);
+    const projectByJobNumber = new Map<string, string>();
+    for (const p of projects ?? []) {
+      if (p.job_number) projectByJobNumber.set(String(p.job_number), p.id);
     }
 
-    // Step 3: Fetch vendors → Map<vendorId, vendorName>
-    const vendors = await fetchList<BillcomVendor>(sessionId, "Vendor", []);
-    const vendorMap = new Map<string, string>();
-    for (const vendor of vendors) {
-      vendorMap.set(vendor.id, vendor.name);
-    }
-
-    // Step 4: Get last sync state
+    // Get last sync watermark
     const { data: syncState } = await supabase
       .from("billcom_sync_state")
       .select("last_bill_updated_time")
@@ -154,96 +166,101 @@ export async function POST(_request: NextRequest) {
 
     const lastUpdatedTime = syncState?.last_bill_updated_time ?? null;
 
-    // Build date filter — 90 days back on first run, else incremental
-    const filters: Record<string, unknown>[] = [
-      { field: "isActive", op: "=", value: "1" },
-    ];
+    // Fetch all pages of CLEAR (settled) transactions
+    const allTransactions: BillTransaction[] = [];
+    const params: Record<string, string> = {
+      pageSize: "200",
+      transactionType: "CLEAR",
+    };
+
+    // Incremental: filter by updatedTime; first run pulls last 90 days
     if (lastUpdatedTime) {
-      filters.push({ field: "updatedTime", op: ">=", value: lastUpdatedTime });
+      params.updatedTimeStart = lastUpdatedTime;
     } else {
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-      filters.push({ field: "updatedTime", op: ">=", value: ninetyDaysAgo.toISOString().split("T")[0] });
+      params.updatedTimeStart = ninetyDaysAgo.toISOString();
     }
 
-    // Step 4: Fetch bills
-    const bills = await fetchList<Bill>(sessionId, "Bill", filters);
+    // Paginate via cursor
+    let cursor: string | undefined;
+    do {
+      if (cursor) params.cursor = cursor;
+      const page = await fetchTransactions(params);
+      allTransactions.push(...page.results);
+      cursor = page.cursor;
+    } while (cursor);
 
-    // Track the latest updatedTime we see
+    // Track latest updatedTime seen
     let maxUpdatedTime = lastUpdatedTime ?? "";
 
-    // Step 5: Load MDP projects → Map<job_number, project_id>
-    const { data: projects } = await supabase
-      .from("projects")
-      .select("id, job_number")
-      .not("job_number", "is", null);
-
-    const projectByJobNumber = new Map<string, string>();
-    for (const p of (projects ?? [])) {
-      if (p.job_number) projectByJobNumber.set(p.job_number, p.id);
-    }
-
-    // Step 5: Process each bill line item
-    for (const bill of bills) {
-      if (bill.updatedTime > maxUpdatedTime) {
-        maxUpdatedTime = bill.updatedTime;
+    for (const tx of allTransactions) {
+      if (tx.updatedTime > maxUpdatedTime) {
+        maxUpdatedTime = tx.updatedTime;
       }
 
-      const vendorName = vendorMap.get(bill.vendorId) ?? "Unknown";
-      const invoiceDate = bill.invoiceDate ?? new Date().toISOString().split("T")[0];
+      // Must have a Project tag
+      const projectTagValue = getTag(tx, "Project");
+      if (!projectTagValue) {
+        skipped++;
+        continue;
+      }
 
-      for (const lineItem of (bill.billLineItems ?? [])) {
-        const jobId = lineItem.jobId ?? "";
+      const jobNumber = parseJobNumber(projectTagValue);
+      if (!jobNumber) {
+        errors.push(`Transaction ${tx.uuid}: couldn't parse job number from "${projectTagValue}"`);
+        skipped++;
+        continue;
+      }
 
-        // Skip unassigned line items
-        if (!jobId || jobId === "00000000000000000000") {
-          skipped++;
-          continue;
-        }
+      const projectId = projectByJobNumber.get(jobNumber);
+      if (!projectId) {
+        // Not an MDP project we track — skip silently
+        skipped++;
+        continue;
+      }
 
-        const jobName = jobMap.get(jobId);
-        if (!jobName) {
-          errors.push(`Bill ${bill.id} line ${lineItem.id}: jobId ${jobId} not found in jobs list`);
-          skipped++;
-          continue;
-        }
+      const billCategory = getTag(tx, "Category");
+      const category = mapCategory(billCategory);
+      const notesTag = getTag(tx, "Notes");
+      const vendorTag = getTag(tx, "MDP Vendor") ?? tx.merchantName;
 
-        // jobName = MDP job number (e.g. "26001")
-        const projectId = projectByJobNumber.get(jobName);
-        if (!projectId) {
-          // Not an MDP project — skip silently
-          skipped++;
-          continue;
-        }
+      const notes = [
+        notesTag ?? null,
+        billCategory ? `Bill.com category: ${billCategory}` : null,
+        `Cardholder: ${tx.userName}`,
+      ]
+        .filter(Boolean)
+        .join(" | ");
 
-        // Upsert expense
-        const { error } = await supabase.from("expenses").upsert(
-          {
-            project_id: projectId,
-            date: invoiceDate,
-            category: "Materials",
-            vendor: vendorName,
-            amount: lineItem.amount,
-            notes: lineItem.description ?? null,
-            source: "billcom",
-            external_id: lineItem.id,
-            synced_at: new Date().toISOString(),
-            // Required non-null fields with defaults for billcom-sourced rows
-            amount_pending: false,
-            purchaser: null,
-          },
-          { onConflict: "external_id" }
-        );
+      const date = tx.occurredTime.split("T")[0];
 
-        if (error) {
-          errors.push(`Failed to upsert line item ${lineItem.id}: ${error.message}`);
-        } else {
-          synced++;
-        }
+      const { error } = await supabase.from("expenses").upsert(
+        {
+          id: randomUUID(),
+          project_id: projectId,
+          date,
+          category,
+          vendor: vendorTag,
+          amount: tx.amount,
+          notes,
+          source: "billcom",
+          external_id: tx.uuid,
+          synced_at: new Date().toISOString(),
+          amount_pending: false,
+          purchaser: null,
+        },
+        { onConflict: "external_id" }
+      );
+
+      if (error) {
+        errors.push(`Failed to upsert ${tx.uuid}: ${error.message}`);
+      } else {
+        synced++;
       }
     }
 
-    // Step 6: Update sync state
+    // Update sync state
     await supabase.from("billcom_sync_state").upsert({
       id: 1,
       last_sync_at: new Date().toISOString(),
