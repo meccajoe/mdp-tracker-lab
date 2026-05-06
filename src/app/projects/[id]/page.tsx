@@ -1192,27 +1192,25 @@ export default function ProjectDetailPage() {
                         <TableCell className="text-right font-mono">{formatCurrency(expense.amount)}</TableCell>
                         <TableCell>{expense.amount_pending ? <Badge variant="outline">Pending</Badge> : <Badge variant="secondary">Confirmed</Badge>}</TableCell>
                         <TableCell>{expense.purchaser ?? "-"}</TableCell>
-                        <TableCell className="max-w-48 truncate text-muted-foreground">{expense.notes ?? "-"}</TableCell>
+                        <TableCell className="max-w-48 truncate text-muted-foreground" title={expense.notes ?? undefined}>{expense.notes ?? "-"}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             {expense.source !== "billcom" && (
-                              <>
-                                <button
-                                  onClick={() => setEditingExpense(expense)}
-                                  className="p-1 text-muted-foreground hover:text-foreground rounded"
-                                  title="Edit expense"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => setDeletingExpenseId(expense.id)}
-                                  className="p-1 text-muted-foreground hover:text-destructive rounded"
-                                  title="Delete expense"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => setEditingExpense(expense)}
+                                className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                title="Edit expense"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
                             )}
+                            <button
+                              onClick={() => setDeletingExpenseId(expense.id)}
+                              className="p-1 text-muted-foreground hover:text-destructive rounded"
+                              title="Delete expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
                               className="p-1 rounded"

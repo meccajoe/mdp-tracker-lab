@@ -646,23 +646,21 @@ export default function ExpensesClient({
                         <TableCell>
                           <div className="flex items-center gap-1">
                             {expense.source !== "billcom" && (
-                              <>
-                                <button
-                                  onClick={() => setEditingExpense(expense as unknown as LibExpense)}
-                                  className="p-1 text-muted-foreground hover:text-foreground rounded"
-                                  title="Edit expense"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => setDeletingExpenseId(expense.id)}
-                                  className="p-1 text-muted-foreground hover:text-destructive rounded"
-                                  title="Delete expense"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => setEditingExpense(expense as unknown as LibExpense)}
+                                className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                title="Edit expense"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
                             )}
+                            <button
+                              onClick={() => setDeletingExpenseId(expense.id)}
+                              className="p-1 text-muted-foreground hover:text-destructive rounded"
+                              title="Delete expense"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
                               className="p-1 rounded"

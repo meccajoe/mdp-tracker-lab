@@ -157,6 +157,17 @@ export async function POST(_request: NextRequest) {
       if (p.job_number) projectByJobNumber.set(String(p.job_number), p.id);
     }
 
+    // Load purchasers → Map<full_name_lowercase, initials>
+    const { data: purchasers } = await supabase
+      .from("purchasers")
+      .select("initials, full_name")
+      .eq("active", true);
+
+    const purchaserByName = new Map<string, string>();
+    for (const p of purchasers ?? []) {
+      purchaserByName.set(p.full_name.toLowerCase(), p.initials);
+    }
+
     // Get last sync watermark
     const { data: syncState } = await supabase
       .from("billcom_sync_state")
@@ -248,7 +259,7 @@ export async function POST(_request: NextRequest) {
           external_id: tx.uuid,
           synced_at: new Date().toISOString(),
           amount_pending: false,
-          purchaser: null,
+          purchaser: purchaserByName.get(tx.userName.toLowerCase()) ?? null,
         },
         { onConflict: "external_id" }
       );
