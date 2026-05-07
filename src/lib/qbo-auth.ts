@@ -1,12 +1,18 @@
-import { createClient } from "@supabase/supabase-js";
+import { execSync } from "child_process";
 
 const QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
+const OP_ITEM = "QBO - Mecca HubSpot Integration";
+const OP_VAULT = "Archie";
+const OP_CREDS_ENV = "source ~/.config/archie/credentials/1password.env";
 
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+function opGet(field: string): string {
+  const cmd = `${OP_CREDS_ENV} && op item get "${OP_ITEM}" --vault ${OP_VAULT} --fields "${field}" --reveal`;
+  return execSync(cmd, { shell: "/bin/zsh" }).toString().trim();
+}
+
+function opSet(field: string, value: string): void {
+  const cmd = `${OP_CREDS_ENV} && op item edit "${OP_ITEM}" --vault ${OP_VAULT} "${field}=${value}"`;
+  execSync(cmd, { shell: "/bin/zsh" });
 }
 
 export async function getQboAccessToken(): Promise<string> {
@@ -17,19 +23,12 @@ export async function getQboAccessToken(): Promise<string> {
     throw new Error("QBO_CLIENT_ID or QBO_CLIENT_SECRET not set in environment");
   }
 
-  // Read current refresh token from Supabase
-  const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("app_config")
-    .select("value")
-    .eq("key", "qbo_refresh_token")
-    .single();
-
-  if (error || !data?.value) {
-    throw new Error("QBO refresh token not found in app_config");
+  // Read refresh token from 1Password — shared source of truth with mecca-qbo
+  const refreshToken = opGet("refresh_token");
+  if (!refreshToken) {
+    throw new Error("QBO refresh token not found in 1Password");
   }
 
-  const refreshToken = data.value;
   const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const response = await fetch(QBO_TOKEN_URL, {
@@ -53,12 +52,9 @@ export async function getQboAccessToken(): Promise<string> {
     throw new Error("No access token returned from QBO");
   }
 
-  // Rotate refresh token if QBO returned a new one
+  // Rotate refresh token back to 1Password if QBO returned a new one
   if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
-    await supabase
-      .from("app_config")
-      .update({ value: tokenData.refresh_token, updated_at: new Date().toISOString() })
-      .eq("key", "qbo_refresh_token");
+    opSet("refresh_token", tokenData.refresh_token);
   }
 
   return tokenData.access_token;

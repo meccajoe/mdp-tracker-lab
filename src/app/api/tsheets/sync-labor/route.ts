@@ -107,8 +107,33 @@ interface TsTimesheet {
 }
 
 interface TsSupplemental {
-  users?: Record<string, { display_name: string }>;
+  users?: Record<string, { display_name: string; pay_rate?: number; salaried?: boolean }>;
   jobcodes?: Record<string, { name: string }>;
+}
+
+// Fetch all active users and return a map of user_id → { name, pay_rate, salaried }
+async function fetchUserRates(token: string): Promise<Map<string, { name: string; pay_rate: number; salaried: boolean }>> {
+  const map = new Map<string, { name: string; pay_rate: number; salaried: boolean }>();
+  let page = 1;
+  while (true) {
+    const res = await tsFetch(`/users?active=both&limit=200&page=${page}`, token);
+    if (!res.ok) break;
+    const data = (await res.json()) as {
+      results: { users: Record<string, { id: number; display_name: string; pay_rate: number; salaried: boolean }> };
+      more: boolean;
+    };
+    for (const u of Object.values(data.results?.users ?? {})) {
+      map.set(String(u.id), {
+        name: u.display_name,
+        pay_rate: u.pay_rate ?? 0,
+        salaried: u.salaried ?? false,
+      });
+    }
+    if (!data.more) break;
+    page++;
+    await sleep(200);
+  }
+  return map;
 }
 
 async function fetchTimesheets(
@@ -198,7 +223,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: projErr?.message ?? "No projects found" }, { status: 500 });
     }
 
-    // 2. Build jobcode map from TSheets
+    // 2. Fetch user pay rates from TSheets
+    const userRates = await fetchUserRates(token);
+
+    // 3. Build jobcode map from TSheets
     const jobcodeMap = await buildJobcodeMap(token);
     // Invert: job_number → jobcode_id
     const jobToJcId = new Map<string, string>();
@@ -246,11 +274,11 @@ export async function POST(request: NextRequest) {
         const totalHours = s.duration / 3600;
         return {
           project_id: projectId,
-          employee_name: users[String(s.user_id)] ?? `User ${s.user_id}`,
+          employee_name: userRates.get(String(s.user_id))?.name ?? users[String(s.user_id)] ?? `User ${s.user_id}`,
           date: s.date,
           reg_hours: s.type === "regular" ? totalHours : 0,
           ot_hours: s.type === "overtime" ? totalHours : 0,
-          hourly_rate: 30, // hardcoded per spec; update if QBO payroll rate added later
+          hourly_rate: userRates.get(String(s.user_id))?.pay_rate || 30, // uses TSheets pay_rate; falls back to $30
           qbo_entry_id: `ts_${s.id}`, // prefix to distinguish from QBO TimeActivity IDs
           synced_at: new Date().toISOString(),
         };

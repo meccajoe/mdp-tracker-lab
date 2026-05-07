@@ -17,7 +17,7 @@ interface QboTimeActivity {
   TxnDate?: string;
   Hours?: number;
   Minutes?: number;
-  HourlyRate?: { value?: number };
+  HourlyRate?: number;
   // Breaktime fields for OT detection
   BreakHours?: number;
   BreakMinutes?: number;
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
               date: a.TxnDate ?? new Date().toISOString().split("T")[0],
               reg_hours: isOT ? 0 : totalHours,
               ot_hours: isOT ? totalHours : 0,
-              hourly_rate: a.HourlyRate?.value ?? 30,
+              hourly_rate: a.HourlyRate ?? 30,
               qbo_entry_id: a.Id,
               synced_at: new Date().toISOString(),
             };
