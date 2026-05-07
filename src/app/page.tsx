@@ -43,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateCentral } from "@/lib/date-utils";
 
 const EMAIL_TO_PM: Record<string, string> = {
   "victoria@meccadesign.com": "VW",
@@ -415,7 +416,7 @@ export default function Dashboard() {
                       <TableCell className="text-sm px-2 whitespace-nowrap">
                         {(() => {
                           const dd = (project as unknown as Record<string, string>).due_date;
-                          return dd ? new Date(dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+                          return dd ? formatDateCentral(dd + "T00:00:00") : "—";
                         })()}
                       </TableCell>
                     </TableRow>
@@ -527,7 +528,7 @@ export default function Dashboard() {
                       return (
                         <TableRow key={expense.id}>
                           <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {new Date(expense.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            {formatDateCentral(expense.date + "T00:00:00", { month: "short", day: "numeric" })}
                           </TableCell>
                           <TableCell>
                             {project ? (
