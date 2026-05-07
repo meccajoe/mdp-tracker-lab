@@ -842,18 +842,24 @@ export default function ProjectDetailPage() {
                       );
                     })();
 
+                // Actual labor cost using per-entry rates (QBO) or $30/hr fallback (manual)
+                const actualLaborDollars = field.isHours
+                  ? qboLaborEntries.reduce((sum, e) => sum + (e.reg_hours + e.ot_hours) * e.hourly_rate, 0)
+                    + laborEntries.reduce((sum, e) => sum + e.hours * LABOR_RATE, 0)
+                  : 0;
+
                 const drillLaborEntries = field.isHours
                   ? [...qboLaborEntries.map((e) => ({
                       date: e.date,
                       description: e.employee_name,
-                      amount: (e.reg_hours + e.ot_hours) * LABOR_RATE,
-                      detail: `${(e.reg_hours + e.ot_hours).toFixed(1)} hrs`,
+                      amount: (e.reg_hours + e.ot_hours) * e.hourly_rate,
+                      detail: `${(e.reg_hours + e.ot_hours).toFixed(1)} hrs @ $${e.hourly_rate}/hr`,
                     })),
                     ...laborEntries.map((e) => ({
                       date: e.date,
                       description: e.person ?? "Manual",
                       amount: e.hours * LABOR_RATE,
-                      detail: `${e.hours} hrs (manual)`,
+                      detail: `${e.hours} hrs (manual @ $${LABOR_RATE}/hr)`,
                     }))]
                   : [];
 
@@ -909,7 +915,7 @@ export default function ProjectDetailPage() {
                         {field.isHours ? (
                           <span>
                             <span className="font-mono">{formatNumber(actual)} hrs</span>
-                            <span className="text-muted-foreground text-xs ml-1">({formatCurrency(actual * LABOR_RATE)})</span>
+                            <span className="text-muted-foreground text-xs ml-1">({formatCurrency(actualLaborDollars)})</span>
                           </span>
                         ) : formatCurrency(actual)}
                       </TableCell>
@@ -930,7 +936,7 @@ export default function ProjectDetailPage() {
                         {field.isHours ? (
                           <span>
                             <span>{variance >= 0 ? "+" : ""}{formatNumber(variance)} hrs</span>
-                            <span className="text-xs ml-1">({variance >= 0 ? "+" : ""}{formatCurrency(variance * LABOR_RATE)})</span>
+                            <span className="text-xs ml-1">({variance >= 0 ? "+" : ""}{formatCurrency(budgeted * LABOR_RATE - actualLaborDollars)})</span>
                           </span>
                         ) : `${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
                       </TableCell>
@@ -1018,6 +1024,9 @@ export default function ProjectDetailPage() {
             const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#6366f1"];
 
             const AUTO_FULL_FIELDS_CHART = ["budget_design", "budget_pm"];
+            // Actual labor dollars using per-entry rates for charts
+            const chartLaborDollars = qboLaborEntries.reduce((sum, e) => sum + (e.reg_hours + e.ot_hours) * e.hourly_rate, 0)
+              + laborEntries.reduce((sum, e) => sum + e.hours * LABOR_RATE, 0);
             const barData = BUDGET_FIELDS.map((field) => {
               const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
               const expenseActual = getActualForBudgetField(field.key);
@@ -1027,7 +1036,7 @@ export default function ProjectDetailPage() {
                 ? budgeted
                 : expenseActual + manualOverride;
               const budgetedDollars = field.isHours ? budgeted * LABOR_RATE : budgeted;
-              const actualDollars = field.isHours ? actual * LABOR_RATE : actual;
+              const actualDollars = field.isHours ? chartLaborDollars : actual;
               return {
                 name: field.label.replace("Labor Hours", "Labor Hrs"),
                 Budgeted: budgetedDollars,
@@ -1044,7 +1053,7 @@ export default function ProjectDetailPage() {
                 const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
                   ? budgeted
                   : expenseActual + manualOverride;
-                const dollars = field.isHours ? actual * LABOR_RATE : actual;
+                const dollars = field.isHours ? chartLaborDollars : actual;
                 return { name: field.label.replace("Labor Hours", "Labor Hrs"), value: dollars, color: PIE_COLORS[i % PIE_COLORS.length] };
               })
               .filter((d) => d.value > 0);
@@ -1060,7 +1069,7 @@ export default function ProjectDetailPage() {
                 ? budgeted
                 : expenseActual + manualOverride;
               const budgetedVal = field.isHours ? budgeted * LABOR_RATE : budgeted;
-              const actualVal = field.isHours ? actual * LABOR_RATE : actual;
+              const actualVal = field.isHours ? chartLaborDollars : actual;
               const pct = budgetedVal > 0 ? (actualVal / budgetedVal) * 100 : 0;
               return {
                 name: field.label.replace("Labor Hours", "Labor Hrs"),
