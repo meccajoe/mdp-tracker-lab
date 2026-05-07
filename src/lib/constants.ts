@@ -11,7 +11,7 @@ export const BUDGET_FIELDS = [
   { key: "budget_props", label: "Props", isHours: false },
   { key: "budget_equipment", label: "Equipment", isHours: false },
   { key: "budget_rental", label: "Rental", isHours: false },
-  { key: "budget_flooring", label: "Flooring", isHours: false },
+  { key: "budget_flooring", label: "Flooring/Graphics", isHours: false },
 ] as const;
 
 // Round to nearest dollar

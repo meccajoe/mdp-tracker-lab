@@ -678,7 +678,14 @@ export default function ProjectDetailPage() {
       {/* Projected P&L Card */}
       {project.contract_amount != null && (() => {
         const laborCost = project.qbo_labor_cost ?? 0;
-        const expenseCost = project.total_spent ?? 0;
+        // Expense cost = sum of all non-labor actuals from Budget Breakdown (expense + manual overrides)
+        const expenseCost = BUDGET_FIELDS
+          .filter((f) => !f.isHours)
+          .reduce((sum, f) => {
+            const expenseActual = getActualForBudgetField(f.key);
+            const manualOverride = savedActuals[f.label] ?? 0;
+            return sum + expenseActual + manualOverride;
+          }, 0);
         const totalCost = laborCost + expenseCost;
         const pnl = project.contract_amount - totalCost;
         const marginPct = project.contract_amount > 0 ? (pnl / project.contract_amount) * 100 : 0;
