@@ -54,7 +54,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2, Flag } from "lucide-react";
+import { Pencil, Trash2, Flag, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -199,6 +199,7 @@ export default function ProjectDetailPage() {
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [activeExpenseTab, setActiveExpenseTab] = useState<"expenses" | "labor">("expenses");
   const [showCharts, setShowCharts] = useState(false);
+  const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
 
   // Expense form state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -826,61 +827,187 @@ export default function ProjectDetailPage() {
                 const variance = budgeted - actual;
                 const varianceColor = variance < 0 ? "text-red-600" : "text-green-600";
 
+                // Build drill-down items for this row
+                const isExpanded = expandedBudgetRow === field.key;
+                const isAutoFull = AUTO_FULL_FIELDS.includes(field.key) && !hasManualOverride;
+
+                // Line items shown in the accordion
+                const drillExpenses = field.isHours
+                  ? [] // labor handled separately
+                  : (() => {
+                      const cats = BUDGET_TO_CATEGORY_MAP[field.key];
+                      if (!cats) return [];
+                      return expenses.filter((exp) =>
+                        cats.some((cat) => exp.category?.toLowerCase() === cat.toLowerCase())
+                      );
+                    })();
+
+                const drillLaborEntries = field.isHours
+                  ? [...qboLaborEntries.map((e) => ({
+                      date: e.date,
+                      description: e.employee_name,
+                      amount: (e.reg_hours + e.ot_hours) * LABOR_RATE,
+                      detail: `${(e.reg_hours + e.ot_hours).toFixed(1)} hrs`,
+                    })),
+                    ...laborEntries.map((e) => ({
+                      date: e.date,
+                      description: e.person ?? "Manual",
+                      amount: e.hours * LABOR_RATE,
+                      detail: `${e.hours} hrs (manual)`,
+                    }))]
+                  : [];
+
+                const hasDrillItems = field.isHours
+                  ? drillLaborEntries.length > 0
+                  : drillExpenses.length > 0 || isAutoFull;
+
                 return (
-                  <TableRow key={field.key}>
-                    <TableCell className="font-medium">
-                      {field.label}
-                      {field.isHours && (
-                        <span className="text-muted-foreground text-xs ml-1">
-                          @ ${LABOR_RATE}/hr
+                  <>
+                    <TableRow
+                      key={field.key}
+                      className={hasDrillItems ? "cursor-pointer hover:bg-muted/50" : ""}
+                      onClick={() => {
+                        if (!hasDrillItems) return;
+                        setExpandedBudgetRow(isExpanded ? null : field.key);
+                      }}
+                    >
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-1">
+                          {hasDrillItems ? (
+                            isExpanded
+                              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          ) : (
+                            <span className="w-3.5 shrink-0" />
+                          )}
+                          {field.label}
+                          {field.isHours && (
+                            <span className="text-muted-foreground text-xs ml-1">
+                              @ ${LABOR_RATE}/hr
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {editingBudget ? (
-                        <Input
-                          type="number"
-                          step={field.isHours ? "0.5" : "1"}
-                          className="w-28 text-right ml-auto h-7 text-sm"
-                          value={budgetEdits[field.key] ?? ""}
-                          onChange={(e) => setBudgetEdits((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                        />
-                      ) : field.isHours ? (
-                        <span>
-                          <span className="font-mono">{formatNumber(budgeted)} hrs</span>
-                          <span className="text-muted-foreground text-xs ml-1">({formatCurrency(budgeted * LABOR_RATE)})</span>
-                        </span>
-                      ) : formatCurrency(budgeted)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {field.isHours ? (
-                        <span>
-                          <span className="font-mono">{formatNumber(actual)} hrs</span>
-                          <span className="text-muted-foreground text-xs ml-1">({formatCurrency(actual * LABOR_RATE)})</span>
-                        </span>
-                      ) : formatCurrency(actual)}
-                    </TableCell>
-                    {editingBudget && (
-                      <TableCell className="text-right">
-                        <Input
-                          type="number"
-                          step="1"
-                          placeholder="Manual $"
-                          className="w-28 text-right ml-auto h-7 text-sm"
-                          value={manualActuals[field.label] ?? (savedActuals[field.label] != null ? String(savedActuals[field.label]) : "")}
-                          onChange={(e) => setManualActuals((prev) => ({ ...prev, [field.label]: e.target.value }))}
-                        />
                       </TableCell>
+                      <TableCell className="text-right">
+                        {editingBudget ? (
+                          <Input
+                            type="number"
+                            step={field.isHours ? "0.5" : "1"}
+                            className="w-28 text-right ml-auto h-7 text-sm"
+                            value={budgetEdits[field.key] ?? ""}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setBudgetEdits((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                          />
+                        ) : field.isHours ? (
+                          <span>
+                            <span className="font-mono">{formatNumber(budgeted)} hrs</span>
+                            <span className="text-muted-foreground text-xs ml-1">({formatCurrency(budgeted * LABOR_RATE)})</span>
+                          </span>
+                        ) : formatCurrency(budgeted)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {field.isHours ? (
+                          <span>
+                            <span className="font-mono">{formatNumber(actual)} hrs</span>
+                            <span className="text-muted-foreground text-xs ml-1">({formatCurrency(actual * LABOR_RATE)})</span>
+                          </span>
+                        ) : formatCurrency(actual)}
+                      </TableCell>
+                      {editingBudget && (
+                        <TableCell className="text-right">
+                          <Input
+                            type="number"
+                            step="1"
+                            placeholder="Manual $"
+                            className="w-28 text-right ml-auto h-7 text-sm"
+                            value={manualActuals[field.label] ?? (savedActuals[field.label] != null ? String(savedActuals[field.label]) : "")}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setManualActuals((prev) => ({ ...prev, [field.label]: e.target.value }))}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell className={`text-right ${varianceColor}`}>
+                        {field.isHours ? (
+                          <span>
+                            <span>{variance >= 0 ? "+" : ""}{formatNumber(variance)} hrs</span>
+                            <span className="text-xs ml-1">({variance >= 0 ? "+" : ""}{formatCurrency(variance * LABOR_RATE)})</span>
+                          </span>
+                        ) : `${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Accordion drill-down */}
+                    {isExpanded && (
+                      <TableRow key={`${field.key}-detail`}>
+                        <TableCell colSpan={editingBudget ? 5 : 4} className="p-0">
+                          <div className="bg-muted/30 border-t border-b px-4 py-2">
+                            {field.isHours ? (
+                              drillLaborEntries.length === 0 ? (
+                                <p className="text-xs text-muted-foreground py-1">No labor entries recorded.</p>
+                              ) : (
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-muted-foreground">
+                                      <th className="text-left py-1 pr-4 font-medium">Date</th>
+                                      <th className="text-left py-1 pr-4 font-medium">Employee</th>
+                                      <th className="text-left py-1 pr-4 font-medium">Hours</th>
+                                      <th className="text-right py-1 font-medium">Cost</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {drillLaborEntries
+                                      .sort((a, b) => a.date > b.date ? -1 : 1)
+                                      .map((e, i) => (
+                                        <tr key={i} className="border-t border-muted">
+                                          <td className="py-1 pr-4">{formatDateCentral(e.date + "T00:00:00", { month: "short", day: "numeric" })}</td>
+                                          <td className="py-1 pr-4">{e.description}</td>
+                                          <td className="py-1 pr-4 text-muted-foreground">{e.detail}</td>
+                                          <td className="py-1 text-right">{formatCurrency(e.amount)}</td>
+                                        </tr>
+                                      ))}
+                                  </tbody>
+                                </table>
+                              )
+                            ) : isAutoFull && drillExpenses.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-1">Auto-filled to budget — no expense line items logged. Use manual override to adjust.</p>
+                            ) : drillExpenses.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-1">No expenses in this category.</p>
+                            ) : (
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-muted-foreground">
+                                    <th className="text-left py-1 pr-4 font-medium">Date</th>
+                                    <th className="text-left py-1 pr-4 font-medium">Vendor</th>
+                                    <th className="text-left py-1 pr-4 font-medium">Category</th>
+                                    <th className="text-right py-1 font-medium">Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {drillExpenses
+                                    .sort((a, b) => a.date > b.date ? -1 : 1)
+                                    .map((exp) => (
+                                      <tr key={exp.id} className="border-t border-muted">
+                                        <td className="py-1 pr-4">{formatDateCentral(exp.date + "T00:00:00", { month: "short", day: "numeric" })}</td>
+                                        <td className="py-1 pr-4">{exp.vendor ?? <span className="text-muted-foreground">—</span>}</td>
+                                        <td className="py-1 pr-4 text-muted-foreground">{exp.category}</td>
+                                        <td className="py-1 text-right font-mono">{formatCurrency(exp.amount)}</td>
+                                      </tr>
+                                    ))}
+                                  {(savedActuals[field.label] ?? 0) > 0 && (
+                                    <tr className="border-t border-muted">
+                                      <td className="py-1 pr-4 text-muted-foreground">—</td>
+                                      <td className="py-1 pr-4 text-muted-foreground italic" colSpan={2}>Manual override</td>
+                                      <td className="py-1 text-right font-mono">{formatCurrency(savedActuals[field.label])}</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     )}
-                    <TableCell className={`text-right ${varianceColor}`}>
-                      {field.isHours ? (
-                        <span>
-                          <span>{variance >= 0 ? "+" : ""}{formatNumber(variance)} hrs</span>
-                          <span className="text-xs ml-1">({variance >= 0 ? "+" : ""}{formatCurrency(variance * LABOR_RATE)})</span>
-                        </span>
-                      ) : `${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
-                    </TableCell>
-                  </TableRow>
+                  </>
                 );
               })}
             </TableBody>
