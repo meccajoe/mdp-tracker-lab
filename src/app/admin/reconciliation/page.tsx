@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { formatDateTimeCentral } from "@/lib/date-utils";
 
 // Variance thresholds
 const VARIANCE_PCT_THRESHOLD = 5;   // flag if >5% apart
@@ -307,7 +308,7 @@ export default function ReconciliationPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {row.qbo_synced_at
-                        ? new Date(row.qbo_synced_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+                        ? formatDateTimeCentral(row.qbo_synced_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
                         : "Never"}
                     </TableCell>
                     <TableCell>

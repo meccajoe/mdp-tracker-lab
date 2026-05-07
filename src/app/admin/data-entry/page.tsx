@@ -12,6 +12,7 @@ import { formatNumber } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { Button } from "@/components/ui/button";
 import { BUDGET_FIELDS } from "@/lib/constants";
+import { todayCentral } from "@/lib/date-utils";
 
 type EditableProject = Project & { _isNew?: boolean };
 
@@ -608,7 +609,7 @@ export default function DataEntryPage() {
     const laborHrsStr = actuals["labor_hours_used"];
     if (laborHrsStr && Number(laborHrsStr) > 0) {
       await supabase.from("labor_entries").delete().eq("project_id", projectId).eq("person", "Data Entry");
-      await supabase.from("labor_entries").insert({ project_id: projectId, hours: Number(laborHrsStr), labor_type: "Production Labor", person: "Data Entry", notes: "Manual entry via data entry form", date: new Date().toISOString().split("T")[0] });
+      await supabase.from("labor_entries").insert({ project_id: projectId, hours: Number(laborHrsStr), labor_type: "Production Labor", person: "Data Entry", notes: "Manual entry via data entry form", date: todayCentral() });
     }
 
     setExpandedId(null);

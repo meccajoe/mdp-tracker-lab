@@ -32,6 +32,7 @@ import {
 import Link from "next/link";
 import { PM_NAMES, Expense as LibExpense } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
+import { todayCentral } from "@/lib/date-utils";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -114,7 +115,7 @@ export default function ExpensesClient({
   const [purchaserOptions, setPurchaserOptions] = useState<{ initials: string; full_name: string }[]>([]);
   const [addForm, setAddForm] = useState({
     project_id: "",
-    date: new Date().toISOString().split("T")[0],
+    date: todayCentral(),
     category: "",
     vendor: "",
     amount: "",
@@ -163,7 +164,7 @@ export default function ExpensesClient({
     if (error) { toast.error("Failed to add expense: " + error.message); return; }
     toast.success("Expense added");
     setAddOpen(false);
-    setAddForm({ project_id: "", date: new Date().toISOString().split("T")[0], category: "", vendor: "", amount: "", amount_pending: false, purchaser: "", notes: "" });
+    setAddForm({ project_id: "", date: todayCentral(), category: "", vendor: "", amount: "", amount_pending: false, purchaser: "", notes: "" });
     // Refresh expenses list
     const { data } = await supabase.from("expenses").select("*").order("date", { ascending: false });
     if (data) setExpenses(data as Expense[]);
@@ -212,7 +213,7 @@ export default function ExpensesClient({
   }
 
   // Bulk expense state
-  const EMPTY_ROW = () => ({ project_id: "", date: new Date().toISOString().split("T")[0], category: "", vendor: "", amount: "", purchaser: "", notes: "" });
+  const EMPTY_ROW = () => ({ project_id: "", date: todayCentral(), category: "", vendor: "", amount: "", purchaser: "", notes: "" });
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkRows, setBulkRows] = useState(() => Array.from({ length: 5 }, EMPTY_ROW));
   const [bulkSubmitting, setBulkSubmitting] = useState(false);

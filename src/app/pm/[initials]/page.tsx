@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { ProjectSummary, getPMName, PM_NAMES } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
+import { nowCentral, formatDateCentral } from "@/lib/date-utils";
 import {
   Card,
   CardContent,
@@ -35,7 +36,7 @@ type TimePeriod = "by-project" | "this-month" | "this-quarter" | "this-half" | "
 function getDateRange(period: TimePeriod): { start: Date; end: Date } | null {
   if (period === "by-project" || period === "all-time") return null;
 
-  const now = new Date();
+  const now = nowCentral();
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
 
@@ -69,7 +70,7 @@ function getDateRange(period: TimePeriod): { start: Date; end: Date } | null {
 }
 
 function getPeriodLabel(period: TimePeriod): string {
-  const now = new Date();
+  const now = nowCentral();
   const year = now.getFullYear();
   const month = now.getMonth();
 
@@ -412,11 +413,7 @@ export default function PMBonusPage() {
                           <TableCell>{row.client}</TableCell>
                           <TableCell>
                             {row.close_date
-                              ? new Date(row.close_date + "T00:00:00").toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })
+                              ? formatDateCentral(row.close_date + "T00:00:00")
                               : "N/A"}
                           </TableCell>
                           <TableCell className="text-right">

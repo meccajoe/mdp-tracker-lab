@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { formatDateCentral } from "@/lib/date-utils";
 import { formatCurrency } from "@/lib/constants";
 
 interface FlaggedExpense {
@@ -98,7 +99,7 @@ export default function FlagsPage() {
                     {expenses.map((exp) => (
                       <tr key={exp.id} className="border-b last:border-0 hover:bg-muted/10">
                         <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                          {exp.flagged_at ? new Date(exp.flagged_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                          {exp.flagged_at ? formatDateCentral(exp.flagged_at) : "—"}
                         </td>
                         <td className="px-4 py-2.5 font-medium">{exp.projects?.name ?? "—"}</td>
                         <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{exp.date}</td>

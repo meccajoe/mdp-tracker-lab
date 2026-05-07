@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateCentral } from "@/lib/date-utils";
 
 type SortField =
   | "id"
@@ -323,12 +324,12 @@ export default function ProjectsPage() {
                     <TableCell className="whitespace-nowrap">
                       {(() => {
                         const dd = (project as unknown as Record<string, string>).due_date;
-                        return dd ? new Date(dd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+                        return dd ? formatDateCentral(dd + "T00:00:00") : "—";
                       })()}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
                       {project.close_date
-                        ? new Date(project.close_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        ? formatDateCentral(project.close_date + "T00:00:00")
                         : "—"}
                     </TableCell>
                   </TableRow>

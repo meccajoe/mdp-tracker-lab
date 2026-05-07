@@ -7,6 +7,7 @@ import { HARDCODED_DEFAULT_PCTS, LABOR_RATE_PER_HR } from "@/lib/budget-formula"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/constants";
+import { formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 
 interface SettingRow {
   category: string;
@@ -314,7 +315,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Last Synced</p>
                   <p className="font-medium">
                     {billcomSyncState?.last_sync_at
-                      ? new Date(billcomSyncState.last_sync_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
+                      ? formatDateTimeCentral(billcomSyncState.last_sync_at, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })
                       : "Never"}
                   </p>
                 </div>
@@ -387,7 +388,7 @@ export default function SettingsPage() {
                           {exps.map((exp) => (
                             <tr key={exp.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                               <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
-                                {exp.flagged_at ? new Date(exp.flagged_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                                {exp.flagged_at ? formatDateCentral(exp.flagged_at) : "—"}
                               </td>
                               <td className="px-4 py-2.5">{exp.projects?.name ?? "—"}</td>
                               <td className="px-4 py-2.5 whitespace-nowrap">{exp.date}</td>

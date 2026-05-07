@@ -72,6 +72,7 @@ import { ProjectLinkIcons } from "@/components/project-link-icons";
 import { CountdownClock } from "@/components/countdown-clock";
 import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
+import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import {
   BarChart,
   Bar,
@@ -202,7 +203,7 @@ export default function ProjectDetailPage() {
   // Expense form state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: todayCentral(),
     category: "",
     vendor: "",
     amount: "",
@@ -414,7 +415,7 @@ export default function ProjectDetailPage() {
     toast.success("Expense added");
     setExpenseDialogOpen(false);
     setExpenseForm({
-      date: new Date().toISOString().split("T")[0],
+      date: todayCentral(),
       category: "",
       vendor: "",
       amount: "",
@@ -1179,7 +1180,7 @@ export default function ProjectDetailPage() {
                   <TableBody>
                     {expenses.map((expense) => (
                       <TableRow key={expense.id}>
-                        <TableCell className="whitespace-nowrap">{new Date(expense.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</TableCell>
+                        <TableCell className="whitespace-nowrap">{formatDateCentral(expense.date + "T00:00:00")}</TableCell>
                         <TableCell>{expense.category}</TableCell>
                         <TableCell>
                           <span className="flex items-center gap-1.5">
@@ -1317,7 +1318,7 @@ export default function ProjectDetailPage() {
                     <div className="ml-auto flex items-center gap-2">
                       {lastSynced && (
                         <span className="text-xs text-muted-foreground">
-                          Last synced: {new Date(lastSynced).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                          Last synced: {formatDateTimeCentral(lastSynced, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                         </span>
                       )}
                       <Button size="sm" variant="outline" onClick={handleSyncLabor} disabled={laborSyncing}>
