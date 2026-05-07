@@ -679,12 +679,19 @@ export default function ProjectDetailPage() {
       {project.contract_amount != null && (() => {
         const laborCost = project.qbo_labor_cost ?? 0;
         // Expense cost = sum of all non-labor actuals from Budget Breakdown (expense + manual overrides)
+        // Design and PM default to 100% of budget unless manually overridden
+        const AUTO_FULL_FIELDS_PNL = ["budget_design", "budget_pm"];
         const expenseCost = BUDGET_FIELDS
           .filter((f) => !f.isHours)
           .reduce((sum, f) => {
+            const budgeted = (project[f.key as keyof ProjectSummary] as number) ?? 0;
             const expenseActual = getActualForBudgetField(f.key);
             const manualOverride = savedActuals[f.label] ?? 0;
-            return sum + expenseActual + manualOverride;
+            const hasManualOverride = savedActuals[f.label] != null;
+            const actual = AUTO_FULL_FIELDS_PNL.includes(f.key) && !hasManualOverride
+              ? budgeted
+              : expenseActual + manualOverride;
+            return sum + actual;
           }, 0);
         const totalCost = laborCost + expenseCost;
         const pnl = project.contract_amount - totalCost;
@@ -810,7 +817,12 @@ export default function ProjectDetailPage() {
                   : fallbackVal;
                 const expenseActual = getActualForBudgetField(field.key);
                 const manualOverride = savedActuals[field.label] ?? 0;
-                const actual = expenseActual + manualOverride;
+                // Design and PM always default to 100% of budget unless manually overridden
+                const AUTO_FULL_FIELDS = ["budget_design", "budget_pm"];
+                const hasManualOverride = savedActuals[field.label] != null;
+                const actual = AUTO_FULL_FIELDS.includes(field.key) && !hasManualOverride
+                  ? budgeted
+                  : expenseActual + manualOverride;
                 const variance = budgeted - actual;
                 const varianceColor = variance < 0 ? "text-red-600" : "text-green-600";
 
@@ -878,11 +890,15 @@ export default function ProjectDetailPage() {
           {showCharts && (() => {
             const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#6366f1"];
 
+            const AUTO_FULL_FIELDS_CHART = ["budget_design", "budget_pm"];
             const barData = BUDGET_FIELDS.map((field) => {
               const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
               const expenseActual = getActualForBudgetField(field.key);
               const manualOverride = savedActuals[field.label] ?? 0;
-              const actual = expenseActual + manualOverride;
+              const hasManualOverride = savedActuals[field.label] != null;
+              const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
+                ? budgeted
+                : expenseActual + manualOverride;
               const budgetedDollars = field.isHours ? budgeted * LABOR_RATE : budgeted;
               const actualDollars = field.isHours ? actual * LABOR_RATE : actual;
               return {
@@ -894,9 +910,13 @@ export default function ProjectDetailPage() {
 
             const pieData = BUDGET_FIELDS
               .map((field, i) => {
+                const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
                 const expenseActual = getActualForBudgetField(field.key);
                 const manualOverride = savedActuals[field.label] ?? 0;
-                const actual = expenseActual + manualOverride;
+                const hasManualOverride = savedActuals[field.label] != null;
+                const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
+                  ? budgeted
+                  : expenseActual + manualOverride;
                 const dollars = field.isHours ? actual * LABOR_RATE : actual;
                 return { name: field.label.replace("Labor Hours", "Labor Hrs"), value: dollars, color: PIE_COLORS[i % PIE_COLORS.length] };
               })
@@ -908,7 +928,10 @@ export default function ProjectDetailPage() {
               const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
               const expenseActual = getActualForBudgetField(field.key);
               const manualOverride = savedActuals[field.label] ?? 0;
-              const actual = expenseActual + manualOverride;
+              const hasManualOverride = savedActuals[field.label] != null;
+              const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
+                ? budgeted
+                : expenseActual + manualOverride;
               const budgetedVal = field.isHours ? budgeted * LABOR_RATE : budgeted;
               const actualVal = field.isHours ? actual * LABOR_RATE : actual;
               const pct = budgetedVal > 0 ? (actualVal / budgetedVal) * 100 : 0;
