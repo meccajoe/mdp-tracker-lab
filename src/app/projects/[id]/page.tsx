@@ -447,6 +447,10 @@ export default function ProjectDetailPage() {
 
   async function handleRebaselineFromQuote() {
     if (!project) return;
+    if (!isAdmin) {
+      toast.error("Only admins can rebaseline projects.");
+      return;
+    }
     setRebaselineSaving(true);
     try {
       const response = await fetch(`/api/projects/${project.id}/rebaseline`, { method: "POST" });
@@ -623,6 +627,10 @@ export default function ProjectDetailPage() {
 
   async function handleSaveBudget() {
     if (!project) return;
+    if (!isAdmin) {
+      toast.error("Only admins can edit project budgets.");
+      return;
+    }
     setBudgetSaving(true);
     // Update budget fields on the project
     const updates: Record<string, number | null> = {};

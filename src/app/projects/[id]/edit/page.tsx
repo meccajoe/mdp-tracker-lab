@@ -14,6 +14,7 @@ import {
   Project,
 } from "@/lib/types";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { canManageProjectActions } from "@/lib/admin-access";
 import { BUDGET_FIELDS } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
@@ -44,6 +45,7 @@ export default function EditProjectPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
 
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
@@ -65,7 +67,35 @@ export default function EditProjectPage() {
   const [qboProjectUrl, setQboProjectUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    async function checkAccess() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.email) {
+        router.push("/");
+        return false;
+      }
+
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("email", session.user.email.toLowerCase())
+        .single();
+
+      if (!canManageProjectActions(data?.role)) {
+        router.push(`/projects/${projectId}`);
+        return false;
+      }
+
+      setAuthorized(true);
+      return true;
+    }
+
     async function fetchProject() {
+      const allowed = await checkAccess();
+      if (!allowed) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       const { data, error } = await supabase
         .from("projects")
@@ -107,7 +137,7 @@ export default function EditProjectPage() {
       setLoading(false);
     }
     fetchProject();
-  }, [projectId]);
+  }, [projectId, router]);
 
   function updateBudget(key: string, value: string) {
     setBudgets((prev) => ({ ...prev, [key]: value }));
@@ -147,6 +177,11 @@ export default function EditProjectPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!authorized) {
+      toast.error("Only admins can edit projects.");
+      return;
+    }
 
     if (!name.trim()) {
       toast.error("Project Name is required.");
@@ -194,7 +229,7 @@ export default function EditProjectPage() {
     router.push(`/projects/${projectId}`);
   }
 
-  if (loading) {
+  if (loading || !authorized) {
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-muted-foreground">Loading project...</p>
