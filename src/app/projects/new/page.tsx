@@ -11,6 +11,7 @@ import {
 import { PM_OPTIONS, PROJECT_STATUSES, PROJECT_TYPES, getPMName } from "@/lib/types";
 import { BUDGET_FIELDS } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
+import { stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 import {
   Card,
   CardContent,
@@ -129,7 +130,8 @@ export default function NewProjectPage() {
       row[field.key] = val ? Number(val) : null;
     }
 
-    const { error } = await supabase.from("projects").insert(row);
+    const payload = stripUnsupportedProjectFields(row);
+    const { error } = await supabase.from("projects").insert(payload);
 
     setSaving(false);
 

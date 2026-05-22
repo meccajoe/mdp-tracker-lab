@@ -74,7 +74,10 @@ import { CountdownClock } from "@/components/countdown-clock";
 import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
-import { type QuoteLineBudgetAllocationRow } from "@/lib/project-rebaseline";
+import {
+  stripUnsupportedProjectFields,
+  type QuoteLineBudgetAllocationRow,
+} from "@/lib/project-rebaseline";
 import {
   BarChart,
   Bar,
@@ -627,7 +630,8 @@ export default function ProjectDetailPage() {
       if (val !== undefined) updates[field.key] = val === "" ? null : Number(val);
     }
     if (Object.keys(updates).length > 0) {
-      await supabase.from("projects").update(updates).eq("id", project.id);
+      const payload = stripUnsupportedProjectFields(updates);
+      await supabase.from("projects").update(payload).eq("id", project.id);
     }
     // Upsert manual actuals
     for (const [category, amountStr] of Object.entries(manualActuals)) {

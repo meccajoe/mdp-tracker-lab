@@ -137,6 +137,23 @@ test("stripUnsupportedProjectFields preserves supported project fields used by d
   assert.equal(sanitized.pct_design, 50);
 });
 
+test("stripUnsupportedProjectFields keeps QBO linkage fields while removing unsupported crating budget fields", () => {
+  const sanitized = stripUnsupportedProjectFields({
+    job_number: "26115",
+    qbo_project_id: "12345",
+    qbo_project_url: "https://app.qbo.intuit.com/app/customerdetail?nameId=12345",
+    budget_crating: 300,
+    pct_crating: 60,
+    budget_shipping: 900,
+  });
+
+  assert.equal(sanitized.qbo_project_id, "12345");
+  assert.equal(sanitized.qbo_project_url, "https://app.qbo.intuit.com/app/customerdetail?nameId=12345");
+  assert.equal(sanitized.budget_shipping, 900);
+  assert.equal("budget_crating" in sanitized, false);
+  assert.equal("pct_crating" in sanitized, false);
+});
+
 test("buildBudgetPayloadFromProjectQuote derives live rebaseline budgets from quote basis and project percentages", () => {
   const budgets = buildBudgetPayloadFromProjectQuote({
     quote_materials: 14330,
