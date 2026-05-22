@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -74,10 +74,7 @@ import { CountdownClock } from "@/components/countdown-clock";
 import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
-import {
-  buildQuoteCompareRows,
-  type QuoteLineBudgetAllocationRow,
-} from "@/lib/project-rebaseline";
+import { type QuoteLineBudgetAllocationRow } from "@/lib/project-rebaseline";
 import {
   BarChart,
   Bar,
@@ -208,7 +205,7 @@ export default function ProjectDetailPage() {
   const [activeExpenseTab, setActiveExpenseTab] = useState<"expenses" | "labor">("expenses");
   const [showCharts, setShowCharts] = useState(false);
   const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
-  const [showCompareView, setShowCompareView] = useState(false);
+  const [showQuoteAllocation, setShowQuoteAllocation] = useState(false);
   const [rebaselineSaving, setRebaselineSaving] = useState(false);
   const [quoteAllocationRows, setQuoteAllocationRows] = useState<QuoteLineBudgetAllocationRow[]>([]);
   const [quoteAllocationTotals, setQuoteAllocationTotals] = useState({
@@ -443,11 +440,6 @@ export default function ProjectDetailPage() {
       )
       .reduce((sum, exp) => sum + exp.amount, 0);
   }
-
-  const compareRows = useMemo(() => {
-    if (!project) return [];
-    return buildQuoteCompareRows(project as unknown as Record<string, number | string | null | undefined>, savedActuals);
-  }, [project, savedActuals]);
 
   async function handleRebaselineFromQuote() {
     if (!project) return;
@@ -839,135 +831,6 @@ export default function ProjectDetailPage() {
           </Card>
         );
       })()}
-
-      {/* Quote Compare Card */}
-      {compareRows.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Quote Compare</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setShowCompareView((state) => !state)}>
-              {showCompareView ? "Hide Compare" : "Show Compare"}
-            </Button>
-          </CardHeader>
-          {showCompareView && (
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Quote Basis</TableHead>
-                    <TableHead className="text-right">Budget</TableHead>
-                    <TableHead className="text-right">Actual</TableHead>
-                    <TableHead className="text-right">Quote vs Budget</TableHead>
-                    <TableHead className="text-right">Budget vs Actual</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {compareRows.map((row) => {
-                    const quoteVarianceClass = row.variance_quote_to_budget > 0
-                      ? "text-amber-700"
-                      : row.variance_quote_to_budget < 0
-                        ? "text-emerald-700"
-                        : "text-foreground";
-                    const actualVarianceClass = row.variance_budget_to_actual < 0
-                      ? "text-red-600"
-                      : row.variance_budget_to_actual > 0
-                        ? "text-emerald-700"
-                        : "text-foreground";
-
-                    return (
-                      <TableRow key={`compare-${row.category}`}>
-                        <TableCell className="font-medium">{row.category}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.quote_basis_total)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.budget_total)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(row.actual_total)}</TableCell>
-                        <TableCell className={`text-right ${quoteVarianceClass}`}>
-                          {formatCurrency(row.variance_quote_to_budget)}
-                        </TableCell>
-                        <TableCell className={`text-right ${actualVarianceClass}`}>
-                          {formatCurrency(row.variance_budget_to_actual)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
-      {/* Budget Allocation by Quote Line */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <div>
-            <CardTitle>Budget Allocation by Quote Line</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Line-level view of how quote items roll into Labor Budget, Material Budget, and Non L&amp;M.
-            </p>
-          </div>
-          {quoteAllocationLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading quote allocation...
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          {quoteAllocationError ? (
-            <p className="text-sm text-muted-foreground">{quoteAllocationError}</p>
-          ) : quoteAllocationRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No quote line items available for allocation yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product/Service</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Rate</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Labor Budget</TableHead>
-                  <TableHead className="text-right">Material Budget</TableHead>
-                  <TableHead className="text-right">Non L&amp;M</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {quoteAllocationRows.map((row) => (
-                  <TableRow key={row.source_line_item_id}>
-                    <TableCell className="font-medium">{row.sku || "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <span>{row.item || "—"}</span>
-                        <span className="text-xs text-muted-foreground">{row.budget_category_label}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[320px] whitespace-normal text-sm text-muted-foreground">
-                      {row.description || "—"}
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.unit_price)}</TableCell>
-                    <TableCell className="text-right">{formatNumber(row.quantity)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.line_total)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.labor_budget)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.material_budget)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.non_lm_budget)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={5} className="font-semibold">Totals</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.line_total)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.labor_budget)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.material_budget)}</TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.non_lm_budget)}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Budget Breakdown Table */}
       <Card>
@@ -1367,6 +1230,81 @@ export default function ProjectDetailPage() {
             );
           })()}
         </CardContent>
+      </Card>
+
+      {/* Budget Allocation by Quote Line */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle>Budget Allocation by Quote Line</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Line-level view of how quote items roll into Labor Budget, Material Budget, and Non L&amp;M.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {quoteAllocationLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading...
+              </div>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowQuoteAllocation((state) => !state)}>
+              {showQuoteAllocation ? "Hide Allocation" : "Show Allocation"}
+            </Button>
+          </div>
+        </CardHeader>
+        {showQuoteAllocation && (
+          <CardContent>
+            {quoteAllocationError ? (
+              <p className="text-sm text-muted-foreground">{quoteAllocationError}</p>
+            ) : quoteAllocationRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No quote line items available for allocation yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product/Service</TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Labor Budget</TableHead>
+                    <TableHead className="text-right">Material Budget</TableHead>
+                    <TableHead className="text-right">Non L&amp;M</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {quoteAllocationRows.map((row) => (
+                    <TableRow key={row.source_line_item_id}>
+                      <TableCell className="font-medium">{row.sku || "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span>{row.item || "—"}</span>
+                          <span className="text-xs text-muted-foreground">{row.budget_category_label}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[320px] whitespace-normal text-sm text-muted-foreground">
+                        {row.description || "—"}
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(row.line_total)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(row.labor_budget)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(row.material_budget)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(row.non_lm_budget)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={3} className="font-semibold">Totals</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.line_total)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.labor_budget)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.material_budget)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.non_lm_budget)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            )}
+          </CardContent>
+        )}
       </Card>
 
       {/* Expenses & Labor Card */}
