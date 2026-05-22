@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { fetchProjectLookup, type ProjectLookupResult } from "@/lib/project-lookups";
+import {
+  fetchProjectLookup,
+  getLookupLinkedFields,
+  type ProjectLookupResult,
+} from "@/lib/project-lookups";
 import { PM_OPTIONS, PROJECT_STATUSES, PROJECT_TYPES, getPMName } from "@/lib/types";
 import { BUDGET_FIELDS } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
@@ -72,9 +76,12 @@ export default function NewProjectPage() {
     setLookupLoading(true);
     try {
       const result = await fetchProjectLookup(trimmed);
+      const linked = getLookupLinkedFields(result);
       setLookupResult(result);
-      setHubspotDealId(result.hubspot_deal_id);
-      setHubspotDealUrl(result.hubspot_deal_url);
+      setHubspotDealId(linked.hubspotDealId);
+      setHubspotDealUrl(linked.hubspotDealUrl);
+      setQboProjectId(linked.qboProjectId);
+      setQboProjectUrl(linked.qboProjectUrl);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Lookup failed");
     } finally {
