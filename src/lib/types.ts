@@ -32,6 +32,7 @@ export interface Project {
   // Quote amounts (admin-only, not shown to PMs)
   quote_labor: number | null;
   quote_materials: number | null;
+  budget_baselined_at?: string | null;
   // Per-project L&M pct overrides
   pct_labor: number | null;
   pct_materials: number | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -73,6 +73,7 @@ import { CountdownClock } from "@/components/countdown-clock";
 import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
+import { buildQuoteCompareRows } from "@/lib/project-rebaseline";
 import {
   BarChart,
   Bar,
@@ -203,6 +204,8 @@ export default function ProjectDetailPage() {
   const [activeExpenseTab, setActiveExpenseTab] = useState<"expenses" | "labor">("expenses");
   const [showCharts, setShowCharts] = useState(false);
   const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
+  const [showCompareView, setShowCompareView] = useState(false);
+  const [rebaselineSaving, setRebaselineSaving] = useState(false);
 
   // Expense form state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -389,6 +392,30 @@ export default function ProjectDetailPage() {
         )
       )
       .reduce((sum, exp) => sum + exp.amount, 0);
+  }
+
+  const compareRows = useMemo(() => {
+    if (!project) return [];
+    return buildQuoteCompareRows(project as unknown as Record<string, number | string | null | undefined>, savedActuals);
+  }, [project, savedActuals]);
+
+  async function handleRebaselineFromQuote() {
+    if (!project) return;
+    setRebaselineSaving(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}/rebaseline`, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to rebaseline budgets");
+      }
+      await fetchProject();
+      toast.success("Budgets rebaselined from stored quote values.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to rebaseline budgets";
+      toast.error(message);
+    } finally {
+      setRebaselineSaving(false);
+    }
   }
 
   async function handleAddExpense() {
@@ -763,6 +790,63 @@ export default function ProjectDetailPage() {
         );
       })()}
 
+      {/* Quote Compare Card */}
+      {compareRows.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Quote Compare</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setShowCompareView((state) => !state)}>
+              {showCompareView ? "Hide Compare" : "Show Compare"}
+            </Button>
+          </CardHeader>
+          {showCompareView && (
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Quote Basis</TableHead>
+                    <TableHead className="text-right">Budget</TableHead>
+                    <TableHead className="text-right">Actual</TableHead>
+                    <TableHead className="text-right">Quote vs Budget</TableHead>
+                    <TableHead className="text-right">Budget vs Actual</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {compareRows.map((row) => {
+                    const quoteVarianceClass = row.variance_quote_to_budget > 0
+                      ? "text-amber-700"
+                      : row.variance_quote_to_budget < 0
+                        ? "text-emerald-700"
+                        : "text-foreground";
+                    const actualVarianceClass = row.variance_budget_to_actual < 0
+                      ? "text-red-600"
+                      : row.variance_budget_to_actual > 0
+                        ? "text-emerald-700"
+                        : "text-foreground";
+
+                    return (
+                      <TableRow key={`compare-${row.category}`}>
+                        <TableCell className="font-medium">{row.category}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.quote_basis_total)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.budget_total)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.actual_total)}</TableCell>
+                        <TableCell className={`text-right ${quoteVarianceClass}`}>
+                          {formatCurrency(row.variance_quote_to_budget)}
+                        </TableCell>
+                        <TableCell className={`text-right ${actualVarianceClass}`}>
+                          {formatCurrency(row.variance_budget_to_actual)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Budget Breakdown Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -786,10 +870,8 @@ export default function ProjectDetailPage() {
               }}>
                 Edit Budget
               </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                toast.info("Manual recalc button placeholder: wire to SKU-based budget recomputation for this project.");
-              }}>
-                Recalc Budgets
+              <Button variant="outline" size="sm" onClick={handleRebaselineFromQuote} disabled={rebaselineSaving}>
+                {rebaselineSaving ? "Rebaselining..." : "Rebaseline from Quote"}
               </Button>
             </>
           )}
