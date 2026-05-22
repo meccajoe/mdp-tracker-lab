@@ -75,6 +75,7 @@ import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import {
+  getSkuChipClassName,
   stripUnsupportedProjectFields,
   type QuoteLineBudgetAllocationRow,
 } from "@/lib/project-rebaseline";
@@ -1279,7 +1280,14 @@ export default function ProjectDetailPage() {
                 <TableBody>
                   {quoteAllocationRows.map((row) => (
                     <TableRow key={row.source_line_item_id}>
-                      <TableCell className="font-medium">{row.sku || "—"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={getSkuChipClassName(row.sku)}
+                        >
+                          {row.sku || "—"}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <span>{row.item || "—"}</span>

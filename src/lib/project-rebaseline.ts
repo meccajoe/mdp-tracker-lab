@@ -60,6 +60,26 @@ function budgetFromQuote(quote: number | null, percent: number): number | null {
   return Math.round((quote * percent) / 100);
 }
 
+export function getSkuChipClassName(sku: string | null | undefined): string {
+  if (!sku) {
+    return "border-slate-200 bg-slate-100 text-slate-700";
+  }
+
+  if (sku === "400100") return "border-sky-200 bg-sky-100 text-sky-800";
+  if (sku === "400101") return "border-pink-200 bg-pink-100 text-pink-800";
+  if (sku === "400700" || sku === "400701") return "border-violet-200 bg-violet-100 text-violet-800";
+  if (sku === "409000" || sku === "409001") return "border-rose-200 bg-rose-100 text-rose-800";
+  if (["400400", "400401", "400402", "400403"].includes(sku)) return "border-amber-200 bg-amber-100 text-amber-800";
+  if (sku === "400404") return "border-orange-200 bg-orange-100 text-orange-800";
+  if (["400500", "400501", "400502"].includes(sku)) return "border-stone-200 bg-stone-100 text-stone-800";
+  if (/^400(20\d|30\d|31[013]|60\d|61[01])$/.test(sku)) return "border-emerald-200 bg-emerald-100 text-emerald-800";
+  if (/^40090\d$/.test(sku)) return "border-cyan-200 bg-cyan-100 text-cyan-800";
+  if (sku === "400800" || sku === "400801") return "border-indigo-200 bg-indigo-100 text-indigo-800";
+  if (/^40800\d$/.test(sku)) return "border-teal-200 bg-teal-100 text-teal-800";
+
+  return "border-slate-200 bg-slate-100 text-slate-700";
+}
+
 export function buildStoredQuoteSnapshotFromParsedQuote(parsed: {
   quotes: Record<string, number>;
 }) {

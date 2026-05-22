@@ -7,6 +7,7 @@ import {
   buildQuoteCompareRows,
   buildQuoteLineBudgetAllocationRows,
   buildStoredQuoteSnapshotFromParsedQuote,
+  getSkuChipClassName,
   stripUnsupportedProjectFields,
 } from "./project-rebaseline.ts";
 
@@ -323,5 +324,14 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
   assert.equal(rows[1].budget_category_label, "Shipping");
   assert.equal(rows[2].non_lm_budget, 500);
   assert.equal(rows[2].budget_category_label, "Design");
+});
+
+test("getSkuChipClassName returns stable classes for common SKUs and fallbacks", () => {
+  assert.match(getSkuChipClassName("400100"), /bg-sky-100/);
+  assert.match(getSkuChipClassName("400403"), /bg-amber-100/);
+  assert.match(getSkuChipClassName("400700"), /bg-violet-100/);
+  assert.match(getSkuChipClassName("409001"), /bg-rose-100/);
+  assert.match(getSkuChipClassName("408000"), /bg-teal-100/);
+  assert.match(getSkuChipClassName("999999"), /bg-slate-100/);
 });
 
