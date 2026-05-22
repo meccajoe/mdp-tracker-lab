@@ -80,6 +80,27 @@ export function getSkuChipClassName(sku: string | null | undefined): string {
   return "border-slate-200 bg-slate-100 text-slate-700";
 }
 
+const BUDGET_BREAKDOWN_TOTAL_MAP: Record<string, string> = {
+  budget_hrs: "quote_materials",
+  budget_materials: "quote_materials",
+  budget_design: "quote_design",
+  budget_pm: "quote_pm",
+  budget_shipping: "quote_shipping",
+  budget_crating: "quote_crating",
+  budget_id_labor: "quote_id_labor",
+  budget_travel: "quote_travel",
+  budget_props: "quote_props",
+  budget_equipment: "quote_equipment",
+  budget_rental: "quote_rental",
+  budget_flooring: "quote_flooring",
+};
+
+export function buildBudgetBreakdownTotal<T extends object>(project: T, budgetKey: string): number {
+  const quoteKey = BUDGET_BREAKDOWN_TOTAL_MAP[budgetKey];
+  if (!quoteKey) return 0;
+  return num((project as Record<string, unknown>)[quoteKey]) ?? 0;
+}
+
 export function buildStoredQuoteSnapshotFromParsedQuote(parsed: {
   quotes: Record<string, number>;
 }) {

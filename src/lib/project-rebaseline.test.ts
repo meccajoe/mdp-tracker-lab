@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildBudgetBreakdownTotal,
   buildBudgetPayloadFromProjectQuote,
   buildHubspotQuoteSyncFields,
   buildQuoteCompareRows,
@@ -324,6 +325,36 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
   assert.equal(rows[1].budget_category_label, "Shipping");
   assert.equal(rows[2].non_lm_budget, 500);
   assert.equal(rows[2].budget_category_label, "Design");
+});
+
+test("buildBudgetBreakdownTotal exposes quote-basis totals for each budget row", () => {
+  const project = {
+    quote_materials: 14330,
+    quote_design: 1000,
+    quote_pm: 950,
+    quote_shipping: 4850,
+    quote_crating: 500,
+    quote_id_labor: 4145,
+    quote_travel: 1850,
+    quote_props: 325,
+    quote_equipment: 700,
+    quote_rental: 900,
+    quote_flooring: 1930,
+  };
+
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_hrs"), 14330);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_materials"), 14330);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_design"), 1000);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_pm"), 950);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_shipping"), 4850);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_crating"), 500);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_id_labor"), 4145);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_travel"), 1850);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_props"), 325);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_equipment"), 700);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_rental"), 900);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_flooring"), 1930);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_unknown"), 0);
 });
 
 test("getSkuChipClassName returns stable classes for common SKUs and fallbacks", () => {

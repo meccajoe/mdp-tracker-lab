@@ -75,6 +75,7 @@ import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import {
+  buildBudgetBreakdownTotal,
   getSkuChipClassName,
   stripUnsupportedProjectFields,
   type QuoteLineBudgetAllocationRow,
@@ -886,6 +887,7 @@ export default function ProjectDetailPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Category</TableHead>
+                {isAdmin && <TableHead className="text-right">Total</TableHead>}
                 <TableHead className="text-right">Budgeted</TableHead>
                 <TableHead className="text-right">Actual</TableHead>
                 {editingBudget && <TableHead className="text-right">Manual Override</TableHead>}
@@ -914,6 +916,7 @@ export default function ProjectDetailPage() {
                 const actual = AUTO_FULL_FIELDS.includes(field.key) && !hasManualOverride
                   ? budgeted
                   : expenseActual + manualOverride;
+                const total = buildBudgetBreakdownTotal(project, field.key);
                 const variance = budgeted - actual;
                 const varianceColor = variance < 0 ? "text-red-600" : "text-green-600";
 
@@ -984,6 +987,13 @@ export default function ProjectDetailPage() {
                           )}
                         </span>
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          {field.isHours ? (
+                            <span className="font-mono">{formatCurrency(total)}</span>
+                          ) : formatCurrency(total)}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         {editingBudget ? (
                           <Input
@@ -1035,7 +1045,7 @@ export default function ProjectDetailPage() {
                     {/* Accordion drill-down */}
                     {isExpanded && (
                       <TableRow key={`${field.key}-detail`}>
-                        <TableCell colSpan={editingBudget ? 5 : 4} className="p-0">
+                        <TableCell colSpan={(isAdmin ? 5 : 4) + (editingBudget ? 1 : 0)} className="p-0">
                           <div className="bg-muted/30 border-t border-b px-4 py-2">
                             {field.isHours ? (
                               drillLaborEntries.length === 0 ? (
@@ -1279,7 +1289,7 @@ export default function ProjectDetailPage() {
                     <TableHead>Product/Service</TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
+                    {isAdmin && <TableHead className="text-right">Total</TableHead>}
                     <TableHead className="text-right">Labor Budget</TableHead>
                     <TableHead className="text-right">Material Budget</TableHead>
                     <TableHead className="text-right">Non L&amp;M</TableHead>
@@ -1305,7 +1315,7 @@ export default function ProjectDetailPage() {
                       <TableCell className="max-w-[320px] whitespace-normal text-sm text-muted-foreground">
                         {row.description || "—"}
                       </TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.line_total)}</TableCell>
+                      {isAdmin && <TableCell className="text-right">{formatCurrency(row.line_total)}</TableCell>}
                       <TableCell className="text-right">{formatCurrency(row.labor_budget)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(row.material_budget)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(row.non_lm_budget)}</TableCell>
@@ -1315,7 +1325,7 @@ export default function ProjectDetailPage() {
                 <TableFooter>
                   <TableRow>
                     <TableCell colSpan={3} className="font-semibold">Totals</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.line_total)}</TableCell>
+                    {isAdmin && <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.line_total)}</TableCell>}
                     <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.labor_budget)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.material_budget)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.non_lm_budget)}</TableCell>
