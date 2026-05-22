@@ -25,7 +25,10 @@ function num(value: unknown): number | null {
 
 function pct(project: QuoteBackedProject, key: string): number {
   const override = num(project[key]);
-  return override ?? HARDCODED_DEFAULT_PCTS[key] ?? 0;
+  if (override != null) return override;
+
+  const normalizedKey = key.startsWith("pct_") ? key.slice(4) : key;
+  return HARDCODED_DEFAULT_PCTS[normalizedKey] ?? 0;
 }
 
 function budgetFromQuote(quote: number | null, percent: number): number | null {
@@ -71,6 +74,27 @@ export function buildBudgetPayloadFromProjectQuote(project: QuoteBackedProject) 
   }
 
   return payload;
+}
+
+export function buildHubspotQuoteSyncFields(parsed: { quotes: Record<string, number> }): ReturnType<typeof buildStoredQuoteSnapshotFromParsedQuote> & ReturnType<typeof buildBudgetPayloadFromProjectQuote> {
+  const quoteSnapshot = buildStoredQuoteSnapshotFromParsedQuote(parsed);
+  const budgets = buildBudgetPayloadFromProjectQuote(quoteSnapshot);
+  return {
+    ...quoteSnapshot,
+    ...budgets,
+  };
+}
+
+const UNSUPPORTED_PROJECT_FIELDS = new Set([
+  "quote_crating",
+  "budget_crating",
+  "pct_crating",
+]);
+
+export function stripUnsupportedProjectFields<T extends Record<string, unknown>>(payload: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([key]) => !UNSUPPORTED_PROJECT_FIELDS.has(key))
+  ) as Partial<T>;
 }
 
 export function buildQuoteCompareRows(

@@ -8,6 +8,7 @@ import { Project } from "@/lib/types";
 import { useUserRoles, resolvePMName } from "@/hooks/useUserRoles";
 import { formatCurrency } from "@/lib/constants";
 import { BUDGET_CATEGORIES, HARDCODED_DEFAULT_PCTS, calcBudget, calcLaborHrs, calcMaterialsBudget, LABOR_RATE_PER_HR } from "@/lib/budget-formula";
+import { buildStoredQuoteSnapshotFromParsedQuote, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 import { formatNumber } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { Button } from "@/components/ui/button";
@@ -547,7 +548,23 @@ export default function DataEntryPage() {
     const contractAmount = numVal(formData.contract_amount);
     const budgets = getEffectiveBudgets(contractAmount);
 
-    const payload: Record<string, unknown> = {
+    const quoteSnapshot = buildStoredQuoteSnapshotFromParsedQuote({
+      quotes: {
+        fabrication: numVal(quotes.fabrication) ?? 0,
+        design: numVal(quotes.design) ?? 0,
+        pm: numVal(quotes.pm) ?? 0,
+        shipping: numVal(quotes.shipping) ?? 0,
+        crating: numVal(quotes.crating) ?? 0,
+        id_labor: numVal(quotes.id_labor) ?? 0,
+        travel: numVal(quotes.travel) ?? 0,
+        props: numVal(quotes.props) ?? 0,
+        equipment: numVal(quotes.equipment) ?? 0,
+        rental: numVal(quotes.rental) ?? 0,
+        flooring: numVal(quotes.flooring) ?? 0,
+      },
+    });
+
+    const payload = stripUnsupportedProjectFields({
       id: projectId,
       name: (formData.name as string).trim(),
       client: (formData.client as string).trim(),
@@ -565,18 +582,7 @@ export default function DataEntryPage() {
       // Computed budgets (includes budget_hrs, budget_materials, and all non-L&M)
       ...budgets,
       // Quote amounts
-      quote_labor: null, // L&M uses contract %, no quote
-      quote_materials: null,
-      quote_design: numVal(quotes.design),
-      quote_pm: numVal(quotes.pm),
-      quote_shipping: numVal(quotes.shipping),
-      quote_id_labor: numVal(quotes.id_labor),
-      quote_travel: numVal(quotes.travel),
-      quote_props: numVal(quotes.props),
-      quote_equipment: numVal(quotes.equipment),
-      quote_rental: numVal(quotes.rental),
-      quote_flooring: numVal(quotes.flooring),
-      quote_crating: numVal(quotes.crating),
+      ...quoteSnapshot,
       // Per-project % overrides
       pct_labor: projectPcts.labor ? Number(projectPcts.labor) : null,
       pct_materials: projectPcts.materials ? Number(projectPcts.materials) : null,
@@ -590,7 +596,7 @@ export default function DataEntryPage() {
       pct_rental: projectPcts.rental ? Number(projectPcts.rental) : null,
       pct_flooring: projectPcts.flooring ? Number(projectPcts.flooring) : null,
       pct_crating: projectPcts.crating ? Number(projectPcts.crating) : null,
-    };
+    });
 
     if (isNew) {
       const { error } = await supabase.from("projects").insert(payload);

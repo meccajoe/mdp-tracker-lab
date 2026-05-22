@@ -3,8 +3,10 @@ import test from "node:test";
 
 import {
   buildBudgetPayloadFromProjectQuote,
+  buildHubspotQuoteSyncFields,
   buildQuoteCompareRows,
   buildStoredQuoteSnapshotFromParsedQuote,
+  stripUnsupportedProjectFields,
 } from "./project-rebaseline.ts";
 
 test("buildStoredQuoteSnapshotFromParsedQuote stores fabrication subtotal as the L&M quote basis", () => {
@@ -33,6 +35,105 @@ test("buildStoredQuoteSnapshotFromParsedQuote stores fabrication subtotal as the
   assert.equal(snapshot.quote_id_labor, 4145);
   assert.equal(snapshot.quote_travel, 1850);
   assert.equal(snapshot.quote_flooring, 1930);
+});
+
+test("buildStoredQuoteSnapshotFromParsedQuote can apply the fabrication snapshot onto an existing payload", () => {
+  const payload = {
+    quote_materials: null,
+    quote_design: null,
+    quote_pm: null,
+  };
+
+  Object.assign(
+    payload,
+    buildStoredQuoteSnapshotFromParsedQuote({
+      contractAmount: 5000,
+      quotes: {
+        fabrication: 2000,
+        design: 250,
+        pm: 150,
+        shipping: 0,
+        crating: 0,
+        id_labor: 0,
+        travel: 0,
+        props: 0,
+        equipment: 0,
+        rental: 0,
+        flooring: 0,
+      },
+      reclassified: [],
+    })
+  );
+
+  assert.equal(payload.quote_materials, 2000);
+  assert.equal(payload.quote_design, 250);
+  assert.equal(payload.quote_pm, 150);
+});
+
+test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budgets for webhook resyncs", () => {
+  const fields = buildHubspotQuoteSyncFields({
+    contractAmount: 29055,
+    quotes: {
+      fabrication: 14330,
+      design: 1000,
+      pm: 950,
+      shipping: 4850,
+      crating: 0,
+      id_labor: 4145,
+      travel: 1850,
+      props: 0,
+      equipment: 0,
+      rental: 0,
+      flooring: 1930,
+    },
+    reclassified: [],
+  });
+
+  assert.equal(fields.quote_materials, 14330);
+  assert.equal(fields.budget_materials, 3583);
+  assert.equal(fields.budget_hrs, 87);
+  assert.equal(fields.quote_flooring, 1930);
+});
+
+test("stripUnsupportedProjectFields removes crating fields that are not in the live schema", () => {
+  const sanitized = stripUnsupportedProjectFields({
+    quote_materials: 14330,
+    budget_materials: 3583,
+    quote_crating: 500,
+    budget_crating: 300,
+    pct_crating: 60,
+    quote_design: 1000,
+  });
+
+  assert.equal("quote_crating" in sanitized, false);
+  assert.equal("budget_crating" in sanitized, false);
+  assert.equal("pct_crating" in sanitized, false);
+  assert.equal(sanitized.quote_materials, 14330);
+  assert.equal(sanitized.quote_design, 1000);
+});
+
+test("stripUnsupportedProjectFields preserves supported project fields used by data-entry saves", () => {
+  const sanitized = stripUnsupportedProjectFields({
+    name: "Netflix - Wall of Fame",
+    client: "Netflix",
+    status: "Active",
+    quote_materials: 7165,
+    budget_materials: 1791,
+    pct_materials: 25,
+    budget_design: 500,
+    quote_design: 1000,
+    pct_design: 50,
+  });
+
+  assert.equal(sanitized.name, "Netflix - Wall of Fame");
+  assert.equal(sanitized.client, "Netflix");
+  assert.equal(sanitized.status, "Active");
+  assert.equal(sanitized.quote_materials, 7165);
+  assert.equal(sanitized.budget_materials, 1791);
+  assert.equal(sanitized.pct_materials, 25);
+  assert.equal(sanitized.budget_design, 500);
+  assert.equal(sanitized.quote_design, 1000);
+  assert.equal(sanitized.pct_design, 50);
 });
 
 test("buildBudgetPayloadFromProjectQuote derives live rebaseline budgets from quote basis and project percentages", () => {

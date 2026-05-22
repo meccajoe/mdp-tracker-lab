@@ -14,8 +14,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHmac } from "crypto";
 import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems } from "@/lib/hubspot";
-import { parseLineItems, calculateBudgets, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
+import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
+import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -296,18 +297,12 @@ export async function POST(req: NextRequest) {
     const portalId = event.portalId ? String(event.portalId) : HUBSPOT_PORTAL_ID;
 
     try {
-      // Idempotency check
+      // Upsert path: existing HubSpot-linked project should be refreshed, not skipped.
       const { data: existing } = await supabase
         .from("projects")
         .select("id")
         .eq("hubspot_deal_id", String(dealId))
         .maybeSingle();
-
-      if (existing) {
-        console.log(`[hubspot webhook] Deal ${dealId} already has a project (${existing.id}), skipping`);
-        results.push({ dealId, status: "skipped" });
-        continue;
-      }
 
       // Fetch deal
       const deal = await getDeal(String(dealId));
@@ -345,7 +340,7 @@ export async function POST(req: NextRequest) {
         // parsed already has contractAmount from deal.amount
       }
 
-      const budgets = await calculateBudgets(parsed);
+      const quoteSyncFields = buildHubspotQuoteSyncFields(parsed);
 
       // Determine job number / project ID
       const rawJobNumber = deal.properties.job_number?.trim();
@@ -355,7 +350,7 @@ export async function POST(req: NextRequest) {
         ? `https://app.hubspot.com/contacts/${portalId}/deal/${dealId}`
         : `https://app.hubspot.com/contacts/deal/${dealId}`;
 
-      const insertPayload = {
+      const insertPayload = stripUnsupportedProjectFields({
         id: jobNumber,
         job_number: jobNumber,
         name: deal.properties.dealname,
@@ -368,30 +363,7 @@ export async function POST(req: NextRequest) {
         hubspot_deal_id: String(dealId),
         hubspot_deal_url: hubspotDealUrl,
         notes: null,
-        quote_labor: null,
-        quote_materials: null,
-        quote_design: parsed.quotes.design || null,
-        quote_pm: parsed.quotes.pm || null,
-        quote_shipping: parsed.quotes.shipping || null,
-        quote_crating: parsed.quotes.crating || null,
-        quote_id_labor: parsed.quotes.id_labor || null,
-        quote_travel: parsed.quotes.travel || null,
-        quote_props: parsed.quotes.props || null,
-        quote_equipment: parsed.quotes.equipment || null,
-        quote_rental: parsed.quotes.rental || null,
-        quote_flooring: parsed.quotes.flooring || null,
-        budget_hrs: budgets.budget_hrs,
-        budget_materials: budgets.budget_materials,
-        budget_design: budgets.budget_design,
-        budget_pm: budgets.budget_pm,
-        budget_shipping: budgets.budget_shipping,
-        budget_crating: budgets.budget_crating,
-        budget_id_labor: budgets.budget_id_labor,
-        budget_travel: budgets.budget_travel,
-        budget_props: budgets.budget_props,
-        budget_equipment: budgets.budget_equipment,
-        budget_rental: budgets.budget_rental,
-        budget_flooring: budgets.budget_flooring,
+        ...quoteSyncFields,
         pct_labor: null,
         pct_materials: null,
         pct_design: null,
@@ -404,7 +376,35 @@ export async function POST(req: NextRequest) {
         pct_equipment: null,
         pct_rental: null,
         pct_flooring: null,
-      };
+      });
+
+      const budgetPreview = {
+        budget_hrs: quoteSyncFields.budget_hrs,
+        budget_materials: quoteSyncFields.budget_materials,
+        budget_design: quoteSyncFields.budget_design,
+        budget_pm: quoteSyncFields.budget_pm,
+        budget_shipping: quoteSyncFields.budget_shipping,
+        budget_crating: quoteSyncFields.budget_crating,
+        budget_id_labor: quoteSyncFields.budget_id_labor,
+        budget_travel: quoteSyncFields.budget_travel,
+        budget_props: quoteSyncFields.budget_props,
+        budget_equipment: quoteSyncFields.budget_equipment,
+        budget_rental: quoteSyncFields.budget_rental,
+        budget_flooring: quoteSyncFields.budget_flooring,
+      } as CalculatedBudgets;
+
+      if (existing) {
+        const { id: _ignore, ...updatePayload } = insertPayload;
+        const { error: updateError } = await supabase.from("projects").update(updatePayload).eq("id", existing.id);
+        if (updateError) {
+          console.error(`[hubspot webhook] Failed to refresh project for deal ${dealId}:`, updateError);
+          results.push({ dealId, status: "error" });
+          continue;
+        }
+        console.log(`[hubspot webhook] Refreshed project ${existing.id} for deal ${dealId}`);
+        results.push({ dealId, status: "updated" });
+        continue;
+      }
 
       const { error: insertError } = await supabase.from("projects").insert(insertPayload);
       if (insertError) {
@@ -422,7 +422,7 @@ export async function POST(req: NextRequest) {
         companyName,
         parsed.contractAmount,
         parsed,
-        budgets,
+        budgetPreview,
         parsed.reclassified,
         dealId,
         portalId

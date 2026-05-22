@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-import { buildBudgetPayloadFromProjectQuote } from "@/lib/project-rebaseline";
+import { buildBudgetPayloadFromProjectQuote, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -25,7 +25,6 @@ export async function POST(
       quote_design,
       quote_pm,
       quote_shipping,
-      quote_crating,
       quote_id_labor,
       quote_travel,
       quote_props,
@@ -37,7 +36,6 @@ export async function POST(
       pct_design,
       pct_pm,
       pct_shipping,
-      pct_crating,
       pct_id_labor,
       pct_travel,
       pct_props,
@@ -57,7 +55,6 @@ export async function POST(
     project.quote_design,
     project.quote_pm,
     project.quote_shipping,
-    project.quote_crating,
     project.quote_id_labor,
     project.quote_travel,
     project.quote_props,
@@ -70,7 +67,9 @@ export async function POST(
     return NextResponse.json({ error: "No stored quote data is available for rebaseline" }, { status: 400 });
   }
 
-  const budgetPayload = buildBudgetPayloadFromProjectQuote(project);
+  const budgetPayload = stripUnsupportedProjectFields(
+    buildBudgetPayloadFromProjectQuote(project)
+  );
 
   const { error: updateError } = await supabase
     .from("projects")
