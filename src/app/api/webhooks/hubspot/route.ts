@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
         pm: "TBD",
         status: "Active",
         close_date: deal.properties.closedate || null,
-        due_date: null,
+        due_date: deal.properties.due_date || null,
         contract_amount: parsed.contractAmount || null,
         hubspot_deal_id: String(dealId),
         hubspot_deal_url: hubspotDealUrl,

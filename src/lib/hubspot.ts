@@ -15,11 +15,17 @@ async function hubspotFetch(path: string): Promise<unknown> {
   return res.json();
 }
 
+export function normalizeHubspotDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value.includes("T") ? value.slice(0, 10) : value;
+}
+
 export interface HubSpotDeal {
   id: string;
   properties: {
     dealname: string;
     closedate: string | null;
+    due_date: string | null;
     amount: string | null;
     hs_object_id: string;
     job_number: string | null;
@@ -38,11 +44,19 @@ export interface HubSpotLineItem {
 }
 
 export async function getDeal(dealId: string): Promise<HubSpotDeal> {
-  const props = "dealname,closedate,amount,hs_object_id,job_number,hs_is_closed_won";
+  const props = "dealname,closedate,due_date,amount,hs_object_id,job_number,hs_is_closed_won";
   const data = await hubspotFetch(
     `/crm/v3/objects/deals/${dealId}?properties=${props}`
   ) as HubSpotDeal;
-  return data;
+
+  return {
+    ...data,
+    properties: {
+      ...data.properties,
+      closedate: normalizeHubspotDate(data.properties.closedate),
+      due_date: normalizeHubspotDate(data.properties.due_date),
+    },
+  };
 }
 
 export async function getDealCompany(dealId: string): Promise<string> {
