@@ -28,8 +28,12 @@ export interface HubSpotDeal {
 }
 
 export interface HubSpotLineItem {
+  id?: string;
   name: string;
   sku: string;
+  description?: string;
+  quantity?: number;
+  unit_price?: number;
   amount: number;
 }
 
@@ -129,22 +133,30 @@ export async function getQuoteLineItems(quoteId: string): Promise<HubSpotLineIte
   const lineItemIds = assocData.results?.map((r) => r.id) ?? [];
   if (lineItemIds.length === 0) return [];
 
-  const props = "name,hs_sku,price,quantity,amount,hs_line_item_currency_code";
+  const props = "name,description,hs_sku,price,quantity,amount,hs_line_item_currency_code";
   const items = await Promise.all(
     lineItemIds.map((id) =>
       hubspotFetch(`/crm/v3/objects/line_items/${id}?properties=${props}`) as Promise<{
+        id?: string;
         properties?: {
           name?: string;
+          description?: string;
           hs_sku?: string;
+          price?: string;
+          quantity?: string;
           amount?: string;
         };
       }>
     )
   );
 
-  return items.map((item) => ({
+  return items.map((item, index) => ({
+    id: item.id ?? lineItemIds[index],
     name: item.properties?.name ?? "",
     sku: item.properties?.hs_sku ?? "",
+    description: item.properties?.description ?? "",
+    quantity: parseFloat(item.properties?.quantity ?? "0") || 0,
+    unit_price: parseFloat(item.properties?.price ?? "0") || 0,
     amount: parseFloat(item.properties?.amount ?? "0") || 0,
   }));
 }

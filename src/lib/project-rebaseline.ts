@@ -17,6 +17,30 @@ const CATEGORY_CONFIG = [
   { key: "flooring", label: "Flooring/Graphics", quoteKey: "quote_flooring", budgetKey: "budget_flooring", pctKey: "pct_flooring" },
 ] as const;
 
+type SupportedCategoryKey = typeof CATEGORY_CONFIG[number]["key"];
+
+const CATEGORY_BY_KEY = new Map<SupportedCategoryKey, typeof CATEGORY_CONFIG[number]>(
+  CATEGORY_CONFIG.map((category) => [category.key, category])
+);
+
+export type QuoteLineBudgetAllocationSource = {
+  source_line_item_id: string;
+  sku: string;
+  item: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  mapped_category: string | null;
+};
+
+export type QuoteLineBudgetAllocationRow = QuoteLineBudgetAllocationSource & {
+  budget_category_label: string;
+  labor_budget: number;
+  material_budget: number;
+  non_lm_budget: number;
+};
+
 function num(value: unknown): number | null {
   if (value == null || value === "") return null;
   const n = Number(value);
@@ -102,9 +126,6 @@ export function buildQuoteCompareRows(
   actuals: Record<string, number> = {}
 ) {
   const budgets = buildBudgetPayloadFromProjectQuote(project);
-  const fabricationBasis = num(project.quote_materials) ?? 0;
-  const laborPct = pct(project, "pct_labor");
-  const materialsPct = pct(project, "pct_materials");
 
   const derivedLaborBudget = (budgets.budget_hrs ?? 0) * LABOR_RATE_PER_HR;
   const derivedMaterialsBudget = budgets.budget_materials ?? 0;
@@ -129,4 +150,35 @@ export function buildQuoteCompareRows(
     variance_quote_to_budget: row.quote_basis_total - row.budget_total,
     variance_budget_to_actual: row.budget_total - row.actual_total,
   }));
+}
+
+export function buildQuoteLineBudgetAllocationRows(
+  project: QuoteBackedProject,
+  lineItems: QuoteLineBudgetAllocationSource[]
+): QuoteLineBudgetAllocationRow[] {
+  return lineItems.map((lineItem) => {
+    if (lineItem.mapped_category === "fabrication") {
+      return {
+        ...lineItem,
+        budget_category_label: "L&M",
+        labor_budget: Math.round((lineItem.line_total * pct(project, "pct_labor")) / 100),
+        material_budget: Math.round((lineItem.line_total * pct(project, "pct_materials")) / 100),
+        non_lm_budget: 0,
+      };
+    }
+
+    const normalizedCategory = lineItem.mapped_category as SupportedCategoryKey | null;
+    const category = normalizedCategory ? CATEGORY_BY_KEY.get(normalizedCategory) : null;
+    const nonLmBudget = category
+      ? Math.round((lineItem.line_total * pct(project, category.pctKey)) / 100)
+      : 0;
+
+    return {
+      ...lineItem,
+      budget_category_label: category?.label ?? "Unmapped",
+      labor_budget: 0,
+      material_budget: 0,
+      non_lm_budget: nonLmBudget,
+    };
+  });
 }

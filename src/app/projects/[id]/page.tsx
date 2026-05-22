@@ -30,6 +30,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -54,7 +55,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2, Flag, ChevronDown, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Flag, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -73,7 +74,10 @@ import { CountdownClock } from "@/components/countdown-clock";
 import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
-import { buildQuoteCompareRows } from "@/lib/project-rebaseline";
+import {
+  buildQuoteCompareRows,
+  type QuoteLineBudgetAllocationRow,
+} from "@/lib/project-rebaseline";
 import {
   BarChart,
   Bar,
@@ -206,6 +210,15 @@ export default function ProjectDetailPage() {
   const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
   const [showCompareView, setShowCompareView] = useState(false);
   const [rebaselineSaving, setRebaselineSaving] = useState(false);
+  const [quoteAllocationRows, setQuoteAllocationRows] = useState<QuoteLineBudgetAllocationRow[]>([]);
+  const [quoteAllocationTotals, setQuoteAllocationTotals] = useState({
+    line_total: 0,
+    labor_budget: 0,
+    material_budget: 0,
+    non_lm_budget: 0,
+  });
+  const [quoteAllocationLoading, setQuoteAllocationLoading] = useState(false);
+  const [quoteAllocationError, setQuoteAllocationError] = useState<string | null>(null);
 
   // Expense form state
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -270,6 +283,42 @@ export default function ProjectDetailPage() {
       return;
     }
     setProject(data as ProjectSummary);
+  }, [projectId]);
+
+  const fetchQuoteAllocation = useCallback(async () => {
+    if (!projectId) return;
+
+    setQuoteAllocationLoading(true);
+    setQuoteAllocationError(null);
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/quote-allocation`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to load quote allocation");
+      }
+
+      setQuoteAllocationRows((result.rows as QuoteLineBudgetAllocationRow[]) ?? []);
+      setQuoteAllocationTotals(result.totals ?? {
+        line_total: 0,
+        labor_budget: 0,
+        material_budget: 0,
+        non_lm_budget: 0,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load quote allocation";
+      setQuoteAllocationRows([]);
+      setQuoteAllocationTotals({
+        line_total: 0,
+        labor_budget: 0,
+        material_budget: 0,
+        non_lm_budget: 0,
+      });
+      setQuoteAllocationError(message);
+    } finally {
+      setQuoteAllocationLoading(false);
+    }
   }, [projectId]);
 
   const fetchExpenses = useCallback(async () => {
@@ -365,9 +414,10 @@ export default function ProjectDetailPage() {
       checkAdmin(),
       fetchVendors(),
       fetchPurchasers(),
+      fetchQuoteAllocation(),
     ]);
     setLoading(false);
-  }, [fetchProject, fetchExpenses, fetchLaborEntries, fetchQboLabor, fetchCogsCategories, fetchActuals, checkAdmin, fetchVendors, fetchPurchasers]);
+  }, [fetchProject, fetchExpenses, fetchLaborEntries, fetchQboLabor, fetchCogsCategories, fetchActuals, checkAdmin, fetchVendors, fetchPurchasers, fetchQuoteAllocation]);
 
   useEffect(() => {
     if (projectId) {
@@ -408,7 +458,7 @@ export default function ProjectDetailPage() {
       if (!response.ok) {
         throw new Error(result.error ?? "Failed to rebaseline budgets");
       }
-      await fetchProject();
+      await Promise.all([fetchProject(), fetchQuoteAllocation()]);
       toast.success("Budgets rebaselined from stored quote values.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to rebaseline budgets";
@@ -846,6 +896,78 @@ export default function ProjectDetailPage() {
           )}
         </Card>
       )}
+
+      {/* Budget Allocation by Quote Line */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle>Budget Allocation by Quote Line</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Line-level view of how quote items roll into Labor Budget, Material Budget, and Non L&amp;M.
+            </p>
+          </div>
+          {quoteAllocationLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading quote allocation...
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          {quoteAllocationError ? (
+            <p className="text-sm text-muted-foreground">{quoteAllocationError}</p>
+          ) : quoteAllocationRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No quote line items available for allocation yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product/Service</TableHead>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Labor Budget</TableHead>
+                  <TableHead className="text-right">Material Budget</TableHead>
+                  <TableHead className="text-right">Non L&amp;M</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {quoteAllocationRows.map((row) => (
+                  <TableRow key={row.source_line_item_id}>
+                    <TableCell className="font-medium">{row.sku || "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <span>{row.item || "—"}</span>
+                        <span className="text-xs text-muted-foreground">{row.budget_category_label}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[320px] whitespace-normal text-sm text-muted-foreground">
+                      {row.description || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.unit_price)}</TableCell>
+                    <TableCell className="text-right">{formatNumber(row.quantity)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.line_total)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.labor_budget)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.material_budget)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.non_lm_budget)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={5} className="font-semibold">Totals</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.line_total)}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.labor_budget)}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.material_budget)}</TableCell>
+                  <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.non_lm_budget)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Budget Breakdown Table */}
       <Card>

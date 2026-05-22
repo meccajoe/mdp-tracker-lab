@@ -5,6 +5,7 @@ import {
   buildBudgetPayloadFromProjectQuote,
   buildHubspotQuoteSyncFields,
   buildQuoteCompareRows,
+  buildQuoteLineBudgetAllocationRows,
   buildStoredQuoteSnapshotFromParsedQuote,
   stripUnsupportedProjectFields,
 } from "./project-rebaseline.ts";
@@ -241,3 +242,69 @@ test("buildQuoteCompareRows shows zero variance after a fresh rebaseline", () =>
   assert.equal(designRow?.budget_total, 500);
   assert.equal(designRow?.variance_quote_to_budget, 0);
 });
+
+test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material and shipping into non L&M", () => {
+  const rows = buildQuoteLineBudgetAllocationRows(
+    {
+      pct_labor: 25,
+      pct_materials: 25,
+      pct_shipping: 60,
+      pct_design: 50,
+    },
+    [
+      {
+        source_line_item_id: "1",
+        sku: "400100",
+        item: "Main Entrance",
+        description: "Fabrication work",
+        quantity: 1,
+        unit_price: 9965,
+        line_total: 9965,
+        mapped_category: "fabrication",
+      },
+      {
+        source_line_item_id: "2",
+        sku: "400403",
+        item: "Shipping/Delivery - 30' Truck (Oklahoma)",
+        description: "Truck",
+        quantity: 1,
+        unit_price: 1500,
+        line_total: 1500,
+        mapped_category: "shipping",
+      },
+      {
+        source_line_item_id: "3",
+        sku: "400700",
+        item: "Design Pass",
+        description: "Concept design",
+        quantity: 2,
+        unit_price: 500,
+        line_total: 1000,
+        mapped_category: "design",
+      },
+    ]
+  );
+
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[0], {
+    source_line_item_id: "1",
+    sku: "400100",
+    item: "Main Entrance",
+    description: "Fabrication work",
+    quantity: 1,
+    unit_price: 9965,
+    line_total: 9965,
+    mapped_category: "fabrication",
+    budget_category_label: "L&M",
+    labor_budget: 2491,
+    material_budget: 2491,
+    non_lm_budget: 0,
+  });
+  assert.equal(rows[1].labor_budget, 0);
+  assert.equal(rows[1].material_budget, 0);
+  assert.equal(rows[1].non_lm_budget, 900);
+  assert.equal(rows[1].budget_category_label, "Shipping");
+  assert.equal(rows[2].non_lm_budget, 500);
+  assert.equal(rows[2].budget_category_label, "Design");
+});
+

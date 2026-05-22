@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseLineItems, calculateBudgets } from "./hubspot-quote-parser.ts";
+import { parseLineItems, calculateBudgets, mapLineItemToQuoteCategory } from "./hubspot-quote-parser.ts";
 
 test("parseLineItems classifies fabrication and crating explicitly while keeping graphics and storage out of fabrication", () => {
   const parsed = parseLineItems([
@@ -64,4 +64,19 @@ test("calculateBudgets leaves labor and materials null when fabrication subtotal
 
   assert.equal(budgets.budget_hrs, null);
   assert.equal(budgets.budget_materials, null);
+});
+
+test("mapLineItemToQuoteCategory exposes per-line category mapping for allocation tables", () => {
+  assert.equal(
+    mapLineItemToQuoteCategory({ name: "Main Entrance", sku: "400100", amount: 9965 }),
+    "fabrication"
+  );
+  assert.equal(
+    mapLineItemToQuoteCategory({ name: "Shipping/Delivery - 30' Truck (Oklahoma)", sku: "400403", amount: 1500 }),
+    "shipping"
+  );
+  assert.equal(
+    mapLineItemToQuoteCategory({ name: "Graphics Package", sku: "400800", amount: 1200 }),
+    "design"
+  );
 });

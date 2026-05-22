@@ -125,6 +125,18 @@ function matchDescription(name: string): string | null {
   return null;
 }
 
+export function mapLineItemToQuoteCategory(item: HubSpotLineItem): string | null {
+  if (SKU_MAP[item.sku]) {
+    return SKU_MAP[item.sku];
+  }
+
+  if (CONTRACT_AMOUNT_SKUS.has(item.sku)) {
+    return matchDescription(item.name);
+  }
+
+  return matchDescription(item.name);
+}
+
 export function parseLineItems(lineItems: HubSpotLineItem[]): ParsedQuote {
   const quotes = {
     fabrication: 0,
@@ -198,7 +210,6 @@ export async function calculateBudgets(parsed: ParsedQuote): Promise<CalculatedB
 
   const p = (key: string) => pcts[key] ?? HARDCODED_DEFAULT_PCTS[key] ?? 0;
 
-  const contractAmount = parsed.contractAmount;
   const q = parsed.quotes;
   const fabricationSubtotal = q.fabrication;
   const laborBudgetDollars = fabricationSubtotal > 0 ? (fabricationSubtotal * p("labor") / 100) : 0;
