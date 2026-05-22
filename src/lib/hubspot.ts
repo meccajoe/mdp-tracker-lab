@@ -41,6 +41,20 @@ export interface HubSpotLineItem {
   quantity?: number;
   unit_price?: number;
   amount: number;
+  quote_position?: number;
+}
+
+export function sortHubspotLineItemsByQuotePosition(lineItems: HubSpotLineItem[]): HubSpotLineItem[] {
+  return [...lineItems].sort((a, b) => {
+    const aPos = a.quote_position;
+    const bPos = b.quote_position;
+
+    if (aPos == null && bPos == null) return 0;
+    if (aPos == null) return 1;
+    if (bPos == null) return -1;
+
+    return aPos - bPos;
+  });
 }
 
 export async function getDeal(dealId: string): Promise<HubSpotDeal> {
@@ -147,7 +161,7 @@ export async function getQuoteLineItems(quoteId: string): Promise<HubSpotLineIte
   const lineItemIds = assocData.results?.map((r) => r.id) ?? [];
   if (lineItemIds.length === 0) return [];
 
-  const props = "name,description,hs_sku,price,quantity,amount,hs_line_item_currency_code";
+  const props = "name,description,hs_sku,price,quantity,amount,hs_line_item_currency_code,hs_position_on_quote";
   const items = await Promise.all(
     lineItemIds.map((id) =>
       hubspotFetch(`/crm/v3/objects/line_items/${id}?properties=${props}`) as Promise<{
@@ -159,12 +173,13 @@ export async function getQuoteLineItems(quoteId: string): Promise<HubSpotLineIte
           price?: string;
           quantity?: string;
           amount?: string;
+          hs_position_on_quote?: string;
         };
       }>
     )
   );
 
-  return items.map((item, index) => ({
+  return sortHubspotLineItemsByQuotePosition(items.map((item, index) => ({
     id: item.id ?? lineItemIds[index],
     name: item.properties?.name ?? "",
     sku: item.properties?.hs_sku ?? "",
@@ -172,5 +187,8 @@ export async function getQuoteLineItems(quoteId: string): Promise<HubSpotLineIte
     quantity: parseFloat(item.properties?.quantity ?? "0") || 0,
     unit_price: parseFloat(item.properties?.price ?? "0") || 0,
     amount: parseFloat(item.properties?.amount ?? "0") || 0,
-  }));
+    quote_position: item.properties?.hs_position_on_quote
+      ? Number(item.properties.hs_position_on_quote)
+      : undefined,
+  })));
 }
