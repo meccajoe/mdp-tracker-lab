@@ -48,6 +48,7 @@ const smallInputClass = "rounded-md border border-border bg-background px-2 py-1
 
 interface BudgetFormulaSectionProps {
   contractAmount: number | null;
+  fabricationAmount: number | null;
   globalPcts: Record<string, number>;
   projectPcts: Record<string, string>;
   setProjectPcts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -146,6 +147,7 @@ function OverrideRow({
 
 function BudgetFormulaSection({
   contractAmount,
+  fabricationAmount,
   globalPcts,
   projectPcts,
   setProjectPcts,
@@ -161,9 +163,9 @@ function BudgetFormulaSection({
     ? Number(projectPcts["materials"])
     : (globalPcts["materials"] ?? HARDCODED_DEFAULT_PCTS["materials"]);
 
-  const autoLaborHrs = calcLaborHrs(contractAmount, laborPct);
+  const autoLaborHrs = calcLaborHrs(fabricationAmount, laborPct);
   const autoLaborDollars = autoLaborHrs != null ? autoLaborHrs * LABOR_RATE_PER_HR : null;
-  const autoMaterials = calcMaterialsBudget(contractAmount, materialsPct);
+  const autoMaterials = calcMaterialsBudget(fabricationAmount, materialsPct);
 
   const rowProps = { globalPcts, projectPcts, setProjectPcts, budgetOverrides, setBudgetOverrides };
 
@@ -436,9 +438,9 @@ export default function DataEntryPage() {
       job_number: null, close_date: null, due_date: null, contract_amount: null,
       hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null,
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
-      budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
+      budget_crating: null, budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
       budget_rental: null, budget_flooring: null, notes: null, project_type: null, created_at: "", updated_at: "",
-      budget_materials: null, quote_rental: null, pct_rental: null,
+      budget_materials: null, quote_rental: null, quote_crating: null, pct_rental: null, pct_crating: null,
       quote_labor: null, quote_materials: null,
       pct_labor: null, pct_materials: null,
       quote_design: null, quote_pm: null, quote_shipping: null, quote_id_labor: null,
@@ -516,20 +518,21 @@ export default function DataEntryPage() {
         budgets[cat.budgetKey] = null;
       }
     }
-    // Labor hours (from labor % or override)
+    // Labor/materials now derive from fabrication subtotal, not total contract amount
     const laborPct = projectPcts["labor"] !== undefined && projectPcts["labor"] !== ""
       ? Number(projectPcts["labor"])
       : (globalPcts["labor"] ?? HARDCODED_DEFAULT_PCTS["labor"]);
     const materialsPct = projectPcts["materials"] !== undefined && projectPcts["materials"] !== ""
       ? Number(projectPcts["materials"])
       : (globalPcts["materials"] ?? HARDCODED_DEFAULT_PCTS["materials"]);
+    const fabricationAmount = numVal(quotes.fabrication);
 
     budgets["budget_hrs"] = budgetOverrides["labor"]
       ? Number(budgetOverrides["labor"])
-      : calcLaborHrs(contractAmount, laborPct);
+      : calcLaborHrs(fabricationAmount, laborPct);
     budgets["budget_materials"] = budgetOverrides["materials"]
       ? Number(budgetOverrides["materials"])
-      : calcMaterialsBudget(contractAmount, materialsPct);
+      : calcMaterialsBudget(fabricationAmount, materialsPct);
     return budgets;
   }
 
@@ -573,6 +576,7 @@ export default function DataEntryPage() {
       quote_equipment: numVal(quotes.equipment),
       quote_rental: numVal(quotes.rental),
       quote_flooring: numVal(quotes.flooring),
+      quote_crating: numVal(quotes.crating),
       // Per-project % overrides
       pct_labor: projectPcts.labor ? Number(projectPcts.labor) : null,
       pct_materials: projectPcts.materials ? Number(projectPcts.materials) : null,
@@ -585,6 +589,7 @@ export default function DataEntryPage() {
       pct_equipment: projectPcts.equipment ? Number(projectPcts.equipment) : null,
       pct_rental: projectPcts.rental ? Number(projectPcts.rental) : null,
       pct_flooring: projectPcts.flooring ? Number(projectPcts.flooring) : null,
+      pct_crating: projectPcts.crating ? Number(projectPcts.crating) : null,
     };
 
     if (isNew) {
@@ -796,6 +801,7 @@ export default function DataEntryPage() {
                               </div>
                               <BudgetFormulaSection
                                 contractAmount={contractAmount}
+                                fabricationAmount={numVal(quotes.fabrication)}
                                 globalPcts={globalPcts}
                                 quotes={quotes}
                                 setQuotes={setQuotes}

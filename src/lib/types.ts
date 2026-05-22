@@ -22,6 +22,7 @@ export interface Project {
   budget_props: number | null;
   budget_equipment: number | null;
   budget_rental: number | null;
+  budget_crating: number | null;
   budget_flooring: number | null;
   project_type: string | null;
   created_at: string;
@@ -42,6 +43,7 @@ export interface Project {
   quote_props: number | null;
   quote_equipment: number | null;
   quote_rental: number | null;
+  quote_crating: number | null;
   quote_flooring: number | null;
   // Per-project % overrides (null = use global default)
   pct_design: number | null;
@@ -52,6 +54,7 @@ export interface Project {
   pct_props: number | null;
   pct_equipment: number | null;
   pct_rental: number | null;
+  pct_crating: number | null;
   pct_flooring: number | null;
 }
 

@@ -91,10 +91,9 @@ import {
 const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
   // Labor: internal production labor (tracked via labor_entries, but also COGS 500100)
   budget_hrs: ["Production Labor"],
-  // Materials: fabrication, crating, fab supplies
+  // Materials: fabrication and fab supplies only (crating is separate)
   budget_materials: [
     "Fabrication",                       // HubSpot 400100 / COGS 500200
-    "Custom Crating",                    // HubSpot 400404
     "Fab Supplies and Small Equipment",  // COGS 501200
   ],
   // Design: design work only (graphics = flooring substrate per Paul)
@@ -123,6 +122,10 @@ const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
     "Shipping/Trucking",                 // COGS 500400
     "Fuel Costs",                        // COGS 500450
     "Storage",                           // HubSpot 400500/400501 / COGS 500500
+  ],
+  // Crating: separate from materials and shipping
+  budget_crating: [
+    "Custom Crating",                    // HubSpot 400404
   ],
   // I&D Labor: third-party install/dismantle labor only
   budget_id_labor: [
@@ -712,7 +715,7 @@ export default function ProjectDetailPage() {
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Labor Cost</p>
                   <p className="text-xl font-bold">{formatCurrency(laborCost)}</p>
-                  <p className="text-xs text-muted-foreground">{(project.qbo_total_hours ?? 0).toFixed(1)} hrs @ $30/hr</p>
+                  <p className="text-xs text-muted-foreground">{(project.qbo_total_hours ?? 0).toFixed(1)} hrs @ ${LABOR_RATE}/hr</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Expense Cost</p>
@@ -769,19 +772,26 @@ export default function ProjectDetailPage() {
             {showCharts ? "Hide Charts" : "Charts"}
           </Button>
           {isAdmin && !editingBudget && (
-            <Button variant="outline" size="sm" onClick={() => {
-              // Pre-fill edits with current values
-              const fills: Record<string, string> = {};
-              for (const field of BUDGET_FIELDS) {
-                const val = project[field.key as keyof ProjectSummary] as number | null;
-                fills[field.key] = val != null ? String(val) : "";
-              }
-              setBudgetEdits(fills);
-              setManualActuals({});
-              setEditingBudget(true);
-            }}>
-              Edit Budget
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={() => {
+                // Pre-fill edits with current values
+                const fills: Record<string, string> = {};
+                for (const field of BUDGET_FIELDS) {
+                  const val = project[field.key as keyof ProjectSummary] as number | null;
+                  fills[field.key] = val != null ? String(val) : "";
+                }
+                setBudgetEdits(fills);
+                setManualActuals({});
+                setEditingBudget(true);
+              }}>
+                Edit Budget
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                toast.info("Manual recalc button placeholder: wire to SKU-based budget recomputation for this project.");
+              }}>
+                Recalc Budgets
+              </Button>
+            </>
           )}
           {editingBudget && (
             <div className="flex gap-2">
@@ -810,7 +820,7 @@ export default function ProjectDetailPage() {
                   if (storedVal != null) return storedVal;
                   if (!project.contract_amount) return 0;
                   if (field.key === "budget_materials") return Math.round(project.contract_amount * 0.25);
-                  if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / 30);
+                  if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / LABOR_RATE);
                   return 0;
                 })();
                 const budgeted = editingBudget && budgetEdits[field.key] !== undefined

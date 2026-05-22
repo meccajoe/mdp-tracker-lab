@@ -1,4 +1,4 @@
-export const LABOR_RATE = 30; // $/hr
+export const LABOR_RATE = 41; // $/hr
 
 export const BUDGET_FIELDS = [
   { key: "budget_hrs", label: "Labor Hours", isHours: true },
@@ -6,6 +6,7 @@ export const BUDGET_FIELDS = [
   { key: "budget_design", label: "Design", isHours: false },
   { key: "budget_pm", label: "Project Management", isHours: false },
   { key: "budget_shipping", label: "Shipping", isHours: false },
+  { key: "budget_crating", label: "Crating", isHours: false },
   { key: "budget_id_labor", label: "I&D Labor", isHours: false },
   { key: "budget_travel", label: "Travel", isHours: false },
   { key: "budget_props", label: "Props", isHours: false },

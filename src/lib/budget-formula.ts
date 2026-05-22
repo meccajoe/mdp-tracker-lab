@@ -4,6 +4,7 @@ export const HARDCODED_DEFAULT_PCTS: Record<string, number> = {
   design: 50,
   pm: 75,
   shipping: 70,
+  crating: 60,
   id_labor: 60,
   travel: 75,
   props: 50,
@@ -11,12 +12,13 @@ export const HARDCODED_DEFAULT_PCTS: Record<string, number> = {
   flooring: 65,
 };
 
-export const LABOR_RATE_PER_HR = 30;
+export const LABOR_RATE_PER_HR = 41;
 
 export const BUDGET_CATEGORIES = [
   { key: "design",    label: "Design",            quoteKey: "quote_design",    budgetKey: "budget_design",    pctKey: "pct_design" },
   { key: "pm",        label: "Project Management", quoteKey: "quote_pm",        budgetKey: "budget_pm",        pctKey: "pct_pm" },
   { key: "shipping",  label: "Shipping",           quoteKey: "quote_shipping",  budgetKey: "budget_shipping",  pctKey: "pct_shipping" },
+  { key: "crating",   label: "Crating",            quoteKey: "quote_crating",   budgetKey: "budget_crating",   pctKey: "pct_crating" },
   { key: "id_labor",  label: "I&D Labor",          quoteKey: "quote_id_labor",  budgetKey: "budget_id_labor",  pctKey: "pct_id_labor" },
   { key: "travel",    label: "Travel",             quoteKey: "quote_travel",    budgetKey: "budget_travel",    pctKey: "pct_travel" },
   { key: "props",     label: "Props/Decor",        quoteKey: "quote_props",     budgetKey: "budget_props",     pctKey: "pct_props" },

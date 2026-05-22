@@ -4,6 +4,8 @@ import type { HubSpotLineItem } from "@/lib/hubspot";
 
 // SKUs that map directly to a quote budget category
 const SKU_MAP: Record<string, string> = {
+  // Fabrication (feeds L&M budgets)
+  "400100": "fabrication",
   // Design
   "400700": "design",
   "400701": "design",
@@ -15,7 +17,8 @@ const SKU_MAP: Record<string, string> = {
   "400401": "shipping",
   "400402": "shipping",
   "400403": "shipping",
-  "400404": "shipping",
+  // Crating
+  "400404": "crating",
   // I&D Labor
   "400200": "id_labor",
   "400201": "id_labor",
@@ -65,9 +68,8 @@ const SKU_MAP: Record<string, string> = {
   "408003": "equipment",
 };
 
-// SKUs that roll into contractAmount only (fabrication, graphics, storage)
+// SKUs that roll into contractAmount only (graphics, storage)
 const CONTRACT_AMOUNT_SKUS = new Set([
-  "400100", // Fabrication
   "400800", // Graphics
   "400500", // Storage
   "400501",
@@ -85,13 +87,16 @@ const DESCRIPTION_KEYWORDS: Array<{ keywords: string[]; category: string }> = [
 export interface ParsedQuote {
   contractAmount: number;
   quotes: {
+    fabrication: number;
     design: number;
     pm: number;
     shipping: number;
+    crating: number;
     id_labor: number;
     travel: number;
     props: number;
     equipment: number;
+    rental: number;
     flooring: number;
   };
   reclassified: Array<{ name: string; originalSku: string; toCategory: string }>;
@@ -103,10 +108,12 @@ export interface CalculatedBudgets {
   budget_design: number | null;
   budget_pm: number | null;
   budget_shipping: number | null;
+  budget_crating: number | null;
   budget_id_labor: number | null;
   budget_travel: number | null;
   budget_props: number | null;
   budget_equipment: number | null;
+  budget_rental: number | null;
   budget_flooring: number | null;
 }
 
@@ -120,13 +127,16 @@ function matchDescription(name: string): string | null {
 
 export function parseLineItems(lineItems: HubSpotLineItem[]): ParsedQuote {
   const quotes = {
+    fabrication: 0,
     design: 0,
     pm: 0,
     shipping: 0,
+    crating: 0,
     id_labor: 0,
     travel: 0,
     props: 0,
     equipment: 0,
+    rental: 0,
     flooring: 0,
   };
   const reclassified: ParsedQuote["reclassified"] = [];
@@ -190,17 +200,21 @@ export async function calculateBudgets(parsed: ParsedQuote): Promise<CalculatedB
 
   const contractAmount = parsed.contractAmount;
   const q = parsed.quotes;
+  const fabricationSubtotal = q.fabrication;
+  const laborBudgetDollars = fabricationSubtotal > 0 ? (fabricationSubtotal * p("labor") / 100) : 0;
 
   return {
-    budget_hrs: contractAmount > 0 ? Math.round((contractAmount * p("labor") / 100) / LABOR_RATE_PER_HR) : null,
-    budget_materials: contractAmount > 0 ? Math.round(contractAmount * p("materials") / 100) : null,
+    budget_hrs: fabricationSubtotal > 0 ? Math.round(laborBudgetDollars / LABOR_RATE_PER_HR) : null,
+    budget_materials: fabricationSubtotal > 0 ? Math.round(fabricationSubtotal * p("materials") / 100) : null,
     budget_design: q.design > 0 ? Math.round(q.design * p("design") / 100) : null,
     budget_pm: q.pm > 0 ? Math.round(q.pm * p("pm") / 100) : null,
     budget_shipping: q.shipping > 0 ? Math.round(q.shipping * p("shipping") / 100) : null,
+    budget_crating: q.crating > 0 ? Math.round(q.crating * p("crating") / 100) : null,
     budget_id_labor: q.id_labor > 0 ? Math.round(q.id_labor * p("id_labor") / 100) : null,
     budget_travel: q.travel > 0 ? Math.round(q.travel * p("travel") / 100) : null,
     budget_props: q.props > 0 ? Math.round(q.props * p("props") / 100) : null,
     budget_equipment: q.equipment > 0 ? Math.round(q.equipment * p("equipment") / 100) : null,
+    budget_rental: q.rental > 0 ? Math.round(q.rental * p("rental") / 100) : null,
     budget_flooring: q.flooring > 0 ? Math.round(q.flooring * p("flooring") / 100) : null,
   };
 }
