@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AdminViewProvider } from "@/components/admin-view-provider";
 import { Toaster } from "@/components/ui/sonner";
 import Sidebar from "@/components/Sidebar";
 import AuthGuard from "@/components/AuthGuard";
@@ -28,14 +29,16 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider>
           <AuthGuard>
-            <div className="flex min-h-screen bg-background">
-              <Sidebar />
-              <main className="flex-1 overflow-auto">
-                <div className="max-w-7xl mx-auto px-6 py-6">
-                  {children}
-                </div>
-              </main>
-            </div>
+            <AdminViewProvider>
+              <div className="flex min-h-screen bg-background">
+                <Sidebar />
+                <main className="flex-1 overflow-auto">
+                  <div className="max-w-7xl mx-auto px-6 py-6">
+                    {children}
+                  </div>
+                </main>
+              </div>
+            </AdminViewProvider>
           </AuthGuard>
           <Toaster />
         </ThemeProvider>

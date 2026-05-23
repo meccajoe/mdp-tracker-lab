@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { PM_NAMES } from "@/lib/types";
+import { useAdminView } from "@/components/admin-view-provider";
 import UserMenu from "@/components/UserMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -57,9 +58,9 @@ function SectionHeader({ label, open, onToggle, collapsed }: {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { actualIsAdmin, effectiveIsAdmin, previewNonAdmin, setActualIsAdmin, togglePreviewNonAdmin } = useAdminView();
   const [collapsed, setCollapsed] = useState(false);
   const [role, setRole] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
   const [pmInitials, setPmInitials] = useState<string | null>(null);
   const [bonusOpen, setBonusOpen] = useState(false);
@@ -71,7 +72,7 @@ export default function Sidebar() {
       const { data } = await supabase.from("user_roles").select("role, pm_initials").eq("email", email.toLowerCase()).single();
       const r = data?.role ?? null;
       setRole(r);
-      setIsAdmin(r === "admin");
+      setActualIsAdmin(r === "admin");
       setIsProduction(r === "production");
       setPmInitials(data?.pm_initials ?? null);
     }
@@ -83,10 +84,10 @@ export default function Sidebar() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.email) loadRole(session.user.email);
-      else { setIsAdmin(false); setPmInitials(null); }
+      else { setActualIsAdmin(false); setPmInitials(null); }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [setActualIsAdmin]);
 
   // Auto-open settings if on an admin page
   useEffect(() => {
@@ -135,19 +136,19 @@ export default function Sidebar() {
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
 
         {/* Team Bonuses — admin and PM only (not production/viewer) */}
-        {(isAdmin || (pmInitials && role === "pm")) && (
+        {(effectiveIsAdmin || (pmInitials && role === "pm")) && (
           <>
             <SectionHeader label="Team Bonuses" open={bonusOpen} onToggle={() => setBonusOpen(!bonusOpen)} collapsed={collapsed} />
             {collapsed ? (
               <NavLink
-                href={isAdmin ? `/pm/${Object.keys(PM_NAMES)[0]}` : `/pm/${pmInitials ?? ""}`}
+                href={effectiveIsAdmin ? `/pm/${Object.keys(PM_NAMES)[0]}` : `/pm/${pmInitials ?? ""}`}
                 label="Bonuses"
                 icon={bonusIcon}
                 collapsed={true}
                 exact={false}
               />
             ) : bonusOpen && (
-              isAdmin
+              effectiveIsAdmin
                 ? activePMs.map((init) => (
                     <NavLink key={init} href={`/pm/${init}`} label={PM_NAMES[init] ?? init} icon={bonusIcon} collapsed={false} exact={false} />
                   ))
@@ -164,7 +165,7 @@ export default function Sidebar() {
         )}
 
         {/* Settings section — admin only */}
-        {isAdmin && (
+        {effectiveIsAdmin && (
           <>
             <SectionHeader label="Settings" open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} collapsed={collapsed} />
             {collapsed ? (
@@ -180,6 +181,25 @@ export default function Sidebar() {
               </>
             )}
           </>
+        )}
+
+        {actualIsAdmin && !collapsed && (
+          <div className="px-2.5 pt-4 pb-1">
+            <button
+              onClick={togglePreviewNonAdmin}
+              className="w-full rounded-lg border border-border px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span>View Mode</span>
+                <span className="text-[10px] uppercase tracking-wide">
+                  {previewNonAdmin ? "Non-admin" : "Admin"}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {previewNonAdmin ? "Previewing PM/non-admin UI" : "Previewing full admin UI"}
+              </p>
+            </button>
+          </div>
         )}
       </nav>
 
