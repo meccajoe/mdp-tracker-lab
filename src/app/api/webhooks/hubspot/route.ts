@@ -12,8 +12,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createHmac } from "crypto";
-import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems } from "@/lib/hubspot";
+import { createHmac, createHash } from "crypto";
+import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, type HubSpotLineItem } from "@/lib/hubspot";
 import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
 import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
@@ -218,6 +218,68 @@ async function postSlackNotification(
 }
 
 // ---------------------------------------------------------------------------
+// Line item sync (called non-blocking from the main webhook handler)
+// ---------------------------------------------------------------------------
+
+function makeLineKey(sku: string | null, description: string | null): string {
+  const raw = `${sku ?? ""}|${description ?? ""}`;
+  return createHash("md5").update(raw).digest("hex").slice(0, 16);
+}
+
+async function syncLineItemsForDeal(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  dealId: string,
+  quoteId: string,
+  deal: Awaited<ReturnType<typeof getDeal>>,
+  lineItems: HubSpotLineItem[]
+): Promise<void> {
+  if (!lineItems.length) return;
+
+  // Resolve project_id via hubspot_deal_id lookup
+  const projectRes = await supabaseAdmin
+    .from("projects")
+    .select("id, name")
+    .eq("hubspot_deal_id", dealId)
+    .maybeSingle();
+
+  const projectId: string | null = (projectRes.data as { id: string } | null)?.id ?? null;
+  const projectName: string | null = (projectRes.data as { name: string } | null)?.name ?? null;
+
+  const now = new Date().toISOString();
+  const dealName = deal.properties.dealname ?? "";
+  const jobNumber = deal.properties.job_number?.trim() || null;
+  const closeDate = deal.properties.closedate?.slice(0, 10) ?? null;
+
+  const rows = lineItems.map((item) => ({
+    source: "hubspot" as const,
+    source_id: quoteId,
+    source_ref: jobNumber ?? dealName,
+    source_date: closeDate,
+    project_id: projectId,
+    project_name: projectName ?? dealName,
+    sku: item.sku || null,
+    description: item.name || item.description || null,
+    unit_cost: item.unit_price ?? null,
+    quantity: item.quantity ?? null,
+    line_total: item.amount ?? null,
+    vendor: null as string | null,
+    line_key: makeLineKey(item.sku || null, item.name || item.description || null),
+    synced_at: now,
+  }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabaseAdmin as any)
+    .from("quote_line_items")
+    .upsert(rows, { onConflict: "source,source_id,line_key" });
+
+  if (error) {
+    console.error(`[hubspot webhook] line_items upsert error for deal ${dealId}:`, error);
+  } else {
+    console.log(`[hubspot webhook] synced ${rows.length} line items for deal ${dealId}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main POST handler
 // ---------------------------------------------------------------------------
 
@@ -333,6 +395,10 @@ export async function POST(req: NextRequest) {
               ...fromLineItems,
               contractAmount: fromLineItems.contractAmount > 0 ? fromLineItems.contractAmount : parsed.contractAmount,
             };
+
+            // Sync line items into quote_line_items table (non-blocking)
+            syncLineItemsForDeal(supabase, String(dealId), quoteId, deal, lineItems)
+              .catch((err) => console.error(`[hubspot webhook] line item sync failed for deal ${dealId}:`, err));
           }
         }
       } catch (err) {
