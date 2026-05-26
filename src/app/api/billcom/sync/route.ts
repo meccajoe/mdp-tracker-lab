@@ -33,7 +33,8 @@ interface BillTransaction {
 
 interface TransactionListResponse {
   results: BillTransaction[];
-  cursor?: string;
+  cursor?: string;    // legacy field name (may not be returned)
+  nextPage?: string;  // actual field name returned by Bill.com v3 API
 }
 
 async function fetchTransactions(params: Record<string, string>): Promise<TransactionListResponse> {
@@ -57,10 +58,22 @@ async function fetchTransactions(params: Record<string, string>): Promise<Transa
   return res.json() as Promise<TransactionListResponse>;
 }
 
-/** Parse job number from Project tag value like "26056-Good TV-Musgraves..." */
+/** Parse job number from Project tag value.
+ * Handles formats:
+ *   "26056-Good TV-Musgraves..."         → 26056
+ *   "26076- Groove Jones-Arcade"         → 26076
+ *   "Solomon Group : 26112 - CWS 2026"  → 26112
+ *   "Netflix, Inc. : 26115 - Wall..."   → 26115
+ *   "26000 - General Shop/Office"       → 26000 (overhead, filtered later)
+ */
 function parseJobNumber(projectTagValue: string): string | null {
-  const match = projectTagValue.match(/^(\d+)-/);
-  return match ? match[1] : null;
+  // Format 1: starts with job number "26056-..." or "26056 -..."
+  const leadingMatch = projectTagValue.match(/^(\d{4,5})\s*[-–]/);
+  if (leadingMatch) return leadingMatch[1];
+  // Format 2: "Client Name : 26115 - Project Name"
+  const colonMatch = projectTagValue.match(/:\s*(\d{4,5})\s*[-–]/);
+  if (colonMatch) return colonMatch[1];
+  return null;
 }
 
 /** Get a named tag value from a transaction's tags array */
@@ -210,14 +223,14 @@ export async function POST(_request: NextRequest) {
       params.updatedTimeStart = ninetyDaysAgo.toISOString();
     }
 
-    // Paginate via cursor
-    let cursor: string | undefined;
+    // Paginate via nextPage (Bill.com v3 uses nextPage, not cursor)
+    let nextPage: string | undefined;
     do {
-      if (cursor) params.cursor = cursor;
+      if (nextPage) params.cursor = nextPage;
       const page = await fetchTransactions(params);
       allTransactions.push(...page.results);
-      cursor = page.cursor;
-    } while (cursor);
+      nextPage = page.nextPage ?? page.cursor; // handle both field names
+    } while (nextPage);
 
     // Track latest updatedTime seen
     let maxUpdatedTime = lastUpdatedTime ?? "";
