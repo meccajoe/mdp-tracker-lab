@@ -236,7 +236,7 @@ export async function POST(_request: NextRequest) {
 
       const jobNumber = parseJobNumber(projectTagValue);
       if (!jobNumber) {
-        errors.push(`Transaction ${tx.uuid}: couldn't parse job number from "${projectTagValue}"`);
+        // Can't parse a job number — skip silently (e.g. overhead accounts like "26000 - General Shop/Office")
         skipped++;
         continue;
       }
