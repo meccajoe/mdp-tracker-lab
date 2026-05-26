@@ -20,6 +20,8 @@ function getSupabaseAdmin() {
 interface BillTransaction {
   uuid: string;
   transactionType: "CLEAR" | "AUTHORIZATION" | "DECLINE";
+  status: "COMPLETE" | "INCOMPLETE" | "PTR_INCOMPLETE" | "PENDING" | "DECLINED" | string;
+  complete: boolean;
   amount: number;
   merchantName: string;
   occurredTime: string;
@@ -238,6 +240,16 @@ export async function POST(_request: NextRequest) {
     for (const tx of allTransactions) {
       if (tx.updatedTime > maxUpdatedTime) {
         maxUpdatedTime = tx.updatedTime;
+      }
+
+      // Only sync fully complete transactions — skip INCOMPLETE, PENDING, PTR_INCOMPLETE, DECLINED
+      // INCOMPLETE = missing required tags (Project/Category not filled in)
+      // PENDING = awaiting manager approval (reviewRequired=true)
+      // PTR_INCOMPLETE = post-transaction review not done
+      // DECLINED = reversed/declined charges ($0 or refunded)
+      if (tx.status !== "COMPLETE") {
+        skipped++;
+        continue;
       }
 
       // Must have a Project tag
