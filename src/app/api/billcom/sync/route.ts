@@ -263,6 +263,18 @@ export async function POST(_request: NextRequest) {
 
       const date = tx.occurredTime.split("T")[0];
 
+      // When a CLEAR (settled) transaction arrives, delete any stale AUTHORIZATION record
+      // for the same project/vendor/amount that may have been stored by a prior sync run.
+      // Auth holds and their settlements share the same merchant + amount but have different
+      // external_ids, so the upsert dedup won't catch them.
+      await supabase.from("expenses").delete()
+        .eq("source", "billcom")
+        .eq("project_id", projectId)
+        .eq("vendor", vendorTag)
+        .eq("amount", tx.amount)
+        .neq("external_id", tx.uuid)
+        .like("notes", "%Cardholder: " + tx.userName + "%");
+
       const { error } = await supabase.from("expenses").upsert(
         {
           id: randomUUID(),
