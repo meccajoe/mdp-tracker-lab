@@ -93,6 +93,17 @@ const BILLCOM_CATEGORY_MAP: Record<string, string> = {
   "Travel-Per Diem":                   "Travel-Per Diem",
   "Travel-Airfare & Baggage Fees":     "Travel-Airfare & Baggage Fees",
   "Travel":                            "Travel",
+  // Bill.com COS - Travel subcategories (e.g. "COS - Travel : Hotels")
+  "Hotels":                            "Travel-Hotels",
+  "Hotel":                             "Travel-Hotels",
+  "Uber, Lyft and Taxi":              "Travel",
+  "Taxi":                              "Travel",
+  "Rideshare":                         "Travel",
+  "Airfare":                           "Travel-Airfare & Baggage Fees",
+  "Airfare & Baggage Fees":           "Travel-Airfare & Baggage Fees",
+  "Baggage Fees":                      "Travel-Airfare & Baggage Fees",
+  "Per Diem":                          "Travel-Per Diem",
+  "Meals":                             "Production Meals",
   "Rental":                            "Rental",
   "Forklifts and Trucks":              "Forklifts and Trucks",
   "Show Prep":                         "Show Prep",
@@ -108,8 +119,11 @@ const BILLCOM_CATEGORY_MAP: Record<string, string> = {
 function mapCategory(billCategory: string | null): string {
   if (!billCategory) return "Fabrication";
 
-  // Extract specific part from "COS - Production : COS - [Specific]"
-  const colonMatch = billCategory.match(/:\s*COS\s*-\s*(.+)$/);
+  // Extract the rightmost part after ": " — handles both:
+  //   "COS - Production : COS - Fabrication" → "Fabrication"
+  //   "COS - Travel : Hotels"                → "Hotels"
+  //   "COS - Travel : Uber, Lyft and Taxi"   → "Uber, Lyft and Taxi"
+  const colonMatch = billCategory.match(/:\s*(?:COS\s*-\s*)?(.+)$/);
   const specific = colonMatch ? colonMatch[1].trim() : billCategory.trim();
 
   // Strip leading numeric codes like "500600 COS - Production : COS - Graphics"
@@ -123,7 +137,7 @@ export async function GET() {
 
   const { data: state } = await supabase
     .from("billcom_sync_state")
-    .select("last_sync_at, last_bill_updated_time")
+    .select("last_sync_at, last_bill_updated_time, last_sync_errors, last_sync_skipped, last_sync_error_msgs")
     .eq("id", 1)
     .single();
 
@@ -136,6 +150,9 @@ export async function GET() {
     last_sync_at: state?.last_sync_at ?? null,
     last_bill_updated_time: state?.last_bill_updated_time ?? null,
     billcom_expense_count: count ?? 0,
+    last_sync_errors: state?.last_sync_errors ?? 0,
+    last_sync_skipped: state?.last_sync_skipped ?? 0,
+    last_sync_error_msgs: state?.last_sync_error_msgs ?? [],
   });
 }
 
@@ -271,11 +288,14 @@ export async function POST(_request: NextRequest) {
       }
     }
 
-    // Update sync state
+    // Update sync state (including monitoring fields)
     await supabase.from("billcom_sync_state").upsert({
       id: 1,
       last_sync_at: new Date().toISOString(),
       last_bill_updated_time: maxUpdatedTime || null,
+      last_sync_errors: errors.length,
+      last_sync_skipped: skipped,
+      last_sync_error_msgs: errors.slice(0, 20), // cap at 20 messages
       updated_at: new Date().toISOString(),
     });
 

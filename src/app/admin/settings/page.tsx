@@ -40,7 +40,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"settings" | "flags" | "billcom">("settings");
   const [flaggedExpenses, setFlaggedExpenses] = useState<FlaggedExpense[]>([]);
   const [flagsLoading, setFlagsLoading] = useState(false);
-  const [billcomSyncState, setBillcomSyncState] = useState<{ last_sync_at: string | null; billcom_expense_count: number } | null>(null);
+  const [billcomSyncState, setBillcomSyncState] = useState<{ last_sync_at: string | null; billcom_expense_count: number; last_sync_errors: number; last_sync_skipped: number; last_sync_error_msgs: string[] } | null>(null);
   const [billcomSyncing, setBillcomSyncing] = useState(false);
   const [billcomResult, setBillcomResult] = useState<{ synced: number; skipped: number; errors: string[] } | null>(null);
 
@@ -97,7 +97,7 @@ export default function SettingsPage() {
   async function loadBillcomState() {
     const res = await fetch("/api/billcom/sync");
     if (res.ok) {
-      const data = await res.json() as { last_sync_at: string | null; billcom_expense_count: number };
+      const data = await res.json() as { last_sync_at: string | null; billcom_expense_count: number; last_sync_errors: number; last_sync_skipped: number; last_sync_error_msgs: string[] };
       setBillcomSyncState(data);
     }
   }
@@ -323,7 +323,31 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Synced Expenses</p>
                   <p className="font-medium">{billcomSyncState?.billcom_expense_count ?? 0}</p>
                 </div>
+                {(billcomSyncState?.last_sync_errors ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Last Sync Errors</p>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-400">
+                      ⚠ {billcomSyncState?.last_sync_errors} error{(billcomSyncState?.last_sync_errors ?? 0) !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
+                {(billcomSyncState?.last_sync_skipped ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Last Sync Skipped</p>
+                    <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                      {billcomSyncState?.last_sync_skipped} skipped
+                    </span>
+                  </div>
+                )}
               </div>
+              {(billcomSyncState?.last_sync_error_msgs?.length ?? 0) > 0 && (
+                <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 px-3 py-2 text-xs space-y-1">
+                  <p className="font-semibold text-red-700 dark:text-red-400">Errors from last sync:</p>
+                  {billcomSyncState?.last_sync_error_msgs?.map((msg, i) => (
+                    <p key={i} className="text-muted-foreground">{msg}</p>
+                  ))}
+                </div>
+              )}
 
               <Button onClick={runBillcomSync} disabled={billcomSyncing}>
                 {billcomSyncing ? "Syncing…" : "Sync Now"}
