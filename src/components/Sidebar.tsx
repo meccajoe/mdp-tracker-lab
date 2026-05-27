@@ -135,7 +135,9 @@ export default function Sidebar() {
         <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
-        <NavLink href="/line-item-search" label="Line Item Search" icon={lineItemIcon} collapsed={collapsed} exact={false} />
+        {effectiveIsAdmin && (
+          <NavLink href="/line-item-search" label="Line Item Search" icon={lineItemIcon} collapsed={collapsed} exact={false} />
+        )}
 
         {/* Team Bonuses — admin and PM only (not production/viewer) */}
         {(effectiveIsAdmin || (pmInitials && role === "pm")) && (
