@@ -67,5 +67,50 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ items: data ?? [], total: count ?? 0, limit, offset });
+  const items = data ?? [];
+  const missingHubspotDealIds = items.filter(
+    (item) => item.source === "hubspot" && !item.hubspot_deal_id && (item.project_id || item.source_ref)
+  );
+
+  if (missingHubspotDealIds.length > 0) {
+    const projectIds = [...new Set(missingHubspotDealIds.map((item) => item.project_id).filter(Boolean))];
+    const jobNumbers = [...new Set(missingHubspotDealIds.map((item) => item.source_ref).filter(Boolean))];
+
+    let projectQuery = supabase
+      .from("projects")
+      .select("id, job_number, hubspot_deal_id")
+      .not("hubspot_deal_id", "is", null);
+
+    if (projectIds.length > 0 && jobNumbers.length > 0) {
+      projectQuery = projectQuery.or(
+        `id.in.(${projectIds.join(",")}),job_number.in.(${jobNumbers.map((job) => JSON.stringify(job)).join(",")})`
+      );
+    } else if (projectIds.length > 0) {
+      projectQuery = projectQuery.in("id", projectIds);
+    } else if (jobNumbers.length > 0) {
+      projectQuery = projectQuery.in("job_number", jobNumbers);
+    }
+
+    const { data: projects, error: projectError } = await projectQuery;
+
+    if (projectError) {
+      console.error("[line-items/search:fallback]", projectError);
+    } else if (projects?.length) {
+      const dealByProjectId = new Map(projects.map((project) => [project.id, project.hubspot_deal_id]));
+      const dealByJobNumber = new Map(projects.map((project) => [project.job_number, project.hubspot_deal_id]));
+
+      for (const item of items) {
+        if (item.source !== "hubspot" || item.hubspot_deal_id) continue;
+
+        const dealId = (item.project_id ? dealByProjectId.get(item.project_id) : null)
+          ?? (item.source_ref ? dealByJobNumber.get(item.source_ref) : null);
+
+        if (dealId) {
+          item.hubspot_deal_id = dealId;
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ items, total: count ?? 0, limit, offset });
 }
