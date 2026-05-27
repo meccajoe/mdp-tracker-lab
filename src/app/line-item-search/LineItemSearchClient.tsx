@@ -58,13 +58,12 @@ function fmt(val: number | null) {
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
-  // d is YYYY-MM-DD
   const [y, m, day] = d.split("-");
   return `${m}/${day}/${y}`;
 }
 
 function buildCsvRows(items: LineItem[]): string {
-  const headers = ["Source", "Source Ref", "Date", "SKU", "Description", "Project", "Unit Cost", "Qty", "Line Total", "Vendor"];
+  const headers = ["Source", "Job #", "Date", "SKU", "Description", "Project", "Unit Cost", "Qty", "Line Total", "Vendor"];
   const rows = items.map((item) => [
     item.source,
     item.source_ref ?? "",
@@ -90,24 +89,41 @@ function downloadCsv(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// ─── Skeleton row ─────────────────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <TableRow>
+      <TableCell><div className="h-4 w-14 rounded bg-muted animate-pulse" /></TableCell>
+      <TableCell><div className="h-4 w-16 rounded bg-muted animate-pulse" /></TableCell>
+      <TableCell><div className="h-4 w-48 rounded bg-muted animate-pulse" /></TableCell>
+      <TableCell><div className="h-4 w-36 rounded bg-muted animate-pulse" /></TableCell>
+      <TableCell><div className="h-4 w-20 rounded bg-muted animate-pulse" /></TableCell>
+      <TableCell><div className="h-4 w-10 rounded bg-muted animate-pulse ml-auto" /></TableCell>
+      <TableCell><div className="h-4 w-20 rounded bg-muted animate-pulse ml-auto" /></TableCell>
+      <TableCell><div className="h-4 w-20 rounded bg-muted animate-pulse ml-auto" /></TableCell>
+    </TableRow>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => String(CURRENT_YEAR - i));
+const LIMIT = 100;
 
 export default function LineItemSearchClient() {
   const [filters, setFilters] = useState<Filters>({ q: "", jobNumber: "", year: "", projectName: "" });
-  const [pendingQ, setPendingQ] = useState(""); // debounced search box input
+  const [pendingQ, setPendingQ] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // start true so skeleton shows on mount
   const [error, setError] = useState<string | null>(null);
   const [sortCol, setSortCol] = useState<SortCol>("source_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const LIMIT = 100;
 
   // Debounce the search query
   useEffect(() => {
@@ -115,7 +131,7 @@ export default function LineItemSearchClient() {
     debounceRef.current = setTimeout(() => {
       setFilters((f) => ({ ...f, q: pendingQ }));
       setOffset(0);
-    }, 200);
+    }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -151,7 +167,6 @@ export default function LineItemSearchClient() {
     fetchItems();
   }, [fetchItems]);
 
-  // Sort toggler
   function toggleSort(col: SortCol) {
     if (sortCol === col) {
       setSortDir((d) => d === "desc" ? "asc" : "desc");
@@ -167,7 +182,6 @@ export default function LineItemSearchClient() {
     return <span className="ml-1">{sortDir === "desc" ? "↓" : "↑"}</span>;
   }
 
-  // Active filter chips
   const activeFilters: Array<{ label: string; key: keyof Filters }> = [
     ...(filters.jobNumber ? [{ label: `Job: ${filters.jobNumber}`, key: "jobNumber" as const }] : []),
     ...(filters.year ? [{ label: `Year: ${filters.year}`, key: "year" as const }] : []),
@@ -190,6 +204,8 @@ export default function LineItemSearchClient() {
     downloadCsv(csv, `line-items-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
+  const hasFilters = filters.q || filters.jobNumber || filters.year || filters.projectName;
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* ── Sidebar ── */}
@@ -201,7 +217,7 @@ export default function LineItemSearchClient() {
             <div>
               <label className="text-xs font-medium text-foreground block mb-1">Job Number</label>
               <Input
-                placeholder="e.g. MDP-2024-..."
+                placeholder="e.g. 26118"
                 value={filters.jobNumber}
                 onChange={(e) => { setFilters((f) => ({ ...f, jobNumber: e.target.value })); setOffset(0); }}
                 className="h-8 text-sm"
@@ -212,7 +228,7 @@ export default function LineItemSearchClient() {
               <label className="text-xs font-medium text-foreground block mb-1">Year</label>
               <Select
                 value={filters.year || "all"}
-                onValueChange={(v) => { setFilters((f) => ({ ...f, year: (v === "all" || !v) ? "" : (v as string) })); setOffset(0); }}
+                onValueChange={(v) => { setFilters((f) => ({ ...f, year: v === "all" ? "" : v })); setOffset(0); }}
               >
                 <SelectTrigger className="h-8 text-sm">
                   <SelectValue placeholder="All years" />
@@ -238,7 +254,7 @@ export default function LineItemSearchClient() {
           </div>
         </div>
 
-        {(activeFilters.length > 0 || filters.q) && (
+        {hasFilters && (
           <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs h-7 text-muted-foreground">
             Clear All
           </Button>
@@ -253,7 +269,13 @@ export default function LineItemSearchClient() {
             <h1 className="text-lg font-semibold text-foreground leading-none mb-0.5">Line Item Search</h1>
             <p className="text-xs text-muted-foreground">Search across all HubSpot quotes and QBO invoices</p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={items.length === 0} className="text-xs h-8">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={items.length === 0}
+            className="text-xs h-8"
+          >
             Export CSV
           </Button>
         </div>
@@ -261,13 +283,12 @@ export default function LineItemSearchClient() {
         {/* Search bar */}
         <div className="px-6 py-3 border-b border-border bg-background">
           <Input
-            placeholder="Search by SKU, description, project name, keyword..."
+            placeholder="Search SKU, description, project..."
             value={pendingQ}
             onChange={(e) => setPendingQ(e.target.value)}
             className="max-w-2xl h-9 text-sm"
             autoFocus
           />
-          {/* Active filter chips */}
           {activeFilters.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {activeFilters.map((f) => (
@@ -297,21 +318,27 @@ export default function LineItemSearchClient() {
             </div>
           )}
 
+          {/* Count + pagination top */}
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-muted-foreground">
               {loading
-                ? "Searching..."
+                ? "Loading..."
                 : total > 0
-                ? `${total.toLocaleString()} result${total === 1 ? "" : "s"}${total > LIMIT ? ` (showing ${offset + 1}–${Math.min(offset + LIMIT, total)})` : ""}`
-                : "No results"}
+                ? `${total.toLocaleString()} result${total === 1 ? "" : "s"}${total > LIMIT ? ` — showing ${offset + 1}–${Math.min(offset + LIMIT, total)}` : ""}`
+                : hasFilters
+                ? "No results match your filters"
+                : "No line items found"}
             </span>
             {total > LIMIT && (
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
-                  Prev
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
+                  ← Prev
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset + LIMIT >= total} onClick={() => setOffset(offset + LIMIT)}>
-                  Next
+                <span className="text-xs text-muted-foreground self-center px-2">
+                  {Math.floor(offset / LIMIT) + 1} / {Math.ceil(total / LIMIT)}
+                </span>
+                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset + LIMIT >= total || loading} onClick={() => setOffset(offset + LIMIT)}>
+                  Next →
                 </Button>
               </div>
             )}
@@ -324,7 +351,7 @@ export default function LineItemSearchClient() {
                   <TableHead className="cursor-pointer select-none w-20" onClick={() => toggleSort("source")}>
                     Source <SortArrow col="source" />
                   </TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("sku")}>
+                  <TableHead className="cursor-pointer select-none w-24" onClick={() => toggleSort("sku")}>
                     SKU <SortArrow col="sku" />
                   </TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("description")}>
@@ -336,118 +363,106 @@ export default function LineItemSearchClient() {
                   <TableHead className="cursor-pointer select-none w-28" onClick={() => toggleSort("source_date")}>
                     Date <SortArrow col="source_date" />
                   </TableHead>
+                  <TableHead className="text-right w-12 select-none">
+                    Qty
+                  </TableHead>
                   <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("unit_cost")}>
-                    Unit Cost <SortArrow col="unit_cost" />
+                    Unit <SortArrow col="unit_cost" />
                   </TableHead>
                   <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("line_total")}>
-                    Line Total <SortArrow col="line_total" />
+                    Total <SortArrow col="line_total" />
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
-                      Searching...
-                    </TableCell>
-                  </TableRow>
+                {loading && (
+                  Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
                 )}
                 {!loading && items.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
-                      {filters.q || activeFilters.length ? "No items match your search." : "Type anything to search line items."}
+                    <TableCell colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
+                      {hasFilters ? "No items match your search." : "No line items synced yet."}
                     </TableCell>
                   </TableRow>
                 )}
-                {items.map((item) => (
-                  <>
-                    <TableRow
-                      key={item.id}
-                      className="cursor-pointer hover:bg-accent/50 transition-colors"
-                      onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                    >
-                      <TableCell>
-                        <Badge
-                          variant={item.source === "hubspot" ? "default" : "secondary"}
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          {item.source === "hubspot" ? "HubSpot" : "QBO"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {item.sku ?? "—"}
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <span className="text-sm line-clamp-2">{item.description ?? "—"}</span>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {item.project_name ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {fmtDate(item.source_date)}
-                      </TableCell>
-                      <TableCell className="text-right text-sm tabular-nums">
-                        {fmt(item.unit_cost)}
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium tabular-nums">
-                        {fmt(item.line_total)}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* Expanded detail row */}
-                    {expandedId === item.id && (
-                      <TableRow key={`${item.id}-detail`} className="bg-accent/30">
-                        <TableCell colSpan={7} className="py-3 px-6">
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                            <div>
-                              <div className="text-muted-foreground mb-0.5">Source Ref</div>
-                              <div className="font-medium">{item.source_ref ?? "—"}</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground mb-0.5">Quantity</div>
-                              <div className="font-medium">{item.quantity ?? "—"}</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground mb-0.5">Vendor</div>
-                              <div className="font-medium">{item.vendor ?? "—"}</div>
-                            </div>
-                            <div>
-                              <div className="text-muted-foreground mb-0.5">Source ID</div>
-                              <div className="font-mono text-muted-foreground">{item.source_id}</div>
-                            </div>
-                            <div className="col-span-2">
-                              <div className="text-muted-foreground mb-0.5">Full Description</div>
-                              <div className="font-medium">{item.description ?? "—"}</div>
-                            </div>
-                            <div className="col-span-2 flex items-end gap-2">
-                              {item.source === "hubspot" && (
-                                <a
-                                  href={`https://app.hubspot.com/quotes/${process.env.NEXT_PUBLIC_HUBSPOT_PORTAL_ID ?? "23392178"}/${item.source_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-primary underline underline-offset-2"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View in HubSpot →
-                                </a>
-                              )}
-                              {item.source === "qbo" && (
-                                <a
-                                  href={`https://app.qbo.intuit.com/app/invoice?txnId=${item.source_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-primary underline underline-offset-2"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View in QBO →
-                                </a>
-                              )}
-                            </div>
+                {!loading && items.map((item) => (
+                  <TableRow
+                    key={item.id}
+                    className={`cursor-pointer hover:bg-accent/50 transition-colors ${expandedId === item.id ? "bg-accent/30" : ""}`}
+                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                  >
+                    <TableCell>
+                      <Badge
+                        variant={item.source === "hubspot" ? "default" : "secondary"}
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {item.source === "hubspot" ? "HubSpot" : "QBO"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {item.sku ?? "—"}
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="text-sm">{item.description ?? "—"}</div>
+                      {expandedId === item.id && (
+                        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-3">
+                          <div>
+                            <span className="text-muted-foreground">Job #: </span>
+                            <span className="font-medium">{item.source_ref ?? "—"}</span>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </>
+                          <div>
+                            <span className="text-muted-foreground">Source ID: </span>
+                            <span className="font-mono text-muted-foreground">{item.source_id}</span>
+                          </div>
+                          {item.vendor && (
+                            <div>
+                              <span className="text-muted-foreground">Vendor: </span>
+                              <span className="font-medium">{item.vendor}</span>
+                            </div>
+                          )}
+                          <div className="col-span-2 flex gap-3 mt-1">
+                            {item.source === "hubspot" && (
+                              <a
+                                href={`https://app.hubspot.com/quotes/23392178/${item.source_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary underline underline-offset-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                View in HubSpot →
+                              </a>
+                            )}
+                            {item.source === "qbo" && (
+                              <a
+                                href={`https://app.qbo.intuit.com/app/invoice?txnId=${item.source_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary underline underline-offset-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                View in QBO →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                      {item.project_name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {fmtDate(item.source_date)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {item.quantity ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {fmt(item.unit_cost)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-medium tabular-nums">
+                      {fmt(item.line_total)}
+                    </TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -456,14 +471,14 @@ export default function LineItemSearchClient() {
           {/* Bottom pagination */}
           {total > LIMIT && (
             <div className="flex justify-center gap-2 mt-4">
-              <Button variant="outline" size="sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
-                Previous
+              <Button variant="outline" size="sm" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
+                ← Previous
               </Button>
               <span className="text-xs text-muted-foreground self-center">
                 Page {Math.floor(offset / LIMIT) + 1} of {Math.ceil(total / LIMIT)}
               </span>
-              <Button variant="outline" size="sm" disabled={offset + LIMIT >= total} onClick={() => setOffset(offset + LIMIT)}>
-                Next
+              <Button variant="outline" size="sm" disabled={offset + LIMIT >= total || loading} onClick={() => setOffset(offset + LIMIT)}>
+                Next →
               </Button>
             </div>
           )}
