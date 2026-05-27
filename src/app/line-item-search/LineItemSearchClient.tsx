@@ -283,7 +283,7 @@ export default function LineItemSearchClient() {
                   <label className="text-xs font-medium text-foreground block mb-1">Year</label>
                   <Select
                     value={filters.year || "all"}
-                    onValueChange={(v) => { setFilters((f) => ({ ...f, year: v === "all" ? "" : v })); setOffset(0); }}
+                    onValueChange={(v) => { setFilters((f) => ({ ...f, year: v === "all" ? "" : (v || "") })); setOffset(0); }}
                   >
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="All years" />
