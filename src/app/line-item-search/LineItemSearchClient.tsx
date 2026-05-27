@@ -89,6 +89,19 @@ function downloadCsv(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// ─── Filter icon ─────────────────────────────────────────────────────────────
+
+function FilterIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      className={`w-4 h-4 ${active ? "text-primary" : "text-muted-foreground"}`}
+      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 9h10M11 14h2M13 19h-2" />
+    </svg>
+  );
+}
+
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 
 function SkeletonRow() {
@@ -117,24 +130,35 @@ export default function LineItemSearchClient() {
   const [pendingQ, setPendingQ] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true); // start true so skeleton shows on mount
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortCol, setSortCol] = useState<SortCol>("source_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [filterOpen, setFilterOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
 
-  // Debounce the search query
+  // Close filter panel on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+    if (filterOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [filterOpen]);
+
+  // Debounce search query
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setFilters((f) => ({ ...f, q: pendingQ }));
       setOffset(0);
     }, 250);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [pendingQ]);
 
   const fetchItems = useCallback(async () => {
@@ -163,17 +187,11 @@ export default function LineItemSearchClient() {
     }
   }, [filters, sortCol, sortDir, offset]);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
   function toggleSort(col: SortCol) {
-    if (sortCol === col) {
-      setSortDir((d) => d === "desc" ? "asc" : "desc");
-    } else {
-      setSortCol(col);
-      setSortDir("desc");
-    }
+    if (sortCol === col) setSortDir((d) => d === "desc" ? "asc" : "desc");
+    else { setSortCol(col); setSortDir("desc"); }
     setOffset(0);
   }
 
@@ -182,7 +200,10 @@ export default function LineItemSearchClient() {
     return <span className="ml-1">{sortDir === "desc" ? "↓" : "↑"}</span>;
   }
 
-  const activeFilters: Array<{ label: string; key: keyof Filters }> = [
+  const sidebarFilters = { jobNumber: filters.jobNumber, year: filters.year, projectName: filters.projectName };
+  const activeFilterCount = Object.values(sidebarFilters).filter(Boolean).length;
+
+  const activeFilterChips: Array<{ label: string; key: keyof Filters }> = [
     ...(filters.jobNumber ? [{ label: `Job: ${filters.jobNumber}`, key: "jobNumber" as const }] : []),
     ...(filters.year ? [{ label: `Year: ${filters.year}`, key: "year" as const }] : []),
     ...(filters.projectName ? [{ label: `Project: ${filters.projectName}`, key: "projectName" as const }] : []),
@@ -199,291 +220,241 @@ export default function LineItemSearchClient() {
     setOffset(0);
   }
 
-  function handleExport() {
-    const csv = buildCsvRows(items);
-    downloadCsv(csv, `line-items-${new Date().toISOString().slice(0, 10)}.csv`);
-  }
-
   const hasFilters = filters.q || filters.jobNumber || filters.year || filters.projectName;
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* ── Sidebar ── */}
-      <aside className="w-56 flex-shrink-0 border-r border-border bg-background flex flex-col p-4 gap-4 overflow-y-auto">
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Filters</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-medium text-foreground block mb-1">Job Number</label>
-              <Input
-                placeholder="e.g. 26118"
-                value={filters.jobNumber}
-                onChange={(e) => { setFilters((f) => ({ ...f, jobNumber: e.target.value })); setOffset(0); }}
-                className="h-8 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground block mb-1">Year</label>
-              <Select
-                value={filters.year || "all"}
-                onValueChange={(v) => { setFilters((f) => ({ ...f, year: v === "all" ? "" : v })); setOffset(0); }}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="All years" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All years</SelectItem>
-                  {YEAR_OPTIONS.map((y) => (
-                    <SelectItem key={y} value={y}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-foreground block mb-1">Project Name</label>
-              <Input
-                placeholder="Search project..."
-                value={filters.projectName}
-                onChange={(e) => { setFilters((f) => ({ ...f, projectName: e.target.value })); setOffset(0); }}
-                className="h-8 text-sm"
-              />
-            </div>
-          </div>
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* ── Header ── */}
+      <div className="border-b border-border px-6 py-4 flex items-center gap-4 bg-background flex-shrink-0">
+        <div className="flex-1">
+          <h1 className="text-lg font-semibold text-foreground leading-none mb-0.5">Search Items</h1>
+          <p className="text-xs text-muted-foreground">Search across all HubSpot quotes and QBO invoices</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => downloadCsv(buildCsvRows(items), `line-items-${new Date().toISOString().slice(0, 10)}.csv`)}
+          disabled={items.length === 0}
+          className="text-xs h-8"
+        >
+          Export CSV
+        </Button>
+      </div>
 
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearAll} className="text-xs h-7 text-muted-foreground">
-            Clear All
-          </Button>
-        )}
-      </aside>
-
-      {/* ── Main ── */}
-      <main className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="border-b border-border px-6 py-4 flex items-center gap-4 bg-background">
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold text-foreground leading-none mb-0.5">Line Item Search</h1>
-            <p className="text-xs text-muted-foreground">Search across all HubSpot quotes and QBO invoices</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={items.length === 0}
-            className="text-xs h-8"
-          >
-            Export CSV
-          </Button>
-        </div>
-
-        {/* Search bar */}
-        <div className="px-6 py-3 border-b border-border bg-background">
+      {/* ── Search bar row ── */}
+      <div className="px-6 py-3 border-b border-border bg-background flex-shrink-0">
+        <div className="flex items-center gap-2 max-w-3xl">
           <Input
             placeholder="Search SKU, description, project..."
             value={pendingQ}
             onChange={(e) => setPendingQ(e.target.value)}
-            className="max-w-2xl h-9 text-sm"
+            className="h-9 text-sm flex-1"
             autoFocus
           />
-          {activeFilters.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {activeFilters.map((f) => (
-                <span
-                  key={f.key}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-accent text-accent-foreground border border-border"
-                >
-                  {f.label}
-                  <button
-                    onClick={() => clearFilter(f.key)}
-                    className="ml-0.5 text-muted-foreground hover:text-foreground"
-                    aria-label={`Remove ${f.label} filter`}
+
+          {/* Filter button */}
+          <div className="relative" ref={filterPanelRef}>
+            <Button
+              variant={activeFilterCount > 0 ? "default" : "outline"}
+              size="sm"
+              className="h-9 px-3 gap-1.5 flex-shrink-0"
+              onClick={() => setFilterOpen((o) => !o)}
+            >
+              <FilterIcon active={activeFilterCount > 0} />
+              <span className="text-xs">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 text-xs font-semibold">{activeFilterCount}</span>
+              )}
+            </Button>
+
+            {/* Dropdown panel */}
+            {filterOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-64 bg-background border border-border rounded-lg shadow-lg z-50 p-4 space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">Job Number</label>
+                  <Input
+                    placeholder="e.g. 26118"
+                    value={filters.jobNumber}
+                    onChange={(e) => { setFilters((f) => ({ ...f, jobNumber: e.target.value })); setOffset(0); }}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">Year</label>
+                  <Select
+                    value={filters.year || "all"}
+                    onValueChange={(v) => { setFilters((f) => ({ ...f, year: v === "all" ? "" : v })); setOffset(0); }}
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Results */}
-        <div className="flex-1 overflow-auto px-6 py-3">
-          {error && (
-            <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mb-3">
-              {error}
-            </div>
-          )}
-
-          {/* Count + pagination top */}
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground">
-              {loading
-                ? "Loading..."
-                : total > 0
-                ? `${total.toLocaleString()} result${total === 1 ? "" : "s"}${total > LIMIT ? ` — showing ${offset + 1}–${Math.min(offset + LIMIT, total)}` : ""}`
-                : hasFilters
-                ? "No results match your filters"
-                : "No line items found"}
-            </span>
-            {total > LIMIT && (
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
-                  ← Prev
-                </Button>
-                <span className="text-xs text-muted-foreground self-center px-2">
-                  {Math.floor(offset / LIMIT) + 1} / {Math.ceil(total / LIMIT)}
-                </span>
-                <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset + LIMIT >= total || loading} onClick={() => setOffset(offset + LIMIT)}>
-                  Next →
-                </Button>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="All years" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All years</SelectItem>
+                      {YEAR_OPTIONS.map((y) => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">Project Name</label>
+                  <Input
+                    placeholder="Search project..."
+                    value={filters.projectName}
+                    onChange={(e) => { setFilters((f) => ({ ...f, projectName: e.target.value })); setOffset(0); }}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => { clearAll(); setFilterOpen(false); }} className="w-full text-xs h-7 text-muted-foreground">
+                    Clear filters
+                  </Button>
+                )}
               </div>
             )}
           </div>
+        </div>
 
-          <div className="rounded-lg border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="cursor-pointer select-none w-20" onClick={() => toggleSort("source")}>
-                    Source <SortArrow col="source" />
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none w-24" onClick={() => toggleSort("sku")}>
-                    SKU <SortArrow col="sku" />
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("description")}>
-                    Description <SortArrow col="description" />
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("project_name")}>
-                    Project <SortArrow col="project_name" />
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none w-28" onClick={() => toggleSort("source_date")}>
-                    Date <SortArrow col="source_date" />
-                  </TableHead>
-                  <TableHead className="text-right w-12 select-none">
-                    Qty
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("unit_cost")}>
-                    Unit <SortArrow col="unit_cost" />
-                  </TableHead>
-                  <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("line_total")}>
-                    Total <SortArrow col="line_total" />
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading && (
-                  Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
-                )}
-                {!loading && items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
-                      {hasFilters ? "No items match your search." : "No line items synced yet."}
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!loading && items.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    className={`cursor-pointer hover:bg-accent/50 transition-colors ${expandedId === item.id ? "bg-accent/30" : ""}`}
-                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                  >
-                    <TableCell>
-                      <Badge
-                        variant={item.source === "hubspot" ? "default" : "secondary"}
-                        className="text-[10px] px-1.5 py-0"
-                      >
-                        {item.source === "hubspot" ? "HubSpot" : "QBO"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {item.sku ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-xs">
-                      <div className="text-sm">{item.description ?? "—"}</div>
-                      {expandedId === item.id && (
-                        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-3">
-                          <div>
-                            <span className="text-muted-foreground">Job #: </span>
-                            <span className="font-medium">{item.source_ref ?? "—"}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Source ID: </span>
-                            <span className="font-mono text-muted-foreground">{item.source_id}</span>
-                          </div>
-                          {item.vendor && (
-                            <div>
-                              <span className="text-muted-foreground">Vendor: </span>
-                              <span className="font-medium">{item.vendor}</span>
-                            </div>
-                          )}
-                          <div className="col-span-2 flex gap-3 mt-1">
-                            {item.source === "hubspot" && (
-                              <a
-                                href={`https://app.hubspot.com/quotes/23392178/${item.source_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary underline underline-offset-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                View in HubSpot →
-                              </a>
-                            )}
-                            {item.source === "qbo" && (
-                              <a
-                                href={`https://app.qbo.intuit.com/app/invoice?txnId=${item.source_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary underline underline-offset-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                View in QBO →
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                      {item.project_name ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {fmtDate(item.source_date)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      {item.quantity ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
-                      {fmt(item.unit_cost)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-medium tabular-nums">
-                      {fmt(item.line_total)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Bottom pagination */}
-          {total > LIMIT && (
-            <div className="flex justify-center gap-2 mt-4">
-              <Button variant="outline" size="sm" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
-                ← Previous
-              </Button>
-              <span className="text-xs text-muted-foreground self-center">
-                Page {Math.floor(offset / LIMIT) + 1} of {Math.ceil(total / LIMIT)}
+        {/* Active filter chips */}
+        {activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {activeFilterChips.map((f) => (
+              <span
+                key={f.key}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-accent text-accent-foreground border border-border"
+              >
+                {f.label}
+                <button
+                  onClick={() => clearFilter(f.key)}
+                  className="ml-0.5 text-muted-foreground hover:text-foreground"
+                >×</button>
               </span>
-              <Button variant="outline" size="sm" disabled={offset + LIMIT >= total || loading} onClick={() => setOffset(offset + LIMIT)}>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Results ── */}
+      <div className="flex-1 overflow-auto px-6 py-3">
+        {error && (
+          <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mb-3">
+            {error}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-muted-foreground">
+            {loading
+              ? "Loading..."
+              : total > 0
+              ? `${total.toLocaleString()} result${total === 1 ? "" : "s"}${total > LIMIT ? ` — showing ${offset + 1}–${Math.min(offset + LIMIT, total)}` : ""}`
+              : hasFilters ? "No results match your filters" : "No line items found"}
+          </span>
+          {total > LIMIT && (
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
+                ← Prev
+              </Button>
+              <span className="text-xs text-muted-foreground px-2">
+                {Math.floor(offset / LIMIT) + 1} / {Math.ceil(total / LIMIT)}
+              </span>
+              <Button variant="outline" size="sm" className="h-7 text-xs" disabled={offset + LIMIT >= total || loading} onClick={() => setOffset(offset + LIMIT)}>
                 Next →
               </Button>
             </div>
           )}
         </div>
-      </main>
+
+        <div className="rounded-lg border border-border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="cursor-pointer select-none w-20" onClick={() => toggleSort("source")}>
+                  Source <SortArrow col="source" />
+                </TableHead>
+                <TableHead className="cursor-pointer select-none w-24" onClick={() => toggleSort("sku")}>
+                  SKU <SortArrow col="sku" />
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("description")}>
+                  Description <SortArrow col="description" />
+                </TableHead>
+                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("project_name")}>
+                  Project <SortArrow col="project_name" />
+                </TableHead>
+                <TableHead className="cursor-pointer select-none w-28" onClick={() => toggleSort("source_date")}>
+                  Date <SortArrow col="source_date" />
+                </TableHead>
+                <TableHead className="text-right w-12 select-none">Qty</TableHead>
+                <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("unit_cost")}>
+                  Unit <SortArrow col="unit_cost" />
+                </TableHead>
+                <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("line_total")}>
+                  Total <SortArrow col="line_total" />
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
+              {!loading && items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
+                    {hasFilters ? "No items match your search." : "No line items synced yet."}
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && items.map((item) => (
+                <TableRow
+                  key={item.id}
+                  className={`cursor-pointer hover:bg-accent/50 transition-colors ${expandedId === item.id ? "bg-accent/30" : ""}`}
+                  onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                >
+                  <TableCell>
+                    <Badge variant={item.source === "hubspot" ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                      {item.source === "hubspot" ? "HubSpot" : "QBO"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{item.sku ?? "—"}</TableCell>
+                  <TableCell className="max-w-xs">
+                    <div className="text-sm">{item.description ?? "—"}</div>
+                    {expandedId === item.id && (
+                      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-3">
+                        <div><span className="text-muted-foreground">Job #: </span><span className="font-medium">{item.source_ref ?? "—"}</span></div>
+                        <div><span className="text-muted-foreground">Source ID: </span><span className="font-mono text-muted-foreground">{item.source_id}</span></div>
+                        {item.vendor && <div><span className="text-muted-foreground">Vendor: </span><span className="font-medium">{item.vendor}</span></div>}
+                        <div className="col-span-2 flex gap-3 mt-1">
+                          {item.source === "hubspot" && (
+                            <a href={`https://app.hubspot.com/quotes/23392178/${item.source_id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                              View in HubSpot →
+                            </a>
+                          )}
+                          {item.source === "qbo" && (
+                            <a href={`https://app.qbo.intuit.com/app/invoice?txnId=${item.source_id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                              View in QBO →
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{item.project_name ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(item.source_date)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{item.quantity ?? "—"}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{fmt(item.unit_cost)}</TableCell>
+                  <TableCell className="text-right text-sm font-medium tabular-nums">{fmt(item.line_total)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {total > LIMIT && (
+          <div className="flex justify-center gap-2 mt-4">
+            <Button variant="outline" size="sm" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>← Previous</Button>
+            <span className="text-xs text-muted-foreground self-center">Page {Math.floor(offset / LIMIT) + 1} of {Math.ceil(total / LIMIT)}</span>
+            <Button variant="outline" size="sm" disabled={offset + LIMIT >= total || loading} onClick={() => setOffset(offset + LIMIT)}>Next →</Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
