@@ -92,5 +92,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ items: data ?? [], total: count ?? 0, limit, offset });
+  const items = data ?? [];
+
+  // For items where the project_id join didn't resolve a hubspot_deal_id,
+  // try matching via source_ref → projects.job_number as a fallback.
+  // This covers the majority of line items that predate the project_id backfill.
+  const missingDealIds = items.filter(
+    (item) => item.source === "hubspot" && !item.projects?.hubspot_deal_id && item.source_ref
+  );
+
+  if (missingDealIds.length > 0) {
+    const sourceRefs = [...new Set(missingDealIds.map((i) => i.source_ref).filter(Boolean))];
+    const { data: projectRows } = await supabase
+      .from("projects")
+      .select("job_number, hubspot_deal_id")
+      .in("job_number", sourceRefs)
+      .not("hubspot_deal_id", "is", null);
+
+    if (projectRows && projectRows.length > 0) {
+      const dealByJobNumber = new Map(projectRows.map((p) => [p.job_number, p.hubspot_deal_id]));
+      for (const item of items) {
+        if (item.source === "hubspot" && !item.projects?.hubspot_deal_id && item.source_ref) {
+          const dealId = dealByJobNumber.get(item.source_ref);
+          if (dealId) {
+            item.projects = { hubspot_deal_id: dealId };
+          }
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({ items, total: count ?? 0, limit, offset });
 }
