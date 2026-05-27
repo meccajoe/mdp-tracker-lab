@@ -211,9 +211,14 @@ export async function POST(_request: NextRequest) {
 
     // Fetch all pages of CLEAR (settled) transactions
     const allTransactions: BillTransaction[] = [];
+    // NOTE: Bill.com personal API token is hard-limited to ~50 most recent transactions.
+    // Filters (transactionType, pageSize, updatedTimeStart, page) are all ignored by the API.
+    // orgId unlocks the 50-item window (vs 20 without it). Cursor loops after first page.
+    // For full history, a service account token is required (contact Bill.com CS).
+    const orgId = process.env.BILLCOM_ORG_ID ?? "";
     const params: Record<string, string> = {
-      pageSize: "200",
-      transactionType: "CLEAR",
+      max: "50",
+      ...(orgId ? { orgId } : {}),
     };
 
     // Incremental: filter by updatedTime; first run pulls last 90 days
@@ -225,14 +230,9 @@ export async function POST(_request: NextRequest) {
       params.updatedTimeStart = ninetyDaysAgo.toISOString();
     }
 
-    // Paginate via nextPage (Bill.com v3 uses nextPage, not cursor)
-    let nextPage: string | undefined;
-    do {
-      if (nextPage) params.cursor = nextPage;
-      const page = await fetchTransactions(params);
-      allTransactions.push(...page.results);
-      nextPage = page.nextPage ?? page.cursor; // handle both field names
-    } while (nextPage);
+    // Single fetch only — cursor loops on personal token, no point paginating
+    const page = await fetchTransactions(params);
+    allTransactions.push(...page.results);
 
     // Track latest updatedTime seen
     let maxUpdatedTime = lastUpdatedTime ?? "";
@@ -288,15 +288,16 @@ export async function POST(_request: NextRequest) {
 
       const date = tx.occurredTime.split("T")[0];
 
-      // When a CLEAR (settled) transaction arrives, delete any stale AUTHORIZATION record
-      // for the same project/vendor/amount that may have been stored by a prior sync run.
-      // Auth holds and their settlements share the same merchant + amount but have different
-      // external_ids, so the upsert dedup won't catch them.
+      // When a CLEAR (settled) transaction arrives, delete any stale AUTHORIZATION (pending)
+      // record for the same project/vendor/amount that may have been stored by a prior sync run.
+      // Only delete rows where amount_pending=true — this ensures we only remove auth holds,
+      // not legitimate cleared transactions from other cardholders making the same purchase.
       await supabase.from("expenses").delete()
         .eq("source", "billcom")
         .eq("project_id", projectId)
         .eq("vendor", vendorTag)
         .eq("amount", tx.amount)
+        .eq("amount_pending", true)
         .neq("external_id", tx.uuid)
         .like("notes", "%Cardholder: " + tx.userName + "%");
 

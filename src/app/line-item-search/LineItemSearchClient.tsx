@@ -31,6 +31,7 @@ interface LineItem {
   project_id: string | null;
   project_name: string | null;
   sku: string | null;
+  projects: { hubspot_deal_id: string | null } | null;
   description: string | null;
   unit_cost: number | null;
   quantity: number | null;
@@ -415,7 +416,7 @@ export default function LineItemSearchClient() {
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{item.sku ?? "—"}</TableCell>
                   <TableCell className="max-w-xs">
-                    <div className="text-sm">{item.description ?? "—"}</div>
+                    <div className="text-sm truncate max-w-[280px]" title={item.description ?? undefined}>{item.description ?? "—"}</div>
                     {expandedId === item.id && (
                       <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-3">
                         <div><span className="text-muted-foreground">Job #: </span><span className="font-medium">{item.source_ref ?? "—"}</span></div>
@@ -423,7 +424,13 @@ export default function LineItemSearchClient() {
                         {item.vendor && <div><span className="text-muted-foreground">Vendor: </span><span className="font-medium">{item.vendor}</span></div>}
                         <div className="col-span-2 flex gap-3 mt-1">
                           {item.source === "hubspot" && (
-                            <a href={`https://app.hubspot.com/quotes/23392178/${item.source_id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                            <a
+                              href={
+                                item.projects?.hubspot_deal_id
+                                  ? `https://app.hubspot.com/contacts/23392178/deal/${item.projects.hubspot_deal_id}`
+                                  : `https://app.hubspot.com/quotes/23392178/${item.source_id}`
+                              }
+                              target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
                               View in HubSpot →
                             </a>
                           )}
@@ -436,7 +443,7 @@ export default function LineItemSearchClient() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{item.project_name ?? "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate" title={item.project_name ?? undefined}>{item.project_name ?? "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(item.source_date)}</TableCell>
                   <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{item.quantity ?? "—"}</TableCell>
                   <TableCell className="text-right text-sm tabular-nums">{fmt(item.unit_cost)}</TableCell>

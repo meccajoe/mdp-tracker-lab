@@ -47,26 +47,52 @@ interface HsDeal {
     dealname?: string;
     closedate?: string;
     job_number?: string;
+    dealstage?: string;
   };
 }
 
 async function getAllHubSpotDeals(): Promise<HsDeal[]> {
   const deals: HsDeal[] = [];
   let after: string | undefined;
-  const props = "dealname,closedate,job_number";
+
+  // Filter: closedate >= 2023-01-01, all pipeline stages (closed won, closed lost, everything)
+  const JAN_2023_MS = new Date("2023-01-01T00:00:00Z").getTime();
 
   while (true) {
-    const url =
-      `/crm/v3/objects/deals?limit=100&properties=${props}` +
-      (after ? `&after=${after}` : "");
-    const data = (await hsFetch(url)) as {
+    const body: Record<string, unknown> = {
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: "closedate", operator: "GTE", value: String(JAN_2023_MS) },
+          ],
+        },
+      ],
+      properties: ["dealname", "closedate", "job_number", "dealstage"],
+      limit: 100,
+    };
+    if (after) body.after = after;
+
+    const res = await fetch(`${BASE_HS_URL}/crm/v3/objects/deals/search`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HubSpot deal search error ${res.status}: ${text.slice(0, 300)}`);
+    }
+    const data = (await res.json()) as {
       results?: HsDeal[];
       paging?: { next?: { after?: string } };
     };
     deals.push(...(data.results ?? []));
     after = data.paging?.next?.after;
     if (!after) break;
-    await sleep(100); // be polite to rate limits
+    await sleep(150);
   }
   return deals;
 }

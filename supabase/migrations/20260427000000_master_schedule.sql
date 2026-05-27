@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS master_schedule_tasks (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_mst_job_number  ON master_schedule_tasks(job_number);
-CREATE INDEX idx_mst_status      ON master_schedule_tasks(status);
-CREATE INDEX idx_mst_assigned_to ON master_schedule_tasks(assigned_to);
-CREATE INDEX idx_mst_dates       ON master_schedule_tasks(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_mst_job_number  ON master_schedule_tasks(job_number);
+CREATE INDEX IF NOT EXISTS idx_mst_status      ON master_schedule_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_mst_assigned_to ON master_schedule_tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_mst_dates       ON master_schedule_tasks(start_date, end_date);
 
 ALTER TABLE master_schedule_tasks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Authenticated users can do everything on master_schedule_tasks"

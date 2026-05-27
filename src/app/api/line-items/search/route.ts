@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("quote_line_items")
     .select(
-      "id, source, source_id, source_ref, source_date, project_id, project_name, sku, description, unit_cost, quantity, line_total, vendor, synced_at",
+      "id, source, source_id, source_ref, source_date, project_id, project_name, sku, description, unit_cost, quantity, line_total, vendor, synced_at, projects(hubspot_deal_id)",
       { count: "exact" }
     );
 
