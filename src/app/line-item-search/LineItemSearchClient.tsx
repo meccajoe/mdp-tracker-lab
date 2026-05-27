@@ -31,6 +31,7 @@ interface LineItem {
   project_id: string | null;
   project_name: string | null;
   sku: string | null;
+  hubspot_deal_id: string | null;
   projects: { hubspot_deal_id: string | null } | null;
   description: string | null;
   unit_cost: number | null;
@@ -426,8 +427,8 @@ export default function LineItemSearchClient() {
                           {item.source === "hubspot" && (
                             <a
                               href={
-                                item.projects?.hubspot_deal_id
-                                  ? `https://app.hubspot.com/contacts/23392178/deal/${item.projects.hubspot_deal_id}`
+                                item.hubspot_deal_id
+                                  ? `https://app.hubspot.com/contacts/23392178/deal/${item.hubspot_deal_id}`
                                   : `https://app.hubspot.com/quotes/23392178/${item.source_id}`
                               }
                               target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline underline-offset-2" onClick={(e) => e.stopPropagation()}>

@@ -160,6 +160,7 @@ interface LineItemRow {
   quantity: number | null;
   line_total: number | null;
   vendor: string | null;
+  hubspot_deal_id: string | null;
   line_key: string;
   synced_at: string;
 }
@@ -232,6 +233,7 @@ async function syncHubSpotDeal(
     quantity: item.quantity ?? null,
     line_total: item.amount ?? null,
     vendor: null,
+    hubspot_deal_id: dealId,
     line_key: makeLineKey(item.sku || null, item.name || item.description || null),
     synced_at: now,
   }));
