@@ -287,6 +287,7 @@ async function syncQboInvoices(supabase: SupabaseClient): Promise<number> {
           quantity: detail?.Qty ?? null,
           line_total: line.Amount ?? null,
           vendor: null,
+          hubspot_deal_id: null,
           line_key: makeLineKey(sku, description),
           synced_at: now,
         });
