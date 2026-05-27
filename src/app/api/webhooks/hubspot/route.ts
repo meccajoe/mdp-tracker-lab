@@ -263,6 +263,7 @@ async function syncLineItemsForDeal(
     quantity: item.quantity ?? null,
     line_total: item.amount ?? null,
     vendor: null as string | null,
+    hubspot_deal_id: String(dealId),
     line_key: makeLineKey(item.sku || null, item.name || item.description || null),
     synced_at: now,
   }));
