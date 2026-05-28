@@ -419,11 +419,18 @@ export default function LineItemSearchClient() {
                   <TableCell className="max-w-xs">
                     <div className="text-sm truncate max-w-[280px]" title={item.description ?? undefined}>{item.description ?? "—"}</div>
                     {expandedId === item.id && (
-                      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs border-t border-border pt-3">
-                        <div><span className="text-muted-foreground">Job #: </span><span className="font-medium">{item.source_ref ?? "—"}</span></div>
-                        <div><span className="text-muted-foreground">Source ID: </span><span className="font-mono text-muted-foreground">{item.source_id}</span></div>
-                        {item.vendor && <div><span className="text-muted-foreground">Vendor: </span><span className="font-medium">{item.vendor}</span></div>}
-                        <div className="col-span-2 flex gap-3 mt-1">
+                      <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-xs border-t border-border pt-3 sm:grid-cols-2">
+                        <div className="sm:col-span-2 min-w-0">
+                          <span className="text-muted-foreground">Job #/Deal Name: </span>
+                          <span className="font-medium whitespace-normal break-words">{item.source_ref ?? "—"}</span>
+                        </div>
+                        {item.vendor && (
+                          <div className="min-w-0 sm:col-span-2">
+                            <span className="text-muted-foreground">Vendor: </span>
+                            <span className="font-medium whitespace-normal break-words">{item.vendor}</span>
+                          </div>
+                        )}
+                        <div className="col-span-1 flex gap-3 mt-1 sm:col-span-2">
                           {item.source === "hubspot" && (
                             <a
                               href={
