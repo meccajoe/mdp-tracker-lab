@@ -137,7 +137,7 @@ function OverrideRow({
           </>
         ) : (
           <button
-            onClick={() => setBudgetOverrides((prev) => ({ ...prev, [catKey]: formulaValue ? String(formulaValue) : "" }))}
+            onClick={() => setBudgetOverrides((prev) => ({ ...prev, [catKey]: formulaValue != null ? String(formulaValue) : "0" }))}
             className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed"
           >override</button>
         )}
@@ -175,12 +175,12 @@ function BudgetFormulaSection({
       {/* Labor & Materials — first */}
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Labor &amp; Materials <span className="normal-case font-normal">(% of contract amount)</span>
+          Labor &amp; Materials <span className="normal-case font-normal">(% of fabrication subtotal)</span>
         </h4>
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="grid grid-cols-[160px_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
             <span>Category</span>
-            <span>% of Contract</span>
+            <span>% of Fabrication</span>
             <span />
             <span>Budget</span>
           </div>
@@ -190,12 +190,12 @@ function BudgetFormulaSection({
             label="Labor"
             catKey="labor"
             formulaValue={autoLaborHrs}
-            formulaDisplay={contractAmount ? (
+            formulaDisplay={fabricationAmount && fabricationAmount > 0 ? (
               <span>
                 <span className="font-medium">{autoLaborHrs ?? "—"} hrs</span>
                 <span className="text-xs text-muted-foreground ml-1">({formatCurrency(autoLaborDollars)})</span>
               </span>
-            ) : <span className="text-muted-foreground/60 text-xs">Enter contract amount</span>}
+            ) : <span className="text-muted-foreground/60 text-xs">No fabrication quote basis</span>}
             {...rowProps}
           />
 
@@ -204,9 +204,9 @@ function BudgetFormulaSection({
             label="Materials"
             catKey="materials"
             formulaValue={autoMaterials}
-            formulaDisplay={contractAmount
+            formulaDisplay={fabricationAmount && fabricationAmount > 0
               ? <span className="font-medium">{formatCurrency(autoMaterials)}</span>
-              : <span className="text-muted-foreground/60 text-xs">Enter contract amount</span>}
+              : <span className="text-muted-foreground/60 text-xs">No fabrication quote basis</span>}
             {...rowProps}
           />
         </div>
@@ -273,7 +273,7 @@ function BudgetFormulaSection({
                         {formulaResult && <span className="text-xs text-muted-foreground whitespace-nowrap">(formula: {formatCurrency(formulaResult)})</span>}
                       </>
                     ) : (
-                      <button onClick={() => setBudgetOverrides((prev) => ({ ...prev, [cat.key]: formulaResult ? String(formulaResult) : "" }))} className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed">override</button>
+                      <button onClick={() => setBudgetOverrides((prev) => ({ ...prev, [cat.key]: formulaResult != null ? String(formulaResult) : "0" }))} className="text-xs text-muted-foreground hover:text-foreground underline decoration-dashed">override</button>
                     )}
                   </div>
                 </div>
