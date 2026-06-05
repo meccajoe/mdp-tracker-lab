@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
+import {
+  getBillcomOriginalAuthExternalIdsToDelete,
+  shouldSyncBillcomTransaction,
+} from "@/lib/billcom-sync";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +26,7 @@ interface BillTransaction {
   transactionType: "CLEAR" | "AUTHORIZATION" | "DECLINE";
   status: "COMPLETE" | "INCOMPLETE" | "PTR_INCOMPLETE" | "PENDING" | "DECLINED" | string;
   complete: boolean;
+  originalAuthTransactionUuid?: string | null;
   amount: number;
   merchantName: string;
   occurredTime: string;
@@ -242,12 +247,10 @@ export async function POST(_request: NextRequest) {
         maxUpdatedTime = tx.updatedTime;
       }
 
-      // Only sync fully complete transactions — skip INCOMPLETE, PENDING, PTR_INCOMPLETE, DECLINED
-      // INCOMPLETE = missing required tags (Project/Category not filled in)
-      // PENDING = awaiting manager approval (reviewRequired=true)
-      // PTR_INCOMPLETE = post-transaction review not done
-      // DECLINED = reversed/declined charges ($0 or refunded)
-      if (tx.status !== "COMPLETE") {
+      // Only sync settled CLEAR transactions.
+      // COMPLETE AUTHORIZATION rows look confirmed but later settle into a distinct CLEAR row,
+      // which makes the same card spend appear twice in MDP if we store both.
+      if (!shouldSyncBillcomTransaction(tx)) {
         skipped++;
         continue;
       }
@@ -288,18 +291,25 @@ export async function POST(_request: NextRequest) {
 
       const date = tx.occurredTime.split("T")[0];
 
-      // When a CLEAR (settled) transaction arrives, delete any stale AUTHORIZATION (pending)
-      // record for the same project/vendor/amount that may have been stored by a prior sync run.
-      // Only delete rows where amount_pending=true — this ensures we only remove auth holds,
-      // not legitimate cleared transactions from other cardholders making the same purchase.
-      await supabase.from("expenses").delete()
-        .eq("source", "billcom")
-        .eq("project_id", projectId)
-        .eq("vendor", vendorTag)
-        .eq("amount", tx.amount)
-        .eq("amount_pending", true)
-        .neq("external_id", tx.uuid)
-        .like("notes", "%Cardholder: " + tx.userName + "%");
+      // When a CLEAR arrives, remove the original AUTHORIZATION row if a prior sync stored it.
+      // Deleting by Bill.com's originalAuthTransactionUuid is precise and avoids hiding legitimate
+      // same-vendor/same-amount transactions from the same cardholder.
+      const originalAuthExternalIds = getBillcomOriginalAuthExternalIdsToDelete(tx);
+      if (originalAuthExternalIds.length > 0) {
+        await supabase.from("expenses").delete()
+          .eq("source", "billcom")
+          .in("external_id", originalAuthExternalIds);
+      } else {
+        // Fallback for legacy pending rows from before we had original-auth linkage.
+        await supabase.from("expenses").delete()
+          .eq("source", "billcom")
+          .eq("project_id", projectId)
+          .eq("vendor", vendorTag)
+          .eq("amount", tx.amount)
+          .eq("amount_pending", true)
+          .neq("external_id", tx.uuid)
+          .like("notes", "%Cardholder: " + tx.userName + "%");
+      }
 
       const { error } = await supabase.from("expenses").upsert(
         {
