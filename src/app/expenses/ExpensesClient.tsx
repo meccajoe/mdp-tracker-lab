@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { Fragment, useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,7 @@ import {
 import Link from "next/link";
 import { PM_NAMES, Expense as LibExpense } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
-import { todayCentral } from "@/lib/date-utils";
+import { todayCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -45,7 +45,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2, Flag } from "lucide-react";
+import { Pencil, Trash2, Flag, ChevronDown, ChevronRight } from "lucide-react";
+import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
 
 interface Expense {
   id: string;
@@ -63,6 +64,8 @@ interface Expense {
   flagged_by?: string | null;
   flagged_at?: string | null;
   source?: string | null;
+  external_id?: string | null;
+  synced_at?: string | null;
 }
 
 interface Project {
@@ -98,6 +101,7 @@ export default function ExpensesClient({
   const [flagNote, setFlagNote] = useState("");
   const [flagSubmitting, setFlagSubmitting] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [expandedBillcomRows, setExpandedBillcomRows] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [pmFilter, setPmFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -210,6 +214,15 @@ export default function ExpensesClient({
     setExpenses((prev) => prev.map((e) => e.id === id ? { ...e, flagged: false, flag_note: null, flagged_by: null, flagged_at: null } : e));
     setFlaggingExpense(null);
     setFlagNote("");
+  }
+
+  function toggleBillcomDetails(id: string) {
+    setExpandedBillcomRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   // Bulk expense state
@@ -611,67 +624,106 @@ export default function ExpensesClient({
                 <TableBody>
                   {pageRows.map((expense) => {
                     const project = projectMap.get(expense.project_id);
+                    const billcomDetails = getBillcomExpenseDisplayDetails(expense);
+                    const billcomDetailsOpen = expandedBillcomRows.has(expense.id);
                     return (
-                      <TableRow key={expense.id} className="hover:bg-muted/40">
-                        <TableCell className="text-sm whitespace-nowrap">{expense.date}</TableCell>
-                        <TableCell className="text-sm">
-                          {project ? (
-                            <Link
-                              href={`/projects/${project.id}`}
-                              className="hover:underline text-blue-600 dark:text-blue-400"
-                            >
-                              {project.job_number} · {project.name}
-                            </Link>
-                          ) : (
-                            <span className="text-muted-foreground">{expense.project_id}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                          {project?.pm ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          <span className="flex items-center gap-1.5">
-                            {expense.vendor || "—"}
-                            {expense.source === "billcom" && (
-                              <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
-                            )}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-sm">{expense.category || "—"}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                          {expense.purchaser || "—"}
-                        </TableCell>
-                        <TableCell className="text-right text-sm font-medium">
-                          {formatCurrency(expense.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {expense.source !== "billcom" && (
-                              <button
-                                onClick={() => setEditingExpense(expense as unknown as LibExpense)}
-                                className="p-1 text-muted-foreground hover:text-foreground rounded"
-                                title="Edit expense"
+                      <Fragment key={expense.id}>
+                        <TableRow className="hover:bg-muted/40">
+                          <TableCell className="text-sm whitespace-nowrap">{expense.date}</TableCell>
+                          <TableCell className="text-sm">
+                            {project ? (
+                              <Link
+                                href={`/projects/${project.id}`}
+                                className="hover:underline text-blue-600 dark:text-blue-400"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
+                                {project.job_number} · {project.name}
+                              </Link>
+                            ) : (
+                              <span className="text-muted-foreground">{expense.project_id}</span>
                             )}
-                            <button
-                              onClick={() => setDeletingExpenseId(expense.id)}
-                              className="p-1 text-muted-foreground hover:text-destructive rounded"
-                              title="Delete expense"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
-                              className="p-1 rounded"
-                              title={expense.flagged ? "Remove flag" : "Flag this expense"}
-                            >
-                              <Flag className={`w-3.5 h-3.5 ${expense.flagged ? "text-red-500 fill-red-500" : "text-muted-foreground"}`} />
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                            {project?.pm ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <span className="flex items-center gap-1.5">
+                              {expense.vendor || "—"}
+                              {expense.source === "billcom" && (
+                                <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
+                              )}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm">{expense.category || "—"}</TableCell>
+                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                            {expense.purchaser || "—"}
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-medium">
+                            {formatCurrency(expense.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {billcomDetails.isBillcom && billcomDetails.hasDiscreetDetails && (
+                                <button
+                                  onClick={() => toggleBillcomDetails(expense.id)}
+                                  className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                  title={billcomDetailsOpen ? "Hide Bill.com details" : "Show Bill.com details"}
+                                  aria-label={billcomDetailsOpen ? "Hide Bill.com details" : "Show Bill.com details"}
+                                >
+                                  {billcomDetailsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                </button>
+                              )}
+                              {expense.source !== "billcom" && (
+                                <button
+                                  onClick={() => setEditingExpense(expense as unknown as LibExpense)}
+                                  className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                  title="Edit expense"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setDeletingExpenseId(expense.id)}
+                                className="p-1 text-muted-foreground hover:text-destructive rounded"
+                                title="Delete expense"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
+                                className="p-1 rounded"
+                                title={expense.flagged ? "Remove flag" : "Flag this expense"}
+                              >
+                                <Flag className={`w-3.5 h-3.5 ${expense.flagged ? "text-red-500 fill-red-500" : "text-muted-foreground"}`} />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {billcomDetails.isBillcom && billcomDetailsOpen && (
+                          <TableRow className="bg-muted/20">
+                            <TableCell colSpan={7}>
+                              <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                <div className="mb-2 font-medium text-foreground">Bill.com details</div>
+                                <div className="grid gap-2 sm:grid-cols-3">
+                                  <div>
+                                    <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Cardholder</div>
+                                    <div>{billcomDetails.cardholder ?? "—"}</div>
+                                  </div>
+                                  <div>
+                                    <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Transaction ID</div>
+                                    <div className="font-mono" title={billcomDetails.transactionId ?? undefined}>
+                                      {billcomDetails.transactionIdShort ? `…${billcomDetails.transactionIdShort}` : "—"}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Synced</div>
+                                    <div>{billcomDetails.syncedAt ? formatDateTimeCentral(billcomDetails.syncedAt) : "—"}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </TableBody>

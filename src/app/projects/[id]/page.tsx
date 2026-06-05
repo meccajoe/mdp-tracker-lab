@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -75,6 +75,7 @@ import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
+import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -243,6 +244,7 @@ export default function ProjectDetailPage() {
   const [flagNote, setFlagNote] = useState("");
   const [flagSubmitting, setFlagSubmitting] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  const [expandedBillcomExpenseRows, setExpandedBillcomExpenseRows] = useState<Set<string>>(new Set());
 
   // QBO Labor state
   const [qboLaborEntries, setQboLaborEntries] = useState<QboLaborEntry[]>([]);
@@ -553,6 +555,15 @@ export default function ProjectDetailPage() {
     setExpenses((prev) => prev.map((e) => e.id === id ? { ...e, flagged: false, flag_note: null, flagged_by: null, flagged_at: null } : e));
     setFlaggingExpense(null);
     setFlagNote("");
+  }
+
+  function toggleBillcomExpenseDetails(id: string) {
+    setExpandedBillcomExpenseRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function handleSyncLabor() {
@@ -1530,51 +1541,92 @@ export default function ProjectDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell className="whitespace-nowrap">{formatDateCentral(expense.date + "T00:00:00")}</TableCell>
-                        <TableCell>{expense.category}</TableCell>
-                        <TableCell>
-                          <span className="flex items-center gap-1.5">
-                            {expense.vendor ?? "-"}
-                            {expense.source === "billcom" && (
-                              <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
-                            )}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(expense.amount)}</TableCell>
-                        <TableCell>{expense.amount_pending ? <Badge variant="outline">Pending</Badge> : <Badge variant="secondary">Confirmed</Badge>}</TableCell>
-                        <TableCell>{expense.purchaser ?? "-"}</TableCell>
-                        <TableCell className="max-w-48 truncate text-muted-foreground" title={expense.notes ?? undefined}>{expense.notes ?? "-"}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {expense.source !== "billcom" && (
-                              <button
-                                onClick={() => setEditingExpense(expense)}
-                                className="p-1 text-muted-foreground hover:text-foreground rounded"
-                                title="Edit expense"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setDeletingExpenseId(expense.id)}
-                              className="p-1 text-muted-foreground hover:text-destructive rounded"
-                              title="Delete expense"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
-                              className="p-1 rounded"
-                              title={expense.flagged ? "Remove flag" : "Flag this expense"}
-                            >
-                              <Flag className={`w-3.5 h-3.5 ${expense.flagged ? "text-red-500 fill-red-500" : "text-muted-foreground"}`} />
-                            </button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {expenses.map((expense) => {
+                      const billcomDetails = getBillcomExpenseDisplayDetails(expense);
+                      const billcomDetailsOpen = expandedBillcomExpenseRows.has(expense.id);
+                      return (
+                        <Fragment key={expense.id}>
+                          <TableRow>
+                            <TableCell className="whitespace-nowrap">{formatDateCentral(expense.date + "T00:00:00")}</TableCell>
+                            <TableCell>{expense.category}</TableCell>
+                            <TableCell>
+                              <span className="flex items-center gap-1.5">
+                                {expense.vendor ?? "-"}
+                                {expense.source === "billcom" && (
+                                  <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
+                                )}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(expense.amount)}</TableCell>
+                            <TableCell>{expense.amount_pending ? <Badge variant="outline">Pending</Badge> : <Badge variant="secondary">Confirmed</Badge>}</TableCell>
+                            <TableCell>{expense.purchaser ?? "-"}</TableCell>
+                            <TableCell className="max-w-48 truncate text-muted-foreground" title={expense.notes ?? undefined}>{expense.notes ?? "-"}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {billcomDetails.isBillcom && billcomDetails.hasDiscreetDetails && (
+                                  <button
+                                    onClick={() => toggleBillcomExpenseDetails(expense.id)}
+                                    className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                    title={billcomDetailsOpen ? "Hide Bill.com details" : "Show Bill.com details"}
+                                    aria-label={billcomDetailsOpen ? "Hide Bill.com details" : "Show Bill.com details"}
+                                  >
+                                    {billcomDetailsOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
+                                {expense.source !== "billcom" && (
+                                  <button
+                                    onClick={() => setEditingExpense(expense)}
+                                    className="p-1 text-muted-foreground hover:text-foreground rounded"
+                                    title="Edit expense"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setDeletingExpenseId(expense.id)}
+                                  className="p-1 text-muted-foreground hover:text-destructive rounded"
+                                  title="Delete expense"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}
+                                  className="p-1 rounded"
+                                  title={expense.flagged ? "Remove flag" : "Flag this expense"}
+                                >
+                                  <Flag className={`w-3.5 h-3.5 ${expense.flagged ? "text-red-500 fill-red-500" : "text-muted-foreground"}`} />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {billcomDetails.isBillcom && billcomDetailsOpen && (
+                            <TableRow className="bg-muted/20">
+                              <TableCell colSpan={8}>
+                                <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                                  <div className="mb-2 font-medium text-foreground">Bill.com details</div>
+                                  <div className="grid gap-2 sm:grid-cols-3">
+                                    <div>
+                                      <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Cardholder</div>
+                                      <div>{billcomDetails.cardholder ?? "—"}</div>
+                                    </div>
+                                    <div>
+                                      <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Transaction ID</div>
+                                      <div className="font-mono" title={billcomDetails.transactionId ?? undefined}>
+                                        {billcomDetails.transactionIdShort ? `…${billcomDetails.transactionIdShort}` : "—"}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Synced</div>
+                                      <div>{billcomDetails.syncedAt ? formatDateTimeCentral(billcomDetails.syncedAt) : "—"}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 {editingExpense && (
