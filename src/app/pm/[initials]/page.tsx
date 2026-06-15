@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { ProjectSummary, getPMName, PM_NAMES } from "@/lib/types";
+import { canSeeTeamBonuses } from "@/lib/bonus-access";
 import { formatCurrency } from "@/lib/constants";
 import { nowCentral, formatDateCentral } from "@/lib/date-utils";
 import {
@@ -132,13 +133,6 @@ function filterByPeriod(projects: ProjectSummary[], period: TimePeriod): Project
   });
 }
 
-// Map first names (from PM_NAMES) to initials for email-based fallback
-const FIRST_NAME_TO_INITIALS: Record<string, string> = {};
-for (const [init, fullName] of Object.entries(PM_NAMES)) {
-  const firstName = fullName.split(" ")[0].toLowerCase();
-  FIRST_NAME_TO_INITIALS[firstName] = init;
-}
-
 export default function PMBonusPage() {
   const params = useParams();
   const router = useRouter();
@@ -170,39 +164,7 @@ export default function PMBonusPage() {
         .eq("email", email)
         .single();
 
-      if (roleData?.role === "admin") {
-        setAccessGranted(true);
-        setAccessChecked(true);
-        return;
-      }
-
-      if (roleData?.role === "pm") {
-        if (roleData.pm_initials?.toUpperCase() === initials) {
-          setAccessGranted(true);
-        } else {
-          router.replace(`/pm/${roleData.pm_initials}`);
-          return;
-        }
-        setAccessChecked(true);
-        return;
-      }
-
-      // Fallback: email-based mapping
-      const emailPrefix = email.split("@")[0];
-      const matchedInitials = FIRST_NAME_TO_INITIALS[emailPrefix];
-      if (matchedInitials) {
-        if (matchedInitials.toUpperCase() === initials) {
-          setAccessGranted(true);
-        } else {
-          router.replace(`/pm/${matchedInitials}`);
-          return;
-        }
-        setAccessChecked(true);
-        return;
-      }
-
-      // Admin fallback for paul@ or admin@
-      if (emailPrefix === "paul" || emailPrefix === "admin") {
+      if (canSeeTeamBonuses(roleData?.role)) {
         setAccessGranted(true);
         setAccessChecked(true);
         return;

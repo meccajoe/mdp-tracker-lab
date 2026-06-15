@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { PM_NAMES } from "@/lib/types";
+import { canSeeTeamBonuses } from "@/lib/bonus-access";
 import { useAdminView } from "@/components/admin-view-provider";
 import UserMenu from "@/components/UserMenu";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -139,8 +140,8 @@ export default function Sidebar() {
           <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
         )}
 
-        {/* Team Bonuses — admin and PM only (not production/viewer) */}
-        {(effectiveIsAdmin || (pmInitials && role === "pm")) && (
+        {/* Team Bonuses — admin only for now */}
+        {canSeeTeamBonuses(role) && (
           <>
             <SectionHeader label="Team Bonuses" open={bonusOpen} onToggle={() => setBonusOpen(!bonusOpen)} collapsed={collapsed} />
             {collapsed ? (

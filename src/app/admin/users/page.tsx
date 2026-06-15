@@ -17,7 +17,7 @@ type Role = typeof ROLES[number];
 
 const ROLE_DESCRIPTIONS: Record<Role, string> = {
   admin: "Full access — all projects, budgets, bonuses, settings, reconciliation",
-  pm: "Project manager — sees own projects, can log expenses and view bonuses",
+  pm: "Project manager — sees own projects and can log expenses",
   production: "Production staff — sees all projects, adds expenses and purchasing; no budgets, bonuses, data entry, or settings",
   viewer: "Read-only — can view projects and labor data, cannot create or edit",
 };
