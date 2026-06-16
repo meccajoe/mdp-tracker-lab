@@ -7,6 +7,10 @@ export interface Project {
   close_date: string | null;
   due_date: string | null;
   contract_amount: number | null;
+  job_nickname: string | null;
+  wip_class: string | null;
+  sales_tax_included: string | null;
+  estimated_cost_override: number | null;
   status: "Active" | "Completed" | "On Hold" | "Pending";
   notes: string | null;
   hubspot_deal_id: string | null;
@@ -70,6 +74,39 @@ export interface ProjectSummary extends Project {
   qbo_total_hours: number;
   qbo_labor_cost: number;
   qbo_last_synced: string | null;
+}
+
+export interface WipReportSnapshot {
+  id: string;
+  snapshot_date: string;
+  generated_at: string;
+  generated_by: string | null;
+  status: "draft" | "final";
+  notes: string | null;
+  filters_json: Record<string, unknown> | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface WipReportSnapshotRow {
+  id: string;
+  snapshot_id: string;
+  project_id: string | null;
+  customer: string;
+  project_number: string | null;
+  project_name: string;
+  wip_class: string | null;
+  job_nickname: string | null;
+  contract_date: string | null;
+  contract_amount: number | null;
+  estimated_cost: number | null;
+  estimated_cost_source: "derived" | "manual_override";
+  sales_tax_included: string | null;
+  completion_date: string | null;
+  project_status: string | null;
+  pm_initials: string | null;
+  source_updated_at: string | null;
+  created_at?: string;
 }
 
 export interface Expense {
@@ -155,7 +192,7 @@ export interface UserRoleRow {
   show_in_filters: boolean;
 }
 
-export const PROJECT_STATUSES = ["Active", "Completed", "On Hold"] as const;
+export const PROJECT_STATUSES = ["Active", "Completed", "On Hold", "Pending"] as const;
 
 export const PROJECT_TYPES = [
   "Trade Show",

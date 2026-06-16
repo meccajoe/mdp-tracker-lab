@@ -56,6 +56,10 @@ export default function EditProjectPage() {
   const [closeDate, setCloseDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [contractAmount, setContractAmount] = useState("");
+  const [jobNickname, setJobNickname] = useState("");
+  const [wipClass, setWipClass] = useState("");
+  const [salesTaxIncluded, setSalesTaxIncluded] = useState("");
+  const [estimatedCostOverride, setEstimatedCostOverride] = useState("");
   const [projectType, setProjectType] = useState<string>(PROJECT_TYPES[0]);
   const [notes, setNotes] = useState("");
   const [budgets, setBudgets] = useState<Record<string, string>>({});
@@ -119,6 +123,12 @@ export default function EditProjectPage() {
       setDueDate((project as unknown as Record<string, unknown>).due_date as string ?? "");
       setContractAmount(
         project.contract_amount != null ? String(project.contract_amount) : ""
+      );
+      setJobNickname(project.job_nickname ?? "");
+      setWipClass(project.wip_class ?? "");
+      setSalesTaxIncluded(project.sales_tax_included ?? "");
+      setEstimatedCostOverride(
+        project.estimated_cost_override != null ? String(project.estimated_cost_override) : ""
       );
       setProjectType(project.project_type ?? PROJECT_TYPES[0]);
       setNotes(project.notes ?? "");
@@ -199,6 +209,10 @@ export default function EditProjectPage() {
       close_date: closeDate || null,
       due_date: dueDate || null,
       contract_amount: contractAmount ? Number(contractAmount) : null,
+      job_nickname: jobNickname.trim() || null,
+      wip_class: wipClass.trim() || null,
+      sales_tax_included: salesTaxIncluded.trim() || null,
+      estimated_cost_override: estimatedCostOverride ? Number(estimatedCostOverride) : null,
       project_type: projectType,
       notes: notes.trim() || null,
       hubspot_deal_id: hubspotDealId,
@@ -377,6 +391,47 @@ export default function EditProjectPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="jobNickname">Job Nickname</Label>
+                <Input
+                  id="jobNickname"
+                  value={jobNickname}
+                  onChange={(e) => setJobNickname(e.target.value)}
+                  placeholder="Internal shorthand name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wipClass">WIP Class</Label>
+                <Input
+                  id="wipClass"
+                  value={wipClass}
+                  onChange={(e) => setWipClass(e.target.value)}
+                  placeholder="QBO-sourced later"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salesTaxIncluded">Sales Tax Included</Label>
+                <Input
+                  id="salesTaxIncluded"
+                  value={salesTaxIncluded}
+                  onChange={(e) => setSalesTaxIncluded(e.target.value)}
+                  placeholder="Manual placeholder entry"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="estimatedCostOverride">Estimated Cost Override</Label>
+                <Input
+                  id="estimatedCostOverride"
+                  type="number"
+                  step="0.01"
+                  value={estimatedCostOverride}
+                  onChange={(e) => setEstimatedCostOverride(e.target.value)}
+                  placeholder="Leave blank to use derived total budget"
+                />
               </div>
             </div>
 
