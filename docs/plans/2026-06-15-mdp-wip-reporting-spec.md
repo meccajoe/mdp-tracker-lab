@@ -32,6 +32,24 @@ Workbook note:
 - there is a standalone `Complete` label near the top, but no structured `% complete` data column appears in the sheet XML
 - treat the column list above as the authoritative requested output until Venturity provides formulas or sample filled rows
 
+## Clarifications resolved with Joe
+
+1. **Closed won vs completion**
+   - `close_date` represents the HubSpot closed-won date
+   - `Completion Date` for WIP reporting should map to `projects.due_date`
+
+2. **Estimated Cost behavior**
+   - use a derived estimate by default
+   - allow manual override for accounting/admin use
+
+3. **Class behavior**
+   - MDP and Venturity are not using it yet
+   - keep it as a placeholder field now so the report/export shape is future-ready
+
+4. **Snapshots**
+   - month-end snapshots are important
+   - snapshot architecture should be part of v1, not deferred entirely
+
 ---
 
 ## Operator truth
@@ -80,18 +98,18 @@ It is a small reporting subsystem with:
 | Project # | `projects.job_number` with fallback `projects.id` | Prefer `job_number` in report output |
 | Project Name | `projects.name` | Ready now |
 | Contract Amount | `projects.contract_amount` | Ready now |
-| Completion Date | likely `projects.close_date` | Needs semantic confirmation |
+| Completion Date | `projects.due_date` | User confirmed this should represent the date the project should be completed by |
 | Active/Completed filtering | `projects.status` | Already present |
 
 ### Existing data that can probably power the report, but needs a product rule
 | Venturity column | Candidate source | Open rule |
 |---|---|---|
-| Estimated Cost | derived from existing total budget / quote model | decide whether derived value is enough or whether manual override is needed |
+| Estimated Cost | derived from existing total budget / quote model plus override | User confirmed derived-by-default with manual override |
 
 ### Missing data that needs explicit product support
 | Venturity column | Proposed field | Why |
 |---|---|---|
-| Class | `projects.wip_class` | Do not overload `project_type`; accounting class is likely different |
+| Class | `projects.wip_class` | Placeholder field for future use; do not overload `project_type` |
 | Job Nickname | `projects.job_nickname` | Distinct short/internal label |
 | Contract Date | `projects.contract_date` | Existing `close_date` / `due_date` are not the same concept |
 | Sales Tax Included | `projects.sales_tax_included` boolean | Needed for report/export, currently absent |
@@ -177,9 +195,10 @@ Venturity asked for date/status filtering. Minimum filter set should be:
   - customer / project # / project name / nickname
 
 ### As-of reporting
-Add an `As of date` filter placeholder in the spec, but define behavior carefully:
-- if no snapshot system exists yet, `As of date` can only filter by stored contract/completion dates, not reconstruct historical WIP state
-- if Venturity needs true period-end WIP by date, we will need snapshots (see snapshots section)
+Add a real `As of date` reporting mode in v1.
+- Venturity confirmed month-end snapshots are important, so `As of date` cannot be a cosmetic placeholder
+- live mode should still exist for current-state reporting
+- snapshot mode should let admins view/export frozen period-end WIP without later drift
 
 ---
 
@@ -239,11 +258,13 @@ ALTER TABLE projects ADD COLUMN IF NOT EXISTS wip_updated_by text;
 ```
 
 ### Reuse vs rename guidance
-- keep `close_date` as-is in schema for now
-- surface it in the report as `Completion Date` **only if existing usage truly means completed/closed date**
-- if MDP currently uses `close_date` more like a target close rather than actual completion, add a new explicit `completion_date` field instead of overloading semantics
+- keep `close_date` mapped to its real HubSpot meaning: the date the deal/project was closed won
+- use existing `projects.due_date` as the WIP report `Completion Date`, since the user confirmed this represents when the project should be completed by
+- do not overload `close_date` in the WIP report, because accounting and operations will interpret it differently
 
-This needs confirmation before implementation.
+### Derived report semantics
+- `Contract Date` should remain its own field and should not be faked from `close_date` unless the business later explicitly wants that mapping
+- `Completion Date` is the operational target-complete date, sourced from `due_date`
 
 ---
 
@@ -304,36 +325,72 @@ If timeline gets tight, CSV first and XLSX second is acceptable technically, but
 
 ---
 
-## 8) Month-end snapshot question
-This is the biggest strategic requirement to clarify.
+## 8) Month-end snapshots
+Venturity confirmed month-end snapshots are important, so snapshot architecture belongs in v1 rather than as an optional later add-on.
 
 ### Why it matters
-Accounting WIP is often period-end sensitive.
+Accounting WIP is period-end sensitive.
 If Venturity wants to know:
 - “What did WIP look like on May 31?”
 then a live current-state report is not enough.
 
-### Recommendation
-Call this out explicitly in the spec now.
+### Required v1 reporting modes
+#### Live mode
+- current-state report sourced from the latest project data
+- useful for day-to-day internal review and cleanup
 
-#### MVP option
-- current-state report only
-- export current filtered view
-- no historical freeze
+#### Snapshot mode
+- frozen period-end report that does not change after creation
+- can be reopened/exported later exactly as generated
+- supports accounting review, reconciliation, and auditability
 
-#### Better accounting-ready option
-Add snapshot support:
+### Recommended snapshot model
+Add snapshot support with two tables:
 - `wip_report_snapshots`
 - `wip_report_snapshot_rows`
 
-Where an admin can:
-- choose `As of date`
-- generate a frozen snapshot
-- export that frozen snapshot later unchanged
+Recommended shape:
 
-### Recommendation
-Do **not** build snapshots blindly before confirmation.
-But do treat this as the first follow-up question for Venturity because it changes architecture meaningfully.
+#### `wip_report_snapshots`
+One row per frozen report run.
+Suggested columns:
+- `id`
+- `snapshot_date` — the accounting period-end date the snapshot represents
+- `generated_at`
+- `generated_by`
+- `status` — optional (`draft`, `final`) if we want a finalization step later
+- `notes` — optional admin notes
+- `filters_json` — optional record of the filters used when snapshot was generated
+
+#### `wip_report_snapshot_rows`
+One frozen row per project included in the snapshot.
+Suggested columns:
+- `id`
+- `snapshot_id`
+- `project_id`
+- `customer`
+- `project_number`
+- `project_name`
+- `wip_class`
+- `job_nickname`
+- `contract_date`
+- `contract_amount`
+- `estimated_cost`
+- `estimated_cost_source`
+- `sales_tax_included`
+- `completion_date`
+- `project_status`
+- `pm_initials`
+- `source_updated_at` — optional, capture latest project/WIP update timestamp for traceability
+
+### Snapshot behavior
+- admin chooses an `As of date` / period-end date
+- system generates a frozen rowset from the live project data at that moment
+- later edits to project budgets, due dates, overrides, or status must **not** mutate existing snapshot rows
+- exports from a snapshot must reflect the frozen rows, not the current live project state
+
+### Important architecture rule
+Do not try to reconstruct historical snapshots later from live tables unless the source-of-truth data is already historized. For v1, generate and persist frozen snapshot rows at creation time.
 
 ---
 
@@ -362,52 +419,45 @@ This should follow the same admin gating model already used in:
 
 ### Phase 1 — data foundation
 - add new WIP fields to `projects`
-- confirm whether `close_date` can safely power `Completion Date`
+- lock semantic mapping: `close_date = closed won`, `due_date = Completion Date`
 - define derived estimated-cost helper + override rule
+- add snapshot tables and row schema in the initial migration so the architecture is accounting-safe from day one
 
-### Phase 2 — admin report page
+### Phase 2 — live admin report page
 - add `/admin/reports/wip`
 - filter bar
-- table view
+- live table view
 - CSV export
+- snapshot creation entry point
 
-### Phase 3 — Excel export + polish
-- XLSX export
+### Phase 3 — snapshot workflows + Excel export
+- snapshot list/detail views
+- create snapshot from live report using chosen period-end date
+- XLSX export for both live and snapshot views
 - empty-state / missing-metadata audit UX
-- optional quick-edit affordances
 
-### Phase 4 — optional accounting hardening
-- snapshot/freeze model
+### Phase 4 — ops polish
+- optional quick-edit affordances
 - saved report presets
-- audit trail on WIP field edits
+- stronger audit trail on WIP field edits and snapshot finalization
 
 ---
 
 ## Open questions to confirm before implementation
 
-1. **Class**
-   - Is this an accounting/QBO class value?
-   - Or an internal MDP project classification?
-   - If it maps to a fixed list, can Venturity provide the allowed values?
-
-2. **Estimated Cost**
-   - Is Venturity happy with “current total budget from tracker” as the default estimate?
-   - Or do they want a fully manual accounting estimate field every time?
-
-3. **Completion Date**
-   - Can existing `close_date` be treated as true completion date?
-   - Or do we need a new explicit field?
-
-4. **Contract Date**
+1. **Contract Date source**
    - Does this already live somewhere upstream (HubSpot/QBO) and just need syncing?
    - Or is this admin-entered only?
 
-5. **Sales Tax Included**
+2. **Sales Tax Included**
    - Boolean is probably enough, but do they need tax amount too?
 
-6. **Snapshots**
-   - Do they need historical month-end WIP snapshots?
-   - If yes, this should be part of v1 architecture, even if snapshot UX is phase 2.
+3. **Snapshot governance**
+   - Should snapshots be generated manually only, or also on a monthly close workflow?
+   - Do snapshots need a `finalized/locked` state separate from draft generation?
+
+4. **Class future state**
+   - Even though it is a placeholder now, should we eventually constrain it to a fixed list or QBO class sync?
 
 ---
 
@@ -419,11 +469,12 @@ This should follow the same admin gating model already used in:
 - derived estimated cost with manual override
 - filters for status/date/customer/PM/class
 - CSV + Excel export
+- snapshot architecture in v1, including frozen snapshot tables and snapshot-based exports
 
-### Defer unless Venturity says it is mandatory immediately
-- month-end snapshot/frozen reports
+### Defer unless Venturity says it is needed immediately after MVP
 - bulk inline editing grid
-- accounting formulas beyond the requested template columns
+- saved report presets
+- richer accounting formulas beyond the requested template columns
 
 ---
 
@@ -443,7 +494,7 @@ Likely files to touch:
 ## Proposed acceptance criteria
 
 1. Admin can open a new WIP report screen in MDP Tracker.
-2. Report displays the Venturity columns in a stable table.
+2. Report displays the Venturity columns in a stable live table.
 3. Admin can filter by:
    - status
    - date range
@@ -451,11 +502,14 @@ Likely files to touch:
    - customer
    - class
 4. Report can show active/completed/all projects.
-5. Report can export current filtered data to CSV.
-6. Report can export current filtered data to Excel.
-7. Missing WIP metadata is visible and administratively fixable.
-8. Estimated Cost is always populated either from derived budget or manual override.
-9. Non-admin users cannot access the report or exports.
+5. Report can export current filtered live data to CSV.
+6. Report can export current filtered live data to Excel.
+7. Admin can create a month-end snapshot for a chosen period-end date.
+8. Snapshot rows remain frozen even if live project data changes later.
+9. Admin can reopen and export a saved snapshot to CSV/XLSX.
+10. Missing WIP metadata is visible and administratively fixable.
+11. Estimated Cost is always populated either from derived budget or manual override.
+12. Non-admin users cannot access the report, snapshots, or exports.
 
 ---
 
