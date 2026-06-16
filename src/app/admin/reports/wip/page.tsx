@@ -604,7 +604,6 @@ export default function WipReportPage() {
                     <th className="px-3 py-2 font-medium">Project #</th>
                     <th className="px-3 py-2 font-medium">Project Name</th>
                     <th className="px-3 py-2 font-medium">Class</th>
-                    <th className="px-3 py-2 font-medium">Job Nickname</th>
                     <th className="px-3 py-2 font-medium">Contract Date</th>
                     <th className="px-3 py-2 font-medium text-right">Contract Amount</th>
                     <th className="px-3 py-2 font-medium text-right">Estimated Cost</th>
@@ -622,7 +621,6 @@ export default function WipReportPage() {
                       <td className="px-3 py-2">{row.project_number ?? "—"}</td>
                       <td className="px-3 py-2">{row.project_name}</td>
                       <td className="px-3 py-2">{row.wip_class ?? "—"}</td>
-                      <td className="px-3 py-2">{row.job_nickname ?? "—"}</td>
                       <td className="px-3 py-2">{formatDate(row.contract_date)}</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(row.contract_amount)}</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(row.estimated_cost)}</td>

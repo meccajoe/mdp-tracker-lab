@@ -24,7 +24,6 @@ export interface WipReportRow {
   project_number: string | null;
   project_name: string;
   wip_class: string | null;
-  job_nickname: string | null;
   contract_date: string | null;
   contract_amount: number | null;
   estimated_cost: number | null;
@@ -72,7 +71,6 @@ export function buildLiveWipRow(project: ProjectSummary): WipReportRow {
     project_number: project.job_number ?? project.id,
     project_name: project.name,
     wip_class: project.wip_class,
-    job_nickname: project.job_nickname,
     contract_date: project.close_date,
     contract_amount: project.contract_amount,
     estimated_cost: estimated.value,
@@ -92,7 +90,6 @@ export function coerceSnapshotRow(row: WipReportSnapshotRow): WipReportRow {
     project_number: row.project_number,
     project_name: row.project_name,
     wip_class: row.wip_class,
-    job_nickname: row.job_nickname,
     contract_date: row.contract_date,
     contract_amount: row.contract_amount,
     estimated_cost: row.estimated_cost,
@@ -124,7 +121,6 @@ export function matchesWipFilters(row: WipReportRow, filters: WipFilters): boole
       row.customer,
       row.project_number ?? "",
       row.project_name,
-      row.job_nickname ?? "",
     ].join(" ").toLowerCase();
 
     if (!haystack.includes(query)) return false;
@@ -159,7 +155,6 @@ export function buildWipCsv(rows: WipReportRow[]): string {
     "Project #",
     "Project Name",
     "Class",
-    "Job Nickname",
     "Contract Date",
     "Contract Amount",
     "Estimated Cost",
@@ -172,7 +167,6 @@ export function buildWipCsv(rows: WipReportRow[]): string {
     csvValue(row.project_number ?? ""),
     csvValue(row.project_name),
     csvValue(row.wip_class ?? ""),
-    csvValue(row.job_nickname ?? ""),
     csvValue(row.contract_date ?? ""),
     row.contract_amount ?? "",
     row.estimated_cost ?? "",
@@ -193,7 +187,6 @@ export function buildWipWorkbook(rows: WipReportRow[]): XLSX.WorkBook {
     "Project #": row.project_number ?? "",
     "Project Name": row.project_name,
     Class: row.wip_class ?? "",
-    "Job Nickname": row.job_nickname ?? "",
     "Contract Date": row.contract_date ?? "",
     "Contract Amount": row.contract_amount,
     "Estimated Cost": row.estimated_cost,
@@ -214,7 +207,6 @@ export function buildSnapshotRows(rows: WipReportRow[]) {
     project_number: row.project_number,
     project_name: row.project_name,
     wip_class: row.wip_class,
-    job_nickname: row.job_nickname,
     contract_date: row.contract_date,
     contract_amount: row.contract_amount,
     estimated_cost: row.estimated_cost,

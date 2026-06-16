@@ -56,7 +56,6 @@ export default function EditProjectPage() {
   const [closeDate, setCloseDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [contractAmount, setContractAmount] = useState("");
-  const [jobNickname, setJobNickname] = useState("");
   const [wipClass, setWipClass] = useState("");
   const [salesTaxIncluded, setSalesTaxIncluded] = useState("");
   const [estimatedCostOverride, setEstimatedCostOverride] = useState("");
@@ -124,7 +123,6 @@ export default function EditProjectPage() {
       setContractAmount(
         project.contract_amount != null ? String(project.contract_amount) : ""
       );
-      setJobNickname(project.job_nickname ?? "");
       setWipClass(project.wip_class ?? "");
       setSalesTaxIncluded(project.sales_tax_included ?? "");
       setEstimatedCostOverride(
@@ -209,7 +207,6 @@ export default function EditProjectPage() {
       close_date: closeDate || null,
       due_date: dueDate || null,
       contract_amount: contractAmount ? Number(contractAmount) : null,
-      job_nickname: jobNickname.trim() || null,
       wip_class: wipClass.trim() || null,
       sales_tax_included: salesTaxIncluded.trim() || null,
       estimated_cost_override: estimatedCostOverride ? Number(estimatedCostOverride) : null,
@@ -395,15 +392,6 @@ export default function EditProjectPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="jobNickname">Job Nickname</Label>
-                <Input
-                  id="jobNickname"
-                  value={jobNickname}
-                  onChange={(e) => setJobNickname(e.target.value)}
-                  placeholder="Internal shorthand name"
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="wipClass">WIP Class</Label>
                 <Input

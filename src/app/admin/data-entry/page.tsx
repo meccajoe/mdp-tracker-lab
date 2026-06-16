@@ -437,7 +437,7 @@ export default function DataEntryPage() {
     const blank: EditableProject = {
       id: "__NEW__", name: "", client: "", pm: "", status: "Active",
       job_number: null, close_date: null, due_date: null, contract_amount: null,
-      job_nickname: null, wip_class: null, sales_tax_included: null, estimated_cost_override: null,
+      wip_class: null, sales_tax_included: null, estimated_cost_override: null,
       hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null,
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
       budget_crating: null, budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
@@ -454,7 +454,7 @@ export default function DataEntryPage() {
     setProjects((prev) => [blank, ...prev]);
     setExpandedId("__NEW__");
     setDeleting(null);
-    setFormData({ id: "", name: "", client: "", pm: "", status: "Active", job_number: "", close_date: "", due_date: "", contract_amount: "", job_nickname: "", wip_class: "", sales_tax_included: "", estimated_cost_override: "", hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null, notes: "", _isNew: true });
+    setFormData({ id: "", name: "", client: "", pm: "", status: "Active", job_number: "", close_date: "", due_date: "", contract_amount: "", wip_class: "", sales_tax_included: "", estimated_cost_override: "", hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null, notes: "", _isNew: true });
     setLookupResult(null);
     setActuals({});
     setActualsLoading(false);

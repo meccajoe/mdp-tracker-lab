@@ -7,7 +7,6 @@ export interface Project {
   close_date: string | null;
   due_date: string | null;
   contract_amount: number | null;
-  job_nickname: string | null;
   wip_class: string | null;
   sales_tax_included: string | null;
   estimated_cost_override: number | null;
@@ -96,7 +95,6 @@ export interface WipReportSnapshotRow {
   project_number: string | null;
   project_name: string;
   wip_class: string | null;
-  job_nickname: string | null;
   contract_date: string | null;
   contract_amount: number | null;
   estimated_cost: number | null;
