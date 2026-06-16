@@ -129,6 +129,13 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(estimatedCostDialog, /Labor Hours/);
   assert.match(estimatedCostDialog, /Project Management/);
   assert.match(estimatedCostDialog, /buildWipBudgetBreakdownRows/);
+  assert.match(estimatedCostDialog, /BUDGET_CATEGORY_TOOLTIPS/);
+  assert.match(estimatedCostDialog, /Saved hours if present; otherwise Materials quote × labor % ÷ \$41\/hr\./);
+  assert.match(estimatedCostDialog, /Saved budget if present; otherwise Materials quote × materials %\./);
+  assert.match(estimatedCostDialog, /Saved budget if present; otherwise PM quote × PM %\./);
+  assert.match(estimatedCostDialog, /Saved budget if present; otherwise Rental quote × rental %\./);
+  assert.match(estimatedCostDialog, /title=\{BUDGET_CATEGORY_TOOLTIPS\[item\.category\]\}/);
+  assert.match(estimatedCostDialog, /Percent uses project override when set; otherwise the default model percentage\./);
 
   assert.match(helper, /export function buildWipCsv/);
   assert.match(helper, /export function buildWipWorkbook/);

@@ -14,6 +14,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+const BUDGET_CATEGORY_TOOLTIPS: Record<string, string> = {
+  "Labor Hours": "Saved hours if present; otherwise Materials quote × labor % ÷ $41/hr.",
+  Materials: "Saved budget if present; otherwise Materials quote × materials %.",
+  Design: "Saved budget if present; otherwise Design quote × design %.",
+  "Project Management": "Saved budget if present; otherwise PM quote × PM %.",
+  Shipping: "Saved budget if present; otherwise Shipping quote × shipping %.",
+  Crating: "Saved budget if present; otherwise Crating quote × crating %.",
+  "I&D Labor": "Saved budget if present; otherwise I&D quote × I&D %.",
+  Travel: "Saved budget if present; otherwise Travel quote × travel %.",
+  Props: "Saved budget if present; otherwise Props quote × props %.",
+  Equipment: "Saved budget if present; otherwise Equipment quote × equipment %.",
+  Rental: "Saved budget if present; otherwise Rental quote × rental %.",
+  "Flooring/Graphics": "Saved budget if present; otherwise Flooring quote × flooring %.",
+};
+
 interface WipEstimatedCostDialogProps {
   row: WipReportRow;
   triggerLabel: string;
@@ -95,6 +110,9 @@ export function WipEstimatedCostDialog({ row, triggerLabel, triggerClassName = "
             <p className="text-sm text-muted-foreground">
               Category breakdown includes Labor Hours, Materials, Design, Project Management, Shipping, Crating, I&D Labor, Travel, Props, Equipment, Rental, and Flooring/Graphics.
             </p>
+            <p className="text-xs text-muted-foreground">
+              Percent uses project override when set; otherwise the default model percentage.
+            </p>
 
             <div className="overflow-x-auto rounded-lg border border-border">
               <table className="min-w-full text-sm">
@@ -110,7 +128,14 @@ export function WipEstimatedCostDialog({ row, triggerLabel, triggerClassName = "
                 <tbody>
                   {breakdownRows.map((item) => (
                     <tr key={item.category} className="border-t border-border even:bg-muted/15">
-                      <td className="px-3 py-2 font-medium">{item.category}</td>
+                      <td className="px-3 py-2 font-medium">
+                        <span
+                          title={BUDGET_CATEGORY_TOOLTIPS[item.category]}
+                          className="cursor-help decoration-dotted underline-offset-4 hover:underline"
+                        >
+                          {item.category}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-right">{item.percent}%</td>
                       <td className="px-3 py-2 text-right text-muted-foreground">{formatCurrency(item.basisAmount)}</td>
                       <td className="px-3 py-2 text-right font-semibold">{formatCurrency(item.budgetDollars)}</td>
