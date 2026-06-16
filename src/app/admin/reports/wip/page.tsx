@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WipProjectDialog } from "@/components/wip-project-dialog";
+import { WipEstimatedCostDialog } from "@/components/wip-estimated-cost-dialog";
 import { ProjectSummary, WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
 import {
   EMPTY_WIP_FILTERS,
@@ -637,7 +638,13 @@ export default function WipReportPage() {
                       <td className="px-3 py-2">{row.wip_class ?? "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{formatDate(row.contract_date)}</td>
                       <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.contract_amount)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-rose-700 dark:text-rose-400">{formatCurrency(row.estimated_cost)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <WipEstimatedCostDialog
+                          row={row}
+                          triggerLabel={formatCurrency(row.estimated_cost)}
+                          triggerClassName="text-right font-semibold text-rose-700 underline-offset-4 hover:underline dark:text-rose-400"
+                        />
+                      </td>
                       <td className="px-3 py-2">{row.sales_tax_included || "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{formatDate(row.completion_date)}</td>
                       <td className="px-3 py-2">

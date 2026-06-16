@@ -82,6 +82,7 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   const page = read('../src/app/admin/reports/wip/page.tsx');
   const helper = read('../src/lib/wip-report.ts');
   const modal = read('../src/components/wip-project-dialog.tsx');
+  const estimatedCostDialog = read('../src/components/wip-estimated-cost-dialog.tsx');
 
   assert.match(page, /Export CSV/);
   assert.match(page, /Export Excel/);
@@ -101,10 +102,12 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(page, /\.delete\(\)/);
   assert.match(page, /confirm\(`Delete snapshot/);
   assert.match(page, /WipProjectDialog/);
+  assert.match(page, /WipEstimatedCostDialog/);
   assert.match(page, /Badge/);
   assert.match(page, /getPmChipClassName/);
   assert.match(page, /triggerLabel=\{row\.project_number \?\? "—"\}/);
   assert.match(page, /triggerLabel=\{row\.project_name\}/);
+  assert.match(page, /triggerLabel=\{formatCurrency\(row\.estimated_cost\)\}/);
   assert.match(page, /text-blue-600/);
   assert.match(page, /text-emerald-700/);
   assert.match(page, /text-rose-700/);
@@ -116,6 +119,16 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(modal, /Open Full Project/);
   assert.match(modal, /href=\{`\/projects\/\$\{row\.project_id\}`\}/);
   assert.match(modal, /View Snapshot Row/);
+
+  assert.match(estimatedCostDialog, /Dialog/);
+  assert.match(estimatedCostDialog, /from\("project_summary"\)/);
+  assert.match(estimatedCostDialog, /Budget Breakdown/);
+  assert.match(estimatedCostDialog, /Category/);
+  assert.match(estimatedCostDialog, /Percent/);
+  assert.match(estimatedCostDialog, /Budget Dollars/);
+  assert.match(estimatedCostDialog, /Labor Hours/);
+  assert.match(estimatedCostDialog, /Project Management/);
+  assert.match(estimatedCostDialog, /buildWipBudgetBreakdownRows/);
 
   assert.match(helper, /export function buildWipCsv/);
   assert.match(helper, /export function buildWipWorkbook/);
