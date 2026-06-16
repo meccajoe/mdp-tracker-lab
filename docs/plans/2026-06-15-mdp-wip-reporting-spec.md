@@ -34,21 +34,26 @@ Workbook note:
 
 ## Clarifications resolved with Joe
 
-1. **Closed won vs completion**
-   - `close_date` represents the HubSpot closed-won date
+1. **Contract vs completion dates**
+   - `close_date` is the WIP report `Contract Date`
    - `Completion Date` for WIP reporting should map to `projects.due_date`
 
 2. **Estimated Cost behavior**
    - use a derived estimate by default
    - allow manual override for accounting/admin use
 
-3. **Class behavior**
-   - MDP and Venturity are not using it yet
-   - keep it as a placeholder field now so the report/export shape is future-ready
+3. **Sales tax behavior**
+   - sales tax is **not** included in the contract amount
+   - keep the report field as a manual placeholder for now rather than deriving it from contract data
 
-4. **Snapshots**
+4. **Class behavior**
+   - keep it as a placeholder field for now
+   - eventual source of truth should come from QBO
+
+5. **Snapshots**
    - month-end snapshots are important
    - snapshot architecture should be part of v1, not deferred entirely
+   - snapshot creation should be manual only for now, with `draft` and `final` states
 
 ---
 
@@ -73,7 +78,7 @@ This feature serves a different operator than the day-to-day PM workflow.
 ### What is missing today
 - no dedicated `Reports` section
 - no accounting-specific WIP screen
-- no explicit WIP metadata fields for `Class`, `Job Nickname`, `Contract Date`, `Sales Tax Included`
+- no explicit WIP metadata fields for `Class`, `Job Nickname`, and the manual `Sales Tax Included` placeholder
 - no explicit admin workflow for maintaining those WIP-only fields in one place
 - no current export layer targeted at accounting/reporting use cases
 - no frozen month-end WIP snapshot model
@@ -97,6 +102,7 @@ It is a small reporting subsystem with:
 | Customer | `projects.client` | Ready now |
 | Project # | `projects.job_number` with fallback `projects.id` | Prefer `job_number` in report output |
 | Project Name | `projects.name` | Ready now |
+| Contract Date | `projects.close_date` | User confirmed this is the contract/closed-won date for WIP reporting |
 | Contract Amount | `projects.contract_amount` | Ready now |
 | Completion Date | `projects.due_date` | User confirmed this should represent the date the project should be completed by |
 | Active/Completed filtering | `projects.status` | Already present |
@@ -109,10 +115,9 @@ It is a small reporting subsystem with:
 ### Missing data that needs explicit product support
 | Venturity column | Proposed field | Why |
 |---|---|---|
-| Class | `projects.wip_class` | Placeholder field for future use; do not overload `project_type` |
+| Class | `projects.wip_class` | Placeholder field now; eventual source should come from QBO rather than `project_type` |
 | Job Nickname | `projects.job_nickname` | Distinct short/internal label |
-| Contract Date | `projects.contract_date` | Existing `close_date` / `due_date` are not the same concept |
-| Sales Tax Included | `projects.sales_tax_included` boolean | Needed for report/export, currently absent |
+| Sales Tax Included | `projects.sales_tax_included` text | Manual placeholder entry for now; do not derive it from contract amount |
 
 ---
 
@@ -180,9 +185,9 @@ Venturity asked for date/status filtering. Minimum filter set should be:
 - Contract Date range
 - Completion Date range
 - Sales Tax Included
-  - Yes
-  - No
-  - All
+  - Any
+  - Has value
+  - Missing
 
 ### Strongly recommended filters
 - Class
@@ -242,10 +247,9 @@ Also expose:
 Add these fields to `projects`:
 
 ```sql
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS contract_date date;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS job_nickname text;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS wip_class text;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS sales_tax_included boolean;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS sales_tax_included text;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS estimated_cost_override numeric(12,2);
 ```
 
@@ -258,13 +262,14 @@ ALTER TABLE projects ADD COLUMN IF NOT EXISTS wip_updated_by text;
 ```
 
 ### Reuse vs rename guidance
-- keep `close_date` mapped to its real HubSpot meaning: the date the deal/project was closed won
+- `close_date` is the WIP report `Contract Date`; do not introduce a duplicate `contract_date` field unless a future integration forces it
+- `close_date` should keep its real HubSpot/ops meaning: the date the deal/project was closed won
 - use existing `projects.due_date` as the WIP report `Completion Date`, since the user confirmed this represents when the project should be completed by
-- do not overload `close_date` in the WIP report, because accounting and operations will interpret it differently
 
 ### Derived report semantics
-- `Contract Date` should remain its own field and should not be faked from `close_date` unless the business later explicitly wants that mapping
+- `Contract Date` is sourced directly from `close_date`
 - `Completion Date` is the operational target-complete date, sourced from `due_date`
+- `Sales Tax Included` is a manual placeholder field for now and should not be inferred from contract amount
 
 ---
 
@@ -288,9 +293,9 @@ For MVP:
 Minimum editable WIP fields:
 - Class
 - Job Nickname
-- Contract Date
 - Sales Tax Included
 - Estimated Cost Override
+- Snapshot Notes / Status (where applicable)
 - Completion Date (if not already correctly represented)
 
 ---
@@ -307,7 +312,7 @@ Venturity explicitly needs export.
 - export column order matches the Venturity template
 - date formatting should be human-readable, not ISO timestamps
 - currency columns should export as numeric currency-friendly values
-- boolean `Sales Tax Included` should export as `Yes/No`
+- `Sales Tax Included` should export the stored manual placeholder value exactly as entered
 
 ### File naming
 Recommended:
@@ -358,7 +363,7 @@ Suggested columns:
 - `snapshot_date` — the accounting period-end date the snapshot represents
 - `generated_at`
 - `generated_by`
-- `status` — optional (`draft`, `final`) if we want a finalization step later
+- `status` — required (`draft`, `final`)
 - `notes` — optional admin notes
 - `filters_json` — optional record of the filters used when snapshot was generated
 
@@ -377,7 +382,7 @@ Suggested columns:
 - `contract_amount`
 - `estimated_cost`
 - `estimated_cost_source`
-- `sales_tax_included`
+- `sales_tax_included` — stored manual placeholder value
 - `completion_date`
 - `project_status`
 - `pm_initials`
@@ -385,6 +390,8 @@ Suggested columns:
 
 ### Snapshot behavior
 - admin chooses an `As of date` / period-end date
+- snapshot creation is manual only for now
+- each snapshot should start or end in an explicit `draft` or `final` state
 - system generates a frozen rowset from the live project data at that moment
 - later edits to project budgets, due dates, overrides, or status must **not** mutate existing snapshot rows
 - exports from a snapshot must reflect the frozen rows, not the current live project state
@@ -428,11 +435,12 @@ This should follow the same admin gating model already used in:
 - filter bar
 - live table view
 - CSV export
-- snapshot creation entry point
+- manual snapshot creation entry point
 
 ### Phase 3 — snapshot workflows + Excel export
 - snapshot list/detail views
-- create snapshot from live report using chosen period-end date
+- create snapshot manually from live report using chosen period-end date
+- support explicit `draft` and `final` snapshot states
 - XLSX export for both live and snapshot views
 - empty-state / missing-metadata audit UX
 
@@ -445,19 +453,13 @@ This should follow the same admin gating model already used in:
 
 ## Open questions to confirm before implementation
 
-1. **Contract Date source**
-   - Does this already live somewhere upstream (HubSpot/QBO) and just need syncing?
-   - Or is this admin-entered only?
+No blocking product questions remain from Joe's side.
 
-2. **Sales Tax Included**
-   - Boolean is probably enough, but do they need tax amount too?
-
-3. **Snapshot governance**
-   - Should snapshots be generated manually only, or also on a monthly close workflow?
-   - Do snapshots need a `finalized/locked` state separate from draft generation?
-
-4. **Class future state**
-   - Even though it is a placeholder now, should we eventually constrain it to a fixed list or QBO class sync?
+Implementation details to keep explicit during build:
+1. whether the current app already exposes/edits `close_date` cleanly enough for WIP maintenance or needs better admin UX
+2. the exact manual input shape for `Sales Tax Included` in v1 (free text vs constrained placeholder values)
+3. whether `draft -> final` snapshots should be editable only before finalization
+4. how/when `wip_class` should later sync from QBO once that integration path exists
 
 ---
 
@@ -469,7 +471,7 @@ This should follow the same admin gating model already used in:
 - derived estimated cost with manual override
 - filters for status/date/customer/PM/class
 - CSV + Excel export
-- snapshot architecture in v1, including frozen snapshot tables and snapshot-based exports
+- snapshot architecture in v1, including frozen snapshot tables/rows, manual snapshot creation, and `draft`/`final` states
 
 ### Defer unless Venturity says it is needed immediately after MVP
 - bulk inline editing grid
@@ -506,10 +508,11 @@ Likely files to touch:
 6. Report can export current filtered live data to Excel.
 7. Admin can create a month-end snapshot for a chosen period-end date.
 8. Snapshot rows remain frozen even if live project data changes later.
-9. Admin can reopen and export a saved snapshot to CSV/XLSX.
-10. Missing WIP metadata is visible and administratively fixable.
-11. Estimated Cost is always populated either from derived budget or manual override.
-12. Non-admin users cannot access the report, snapshots, or exports.
+9. Snapshots support explicit `draft` and `final` states.
+10. Admin can reopen and export a saved snapshot to CSV/XLSX.
+11. Missing WIP metadata is visible and administratively fixable.
+12. Estimated Cost is always populated either from derived budget or manual override.
+13. Non-admin users cannot access the report, snapshots, or exports.
 
 ---
 
