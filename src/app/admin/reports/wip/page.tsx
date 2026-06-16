@@ -53,6 +53,9 @@ export default function WipReportPage() {
   const [snapshotDate, setSnapshotDate] = useState(new Date().toISOString().slice(0, 10));
   const [snapshotStatus, setSnapshotStatus] = useState<"draft" | "final">("draft");
   const [snapshotNotes, setSnapshotNotes] = useState("");
+  const [editingSnapshot, setEditingSnapshot] = useState(false);
+  const [savingSnapshotChanges, setSavingSnapshotChanges] = useState(false);
+  const [deletingSnapshot, setDeletingSnapshot] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [loadingSnapshotRows, setLoadingSnapshotRows] = useState(false);
 
@@ -176,6 +179,13 @@ export default function WipReportPage() {
     });
   }, [loadSnapshotRows, mode, selectedSnapshotId]);
 
+  useEffect(() => {
+    if (!currentSnapshot) return;
+    setSnapshotDate(currentSnapshot.snapshot_date);
+    setSnapshotStatus(currentSnapshot.status);
+    setSnapshotNotes(currentSnapshot.notes ?? "");
+  }, [currentSnapshot]);
+
   function updateFilter<K extends keyof WipFilters>(key: K, value: WipFilters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
   }
@@ -227,6 +237,7 @@ export default function WipReportPage() {
       const createdSnapshot = nextSnapshots.find((snapshot) => snapshot.id === snapshotData.id);
       setSelectedSnapshotId(snapshotData.id);
       setMode("snapshot");
+      setEditingSnapshot(false);
       setSnapshotNotes("");
       if (createdSnapshot) {
         await loadSnapshotRows(createdSnapshot.id);
@@ -237,6 +248,67 @@ export default function WipReportPage() {
       toast.error(error instanceof Error ? error.message : "Failed to create snapshot.");
     } finally {
       setCreatingSnapshot(false);
+    }
+  }
+
+  async function handleSaveSnapshotChanges() {
+    if (!currentSnapshot) return;
+    if (!snapshotDate) {
+      toast.error("Snapshot date is required.");
+      return;
+    }
+
+    try {
+      setSavingSnapshotChanges(true);
+      const { error } = await supabase
+        .from("wip_report_snapshots")
+        .update({
+          snapshot_date: snapshotDate,
+          status: snapshotStatus,
+          notes: snapshotNotes.trim() || null,
+        })
+        .eq("id", currentSnapshot.id);
+
+      if (error) throw error;
+
+      await loadSnapshots();
+      setEditingSnapshot(false);
+      toast.success("Snapshot updated.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update snapshot.");
+    } finally {
+      setSavingSnapshotChanges(false);
+    }
+  }
+
+  async function handleDeleteSnapshot() {
+    if (!currentSnapshot) return;
+    if (!confirm(`Delete snapshot ${formatDate(currentSnapshot.snapshot_date)}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingSnapshot(true);
+      const { error } = await supabase
+        .from("wip_report_snapshots")
+        .delete()
+        .eq("id", currentSnapshot.id);
+
+      if (error) throw error;
+
+      const nextSnapshots = await loadSnapshots();
+      const nextSelectedId = nextSnapshots[0]?.id ?? "";
+      setSelectedSnapshotId(nextSelectedId);
+      setSnapshotRows([]);
+      setEditingSnapshot(false);
+      if (nextSelectedId) {
+        await loadSnapshotRows(nextSelectedId);
+      }
+      toast.success("Snapshot deleted.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete snapshot.");
+    } finally {
+      setDeletingSnapshot(false);
     }
   }
 
@@ -422,7 +494,10 @@ export default function WipReportPage() {
                   return (
                     <button
                       key={snapshot.id}
-                      onClick={() => setSelectedSnapshotId(snapshot.id)}
+                      onClick={() => {
+                        setSelectedSnapshotId(snapshot.id);
+                        setEditingSnapshot(false);
+                      }}
                       className={`rounded-lg border p-4 text-left transition-colors ${active ? "border-primary bg-primary/5" : "border-border hover:bg-muted/30"}`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -438,6 +513,63 @@ export default function WipReportPage() {
                     </button>
                   );
                 })}
+              </div>
+            )}
+            {currentSnapshot && (
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="font-medium">Edit Snapshot</h3>
+                    <p className="text-sm text-muted-foreground">Update snapshot metadata or remove the snapshot entirely.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => setEditingSnapshot((value) => !value)}>
+                      {editingSnapshot ? "Cancel Edit" : "Edit Snapshot"}
+                    </Button>
+                    <Button variant="outline" onClick={handleDeleteSnapshot} disabled={deletingSnapshot}>
+                      {deletingSnapshot ? "Deleting..." : "Delete Snapshot"}
+                    </Button>
+                  </div>
+                </div>
+                {editingSnapshot ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="editSnapshotDate">As of Date</Label>
+                      <Input id="editSnapshotDate" type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editSnapshotStatus">Status</Label>
+                      <select id="editSnapshotStatus" className={selectClass} value={snapshotStatus} onChange={(e) => setSnapshotStatus(e.target.value as "draft" | "final")}>
+                        <option value="draft">Draft</option>
+                        <option value="final">Final</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-3">
+                      <Label htmlFor="editSnapshotNotes">Notes</Label>
+                      <Textarea id="editSnapshotNotes" value={snapshotNotes} onChange={(e) => setSnapshotNotes(e.target.value)} rows={3} />
+                    </div>
+                    <div className="md:col-span-3 flex justify-end">
+                      <Button onClick={handleSaveSnapshotChanges} disabled={savingSnapshotChanges}>
+                        {savingSnapshotChanges ? "Saving..." : "Save Snapshot Changes"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">As of Date</span>
+                      <p>{formatDate(currentSnapshot.snapshot_date)}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Status</span>
+                      <p className="capitalize">{currentSnapshot.status}</p>
+                    </div>
+                    <div className="md:col-span-3">
+                      <span className="text-muted-foreground">Notes</span>
+                      <p>{currentSnapshot.notes || "—"}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {loadingSnapshotRows && <p className="text-sm text-muted-foreground">Loading snapshot rows...</p>}

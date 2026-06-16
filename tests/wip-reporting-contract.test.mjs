@@ -66,13 +66,16 @@ test('edit project page exposes WIP reporting metadata fields', () => {
   assert.match(source, /Estimated Cost Override/);
 });
 
-test('wip report page and helper support live view, snapshots, and exports', () => {
+test('wip report page and helper support live view, snapshots, exports, and snapshot editing/deletion', () => {
   const page = read('../src/app/admin/reports/wip/page.tsx');
   const helper = read('../src/lib/wip-report.ts');
 
   assert.match(page, /Export CSV/);
   assert.match(page, /Export Excel/);
   assert.match(page, /Create Snapshot/);
+  assert.match(page, /Edit Snapshot/);
+  assert.match(page, /Delete Snapshot/);
+  assert.match(page, /Save Snapshot Changes/);
   assert.match(page, /Draft/);
   assert.match(page, /Final/);
   assert.match(page, /Contract Date/);
@@ -80,6 +83,9 @@ test('wip report page and helper support live view, snapshots, and exports', () 
   assert.match(page, /from\("project_summary"\)/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
   assert.match(page, /from\("wip_report_snapshot_rows"\)/);
+  assert.match(page, /\.update\(\{/);
+  assert.match(page, /\.delete\(\)/);
+  assert.match(page, /confirm\(`Delete snapshot/);
 
   assert.match(helper, /export function buildWipCsv/);
   assert.match(helper, /export function buildWipWorkbook/);
