@@ -78,9 +78,10 @@ test('edit project page exposes the remaining WIP reporting metadata fields with
   assert.match(source, /Estimated Cost Override/);
 });
 
-test('wip report page and helper support live view, snapshots, exports, snapshot editing/deletion, and omit job nickname', () => {
+test('wip report page and helper support live view, snapshots, exports, snapshot editing/deletion, project drill-in modal, and omit job nickname', () => {
   const page = read('../src/app/admin/reports/wip/page.tsx');
   const helper = read('../src/lib/wip-report.ts');
+  const modal = read('../src/components/wip-project-dialog.tsx');
 
   assert.match(page, /Export CSV/);
   assert.match(page, /Export Excel/);
@@ -99,6 +100,15 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(page, /\.update\(\{/);
   assert.match(page, /\.delete\(\)/);
   assert.match(page, /confirm\(`Delete snapshot/);
+  assert.match(page, /WipProjectDialog/);
+  assert.match(page, /triggerLabel=\{row\.project_number \?\? "—"\}/);
+  assert.match(page, /triggerLabel=\{row\.project_name\}/);
+
+  assert.match(modal, /Dialog/);
+  assert.match(modal, /from\("project_summary"\)/);
+  assert.match(modal, /Open Full Project/);
+  assert.match(modal, /href=\{`\/projects\/\$\{row\.project_id\}`\}/);
+  assert.match(modal, /View Snapshot Row/);
 
   assert.match(helper, /export function buildWipCsv/);
   assert.match(helper, /export function buildWipWorkbook/);

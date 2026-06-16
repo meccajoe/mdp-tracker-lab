@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { WipProjectDialog } from "@/components/wip-project-dialog";
 import { ProjectSummary, WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
 import {
   EMPTY_WIP_FILTERS,
@@ -618,8 +619,20 @@ export default function WipReportPage() {
                   {filteredRows.map((row) => (
                     <tr key={`${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="border-t border-border">
                       <td className="px-3 py-2">{row.customer}</td>
-                      <td className="px-3 py-2">{row.project_number ?? "—"}</td>
-                      <td className="px-3 py-2">{row.project_name}</td>
+                      <td className="px-3 py-2">
+                        <WipProjectDialog
+                          row={row}
+                          triggerLabel={row.project_number ?? "—"}
+                          triggerClassName="text-left font-mono text-sm text-primary underline-offset-4 hover:underline"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <WipProjectDialog
+                          row={row}
+                          triggerLabel={row.project_name}
+                          triggerClassName="text-left font-medium text-primary underline-offset-4 hover:underline"
+                        />
+                      </td>
                       <td className="px-3 py-2">{row.wip_class ?? "—"}</td>
                       <td className="px-3 py-2">{formatDate(row.contract_date)}</td>
                       <td className="px-3 py-2 text-right">{formatCurrency(row.contract_amount)}</td>
