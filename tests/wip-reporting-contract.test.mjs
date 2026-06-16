@@ -101,8 +101,15 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(page, /\.delete\(\)/);
   assert.match(page, /confirm\(`Delete snapshot/);
   assert.match(page, /WipProjectDialog/);
+  assert.match(page, /Badge/);
+  assert.match(page, /getPmChipClassName/);
   assert.match(page, /triggerLabel=\{row\.project_number \?\? "—"\}/);
   assert.match(page, /triggerLabel=\{row\.project_name\}/);
+  assert.match(page, /text-blue-600/);
+  assert.match(page, /text-emerald-700/);
+  assert.match(page, /text-rose-700/);
+  assert.match(page, /font-semibold/);
+  assert.match(page, /even:bg-muted\/15/);
 
   assert.match(modal, /Dialog/);
   assert.match(modal, /from\("project_summary"\)/);

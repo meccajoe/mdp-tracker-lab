@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { canManageProjectActions } from "@/lib/admin-access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -597,9 +598,9 @@ export default function WipReportPage() {
           ) : filteredRows.length === 0 ? (
             <p className="text-sm text-muted-foreground">No WIP rows match the current filters.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
+            <div className="overflow-x-auto rounded-lg border border-border shadow-xs">
               <table className="min-w-full text-sm">
-                <thead className="bg-muted/40 text-left">
+                <thead className="bg-muted/45 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium">Customer</th>
                     <th className="px-3 py-2 font-medium">Project #</th>
@@ -617,31 +618,43 @@ export default function WipReportPage() {
                 </thead>
                 <tbody>
                   {filteredRows.map((row) => (
-                    <tr key={`${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="border-t border-border">
+                    <tr key={`${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="border-t border-border/70 even:bg-muted/15 hover:bg-muted/35 transition-colors">
                       <td className="px-3 py-2">{row.customer}</td>
                       <td className="px-3 py-2">
                         <WipProjectDialog
                           row={row}
                           triggerLabel={row.project_number ?? "—"}
-                          triggerClassName="text-left font-mono text-sm text-primary underline-offset-4 hover:underline"
+                          triggerClassName="text-left font-mono text-sm font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
                         />
                       </td>
                       <td className="px-3 py-2">
                         <WipProjectDialog
                           row={row}
                           triggerLabel={row.project_name}
-                          triggerClassName="text-left font-medium text-primary underline-offset-4 hover:underline"
+                          triggerClassName="text-left font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
                         />
                       </td>
                       <td className="px-3 py-2">{row.wip_class ?? "—"}</td>
-                      <td className="px-3 py-2">{formatDate(row.contract_date)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(row.contract_amount)}</td>
-                      <td className="px-3 py-2 text-right">{formatCurrency(row.estimated_cost)}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{formatDate(row.contract_date)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.contract_amount)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-rose-700 dark:text-rose-400">{formatCurrency(row.estimated_cost)}</td>
                       <td className="px-3 py-2">{row.sales_tax_included || "—"}</td>
-                      <td className="px-3 py-2">{formatDate(row.completion_date)}</td>
-                      <td className="px-3 py-2">{row.project_status ?? "—"}</td>
-                      <td className="px-3 py-2">{row.pm_initials ?? "—"}</td>
-                      <td className="px-3 py-2">{row.estimated_cost_source === "manual_override" ? "Manual Override" : "Derived"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{formatDate(row.completion_date)}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className={getStatusChipClassName(row.project_status)}>
+                          {row.project_status ?? "—"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className={getPmChipClassName(row.pm_initials)}>
+                          {row.pm_initials ?? "—"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+                          {row.estimated_cost_source === "manual_override" ? "Manual Override" : "Derived"}
+                        </Badge>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -656,4 +669,46 @@ export default function WipReportPage() {
 
 function uniqueValues(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => (value ?? "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+}
+
+function getPmChipClassName(pmInitials: string | null) {
+  switch (pmInitials ?? "") {
+    case "VW":
+      return "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/60 dark:text-cyan-300";
+    case "GM":
+      return "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300";
+    case "MS":
+      return "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/60 dark:text-violet-300";
+    case "AS":
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300";
+    case "NG":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300";
+    case "PM":
+      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-900 dark:bg-fuchsia-950/60 dark:text-fuchsia-300";
+    case "KM":
+      return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/60 dark:text-sky-300";
+    case "KS":
+      return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950/60 dark:text-orange-300";
+    case "CC":
+      return "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950/60 dark:text-teal-300";
+    case "MM":
+      return "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-900 dark:bg-pink-950/60 dark:text-pink-300";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300";
+  }
+}
+
+function getStatusChipClassName(status: string | null) {
+  switch (status ?? "") {
+    case "Active":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300";
+    case "Completed":
+      return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300";
+    case "On Hold":
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300";
+    case "Pending":
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-300";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300";
+  }
 }
