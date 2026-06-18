@@ -3,12 +3,20 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const routePath = path.resolve('src/app/api/webhooks/hubspot/route.ts');
-const routeSource = fs.readFileSync(routePath, 'utf8');
-const typesPath = path.resolve('src/lib/types.ts');
-const typesSource = fs.readFileSync(typesPath, 'utf8');
-const helperPath = path.resolve('src/lib/billcom-budget.ts');
-const helperSource = fs.readFileSync(helperPath, 'utf8');
+function read(relativePath) {
+  return fs.readFileSync(path.resolve(relativePath), 'utf8');
+}
+
+function readIfExists(relativePath) {
+  const resolved = path.resolve(relativePath);
+  return fs.existsSync(resolved) ? fs.readFileSync(resolved, 'utf8') : '';
+}
+
+const routeSource = read('src/app/api/webhooks/hubspot/route.ts');
+const typesSource = read('src/lib/types.ts');
+const helperSource = read('src/lib/billcom-budget.ts');
+const manualRouteSource = readIfExists('src/app/api/projects/[id]/bill-budget/route.ts');
+const projectPageSource = read('src/app/projects/[id]/page.tsx');
 
 const {
   BILL_DEFAULT_INCLUDED_BUDGET_KEYS,
@@ -125,4 +133,29 @@ test('Bill budget helper uses BILL budget description field and initial-create s
   assert.match(helperSource, /NONE/);
   assert.match(helperSource, /POST/);
   assert.doesNotMatch(helperSource, /PATCH[\s\S]*existing bill budget/i);
+});
+
+test('Bill budget helper defaults owner to Paul and supports PM member assignment after create', () => {
+  assert.match(helperSource, /paul@meccadesign\.com/);
+  assert.match(helperSource, /\/v3\/spend\/users/);
+  assert.match(helperSource, /\/v3\/spend\/budgets\/\$\{budgetUuid\}\/members\/\$\{memberUuid\}/);
+  assert.match(helperSource, /limit:/);
+  assert.match(helperSource, /recurringLimit:/);
+});
+
+test('manual BILL budget trigger route requires admin auth and writes manual trigger source', () => {
+  assert.match(manualRouteSource, /canManageProjectActions/);
+  assert.match(manualRouteSource, /Authentication required/);
+  assert.match(manualRouteSource, /Admin access required/);
+  assert.match(manualRouteSource, /seedBillBudgetForProject/);
+  assert.match(manualRouteSource, /manual_project_trigger/);
+  assert.match(manualRouteSource, /no_bill_managed_budget_default/);
+});
+
+test('project page exposes BILL budget status and a manual create action for admins', () => {
+  assert.match(projectPageSource, /BILL Budget/);
+  assert.match(projectPageSource, /Create BILL Budget/);
+  assert.match(projectPageSource, /\/api\/projects\/\$\{projectId\}\/bill-budget/);
+  assert.match(projectPageSource, /bill_budget_last_sync_status/);
+  assert.match(projectPageSource, /bill_budget_uuid/);
 });

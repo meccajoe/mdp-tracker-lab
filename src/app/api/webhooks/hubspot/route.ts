@@ -17,7 +17,7 @@ import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, type HubSpotL
 import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
 import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
-import { buildBillBudgetDescription, calculateBillManagedBudgetTotal, seedBillBudgetForProject, shouldSeedBillBudget } from "@/lib/billcom-budget";
+import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, seedBillBudgetForProject, shouldSeedBillBudget } from "@/lib/billcom-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
       // Upsert path: existing HubSpot-linked project should be refreshed, not skipped.
       const { data: existing } = await supabase
         .from("projects")
-        .select("id, bill_budget_uuid")
+        .select("id, bill_budget_uuid, pm")
         .eq("hubspot_deal_id", String(dealId))
         .maybeSingle();
 
@@ -461,7 +461,11 @@ export async function POST(req: NextRequest) {
         budget_flooring: quoteSyncFields.budget_flooring,
       } as CalculatedBudgets;
 
-      const billJobNameSnapshot = `${jobNumber} - ${deal.properties.dealname}`;
+      const billJobNameSnapshot = buildBillBudgetName({
+        billJobName: null,
+        jobNumber,
+        projectName: deal.properties.dealname,
+      });
       const billBudgetTotal = calculateBillManagedBudgetTotal({
         budget_travel: quoteSyncFields.budget_travel,
         budget_props: quoteSyncFields.budget_props,
@@ -475,12 +479,23 @@ export async function POST(req: NextRequest) {
         seededAt: new Date().toISOString().slice(0, 10),
       });
 
-      const maybeSeedBillBudget = async (projectId: string, existingBillBudgetUuid: string | null) => {
+      const maybeSeedBillBudget = async (projectId: string, existingBillBudgetUuid: string | null, projectPm: string | null) => {
         const shouldCreateBillBudget = shouldSeedBillBudget({
           bill_budget_uuid: existingBillBudgetUuid,
           budget_travel: quoteSyncFields.budget_travel,
           budget_props: quoteSyncFields.budget_props,
         });
+
+        let pmEmail: string | null = null;
+        const pmInitials = projectPm && projectPm !== "TBD" ? projectPm : null;
+        if (pmInitials) {
+          const { data: pmRow } = await supabase
+            .from("user_roles")
+            .select("email")
+            .eq("pm_initials", pmInitials)
+            .maybeSingle();
+          pmEmail = pmRow?.email?.toLowerCase() ?? null;
+        }
 
         if (!shouldCreateBillBudget) {
           const skippedStatus = existingBillBudgetUuid ? "already_seeded" : "no_bill_managed_budget_default";
@@ -503,6 +518,7 @@ export async function POST(req: NextRequest) {
           billJobName: billJobNameSnapshot,
           budgetTravel: quoteSyncFields.budget_travel ?? 0,
           budgetProps: quoteSyncFields.budget_props ?? 0,
+          pmEmail,
         });
 
         const updatePayload: Record<string, string | number | null> = {
@@ -523,15 +539,18 @@ export async function POST(req: NextRequest) {
       };
 
       if (existing) {
-        const existingProject = existing as { id: string; bill_budget_uuid: string | null };
+        const existingProject = existing as { id: string; bill_budget_uuid: string | null; pm: string | null };
         const { id: _ignore, ...updatePayload } = insertPayload;
+        if (existingProject.pm && existingProject.pm !== "TBD") {
+          updatePayload.pm = existingProject.pm;
+        }
         const { error: updateError } = await supabase.from("projects").update(updatePayload).eq("id", existingProject.id);
         if (updateError) {
           console.error(`[hubspot webhook] Failed to refresh project for deal ${dealId}:`, updateError);
           results.push({ dealId, status: "error" });
           continue;
         }
-        await maybeSeedBillBudget(existingProject.id, existingProject.bill_budget_uuid ?? null);
+        await maybeSeedBillBudget(existingProject.id, existingProject.bill_budget_uuid ?? null, existingProject.pm ?? null);
         console.log(`[hubspot webhook] Refreshed project ${existingProject.id} for deal ${dealId}`);
         results.push({ dealId, status: "updated" });
         continue;
@@ -544,7 +563,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      await maybeSeedBillBudget(jobNumber, null);
+      await maybeSeedBillBudget(jobNumber, null, insertPayload.pm ?? null);
 
       console.log(`[hubspot webhook] Created project ${jobNumber} for deal ${dealId}`);
 

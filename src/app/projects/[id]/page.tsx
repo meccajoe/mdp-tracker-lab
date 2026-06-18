@@ -194,6 +194,39 @@ function getStatusVariant(
   }
 }
 
+function getBillBudgetStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "created":
+      return "Created";
+    case "created_with_member_warning":
+      return "Created with member warning";
+    case "already_seeded":
+      return "Already seeded";
+    case "no_bill_managed_budget_default":
+      return "Skipped: no travel/props budget";
+    case "error":
+      return "Create failed";
+    default:
+      return status ?? "Not started";
+  }
+}
+
+function getBillBudgetStatusVariant(
+  status: string | null | undefined
+): "default" | "secondary" | "destructive" | "outline" {
+  switch (status) {
+    case "created":
+    case "already_seeded":
+      return "secondary";
+    case "created_with_member_warning":
+      return "outline";
+    case "error":
+      return "destructive";
+    default:
+      return "outline";
+  }
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
@@ -215,6 +248,7 @@ export default function ProjectDetailPage() {
   const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
   const [showQuoteAllocation, setShowQuoteAllocation] = useState(false);
   const [rebaselineSaving, setRebaselineSaving] = useState(false);
+  const [billBudgetCreating, setBillBudgetCreating] = useState(false);
   const [quoteAllocationRows, setQuoteAllocationRows] = useState<QuoteLineBudgetAllocationRow[]>([]);
   const [quoteAllocationTotals, setQuoteAllocationTotals] = useState({
     line_total: 0,
@@ -472,6 +506,39 @@ export default function ProjectDetailPage() {
       toast.error(message);
     } finally {
       setRebaselineSaving(false);
+    }
+  }
+
+  async function handleCreateBillBudget() {
+    if (!project) return;
+    if (!isAdmin) {
+      toast.error("Only admins can create BILL budgets.");
+      return;
+    }
+    if (project.bill_budget_uuid) {
+      toast.error("This project already has a BILL budget.");
+      return;
+    }
+
+    setBillBudgetCreating(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/bill-budget`, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to create BILL budget");
+      }
+      await fetchProject();
+      if (result?.result?.status === "created_with_member_warning") {
+        toast.success("BILL budget created. PM assignment needs attention.");
+      } else {
+        toast.success("BILL budget created.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to create BILL budget";
+      toast.error(message);
+      await fetchProject();
+    } finally {
+      setBillBudgetCreating(false);
     }
   }
 
@@ -735,6 +802,64 @@ export default function ProjectDetailPage() {
       </div>
 
       <Separator />
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle>BILL Budget</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Paul owns the budget by default. The project PM is assigned after create when a BILL user match is available.
+            </p>
+          </div>
+          {effectiveIsAdmin && !project.bill_budget_uuid && (
+            <Button size="sm" onClick={handleCreateBillBudget} disabled={billBudgetCreating}>
+              {billBudgetCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create BILL Budget"
+              )}
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant={getBillBudgetStatusVariant(project.bill_budget_last_sync_status)}>
+              {getBillBudgetStatusLabel(project.bill_budget_last_sync_status)}
+            </Badge>
+            {project.bill_budget_uuid && (
+              <span className="text-muted-foreground">UUID: {project.bill_budget_uuid}</span>
+            )}
+            <span className="text-muted-foreground">
+              BILL-managed total: {formatCurrency(project.bill_budget_total_snapshot ?? 0)}
+            </span>
+            {project.bill_budget_seed_source && (
+              <span className="text-muted-foreground">Source: {project.bill_budget_seed_source}</span>
+            )}
+          </div>
+          {project.bill_budget_name && (
+            <p className="text-muted-foreground">Budget name: {project.bill_budget_name}</p>
+          )}
+          {project.bill_budget_seeded_at && (
+            <p className="text-muted-foreground">
+              Created: {formatDateTimeCentral(project.bill_budget_seeded_at)}
+            </p>
+          )}
+          {project.bill_budget_last_sync_error && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+              {project.bill_budget_last_sync_error}
+            </div>
+          )}
+          {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "no_bill_managed_budget_default" && (
+            <p className="text-muted-foreground">
+              No BILL budget was auto-created because travel + props currently total {formatCurrency(project.bill_budget_total_snapshot ?? 0)}.
+              Update those project budgets, then use Create BILL Budget.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Budget Summary Card */}
       <Card>
