@@ -61,7 +61,7 @@ test('Bill budget mirror defaults only include travel and props in the subtotal'
   assert.equal(total, 1700);
 });
 
-test('Bill budget description shows the included category snapshot and excludes full-project semantics', () => {
+test('Bill budget description stays compact enough for BILL create requests while preserving the key snapshot', () => {
   const description = buildBillBudgetDescription({
     projectId: '26115',
     jobName: '26115 - Sample Project',
@@ -71,13 +71,12 @@ test('Bill budget description shows the included category snapshot and excludes 
     seededAt: '2026-06-18',
   });
 
-  assert.match(description, /BILL-managed budget snapshot/);
-  assert.match(description, /Job: 26115 - Sample Project/);
-  assert.match(description, /MDP Project: 26115/);
-  assert.match(description, /Travel: \$1,200/);
-  assert.match(description, /Props: \$500/);
-  assert.match(description, /BILL-managed total: \$1,700/);
-  assert.match(description, /Excluded from BILL default budget:/);
+  assert.match(description, /Travel \$1,200/);
+  assert.match(description, /Props \$500/);
+  assert.match(description, /Total \$1,700/);
+  assert.match(description, /MDP seed 2026-06-18/);
+  assert.ok(description.length <= 120, `expected compact BILL description, got ${description.length} chars`);
+  assert.doesNotMatch(description, /Excluded from BILL default budget:/);
   assert.doesNotMatch(description, /Full project budget/i);
 });
 

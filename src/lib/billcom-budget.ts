@@ -29,8 +29,6 @@ function formatCurrency(amount: number): string {
 }
 
 export function buildBillBudgetDescription({
-  projectId,
-  jobName,
   travel,
   props,
   total,
@@ -43,23 +41,7 @@ export function buildBillBudgetDescription({
   total: number;
   seededAt: string;
 }): string {
-  return [
-    "BILL-managed budget snapshot",
-    `Job: ${jobName}`,
-    `MDP Project: ${projectId}`,
-    "",
-    "Included by default:",
-    `Travel: ${formatCurrency(travel)}`,
-    `Props: ${formatCurrency(props)}`,
-    "",
-    `BILL-managed total: ${formatCurrency(total)}`,
-    "",
-    "Excluded from BILL default budget:",
-    "Labor Hours, Materials, Design, PM, Shipping, Crating, I&D Labor, Equipment, Rental, Flooring/Graphics",
-    "",
-    "Source: MDP Tracker",
-    `Seeded: ${seededAt}`,
-  ].join("\n");
+  return `Travel ${formatCurrency(travel)} | Props ${formatCurrency(props)} | Total ${formatCurrency(total)} | MDP seed ${seededAt}`;
 }
 
 export function buildBillBudgetName({
