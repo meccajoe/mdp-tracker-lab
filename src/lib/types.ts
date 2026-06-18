@@ -16,6 +16,14 @@ export interface Project {
   hubspot_deal_url: string | null;
   qbo_project_id: string | null;
   qbo_project_url: string | null;
+  bill_budget_uuid: string | null;
+  bill_budget_name: string | null;
+  bill_budget_seeded_at: string | null;
+  bill_budget_seed_source: string | null;
+  bill_budget_last_sync_status: string | null;
+  bill_budget_last_sync_error: string | null;
+  bill_job_name_snapshot: string | null;
+  bill_budget_total_snapshot: number | null;
   budget_hrs: number | null;
   budget_design: number | null;
   budget_pm: number | null;

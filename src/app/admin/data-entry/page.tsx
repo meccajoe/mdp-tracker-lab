@@ -439,6 +439,8 @@ export default function DataEntryPage() {
       job_number: null, close_date: null, due_date: null, contract_amount: null,
       wip_class: null, sales_tax_included: null, estimated_cost_override: null,
       hubspot_deal_id: null, hubspot_deal_url: null, qbo_project_id: null, qbo_project_url: null,
+      bill_budget_uuid: null, bill_budget_name: null, bill_budget_seeded_at: null, bill_budget_seed_source: null,
+      bill_budget_last_sync_status: null, bill_budget_last_sync_error: null, bill_job_name_snapshot: null, bill_budget_total_snapshot: null,
       budget_hrs: null, budget_design: null, budget_pm: null, budget_shipping: null,
       budget_crating: null, budget_id_labor: null, budget_travel: null, budget_props: null, budget_equipment: null,
       budget_rental: null, budget_flooring: null, notes: null, project_type: null, created_at: "", updated_at: "",
