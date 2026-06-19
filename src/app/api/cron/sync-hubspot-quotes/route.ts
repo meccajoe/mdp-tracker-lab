@@ -120,23 +120,26 @@ export async function GET(request: NextRequest) {
       }
 
       let parsed = emptyParsedQuote(parseFloat(deal.properties.amount ?? "0") || 0);
-      let quoteId: string | null = null;
+      const quoteId = await getDealQuote(dealId, deal.properties.dealname ?? undefined);
 
-      try {
-        quoteId = await getDealQuote(dealId, deal.properties.dealname ?? undefined);
-        if (quoteId) {
-          const lineItems = await getQuoteLineItems(quoteId);
-          if (lineItems.length > 0) {
-            const fromLineItems = parseLineItems(lineItems);
-            parsed = {
-              ...fromLineItems,
-              contractAmount: fromLineItems.contractAmount > 0 ? fromLineItems.contractAmount : parsed.contractAmount,
-            };
-          }
-        }
-      } catch (error) {
-        console.error(`[cron/sync-hubspot-quotes] Failed to fetch latest quote for deal ${dealId}:`, error);
+      if (!quoteId) {
+        skipped += 1;
+        results.push({ projectId: project.id, dealId, status: "skipped", error: "missing_quote" });
+        continue;
       }
+
+      const lineItems = await getQuoteLineItems(quoteId);
+      if (lineItems.length === 0) {
+        skipped += 1;
+        results.push({ projectId: project.id, dealId, status: "skipped", quoteId, error: "missing_quote_line_items" });
+        continue;
+      }
+
+      const fromLineItems = parseLineItems(lineItems);
+      parsed = {
+        ...fromLineItems,
+        contractAmount: fromLineItems.contractAmount > 0 ? fromLineItems.contractAmount : parsed.contractAmount,
+      };
 
       const quoteSyncFields = buildHubspotQuoteSyncFields(parsed);
       const updatePayload = stripUnsupportedProjectFields({
