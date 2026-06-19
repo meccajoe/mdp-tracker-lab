@@ -830,6 +830,16 @@ export default function ProjectDetailPage() {
               <span>Closed: {project.close_date}</span>
             )}
           </div>
+        </div>
+        {effectiveIsAdmin && (
+          <Link href={`/projects/${projectId}/edit`}>
+            <Button variant="outline" size="sm">Edit Project</Button>
+          </Link>
+        )}
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+        <div className="space-y-3">
           {(project as unknown as Record<string, string>).due_date && (
             <CountdownClock
               dueDate={(project as unknown as Record<string, string>).due_date}
@@ -850,84 +860,65 @@ export default function ProjectDetailPage() {
             </details>
           )}
         </div>
-        {effectiveIsAdmin && (
-          <Link href={`/projects/${projectId}/edit`}>
-            <Button variant="outline" size="sm">Edit Project</Button>
-          </Link>
-        )}
+
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
+            <div className="space-y-1">
+              <CardTitle className="text-base">BILL Budget</CardTitle>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <Badge variant={getBillBudgetStatusVariant(project.bill_budget_last_sync_status)}>
+                  {getBillBudgetStatusLabel(project.bill_budget_last_sync_status)}
+                </Badge>
+                <span>
+                  BILL-managed total: {formatCurrency(project.bill_budget_total_snapshot ?? 0)}
+                </span>
+              </div>
+            </div>
+            {effectiveIsAdmin && !project.bill_budget_uuid && (
+              <Button size="sm" onClick={handleCreateBillBudget} disabled={billBudgetCreating}>
+                {billBudgetCreating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  project.bill_budget_last_sync_status === "missing_in_bill"
+                    ? "Recreate BILL Budget"
+                    : "Create BILL Budget"
+                )}
+              </Button>
+            )}
+            {project.bill_budget_uuid && billBudgetViewUrl && (
+              <Link href={billBudgetViewUrl} target="_blank" rel="noreferrer">
+                <Button size="sm" variant="outline">View BILL Budget</Button>
+              </Link>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0 text-sm">
+            {project.bill_budget_name && (
+              <p className="text-muted-foreground">Budget name: {project.bill_budget_name}</p>
+            )}
+            {project.bill_budget_last_sync_error && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                {project.bill_budget_last_sync_error}
+              </div>
+            )}
+            {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "no_bill_managed_budget_default" && (
+              <p className="text-muted-foreground">
+                No BILL budget was auto-created because travel + props currently total {formatCurrency(project.bill_budget_total_snapshot ?? 0)}.
+                Update those project budgets, then use Create BILL Budget.
+              </p>
+            )}
+            {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "missing_in_bill" && (
+              <p className="text-muted-foreground">
+                The previously linked BILL budget no longer exists in BILL. You can recreate it from here.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Separator />
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <div className="space-y-1">
-            <CardTitle>BILL Budget</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Paul owns the budget by default. The project PM is assigned after create when a BILL user match is available.
-            </p>
-          </div>
-          {effectiveIsAdmin && !project.bill_budget_uuid && (
-            <Button size="sm" onClick={handleCreateBillBudget} disabled={billBudgetCreating}>
-              {billBudgetCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                project.bill_budget_last_sync_status === "missing_in_bill"
-                  ? "Recreate BILL Budget"
-                  : "Create BILL Budget"
-              )}
-            </Button>
-          )}
-          {project.bill_budget_uuid && billBudgetViewUrl && (
-            <Link href={billBudgetViewUrl} target="_blank" rel="noreferrer">
-              <Button size="sm" variant="outline">View BILL Budget</Button>
-            </Link>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge variant={getBillBudgetStatusVariant(project.bill_budget_last_sync_status)}>
-              {getBillBudgetStatusLabel(project.bill_budget_last_sync_status)}
-            </Badge>
-            {project.bill_budget_uuid && (
-              <span className="text-muted-foreground">UUID: {project.bill_budget_uuid}</span>
-            )}
-            <span className="text-muted-foreground">
-              BILL-managed total: {formatCurrency(project.bill_budget_total_snapshot ?? 0)}
-            </span>
-            {project.bill_budget_seed_source && (
-              <span className="text-muted-foreground">Source: {project.bill_budget_seed_source}</span>
-            )}
-          </div>
-          {project.bill_budget_name && (
-            <p className="text-muted-foreground">Budget name: {project.bill_budget_name}</p>
-          )}
-          {project.bill_budget_seeded_at && (
-            <p className="text-muted-foreground">
-              Created: {formatDateTimeCentral(project.bill_budget_seeded_at)}
-            </p>
-          )}
-          {project.bill_budget_last_sync_error && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-              {project.bill_budget_last_sync_error}
-            </div>
-          )}
-          {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "no_bill_managed_budget_default" && (
-            <p className="text-muted-foreground">
-              No BILL budget was auto-created because travel + props currently total {formatCurrency(project.bill_budget_total_snapshot ?? 0)}.
-              Update those project budgets, then use Create BILL Budget.
-            </p>
-          )}
-          {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "missing_in_bill" && (
-            <p className="text-muted-foreground">
-              The previously linked BILL budget no longer exists in BILL. You can recreate it from here.
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Budget Summary Card */}
       <Card>
