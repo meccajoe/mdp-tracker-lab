@@ -173,6 +173,15 @@ test('project page exposes BILL budget status plus create/view actions', () => {
   assert.match(projectPageSource, /bill_budget_uuid/);
 });
 
+test('project page merges BILL linkage fields from projects when project_summary omits them', () => {
+  assert.match(projectPageSource, /from\("project_summary"\)/);
+  assert.match(projectPageSource, /from\("projects"\)/);
+  assert.match(projectPageSource, /bill_budget_uuid/);
+  assert.match(projectPageSource, /bill_budget_name/);
+  assert.match(projectPageSource, /bill_budget_last_sync_status/);
+  assert.match(projectPageSource, /bill_job_name_snapshot/);
+});
+
 test('Bill budget helper exposes a stable BILL budget record URL builder', () => {
   assert.match(helperSource, /export function buildBillBudgetViewUrl/);
   assert.match(helperSource, /\/v3\/spend\/budgets\/\$\{budgetUuid\}/);

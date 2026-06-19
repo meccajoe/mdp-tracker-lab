@@ -316,18 +316,36 @@ export default function ProjectDetailPage() {
   }, []);
 
   const fetchProject = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("project_summary")
-      .select("*")
-      .eq("id", projectId)
-      .single();
+    const [summaryRes, billFieldsRes] = await Promise.all([
+      supabase
+        .from("project_summary")
+        .select("*")
+        .eq("id", projectId)
+        .single(),
+      supabase
+        .from("projects")
+        .select("bill_budget_uuid, bill_budget_name, bill_budget_seeded_at, bill_budget_seed_source, bill_budget_last_sync_status, bill_budget_last_sync_error, bill_job_name_snapshot, bill_budget_total_snapshot")
+        .eq("id", projectId)
+        .single(),
+    ]);
+
+    const { data, error } = summaryRes;
+    const { data: billFieldData, error: billFieldError } = billFieldsRes;
 
     if (error) {
       toast.error("Failed to load project");
       return;
     }
 
-    const projectData = data as ProjectSummary;
+    if (billFieldError) {
+      toast.error("Failed to load BILL budget state");
+      return;
+    }
+
+    const projectData = {
+      ...(data as ProjectSummary),
+      ...(billFieldData ?? {}),
+    } as ProjectSummary;
     setProject(projectData);
 
     if (!projectData.bill_budget_uuid) {
