@@ -76,7 +76,6 @@ import { QboLaborTable } from "@/components/qbo-labor-table";
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
-import { buildBillBudgetViewUrl } from "@/lib/billcom-budget";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -253,6 +252,7 @@ export default function ProjectDetailPage() {
   const [showQuoteAllocation, setShowQuoteAllocation] = useState(false);
   const [rebaselineSaving, setRebaselineSaving] = useState(false);
   const [billBudgetCreating, setBillBudgetCreating] = useState(false);
+  const [billBudgetViewUrl, setBillBudgetViewUrl] = useState<string | null>(null);
   const [quoteAllocationRows, setQuoteAllocationRows] = useState<QuoteLineBudgetAllocationRow[]>([]);
   const [quoteAllocationTotals, setQuoteAllocationTotals] = useState({
     line_total: 0,
@@ -347,6 +347,7 @@ export default function ProjectDetailPage() {
       ...(billFieldData ?? {}),
     } as ProjectSummary;
     setProject(projectData);
+    setBillBudgetViewUrl(null);
 
     if (!projectData.bill_budget_uuid) {
       return;
@@ -361,6 +362,7 @@ export default function ProjectDetailPage() {
       }
 
       if (result.staleCleared) {
+        setBillBudgetViewUrl(null);
         setProject((prev) => prev ? {
           ...prev,
           bill_budget_uuid: null,
@@ -368,6 +370,11 @@ export default function ProjectDetailPage() {
           bill_budget_last_sync_status: "missing_in_bill",
           bill_budget_last_sync_error: result.error ?? "billcom_budget_missing:404",
         } : prev);
+        return;
+      }
+
+      if (result.exists) {
+        setBillBudgetViewUrl(result.viewUrl ?? null);
       }
     } catch (validationError) {
       console.error("Failed to validate BILL budget", validationError);
@@ -874,8 +881,8 @@ export default function ProjectDetailPage() {
               )}
             </Button>
           )}
-          {project.bill_budget_uuid && (
-            <Link href={buildBillBudgetViewUrl(project.bill_budget_uuid)} target="_blank" rel="noreferrer">
+          {project.bill_budget_uuid && billBudgetViewUrl && (
+            <Link href={billBudgetViewUrl} target="_blank" rel="noreferrer">
               <Button size="sm" variant="outline">View BILL Budget</Button>
             </Link>
           )}

@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { canManageProjectActions } from "@/lib/admin-access";
 import {
   buildBillBudgetName,
+  buildBillBudgetViewUrl,
   calculateBillManagedBudgetTotal,
   getBillBudgetByUuid,
   seedBillBudgetForProject,
@@ -170,7 +171,9 @@ export async function GET(
       exists: true,
       staleCleared: false,
       budgetUuid: lookup.budgetUuid,
+      budgetId: lookup.budgetId ?? null,
       budgetName: lookup.budgetName ?? project.bill_budget_name ?? null,
+      viewUrl: buildBillBudgetViewUrl({ budgetId: lookup.budgetId ?? null }),
     });
   }
 

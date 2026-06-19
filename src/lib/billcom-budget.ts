@@ -1,5 +1,6 @@
 const BILLCOM_BASE_URL = process.env.BILLCOM_BASE_URL ?? "https://gateway.prod.bill.com/connect";
-const BILLCOM_APP_URL = process.env.BILLCOM_APP_URL ?? "https://app.bill.com";
+const BILLCOM_SPEND_URL = process.env.BILLCOM_SPEND_URL ?? "https://spend.bill.com";
+const BILLCOM_SPEND_COMPANY_ID = process.env.BILLCOM_SPEND_COMPANY_ID ?? "Q29tcGFueTo1Njg3MzU=";
 const BILLCOM_API_TOKEN = process.env.BILLCOM_API_TOKEN ?? "";
 const BILLCOM_BUDGET_OWNER_UUID = process.env.BILLCOM_BUDGET_OWNER_UUID ?? "";
 const BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL = (process.env.BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL ?? "paul@meccadesign.com").trim().toLowerCase();
@@ -47,13 +48,21 @@ export function shouldSeedBillBudget(project: BillBudgetProjectLike): boolean {
   return calculateBillManagedBudgetTotal(project) > 0;
 }
 
-export function buildBillBudgetViewUrl(budgetUuid: string): string {
-  return `${BILLCOM_APP_URL}/#/spend/budgets/${budgetUuid}`;
+export function buildBillBudgetViewUrl({
+  budgetId,
+  companyId,
+}: {
+  budgetId?: string | null;
+  companyId?: string | null;
+}): string | null {
+  if (!budgetId) return null;
+  return `${BILLCOM_SPEND_URL}/companies/${companyId ?? BILLCOM_SPEND_COMPANY_ID}/budgets/${budgetId}`;
 }
 
 export interface BillBudgetLookupResult {
   exists: boolean;
   budgetUuid: string;
+  budgetId?: string | null;
   budgetName?: string | null;
   retired?: boolean;
   error?: string;
@@ -97,6 +106,7 @@ export async function getBillBudgetByUuid(budgetUuid: string): Promise<BillBudge
     return {
       exists: false,
       budgetUuid: data.uuid ?? data.id ?? budgetUuid,
+      budgetId: data.id ?? null,
       budgetName: data.name ?? null,
       retired: true,
       error: "billcom_budget_missing:retired",
@@ -106,6 +116,7 @@ export async function getBillBudgetByUuid(budgetUuid: string): Promise<BillBudge
   return {
     exists: true,
     budgetUuid: data.uuid ?? data.id ?? budgetUuid,
+    budgetId: data.id ?? null,
     budgetName: data.name ?? null,
     retired: Boolean(data.retired),
   };

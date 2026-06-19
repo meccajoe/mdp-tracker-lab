@@ -152,22 +152,25 @@ test('manual BILL budget trigger route requires admin auth and writes manual tri
   assert.match(manualRouteSource, /no_bill_managed_budget_default/);
 });
 
-test('manual BILL budget route validates linked budgets and clears stale linkage when BILL record is missing or retired', () => {
+test('manual BILL budget route validates linked budgets, returns a BILL Spend view URL, and clears stale linkage when BILL record is missing or retired', () => {
   assert.match(manualRouteSource, /export async function GET/);
   assert.match(manualRouteSource, /getBillBudgetByUuid/);
+  assert.match(manualRouteSource, /buildBillBudgetViewUrl/);
+  assert.match(manualRouteSource, /viewUrl:/);
   assert.match(manualRouteSource, /missing_in_bill/);
   assert.match(manualRouteSource, /bill_budget_uuid: null/);
   assert.match(manualRouteSource, /bill_budget_name: null/);
   assert.match(manualRouteSource, /billcom_budget_missing:/);
 });
 
-test('project page exposes BILL budget status plus create/view actions', () => {
+test('project page exposes BILL budget status plus create/view actions through the validated BILL view URL', () => {
   assert.match(projectPageSource, /BILL Budget/);
   assert.match(projectPageSource, /Create BILL Budget/);
   assert.match(projectPageSource, /Recreate BILL Budget/);
   assert.match(projectPageSource, /View BILL Budget/);
-  assert.match(projectPageSource, /buildBillBudgetViewUrl/);
   assert.match(projectPageSource, /\/api\/projects\/\$\{projectId\}\/bill-budget/);
+  assert.match(projectPageSource, /billBudgetViewUrl/);
+  assert.doesNotMatch(projectPageSource, /buildBillBudgetViewUrl\(project\.bill_budget_uuid\)/);
   assert.match(projectPageSource, /missing_in_bill/);
   assert.match(projectPageSource, /bill_budget_last_sync_status/);
   assert.match(projectPageSource, /bill_budget_uuid/);
@@ -182,10 +185,11 @@ test('project page merges BILL linkage fields from projects when project_summary
   assert.match(projectPageSource, /bill_job_name_snapshot/);
 });
 
-test('Bill budget helper exposes a stable BILL app budget record URL builder', () => {
-  assert.match(helperSource, /const BILLCOM_APP_URL = process\.env\.BILLCOM_APP_URL \?\? "https:\/\/app\.bill\.com";/);
+test('Bill budget helper exposes a stable BILL Spend budget record URL builder', () => {
+  assert.match(helperSource, /const BILLCOM_SPEND_URL = process\.env\.BILLCOM_SPEND_URL \?\? "https:\/\/spend\.bill\.com";/);
+  assert.match(helperSource, /const BILLCOM_SPEND_COMPANY_ID = process\.env\.BILLCOM_SPEND_COMPANY_ID \?\? "Q29tcGFueTo1Njg3MzU=";/);
   assert.match(helperSource, /export function buildBillBudgetViewUrl/);
-  assert.match(helperSource, /return `\$\{BILLCOM_APP_URL\}\/##?\/spend\/budgets\/\$\{budgetUuid\}`;/);
+  assert.match(helperSource, /companies\/\$\{companyId \?\? BILLCOM_SPEND_COMPANY_ID\}\/budgets\/\$\{budgetId\}/);
   assert.doesNotMatch(helperSource, /return buildBillcomUrl\(`\/v3\/spend\/budgets\/\$\{budgetUuid\}`\);/);
 });
 
