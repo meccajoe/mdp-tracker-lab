@@ -76,6 +76,7 @@ import { QboLaborTable } from "@/components/qbo-labor-table";
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
+import { buildBillBudgetViewUrl } from "@/lib/billcom-budget";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -822,6 +823,11 @@ export default function ProjectDetailPage() {
                 "Create BILL Budget"
               )}
             </Button>
+          )}
+          {project.bill_budget_uuid && (
+            <Link href={buildBillBudgetViewUrl(project.bill_budget_uuid)} target="_blank" rel="noreferrer">
+              <Button size="sm" variant="outline">View BILL Budget</Button>
+            </Link>
           )}
         </CardHeader>
         <CardContent className="space-y-3 text-sm">

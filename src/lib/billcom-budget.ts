@@ -46,6 +46,10 @@ export function shouldSeedBillBudget(project: BillBudgetProjectLike): boolean {
   return calculateBillManagedBudgetTotal(project) > 0;
 }
 
+export function buildBillBudgetViewUrl(budgetUuid: string): string {
+  return buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}`);
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

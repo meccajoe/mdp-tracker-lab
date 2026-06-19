@@ -152,10 +152,17 @@ test('manual BILL budget trigger route requires admin auth and writes manual tri
   assert.match(manualRouteSource, /no_bill_managed_budget_default/);
 });
 
-test('project page exposes BILL budget status and a manual create action for admins', () => {
+test('project page exposes BILL budget status plus create/view actions', () => {
   assert.match(projectPageSource, /BILL Budget/);
   assert.match(projectPageSource, /Create BILL Budget/);
+  assert.match(projectPageSource, /View BILL Budget/);
+  assert.match(projectPageSource, /buildBillBudgetViewUrl/);
   assert.match(projectPageSource, /\/api\/projects\/\$\{projectId\}\/bill-budget/);
   assert.match(projectPageSource, /bill_budget_last_sync_status/);
   assert.match(projectPageSource, /bill_budget_uuid/);
+});
+
+test('Bill budget helper exposes a stable BILL budget record URL builder', () => {
+  assert.match(helperSource, /export function buildBillBudgetViewUrl/);
+  assert.match(helperSource, /\/v3\/spend\/budgets\/\$\{budgetUuid\}/);
 });
