@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/sync-line-items",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/sync-hubspot-quotes",
+      "schedule": "30 9 * * *"
     }
   ]
 }
