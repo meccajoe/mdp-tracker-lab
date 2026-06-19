@@ -50,6 +50,66 @@ export function buildBillBudgetViewUrl(budgetUuid: string): string {
   return buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}`);
 }
 
+export interface BillBudgetLookupResult {
+  exists: boolean;
+  budgetUuid: string;
+  budgetName?: string | null;
+  retired?: boolean;
+  error?: string;
+}
+
+export async function getBillBudgetByUuid(budgetUuid: string): Promise<BillBudgetLookupResult> {
+  if (!BILLCOM_API_TOKEN) {
+    return {
+      exists: false,
+      budgetUuid,
+      error: "missing_billcom_budget_config",
+    };
+  }
+
+  const response = await fetch(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}`), {
+    headers: {
+      apiToken: BILLCOM_API_TOKEN,
+      Accept: "application/json",
+    },
+  });
+
+  if (response.status === 404) {
+    return {
+      exists: false,
+      budgetUuid,
+      error: "billcom_budget_missing:404",
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      exists: false,
+      budgetUuid,
+      error: `billcom_budget_lookup_failed:${response.status}:${await readBillcomError(response)}`,
+    };
+  }
+
+  const data = (await response.json()) as { uuid?: string; id?: string; name?: string | null; retired?: boolean };
+
+  if (data.retired) {
+    return {
+      exists: false,
+      budgetUuid: data.uuid ?? data.id ?? budgetUuid,
+      budgetName: data.name ?? null,
+      retired: true,
+      error: "billcom_budget_missing:retired",
+    };
+  }
+
+  return {
+    exists: true,
+    budgetUuid: data.uuid ?? data.id ?? budgetUuid,
+    budgetName: data.name ?? null,
+    retired: Boolean(data.retired),
+  };
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

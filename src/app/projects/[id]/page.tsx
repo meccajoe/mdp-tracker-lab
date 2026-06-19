@@ -203,6 +203,8 @@ function getBillBudgetStatusLabel(status: string | null | undefined): string {
       return "Created with member warning";
     case "already_seeded":
       return "Already seeded";
+    case "missing_in_bill":
+      return "Missing in BILL";
     case "no_bill_managed_budget_default":
       return "Skipped: no travel/props budget";
     case "error":
@@ -220,6 +222,7 @@ function getBillBudgetStatusVariant(
     case "already_seeded":
       return "secondary";
     case "created_with_member_warning":
+    case "missing_in_bill":
       return "outline";
     case "error":
       return "destructive";
@@ -323,7 +326,34 @@ export default function ProjectDetailPage() {
       toast.error("Failed to load project");
       return;
     }
-    setProject(data as ProjectSummary);
+
+    const projectData = data as ProjectSummary;
+    setProject(projectData);
+
+    if (!projectData.bill_budget_uuid) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/bill-budget`);
+      const result = await response.json();
+      if (!response.ok) {
+        console.error("Failed to validate BILL budget", result.error ?? result);
+        return;
+      }
+
+      if (result.staleCleared) {
+        setProject((prev) => prev ? {
+          ...prev,
+          bill_budget_uuid: null,
+          bill_budget_name: null,
+          bill_budget_last_sync_status: "missing_in_bill",
+          bill_budget_last_sync_error: result.error ?? "billcom_budget_missing:404",
+        } : prev);
+      }
+    } catch (validationError) {
+      console.error("Failed to validate BILL budget", validationError);
+    }
   }, [projectId]);
 
   const fetchQuoteAllocation = useCallback(async () => {
@@ -820,7 +850,9 @@ export default function ProjectDetailPage() {
                   Creating...
                 </>
               ) : (
-                "Create BILL Budget"
+                project.bill_budget_last_sync_status === "missing_in_bill"
+                  ? "Recreate BILL Budget"
+                  : "Create BILL Budget"
               )}
             </Button>
           )}
@@ -862,6 +894,11 @@ export default function ProjectDetailPage() {
             <p className="text-muted-foreground">
               No BILL budget was auto-created because travel + props currently total {formatCurrency(project.bill_budget_total_snapshot ?? 0)}.
               Update those project budgets, then use Create BILL Budget.
+            </p>
+          )}
+          {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "missing_in_bill" && (
+            <p className="text-muted-foreground">
+              The previously linked BILL budget no longer exists in BILL. You can recreate it from here.
             </p>
           )}
         </CardContent>

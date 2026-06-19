@@ -7,6 +7,7 @@ import { canManageProjectActions } from "@/lib/admin-access";
 import {
   buildBillBudgetName,
   calculateBillManagedBudgetTotal,
+  getBillBudgetByUuid,
   seedBillBudgetForProject,
 } from "@/lib/billcom-budget";
 
@@ -18,11 +19,7 @@ function getSupabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 }
 
-export async function POST(
-  _request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  const { id } = await context.params;
+async function getAuthedContext(requireAdmin = false) {
   const cookieStore = await cookies();
   const supabaseAuth = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
@@ -43,10 +40,19 @@ export async function POST(
   } = await supabaseAuth.auth.getUser();
 
   if (authError || !user?.email) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return {
+      error: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
+      supabase: null,
+      user: null,
+    };
   }
 
   const supabase = getSupabaseAdmin();
+
+  if (!requireAdmin) {
+    return { error: null, supabase, user };
+  }
+
   const { data: roleRow, error: roleError } = await supabase
     .from("user_roles")
     .select("role")
@@ -54,29 +60,182 @@ export async function POST(
     .maybeSingle();
 
   if (roleError) {
-    return NextResponse.json({ error: roleError.message }, { status: 500 });
+    return {
+      error: NextResponse.json({ error: roleError.message }, { status: 500 }),
+      supabase: null,
+      user: null,
+    };
   }
 
   if (!canManageProjectActions(roleRow?.role)) {
-    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    return {
+      error: NextResponse.json({ error: "Admin access required" }, { status: 403 }),
+      supabase: null,
+      user: null,
+    };
   }
 
+  return { error: null, supabase, user };
+}
+
+type BillBudgetProjectRow = {
+  id: string;
+  name: string;
+  job_number: string | null;
+  pm: string | null;
+  bill_budget_uuid: string | null;
+  bill_budget_name: string | null;
+  bill_job_name_snapshot: string | null;
+  bill_budget_seeded_at?: string | null;
+  bill_budget_seed_source?: string | null;
+  bill_budget_last_sync_status?: string | null;
+  bill_budget_last_sync_error?: string | null;
+  bill_budget_total_snapshot?: number | null;
+  budget_travel: number | null;
+  budget_props: number | null;
+};
+
+async function getProjectForBillBudget(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  id: string,
+): Promise<{ project: BillBudgetProjectRow | null; error: string | null }> {
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id, name, job_number, pm, bill_budget_uuid, bill_job_name_snapshot, budget_travel, budget_props")
+    .select("id, name, job_number, pm, bill_budget_uuid, bill_budget_name, bill_job_name_snapshot, bill_budget_seeded_at, bill_budget_seed_source, bill_budget_last_sync_status, bill_budget_last_sync_error, bill_budget_total_snapshot, budget_travel, budget_props")
     .eq("id", id)
     .maybeSingle();
 
   if (projectError) {
-    return NextResponse.json({ error: projectError.message }, { status: 500 });
+    return { project: null, error: projectError.message };
   }
 
+  return { project: (project as BillBudgetProjectRow | null) ?? null, error: null };
+}
+
+async function clearMissingBillBudgetLink(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  project: BillBudgetProjectRow,
+  missingError: string,
+) {
+  const updatePayload = {
+    bill_budget_uuid: null,
+    bill_budget_name: null,
+    bill_budget_last_sync_status: "missing_in_bill",
+    bill_budget_last_sync_error: missingError,
+  };
+
+  const { error } = await supabase
+    .from("projects")
+    .update(updatePayload)
+    .eq("id", project.id);
+
+  return { error, updatePayload };
+}
+
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const { error, supabase } = await getAuthedContext(false);
+  if (error || !supabase) return error;
+
+  const { project, error: projectError } = await getProjectForBillBudget(supabase, id);
+  if (projectError) {
+    return NextResponse.json({ error: projectError }, { status: 500 });
+  }
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  if (!project.bill_budget_uuid) {
+    return NextResponse.json({ ok: true, exists: false, staleCleared: false });
+  }
+
+  const lookup = await getBillBudgetByUuid(project.bill_budget_uuid);
+
+  if (lookup.exists) {
+    if (lookup.budgetName && lookup.budgetName !== project.bill_budget_name) {
+      await supabase
+        .from("projects")
+        .update({
+          bill_budget_name: lookup.budgetName,
+          bill_budget_last_sync_error: null,
+        })
+        .eq("id", project.id);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      exists: true,
+      staleCleared: false,
+      budgetUuid: lookup.budgetUuid,
+      budgetName: lookup.budgetName ?? project.bill_budget_name ?? null,
+    });
+  }
+
+  if (lookup.error?.startsWith("billcom_budget_missing:")) {
+    const { error: clearError } = await clearMissingBillBudgetLink(supabase, project, lookup.error);
+    if (clearError) {
+      return NextResponse.json({ error: clearError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      exists: false,
+      staleCleared: true,
+      missingStatus: "missing_in_bill",
+      error: lookup.error,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      error: lookup.error ?? "Failed to validate BILL budget",
+      exists: false,
+      staleCleared: false,
+    },
+    { status: 502 }
+  );
+}
+
+export async function POST(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const { error, supabase } = await getAuthedContext(true);
+  if (error || !supabase) return error;
+
+  const { project, error: projectError } = await getProjectForBillBudget(supabase, id);
+  if (projectError) {
+    return NextResponse.json({ error: projectError }, { status: 500 });
+  }
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
   if (project.bill_budget_uuid) {
-    return NextResponse.json({ error: "BILL budget already exists for this project" }, { status: 409 });
+    const lookup = await getBillBudgetByUuid(project.bill_budget_uuid);
+    if (lookup.exists) {
+      return NextResponse.json({ error: "BILL budget already exists for this project" }, { status: 409 });
+    }
+
+    if (lookup.error?.startsWith("billcom_budget_missing:")) {
+      const { error: clearError } = await clearMissingBillBudgetLink(supabase, project, lookup.error);
+      if (clearError) {
+        return NextResponse.json({ error: clearError.message }, { status: 500 });
+      }
+      project.bill_budget_uuid = null;
+      project.bill_budget_name = null;
+      project.bill_budget_last_sync_status = "missing_in_bill";
+      project.bill_budget_last_sync_error = lookup.error;
+    } else {
+      return NextResponse.json(
+        { error: lookup.error ?? "Failed to validate existing BILL budget before create" },
+        { status: 502 }
+      );
+    }
   }
 
   const pmInitials = project.pm && project.pm !== "TBD" ? project.pm : null;
