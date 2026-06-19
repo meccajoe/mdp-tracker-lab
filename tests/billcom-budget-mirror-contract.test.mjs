@@ -163,7 +163,7 @@ test('manual BILL budget route validates linked budgets, returns a BILL Spend vi
   assert.match(manualRouteSource, /billcom_budget_missing:/);
 });
 
-test('project page exposes a slimmer BILL budget summary beside the timeline area through the validated BILL view URL', () => {
+test('project page exposes evenly sized timeline and BILL cards in the top summary row through the validated BILL view URL', () => {
   assert.match(projectPageSource, /BILL Budget/);
   assert.match(projectPageSource, /Create BILL Budget/);
   assert.match(projectPageSource, /Recreate BILL Budget/);
@@ -173,6 +173,9 @@ test('project page exposes a slimmer BILL budget summary beside the timeline are
   assert.doesNotMatch(projectPageSource, /buildBillBudgetViewUrl\(project\.bill_budget_uuid\)/);
   assert.match(projectPageSource, /CountdownClock/);
   assert.match(projectPageSource, /lg:grid-cols-\[minmax\(0,1fr\)_320px\]/);
+  assert.match(projectPageSource, /items-stretch/);
+  assert.match(projectPageSource, /CardTitle className="text-base">Timeline/);
+  assert.match(projectPageSource, /<Card className="h-full">/);
   assert.match(projectPageSource, /BILL-managed total:/);
   assert.doesNotMatch(projectPageSource, /UUID:/);
   assert.doesNotMatch(projectPageSource, /Paul owns the budget by default\./);

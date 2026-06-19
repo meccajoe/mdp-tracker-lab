@@ -838,30 +838,22 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
-        <div className="space-y-3">
-          {(project as unknown as Record<string, string>).due_date && (
-            <CountdownClock
-              dueDate={(project as unknown as Record<string, string>).due_date}
-              closeDate={project.close_date ?? undefined}
-            />
-          )}
-          {project.notes && (
-            <details className="mt-1 group">
-              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
-                <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="font-medium">Notes</span>
-              </summary>
-              <div className="mt-1.5 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
-                {project.notes}
-              </div>
-            </details>
-          )}
-        </div>
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch">
+        <Card className="h-full">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Timeline</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {(project as unknown as Record<string, string>).due_date && (
+              <CountdownClock
+                dueDate={(project as unknown as Record<string, string>).due_date}
+                closeDate={project.close_date ?? undefined}
+              />
+            )}
+          </CardContent>
+        </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
             <div className="space-y-1">
               <CardTitle className="text-base">BILL Budget</CardTitle>
@@ -917,6 +909,20 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {project.notes && (
+        <details className="mt-1 group">
+          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
+            <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="font-medium">Notes</span>
+          </summary>
+          <div className="mt-1.5 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
+            {project.notes}
+          </div>
+        </details>
+      )}
 
       <Separator />
 
