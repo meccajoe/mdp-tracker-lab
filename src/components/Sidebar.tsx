@@ -139,9 +139,7 @@ export default function Sidebar() {
         <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
-        {effectiveIsAdmin && (
-          <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
-        )}
+        <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
 
         {/* Team Bonuses — admin only for now */}
         {canSeeTeamBonuses(role) && (
