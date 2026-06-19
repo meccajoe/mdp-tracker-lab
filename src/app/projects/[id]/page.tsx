@@ -856,7 +856,14 @@ export default function ProjectDetailPage() {
         <Card className="h-full">
           <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
             <div className="space-y-1">
-              <CardTitle className="text-base">BILL Budget</CardTitle>
+              <div className="flex items-center gap-2">
+                <img
+                  src="https://home.bill.com/favicon.ico"
+                  alt="BILL logo"
+                  className="h-4 w-4 rounded-sm"
+                />
+                <CardTitle className="text-base">BILL Budget</CardTitle>
+              </div>
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <Badge variant={getBillBudgetStatusVariant(project.bill_budget_last_sync_status)}>
                   {getBillBudgetStatusLabel(project.bill_budget_last_sync_status)}

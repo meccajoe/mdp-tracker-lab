@@ -176,6 +176,8 @@ test('project page exposes evenly sized timeline and BILL cards in the top summa
   assert.match(projectPageSource, /items-stretch/);
   assert.match(projectPageSource, /CardTitle className="text-base">Timeline/);
   assert.match(projectPageSource, /<Card className="h-full">/);
+  assert.match(projectPageSource, /alt="BILL logo"/);
+  assert.match(projectPageSource, /https:\/\/home\.bill\.com\/favicon\.ico/);
   assert.match(projectPageSource, /BILL-managed total:/);
   assert.doesNotMatch(projectPageSource, /UUID:/);
   assert.doesNotMatch(projectPageSource, /Paul owns the budget by default\./);
