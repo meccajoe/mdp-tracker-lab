@@ -182,9 +182,11 @@ test('project page merges BILL linkage fields from projects when project_summary
   assert.match(projectPageSource, /bill_job_name_snapshot/);
 });
 
-test('Bill budget helper exposes a stable BILL budget record URL builder', () => {
+test('Bill budget helper exposes a stable BILL app budget record URL builder', () => {
+  assert.match(helperSource, /const BILLCOM_APP_URL = process\.env\.BILLCOM_APP_URL \?\? "https:\/\/app\.bill\.com";/);
   assert.match(helperSource, /export function buildBillBudgetViewUrl/);
-  assert.match(helperSource, /\/v3\/spend\/budgets\/\$\{budgetUuid\}/);
+  assert.match(helperSource, /return `\$\{BILLCOM_APP_URL\}\/##?\/spend\/budgets\/\$\{budgetUuid\}`;/);
+  assert.doesNotMatch(helperSource, /return buildBillcomUrl\(`\/v3\/spend\/budgets\/\$\{budgetUuid\}`\);/);
 });
 
 test('Bill budget helper exposes linked-budget lookup for stale-link validation', () => {
