@@ -553,7 +553,7 @@ export async function POST(req: NextRequest) {
           bill_budget_last_sync_error: seedResult.error ?? null,
         };
 
-        if (seedResult.status === "created") {
+        if (seedResult.status === "created" || seedResult.status === "created_with_member_warning") {
           updatePayload.bill_budget_uuid = seedResult.budgetUuid ?? null;
           updatePayload.bill_budget_name = seedResult.budgetName ?? billJobNameSnapshot;
           updatePayload.bill_budget_seeded_at = new Date().toISOString();
