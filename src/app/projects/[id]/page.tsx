@@ -199,7 +199,7 @@ function getBillBudgetStatusLabel(status: string | null | undefined): string {
     case "created":
       return "Created";
     case "created_with_member_warning":
-      return "Created with member warning";
+      return "Created — PM not linked";
     case "already_seeded":
       return "Already seeded";
     case "missing_in_bill":
@@ -248,11 +248,11 @@ function getReadableBillBudgetNote(project: ProjectSummary): string | null {
 
   if (raw.startsWith("pm_budget_member_not_assigned:bill_user_not_found:")) {
     const email = raw.split(":").slice(2).join(":") || "that PM";
-    return `BILL budget was created, but ${email} could not be matched to a BILL Spend user for member assignment.`;
+    return `BILL budget was created, but ${email} could not be matched to a BILL Spend user, so the PM was not added to the budget.`;
   }
 
   if (raw.startsWith("pm_budget_member_not_assigned:assign_failed:")) {
-    return "BILL budget was created, but assigning the PM as a BILL budget member failed. BILL may need that member set manually.";
+    return "BILL budget was created, but the PM was not added to the BILL budget. BILL may need that member added manually.";
   }
 
   if (raw.startsWith("billcom_budget_missing:")) {
@@ -621,7 +621,7 @@ export default function ProjectDetailPage() {
       }
       await fetchProject();
       if (result?.result?.status === "created_with_member_warning") {
-        toast.success("BILL budget created. PM assignment needs attention.");
+        toast.success("BILL budget created, but the PM was not added in BILL.");
       } else {
         toast.success("BILL budget created.");
       }
