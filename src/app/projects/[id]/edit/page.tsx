@@ -68,6 +68,7 @@ export default function EditProjectPage() {
   const [hubspotDealUrl, setHubspotDealUrl] = useState<string | null>(null);
   const [qboProjectId, setQboProjectId] = useState<string | null>(null);
   const [qboProjectUrl, setQboProjectUrl] = useState<string | null>(null);
+  const [billBudgetUuid, setBillBudgetUuid] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkAccess() {
@@ -134,6 +135,7 @@ export default function EditProjectPage() {
       setHubspotDealUrl(project.hubspot_deal_url);
       setQboProjectId(project.qbo_project_id);
       setQboProjectUrl(project.qbo_project_url);
+      setBillBudgetUuid(project.bill_budget_uuid);
 
       const budgetValues: Record<string, string> = {};
       for (const field of BUDGET_FIELDS) {
@@ -234,6 +236,15 @@ export default function EditProjectPage() {
     if (error) {
       toast.error("Failed to update project: " + error.message);
       return;
+    }
+
+    if (billBudgetUuid) {
+      const syncResponse = await fetch(`/api/projects/${projectId}/bill-budget`, { method: "POST" });
+      if (!syncResponse.ok) {
+        const syncBody = await syncResponse.json().catch(() => null);
+        toast.error("Project updated, but BILL sync failed: " + (syncBody?.error ?? "Unknown error"));
+        return;
+      }
     }
 
     toast.success("Project updated successfully.");

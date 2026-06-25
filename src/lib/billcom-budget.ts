@@ -311,6 +311,122 @@ export interface BillBudgetSeedResult {
   memberUuid?: string | null;
 }
 
+export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { budgetUuid: string }): Promise<BillBudgetSeedResult> {
+  const total = calculateBillManagedBudgetTotal({
+    budget_travel: input.budgetTravel,
+    budget_props: input.budgetProps,
+  });
+
+  if (!BILLCOM_API_TOKEN) {
+    return { status: "error", error: "missing_billcom_budget_config", budgetTotal: total };
+  }
+
+  let users: BillSpendUser[] = [];
+  try {
+    users = await listBillSpendUsers();
+  } catch (error) {
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : "billcom_users_lookup_failed",
+      budgetTotal: total,
+    };
+  }
+
+  const owner = await resolveBillBudgetOwner(users);
+  if (!owner.uuid) {
+    return {
+      status: "error",
+      error: "missing_billcom_budget_owner",
+      budgetTotal: total,
+    };
+  }
+
+  const budgetName = buildBillBudgetName({
+    billJobName: input.billJobName,
+    jobNumber: input.jobNumber,
+    projectName: input.projectName,
+  });
+
+  const description = buildBillBudgetDescription({
+    projectId: input.projectId,
+    jobName: budgetName,
+    travel: input.budgetTravel,
+    props: input.budgetProps,
+    total,
+    seededAt: new Date().toISOString().slice(0, 10),
+  });
+
+  const response = await fetch(buildBillcomUrl(`/v3/spend/budgets/${input.budgetUuid}`), {
+    method: "PATCH",
+    headers: {
+      apiToken: BILLCOM_API_TOKEN,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: budgetName,
+      description,
+      recurringInterval: "NONE",
+      limit: total,
+    }),
+  });
+
+  if (!response.ok) {
+    return {
+      status: "error",
+      error: `billcom_budget_update_failed:${response.status}:${await readBillcomError(response)}`,
+      budgetUuid: input.budgetUuid,
+      budgetName,
+      budgetTotal: total,
+      description,
+      ownerUuid: owner.uuid,
+    };
+  }
+
+  const data = (await response.json()) as { uuid?: string; id?: string; name?: string };
+  const budgetUuid = data.uuid ?? data.id ?? input.budgetUuid;
+  const pmEmail = normalizeEmail(input.pmEmail);
+
+  let memberStatus: BillBudgetMemberStatus = "assigned";
+  let memberUuid: string | null = null;
+  let memberError: string | null = null;
+
+  if (!pmEmail) {
+    memberStatus = "missing_pm_email";
+  } else if (pmEmail === owner.email) {
+    memberStatus = "owner_already_covers_pm";
+  } else {
+    const memberUser = findBillSpendUser(users, pmEmail);
+    if (!memberUser?.uuid) {
+      memberStatus = "bill_user_not_found";
+    } else {
+      memberUuid = memberUser.uuid;
+      const memberAssignment = await assignBillBudgetMember({
+        budgetUuid,
+        memberUuid: memberUser.uuid,
+        total,
+      });
+      memberStatus = memberAssignment.status;
+      memberError = memberAssignment.detail ?? null;
+    }
+  }
+
+  const warning = buildMemberAssignmentWarning(memberStatus, pmEmail, memberError ?? undefined);
+
+  return {
+    status: warning ? "created_with_member_warning" : "created",
+    budgetUuid,
+    budgetName: data.name ?? budgetName,
+    budgetTotal: total,
+    description,
+    ownerUuid: owner.uuid,
+    memberStatus,
+    memberEmail: pmEmail,
+    memberUuid,
+    error: warning ?? undefined,
+  };
+}
+
 export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Promise<BillBudgetSeedResult> {
   const total = calculateBillManagedBudgetTotal({
     budget_travel: input.budgetTravel,

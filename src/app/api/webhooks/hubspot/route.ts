@@ -17,7 +17,7 @@ import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, type HubSpotL
 import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
 import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
-import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, resolveBillSpendMemberEmail, seedBillBudgetForProject, shouldSeedBillBudget } from "@/lib/billcom-budget";
+import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, resolveBillSpendMemberEmail, seedBillBudgetForProject, shouldSeedBillBudget, updateBillBudgetForProject } from "@/lib/billcom-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -498,7 +498,32 @@ export async function POST(req: NextRequest) {
         }
 
         if (!shouldCreateBillBudget) {
-          const skippedStatus = existingBillBudgetUuid ? "already_seeded" : "no_bill_managed_budget_default";
+          if (existingBillBudgetUuid) {
+            const syncResult = await updateBillBudgetForProject({
+              budgetUuid: existingBillBudgetUuid,
+              projectId,
+              projectName: deal.properties.dealname,
+              jobNumber,
+              billJobName: billJobNameSnapshot,
+              budgetTravel: quoteSyncFields.budget_travel ?? 0,
+              budgetProps: quoteSyncFields.budget_props ?? 0,
+              pmEmail,
+            });
+
+            await supabase
+              .from("projects")
+              .update({
+                bill_job_name_snapshot: billJobNameSnapshot,
+                bill_budget_total_snapshot: billBudgetTotal,
+                bill_budget_name: syncResult.budgetName ?? billJobNameSnapshot,
+                bill_budget_last_sync_status: syncResult.status,
+                bill_budget_last_sync_error: syncResult.error ?? null,
+              })
+              .eq("id", projectId);
+            return;
+          }
+
+          const skippedStatus = "no_bill_managed_budget_default";
           await supabase
             .from("projects")
             .update({

@@ -807,6 +807,7 @@ export default function ProjectDetailPage() {
       return;
     }
     setBudgetSaving(true);
+    let billSyncError: string | null = null;
     // Update budget fields on the project
     const updates: Record<string, number | null> = {};
     for (const field of BUDGET_FIELDS) {
@@ -825,11 +826,22 @@ export default function ProjectDetailPage() {
         { onConflict: "project_id,category" }
       );
     }
+    if (project.bill_budget_uuid) {
+      const syncResponse = await fetch(`/api/projects/${project.id}/bill-budget`, { method: "POST" });
+      if (!syncResponse.ok) {
+        const syncBody = await syncResponse.json().catch(() => null);
+        billSyncError = syncBody?.error ?? "BILL budget sync failed.";
+      }
+    }
     await Promise.all([fetchProject(), fetchActuals()]);
     setEditingBudget(false);
     setBudgetEdits({});
     setManualActuals({});
     setBudgetSaving(false);
+    if (billSyncError) {
+      toast.error(`Budget updated, but BILL sync failed: ${billSyncError}`);
+      return;
+    }
     toast.success("Budget updated.");
   }
 

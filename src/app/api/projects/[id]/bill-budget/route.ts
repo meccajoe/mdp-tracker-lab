@@ -11,6 +11,7 @@ import {
   getBillBudgetByUuid,
   resolveBillSpendMemberEmail,
   seedBillBudgetForProject,
+  updateBillBudgetForProject,
 } from "@/lib/billcom-budget";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -219,13 +220,13 @@ export async function POST(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
+  let syncingExistingBudget = false;
+
   if (project.bill_budget_uuid) {
     const lookup = await getBillBudgetByUuid(project.bill_budget_uuid);
     if (lookup.exists) {
-      return NextResponse.json({ error: "BILL budget already exists for this project" }, { status: 409 });
-    }
-
-    if (lookup.error?.startsWith("billcom_budget_missing:")) {
+      syncingExistingBudget = true;
+    } else if (lookup.error?.startsWith("billcom_budget_missing:")) {
       const { error: clearError } = await clearMissingBillBudgetLink(supabase, project, lookup.error);
       if (clearError) {
         return NextResponse.json({ error: clearError.message }, { status: 500 });
@@ -264,15 +265,26 @@ export async function POST(
     budget_props: project.budget_props,
   });
 
-  const seedResult = await seedBillBudgetForProject({
-    projectId: project.id,
-    projectName: project.name,
-    jobNumber,
-    billJobName: billJobNameSnapshot,
-    budgetTravel: project.budget_travel ?? 0,
-    budgetProps: project.budget_props ?? 0,
-    pmEmail,
-  });
+  const seedResult = syncingExistingBudget && project.bill_budget_uuid
+    ? await updateBillBudgetForProject({
+        budgetUuid: project.bill_budget_uuid,
+        projectId: project.id,
+        projectName: project.name,
+        jobNumber,
+        billJobName: billJobNameSnapshot,
+        budgetTravel: project.budget_travel ?? 0,
+        budgetProps: project.budget_props ?? 0,
+        pmEmail,
+      })
+    : await seedBillBudgetForProject({
+        projectId: project.id,
+        projectName: project.name,
+        jobNumber,
+        billJobName: billJobNameSnapshot,
+        budgetTravel: project.budget_travel ?? 0,
+        budgetProps: project.budget_props ?? 0,
+        pmEmail,
+      });
 
   const updatePayload: Record<string, string | number | null> = {
     bill_job_name_snapshot: billJobNameSnapshot,
@@ -282,10 +294,12 @@ export async function POST(
   };
 
   if (seedResult.status === "created" || seedResult.status === "created_with_member_warning") {
-    updatePayload.bill_budget_uuid = seedResult.budgetUuid ?? null;
+    updatePayload.bill_budget_uuid = seedResult.budgetUuid ?? project.bill_budget_uuid ?? null;
     updatePayload.bill_budget_name = seedResult.budgetName ?? billJobNameSnapshot;
-    updatePayload.bill_budget_seeded_at = new Date().toISOString();
-    updatePayload.bill_budget_seed_source = "manual_project_trigger";
+    if (!syncingExistingBudget) {
+      updatePayload.bill_budget_seeded_at = new Date().toISOString();
+      updatePayload.bill_budget_seed_source = "manual_project_trigger";
+    }
   }
 
   const { error: updateError } = await supabase
