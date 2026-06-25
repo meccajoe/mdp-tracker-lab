@@ -17,7 +17,7 @@ export async function fetchUserRoles(): Promise<UserRoleRow[]> {
   if (cachedUsers && Date.now() - cacheTime < CACHE_TTL) return cachedUsers;
   const { data } = await supabase
     .from("user_roles")
-    .select("email, role, pm_initials, full_name, show_in_filters")
+    .select("email, bill_spend_email, role, pm_initials, full_name, show_in_filters")
     .order("full_name", { nullsFirst: false });
   cachedUsers = (data as UserRoleRow[]) ?? [];
   cacheTime = Date.now();

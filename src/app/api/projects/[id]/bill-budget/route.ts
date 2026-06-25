@@ -9,6 +9,7 @@ import {
   buildBillBudgetViewUrl,
   calculateBillManagedBudgetTotal,
   getBillBudgetByUuid,
+  resolveBillSpendMemberEmail,
   seedBillBudgetForProject,
 } from "@/lib/billcom-budget";
 
@@ -246,10 +247,10 @@ export async function POST(
   if (pmInitials) {
     const { data: pmRow } = await supabase
       .from("user_roles")
-      .select("email")
+      .select("email, bill_spend_email")
       .eq("pm_initials", pmInitials)
       .maybeSingle();
-    pmEmail = pmRow?.email?.toLowerCase() ?? null;
+    pmEmail = resolveBillSpendMemberEmail(pmRow);
   }
 
   const jobNumber = project.job_number ?? project.id;

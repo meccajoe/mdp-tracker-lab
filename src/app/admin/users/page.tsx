@@ -30,6 +30,7 @@ export default function UsersPage() {
   // Add form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [newBillSpendEmail, setNewBillSpendEmail] = useState("");
   const [newFullName, setNewFullName] = useState("");
   const [newRole, setNewRole] = useState<Role>("pm");
   const [newInitials, setNewInitials] = useState("");
@@ -37,6 +38,7 @@ export default function UsersPage() {
 
   // Edit state
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
+  const [editBillSpendEmail, setEditBillSpendEmail] = useState("");
   const [editFullName, setEditFullName] = useState("");
   const [editRole, setEditRole] = useState<Role>("pm");
   const [editInitials, setEditInitials] = useState("");
@@ -69,7 +71,7 @@ export default function UsersPage() {
   }, [checkAdmin, fetchUsers]);
 
   function resetAddForm() {
-    setNewEmail(""); setNewFullName(""); setNewRole("pm"); setNewInitials("");
+    setNewEmail(""); setNewBillSpendEmail(""); setNewFullName(""); setNewRole("pm"); setNewInitials("");
   }
 
   async function handleAdd() {
@@ -78,6 +80,7 @@ export default function UsersPage() {
     setSaving(true);
     const { error } = await supabase.from("user_roles").insert({
       email: newEmail.trim().toLowerCase(),
+      bill_spend_email: newBillSpendEmail.trim().toLowerCase() || null,
       full_name: newFullName.trim(),
       role: newRole,
       pm_initials: newInitials.trim().toUpperCase() || null,
@@ -95,6 +98,7 @@ export default function UsersPage() {
     if (!editFullName.trim()) { toast.error("Full name is required"); return; }
     setSaving(true);
     const { error } = await supabase.from("user_roles").update({
+      bill_spend_email: editBillSpendEmail.trim().toLowerCase() || null,
       full_name: editFullName.trim(),
       role: editRole,
       pm_initials: editInitials.trim().toUpperCase() || null,
@@ -122,6 +126,7 @@ export default function UsersPage() {
 
   function startEdit(user: UserRoleRow) {
     setEditingEmail(user.email);
+    setEditBillSpendEmail(user.bill_spend_email ?? "");
     setEditFullName(user.full_name ?? "");
     setEditRole((user.role as Role) ?? "pm");
     setEditInitials(user.pm_initials ?? "");
@@ -188,6 +193,18 @@ export default function UsersPage() {
                   />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground font-medium">
+                    BILL member email
+                    <span className="text-muted-foreground font-normal ml-1">(optional — defaults to email if blank)</span>
+                  </label>
+                  <Input
+                    value={newBillSpendEmail}
+                    onChange={(e) => setNewBillSpendEmail(e.target.value)}
+                    placeholder="bill-user@company.com"
+                    type="email"
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="text-xs text-muted-foreground font-medium">Role *</label>
                   <Select value={newRole} onValueChange={(v) => setNewRole((v as Role) ?? "pm")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -225,6 +242,7 @@ export default function UsersPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>BILL member email</TableHead>
                 <TableHead className="w-24">Role</TableHead>
                 <TableHead className="w-20">Initials</TableHead>
                 <TableHead className="w-32 text-center">PM Filters</TableHead>
@@ -234,7 +252,7 @@ export default function UsersPage() {
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
                     No users found.
                   </TableCell>
                 </TableRow>
@@ -254,6 +272,19 @@ export default function UsersPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {editingEmail === user.email ? (
+                      <Input
+                        value={editBillSpendEmail}
+                        onChange={(e) => setEditBillSpendEmail(e.target.value)}
+                        className="h-7 text-sm"
+                        placeholder="bill-user@company.com"
+                        type="email"
+                      />
+                    ) : (
+                      <span>{user.bill_spend_email || <span className="italic">Uses login email</span>}</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {editingEmail === user.email ? (
                       <Select value={editRole} onValueChange={(v) => setEditRole((v as Role) ?? "pm")}>

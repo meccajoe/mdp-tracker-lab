@@ -192,6 +192,7 @@ export function getPMName(initials: string, dbUsers?: { pm_initials: string | nu
 // User roles — extended with full_name
 export interface UserRoleRow {
   email: string;
+  bill_spend_email: string | null;
   role: string;
   pm_initials: string | null;
   full_name: string | null;

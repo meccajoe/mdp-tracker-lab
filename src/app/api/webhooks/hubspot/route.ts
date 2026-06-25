@@ -17,7 +17,7 @@ import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, type HubSpotL
 import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
 import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
-import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, seedBillBudgetForProject, shouldSeedBillBudget } from "@/lib/billcom-budget";
+import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, resolveBillSpendMemberEmail, seedBillBudgetForProject, shouldSeedBillBudget } from "@/lib/billcom-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -491,10 +491,10 @@ export async function POST(req: NextRequest) {
         if (pmInitials) {
           const { data: pmRow } = await supabase
             .from("user_roles")
-            .select("email")
+            .select("email, bill_spend_email")
             .eq("pm_initials", pmInitials)
             .maybeSingle();
-          pmEmail = pmRow?.email?.toLowerCase() ?? null;
+          pmEmail = resolveBillSpendMemberEmail(pmRow);
         }
 
         if (!shouldCreateBillBudget) {

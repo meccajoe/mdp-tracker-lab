@@ -136,6 +136,14 @@ function normalizeEmail(email?: string | null): string | null {
   return normalized || null;
 }
 
+export function resolveBillSpendMemberEmail(user?: {
+  bill_spend_email?: string | null;
+  email?: string | null;
+} | null): string | null {
+  if (!user) return null;
+  return normalizeEmail(user.bill_spend_email) ?? normalizeEmail(user.email);
+}
+
 function buildBillcomUrl(path: string): string {
   return `${BILLCOM_BASE_URL}${path}`;
 }
