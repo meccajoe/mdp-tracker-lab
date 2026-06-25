@@ -243,7 +243,7 @@ function getReadableBillBudgetNote(project: ProjectSummary): string | null {
   if (!raw) return null;
 
   if (raw.startsWith("pm_budget_member_not_assigned:missing_pm_email")) {
-    return "BILL budget was created, but no PM email is set for this project yet, so the PM could not be added as a BILL budget member.";
+    return null;
   }
 
   if (raw.startsWith("pm_budget_member_not_assigned:bill_user_not_found:")) {
@@ -874,6 +874,20 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      {project.notes && (
+        <details className="mt-1 group">
+          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
+            <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="font-medium">Notes</span>
+          </summary>
+          <div className="mt-1.5 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
+            {project.notes}
+          </div>
+        </details>
+      )}
+
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch">
         <Card className="h-full">
           <CardHeader className="pb-2">
@@ -945,20 +959,6 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       </div>
-
-      {project.notes && (
-        <details className="mt-1 group">
-          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
-            <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-medium">Notes</span>
-          </summary>
-          <div className="mt-1.5 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
-            {project.notes}
-          </div>
-        </details>
-      )}
 
       <Separator />
 

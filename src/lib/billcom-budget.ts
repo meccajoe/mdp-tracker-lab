@@ -209,9 +209,8 @@ function buildMemberAssignmentWarning(status: BillBudgetMemberStatus, pmEmail?: 
   switch (status) {
     case "assigned":
     case "owner_already_covers_pm":
-      return null;
     case "missing_pm_email":
-      return "pm_budget_member_not_assigned:missing_pm_email";
+      return null;
     case "bill_user_not_found":
       return `pm_budget_member_not_assigned:bill_user_not_found:${pmEmail ?? "unknown"}`;
     case "assign_failed":
