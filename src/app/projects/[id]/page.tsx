@@ -230,6 +230,42 @@ function getBillBudgetStatusVariant(
   }
 }
 
+function getReadableBillBudgetNote(project: ProjectSummary): string | null {
+  if (project.bill_budget_last_sync_status === "missing_in_bill") {
+    return "We couldn't find the previously linked BILL budget in BILL. Use Recreate BILL Budget to create a fresh one.";
+  }
+
+  if (project.bill_budget_last_sync_status === "no_bill_managed_budget_default") {
+    return `No BILL budget was auto-created because travel + props currently total ${formatCurrency(project.bill_budget_total_snapshot ?? 0)}. Update those project budgets, then use Create BILL Budget.`;
+  }
+
+  const raw = project.bill_budget_last_sync_error ?? "";
+  if (!raw) return null;
+
+  if (raw.startsWith("pm_budget_member_not_assigned:missing_pm_email")) {
+    return "BILL budget was created, but no PM email is set for this project yet, so the PM could not be added as a BILL budget member.";
+  }
+
+  if (raw.startsWith("pm_budget_member_not_assigned:bill_user_not_found:")) {
+    const email = raw.split(":").slice(2).join(":") || "that PM";
+    return `BILL budget was created, but ${email} could not be matched to a BILL Spend user for member assignment.`;
+  }
+
+  if (raw.startsWith("pm_budget_member_not_assigned:assign_failed:")) {
+    return "BILL budget was created, but assigning the PM as a BILL budget member failed. BILL may need that member set manually.";
+  }
+
+  if (raw.startsWith("billcom_budget_missing:")) {
+    return "We couldn't find the previously linked BILL budget in BILL. Use Recreate BILL Budget to create a fresh one.";
+  }
+
+  if (raw.startsWith("billcom_budget_lookup_failed:")) {
+    return "MDP Tracker couldn't verify the current BILL budget right now. Try refreshing and, if needed, recreate the budget from here.";
+  }
+
+  return raw;
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
@@ -854,8 +890,8 @@ export default function ProjectDetailPage() {
         </Card>
 
         <Card className="h-full">
-          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
-            <div className="space-y-1">
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-2">
+            <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-2">
                 <img
                   src="https://home.bill.com/favicon.ico"
@@ -874,44 +910,37 @@ export default function ProjectDetailPage() {
               </div>
             </div>
             {effectiveIsAdmin && !project.bill_budget_uuid && (
-              <Button size="sm" onClick={handleCreateBillBudget} disabled={billBudgetCreating}>
-                {billBudgetCreating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  project.bill_budget_last_sync_status === "missing_in_bill"
-                    ? "Recreate BILL Budget"
-                    : "Create BILL Budget"
-                )}
-              </Button>
+              <div className="shrink-0 self-start">
+                <Button size="sm" className="whitespace-nowrap" onClick={handleCreateBillBudget} disabled={billBudgetCreating}>
+                  {billBudgetCreating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    project.bill_budget_last_sync_status === "missing_in_bill"
+                      ? "Recreate BILL Budget"
+                      : "Create BILL Budget"
+                  )}
+                </Button>
+              </div>
             )}
             {project.bill_budget_uuid && billBudgetViewUrl && (
-              <Link href={billBudgetViewUrl} target="_blank" rel="noreferrer">
-                <Button size="sm" variant="outline">View BILL Budget</Button>
-              </Link>
+              <div className="shrink-0 self-start">
+                <Link href={billBudgetViewUrl} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="outline" className="whitespace-nowrap">View BILL Budget</Button>
+                </Link>
+              </div>
             )}
           </CardHeader>
           <CardContent className="space-y-2 pt-0 text-sm">
             {project.bill_budget_name && (
               <p className="text-muted-foreground">Budget name: {project.bill_budget_name}</p>
             )}
-            {project.bill_budget_last_sync_error && (
+            {getReadableBillBudgetNote(project) && (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-                {project.bill_budget_last_sync_error}
+                {getReadableBillBudgetNote(project)}
               </div>
-            )}
-            {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "no_bill_managed_budget_default" && (
-              <p className="text-muted-foreground">
-                No BILL budget was auto-created because travel + props currently total {formatCurrency(project.bill_budget_total_snapshot ?? 0)}.
-                Update those project budgets, then use Create BILL Budget.
-              </p>
-            )}
-            {!project.bill_budget_uuid && project.bill_budget_last_sync_status === "missing_in_bill" && (
-              <p className="text-muted-foreground">
-                The previously linked BILL budget no longer exists in BILL. You can recreate it from here.
-              </p>
             )}
           </CardContent>
         </Card>
