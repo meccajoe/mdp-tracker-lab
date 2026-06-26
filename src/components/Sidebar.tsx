@@ -78,8 +78,8 @@ export default function Sidebar() {
       setIsProduction(r === "production");
       setPmInitials(data?.pm_initials ?? null);
     }
-    // Load active PMs (show_in_filters = true)
-    supabase.from("user_roles").select("pm_initials").eq("show_in_filters", true).not("pm_initials", "is", null)
+    // Load PMs eligible for bonus surfaces (role = pm)
+    supabase.from("user_roles").select("pm_initials, role").eq("role", "pm").not("pm_initials", "is", null)
       .then(({ data }) => { if (data) setActivePMs(data.map((r) => r.pm_initials as string).sort()); });
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.email) loadRole(session.user.email);

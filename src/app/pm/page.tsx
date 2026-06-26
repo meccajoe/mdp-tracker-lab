@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { PM_NAMES, ProjectSummary } from "@/lib/types";
+import { PM_NAMES, ProjectSummary, type UserRoleRow } from "@/lib/types";
 import { canSeeTeamBonuses } from "@/lib/bonus-access";
 import { buildPmBonusRows } from "@/lib/pm-bonus";
 import { buildPmBonusMonthlyRollup } from "@/lib/pm-bonus-rollup";
@@ -54,6 +54,7 @@ export default function PMBonusSummaryPage() {
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [bonusPMs, setBonusPMs] = useState<Array<{ initials: string; fullName: string }>>([]);
   const [projectPnlById, setProjectPnlById] = useState<Map<string, ProjectPnlRow>>(new Map());
 
   useEffect(() => {
@@ -86,6 +87,19 @@ export default function PMBonusSummaryPage() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+
+      const { data: bonusPmUsers } = await supabase
+        .from("user_roles")
+        .select("pm_initials, full_name, role")
+        .eq("role", "pm")
+        .not("pm_initials", "is", null)
+        .order("full_name", { nullsFirst: false });
+
+      const pmUsers = ((bonusPmUsers as Pick<UserRoleRow, "pm_initials" | "full_name" | "role">[] | null) ?? [])
+        .map((row) => ({ initials: row.pm_initials!, fullName: row.full_name || PM_NAMES[row.pm_initials!] || row.pm_initials! }));
+      setBonusPMs(pmUsers);
+      const allowedInitials = new Set(pmUsers.map((row) => row.initials));
+
       const { data: projectData } = await supabase
         .from("project_summary")
         .select("*")
@@ -94,7 +108,7 @@ export default function PMBonusSummaryPage() {
         .not("pm", "is", null)
         .order("close_date", { ascending: false });
 
-      const typedProjects = (projectData as ProjectSummary[] | null) ?? [];
+      const typedProjects = ((projectData as ProjectSummary[] | null) ?? []).filter((project) => project.pm && allowedInitials.has(project.pm));
       setProjects(typedProjects);
 
       if (typedProjects.length > 0) {
@@ -190,7 +204,7 @@ export default function PMBonusSummaryPage() {
               <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
               <Legend />
               {summary.rollup.pmRows.map((row, index) => (
-                <Bar key={row.pmInitials} dataKey={row.pmInitials} stackId="pm-bonuses" fill={CHART_COLORS[index % CHART_COLORS.length]} name={PM_NAMES[row.pmInitials] ?? row.pmInitials} />
+                <Bar key={row.pmInitials} dataKey={row.pmInitials} stackId="pm-bonuses" fill={CHART_COLORS[index % CHART_COLORS.length]} name={bonusPMs.find((pm) => pm.initials === row.pmInitials)?.fullName ?? PM_NAMES[row.pmInitials] ?? row.pmInitials} />
               ))}
             </BarChart>
           </ResponsiveContainer>
@@ -215,7 +229,7 @@ export default function PMBonusSummaryPage() {
             <TableBody>
               {summary.rollup.pmRows.map((row) => (
                 <TableRow key={row.pmInitials}>
-                  <TableCell className="font-medium">{PM_NAMES[row.pmInitials] ?? row.pmInitials}</TableCell>
+                  <TableCell className="font-medium">{bonusPMs.find((pm) => pm.initials === row.pmInitials)?.fullName ?? PM_NAMES[row.pmInitials] ?? row.pmInitials}</TableCell>
                   {summary.rollup.monthKeys.map((monthKey) => (
                     <TableCell key={monthKey} className="text-right">{formatCurrency(row.monthBonuses[monthKey] ?? 0)}</TableCell>
                   ))}

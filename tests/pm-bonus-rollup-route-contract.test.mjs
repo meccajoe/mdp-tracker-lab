@@ -19,10 +19,13 @@ test("admin-only PM team bonus summary route exists and uses rollup chart/table 
   assert.match(source, /buildPmBonusMonthlyRollup/);
   assert.match(source, /BarChart|ResponsiveContainer/);
   assert.match(source, /canSeeTeamBonuses/);
+  assert.match(source, /\.eq\("role",\s*"pm"\)/);
 });
 
-test("sidebar exposes admin team summary link under Team Bonuses", () => {
+test("sidebar exposes admin team summary link and only PM-classified users under Team Bonuses", () => {
   const source = read(sidebarPath);
   assert.match(source, /href="\/pm"|href=\{`\/pm`\}/);
   assert.match(source, /Team Summary|All PMs|Bonus Summary/);
+  assert.match(source, /\.eq\("role",\s*"pm"\)/);
+  assert.doesNotMatch(source, /eq\("show_in_filters",\s*true\)/);
 });

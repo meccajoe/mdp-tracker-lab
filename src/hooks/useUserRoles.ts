@@ -48,6 +48,14 @@ export function getAllPMs(users: UserRoleRow[]): PMOption[] {
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
+/** Bonus tracker PMs (strictly users classified as pm) */
+export function getBonusPMs(users: UserRoleRow[]): PMOption[] {
+  return users
+    .filter((u) => u.role === "pm" && u.pm_initials)
+    .map((u) => ({ initials: u.pm_initials!, fullName: u.full_name || PM_NAMES[u.pm_initials!] || u.pm_initials! }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+}
+
 export function useUserRoles() {
   const [users, setUsers] = useState<UserRoleRow[]>([]);
   const [loading, setLoading] = useState(true);
