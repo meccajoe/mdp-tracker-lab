@@ -147,7 +147,7 @@ export default function Sidebar() {
             <SectionHeader label="Team Bonuses" open={bonusOpen} onToggle={() => setBonusOpen(!bonusOpen)} collapsed={collapsed} />
             {collapsed ? (
               <NavLink
-                href={effectiveIsAdmin ? `/pm/${Object.keys(PM_NAMES)[0]}` : `/pm/${pmInitials ?? ""}`}
+                href={effectiveIsAdmin ? `/pm` : `/pm/${pmInitials ?? ""}`}
                 label="Bonuses"
                 icon={bonusIcon}
                 collapsed={true}
@@ -155,9 +155,14 @@ export default function Sidebar() {
               />
             ) : bonusOpen && (
               effectiveIsAdmin
-                ? activePMs.map((init) => (
-                    <NavLink key={init} href={`/pm/${init}`} label={PM_NAMES[init] ?? init} icon={bonusIcon} collapsed={false} exact={false} />
-                  ))
+                ? (
+                  <>
+                    <NavLink href="/pm" label="Team Summary" icon={bonusIcon} collapsed={false} exact />
+                    {activePMs.map((init) => (
+                      <NavLink key={init} href={`/pm/${init}`} label={PM_NAMES[init] ?? init} icon={bonusIcon} collapsed={false} exact={false} />
+                    ))}
+                  </>
+                )
                 : pmInitials && (
                     <NavLink href={`/pm/${pmInitials}`} label="My Bonus" icon={bonusIcon} collapsed={false} exact={false} />
                   )
