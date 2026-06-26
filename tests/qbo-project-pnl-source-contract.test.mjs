@@ -16,6 +16,7 @@ test("QBO project P&L route uses ProjectProfitabilitySummary instead of the brok
   const source = read(pnlRoutePath);
 
   assert.match(source, /ProjectProfitabilitySummary/);
+  assert.match(source, /date_macro=All|date_macro=all/);
   assert.doesNotMatch(source, /ProfitAndLoss\?project=\$\{qboProjectId\}/);
   assert.doesNotMatch(source, /ProfitAndLoss\?customer=\$\{qboProjectId\}/);
 });

@@ -19,7 +19,7 @@ function getSupabaseAdmin() {
 async function fetchProjectProfitabilitySummary(
   accessToken: string
 ): Promise<Map<string, { projectName: string; income: number; costs: number; profit: number }>> {
-  const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/reports/ProjectProfitabilitySummary?minorversion=70`;
+  const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/reports/ProjectProfitabilitySummary?minorversion=70&date_macro=All`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
   });

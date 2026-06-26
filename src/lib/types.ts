@@ -165,7 +165,7 @@ export interface CogsCategory {
   definition: string | null;
 }
 
-export const PM_OPTIONS = ["VW", "GM", "MS", "AS", "NG", "PM", "KM", "KS", "CC", "MM"] as const;
+export const PM_OPTIONS = ["VW", "GM", "MS", "AS", "NG", "PM", "KM", "KS", "CC", "MM", "DG"] as const;
 
 // Full PM name lookup — fallback for hardcoded initials; prefer DB-driven lookup where possible
 export const PM_NAMES: Record<string, string> = {
@@ -179,6 +179,7 @@ export const PM_NAMES: Record<string, string> = {
   KS: "Kristin Schilling",
   CC: "Carlos Chaidez",
   MM: "Maria Mecca",
+  DG: "Destiny Gardner",
 };
 
 export function getPMName(initials: string, dbUsers?: { pm_initials: string | null; full_name: string | null }[]): string {
