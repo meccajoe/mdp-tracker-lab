@@ -25,3 +25,9 @@ test("PM bonus page surfaces QBO-backed financial labels for the bonus calculati
   assert.match(source, /QBO Expenses/);
   assert.match(source, /QBO Gross Profit|Gross Profit \(QBO\)/);
 });
+
+test("PM bonus page copy says the 1 percent bonus is based on each project's own QBO gross profit", () => {
+  const source = read(pagePath);
+
+  assert.match(source, /1% of each project's QBO gross profit/);
+});

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getQboAccessToken } from "@/lib/qbo-auth";
+import { buildQboProjectDetailsUrl, extractQboProjectDetailsId } from "@/lib/qbo-project-profitability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,12 +16,62 @@ function getSupabaseAdmin() {
   );
 }
 
-// Fetch P&L for a specific QBO customer (project) using the Reports API
+async function findQboProjectByJobNumber(
+  accessToken: string,
+  jobNumber: string
+): Promise<{ id: string; name: string } | null> {
+  const query = 'query projectManagementProjects($first: PositiveInt!, $after: String, $filter: ProjectManagement_ProjectFilter!, $orderBy: [ProjectManagement_OrderBy!]) { projectManagementProjects(first: $first, after: $after, filter: $filter, orderBy: $orderBy) { edges { node { id name status } } pageInfo { hasNextPage endCursor } } }';
+  let cursor: string | null = null;
+
+  do {
+    const variables: { first: number; filter: Record<string, never>; orderBy: string[]; after?: string } = {
+      first: 100,
+      filter: {},
+      orderBy: ['DUE_DATE_DESC'],
+    };
+    if (cursor) variables.after = cursor;
+
+    const res = await fetch('https://qb.api.intuit.com/graphql', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`QBO project search failed (${res.status})`);
+    }
+
+    const data = (await res.json()) as {
+      data?: {
+        projectManagementProjects?: {
+          edges?: Array<{ node?: { id?: string; name?: string | null } | null }>;
+          pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+        };
+      };
+    };
+
+    const result = data.data?.projectManagementProjects;
+    const match = (result?.edges ?? []).find((edge) => edge.node?.name?.startsWith(String(jobNumber)));
+    if (match?.node?.id && match.node.name) {
+      return { id: match.node.id, name: match.node.name };
+    }
+
+    cursor = result?.pageInfo?.hasNextPage ? result.pageInfo.endCursor ?? null : null;
+  } while (cursor);
+
+  return null;
+}
+
+// Fetch P&L for a specific QBO project using the Projects profitability filter
 async function fetchProjectPnL(
   accessToken: string,
   qboProjectId: string
 ): Promise<{ income: number; expenses: number; netIncome: number } | null> {
-  const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/reports/ProfitAndLoss?customer=${qboProjectId}&summarize_column_by=Total&minorversion=70`;
+  const url = `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/reports/ProfitAndLoss?project=${qboProjectId}&summarize_column_by=Total&minorversion=70`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
@@ -71,7 +122,7 @@ export async function POST(req: NextRequest) {
     // Fetch projects with a QBO project ID (use view for computed fields)
     const query = supabase
       .from("project_summary")
-      .select("id, name, qbo_project_id, contract_amount, total_spent")
+      .select("id, name, job_number, qbo_project_id, qbo_project_url, contract_amount, total_spent")
       .not("qbo_project_id", "is", null);
 
     if (projectId) query.eq("id", projectId);
@@ -84,7 +135,29 @@ export async function POST(req: NextRequest) {
     const results = [];
 
     for (const project of projects) {
-      const pnl = await fetchProjectPnL(accessToken, project.qbo_project_id!);
+      let profitabilityProjectId = extractQboProjectDetailsId(project.qbo_project_url);
+      let profitabilityProjectUrl = project.qbo_project_url;
+
+      if (!profitabilityProjectId && project.job_number) {
+        const foundProject = await findQboProjectByJobNumber(accessToken, String(project.job_number));
+        if (foundProject?.id) {
+          profitabilityProjectId = foundProject.id;
+          profitabilityProjectUrl = buildQboProjectDetailsUrl(foundProject.id);
+
+          await supabase
+            .from("projects")
+            .update({
+              qbo_project_url: profitabilityProjectUrl,
+            })
+            .eq("id", project.id)
+            .like("qbo_project_url", "%customerdetail%")
+            .select("id");
+        }
+      }
+
+      if (!profitabilityProjectId) continue;
+
+      const pnl = await fetchProjectPnL(accessToken, profitabilityProjectId);
       if (!pnl) continue;
 
       const { error: upsertErr } = await supabase
@@ -99,7 +172,7 @@ export async function POST(req: NextRequest) {
 
       if (!upsertErr) {
         synced++;
-        results.push({ id: project.id, name: project.name, ...pnl });
+        results.push({ id: project.id, name: project.name, qbo_project_url: profitabilityProjectUrl, ...pnl });
       }
 
       // Brief pause to avoid QBO rate limits

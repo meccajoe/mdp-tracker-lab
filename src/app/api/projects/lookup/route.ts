@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { NextRequest, NextResponse } from "next/server";
 import type { ProjectLookupResult } from "@/lib/project-lookups";
 import { getQboAccessToken } from "@/lib/qbo-auth";
+import { buildQboProjectDetailsUrl } from "@/lib/qbo-project-profitability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,12 +17,21 @@ interface HubSpotSearchResponse {
   }>;
 }
 
-interface QboQueryResponse {
-  QueryResponse?: {
-    Customer?: Array<{
-      Id?: string;
-      DisplayName?: string;
-    }>;
+interface QboProjectSearchResponse {
+  data?: {
+    projectManagementProjects?: {
+      edges?: Array<{
+        node?: {
+          id?: string;
+          name?: string;
+          status?: string;
+        };
+      }>;
+      pageInfo?: {
+        hasNextPage?: boolean;
+        endCursor?: string | null;
+      };
+    };
   };
 }
 
@@ -103,43 +113,57 @@ async function lookupHubSpot(jobNumber: string) {
   }
 }
 
-const QBO_REALM_ID = "9130350693918016";
-
 async function lookupQbo(jobNumber: string) {
   try {
     const accessToken = await getQboAccessToken();
+    const query = 'query projectManagementProjects($first: PositiveInt!, $after: String, $filter: ProjectManagement_ProjectFilter!, $orderBy: [ProjectManagement_OrderBy!]) { projectManagementProjects(first: $first, after: $after, filter: $filter, orderBy: $orderBy) { edges { node { id name status } } pageInfo { hasNextPage endCursor } } }';
+    let cursor: string | null = null;
 
-    const query = `SELECT Id, DisplayName FROM Customer WHERE Job = true AND DisplayName LIKE '${jobNumber}%'`;
-    const qboResponse = await fetch(
-      `https://quickbooks.api.intuit.com/v3/company/${QBO_REALM_ID}/query?query=${encodeURIComponent(query)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/json",
-        },
-        cache: "no-store",
-      }
-    );
-
-    if (!qboResponse.ok) {
-      throw new Error(`QBO lookup failed: ${qboResponse.status}`);
-    }
-
-    const data = (await qboResponse.json()) as QboQueryResponse;
-    const customer = data.QueryResponse?.Customer?.[0];
-
-    if (!customer?.Id) {
-      return {
-        qbo_project_id: null,
-        qbo_project_url: null,
-        qbo_project_name: null,
+    do {
+      const variables: { first: number; filter: Record<string, never>; orderBy: string[]; after?: string } = {
+        first: 100,
+        filter: {},
+        orderBy: ['DUE_DATE_DESC'],
       };
-    }
+      if (cursor) variables.after = cursor;
+
+      const qboResponse = await fetch(
+        'https://qb.api.intuit.com/graphql',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ query, variables }),
+          cache: 'no-store',
+        }
+      );
+
+      if (!qboResponse.ok) {
+        throw new Error(`QBO lookup failed: ${qboResponse.status}`);
+      }
+
+      const data = (await qboResponse.json()) as QboProjectSearchResponse;
+      const result = data.data?.projectManagementProjects;
+      const match = (result?.edges ?? []).find((edge) => edge.node?.name?.startsWith(String(jobNumber)));
+
+      if (match?.node?.id) {
+        return {
+          qbo_project_id: match.node.id,
+          qbo_project_url: buildQboProjectDetailsUrl(match.node.id),
+          qbo_project_name: match.node.name ?? null,
+        };
+      }
+
+      cursor = result?.pageInfo?.hasNextPage ? result.pageInfo.endCursor ?? null : null;
+    } while (cursor);
 
     return {
-      qbo_project_id: customer.Id,
-      qbo_project_url: `https://app.qbo.intuit.com/app/customerdetail?nameId=${customer.Id}`,
-      qbo_project_name: customer.DisplayName ?? null,
+      qbo_project_id: null,
+      qbo_project_url: null,
+      qbo_project_name: null,
     };
   } catch (error) {
     console.error("QBO lookup error", error);

@@ -275,7 +275,7 @@ export default function PMBonusPage() {
             {formatCurrency(allTimeBonus)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            1% of QBO gross profit across {allTimeSyncedCount} synced completed project{allTimeSyncedCount !== 1 ? "s" : ""}
+            1% of each project's QBO gross profit across {allTimeSyncedCount} synced completed project{allTimeSyncedCount !== 1 ? "s" : ""}
           </p>
           <p className="text-xs text-muted-foreground italic mt-1">QBO-backed projection — subject to change until books are finalized</p>
         </CardContent>

@@ -85,3 +85,52 @@ test("buildPmBonusRows marks projects without QBO P&L as missing instead of usin
   assert.equal(rows[0].bonus, 0);
   assert.equal(rows[0].bonus_source, "missing_qbo");
 });
+
+test("buildPmBonusRows keeps bonus per-project instead of netting gains and losses across projects", () => {
+  const rows = buildPmBonusRows(
+    [
+      {
+        id: "p4",
+        name: "Winning Job",
+        client: "Client A",
+        close_date: "2026-06-23",
+        contract_amount: 10000,
+        total_spent: 0,
+      },
+      {
+        id: "p5",
+        name: "Losing Job",
+        client: "Client B",
+        close_date: "2026-06-24",
+        contract_amount: 10000,
+        total_spent: 0,
+      },
+    ],
+    new Map([
+      [
+        "p4",
+        {
+          project_id: "p4",
+          qbo_income: 10000,
+          qbo_expenses: 9000,
+          qbo_net_income: 1000,
+          synced_at: "2026-06-25T12:00:00Z",
+        },
+      ],
+      [
+        "p5",
+        {
+          project_id: "p5",
+          qbo_income: 10000,
+          qbo_expenses: 13000,
+          qbo_net_income: -3000,
+          synced_at: "2026-06-25T12:00:00Z",
+        },
+      ],
+    ])
+  );
+
+  assert.equal(rows[0].bonus, 1000 * BONUS_RATE);
+  assert.equal(rows[1].bonus, 0);
+  assert.equal(rows.reduce((sum, row) => sum + row.bonus, 0), 1000 * BONUS_RATE);
+});
