@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { ProjectSummary, getPMName, PM_NAMES } from "@/lib/types";
 import { canSeeTeamBonuses } from "@/lib/bonus-access";
+import { buildPmBonusRows, type BonusRow } from "@/lib/pm-bonus";
 import { formatCurrency } from "@/lib/constants";
 import { nowCentral, formatDateCentral } from "@/lib/date-utils";
 import {
@@ -29,8 +30,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-
-const BONUS_RATE = 0.01;
 
 type TimePeriod = "by-project" | "this-month" | "this-quarter" | "this-half" | "this-year" | "all-time";
 
@@ -93,33 +92,12 @@ function getPeriodLabel(period: TimePeriod): string {
   }
 }
 
-interface BonusRow {
-  id: string;
-  name: string;
-  client: string;
-  close_date: string | null;
-  contract_amount: number | null;
-  total_spent: number;
-  gross_profit: number;
-  bonus: number;
-}
-
-function computeBonusRows(projects: ProjectSummary[]): BonusRow[] {
-  return projects.map((p) => {
-    const contract = p.contract_amount ?? 0;
-    const grossProfit = contract - p.total_spent;
-    const bonus = Math.max(0, grossProfit) * BONUS_RATE;
-    return {
-      id: p.id,
-      name: p.name,
-      client: p.client,
-      close_date: p.close_date,
-      contract_amount: p.contract_amount,
-      total_spent: p.total_spent,
-      gross_profit: grossProfit,
-      bonus,
-    };
-  });
+interface ProjectPnlRow {
+  project_id: string;
+  qbo_income: number | null;
+  qbo_expenses: number | null;
+  qbo_net_income: number | null;
+  synced_at: string | null;
 }
 
 function filterByPeriod(projects: ProjectSummary[], period: TimePeriod): ProjectSummary[] {
@@ -141,6 +119,7 @@ export default function PMBonusPage() {
   const isValidPM = initials in PM_NAMES;
 
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectPnlById, setProjectPnlById] = useState<Map<string, ProjectPnlRow>>(new Map());
   const [loading, setLoading] = useState(true);
   const [accessChecked, setAccessChecked] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
@@ -180,7 +159,7 @@ export default function PMBonusPage() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const { data } = await supabase
+      const { data: projectData } = await supabase
         .from("project_summary")
         .select("*")
         .eq("pm", initials)
@@ -188,7 +167,25 @@ export default function PMBonusPage() {
         .not("contract_amount", "is", null)
         .order("close_date", { ascending: false });
 
-      if (data) setProjects(data as ProjectSummary[]);
+      const typedProjects = (projectData as ProjectSummary[] | null) ?? [];
+      setProjects(typedProjects);
+
+      if (typedProjects.length > 0) {
+        const projectIds = typedProjects.map((project) => project.id);
+        const { data: pnlData } = await supabase
+          .from("qbo_project_pnl")
+          .select("project_id, qbo_income, qbo_expenses, qbo_net_income, synced_at")
+          .in("project_id", projectIds);
+
+        const pnlMap = new Map<string, ProjectPnlRow>();
+        for (const row of (pnlData as ProjectPnlRow[] | null) ?? []) {
+          pnlMap.set(row.project_id, row);
+        }
+        setProjectPnlById(pnlMap);
+      } else {
+        setProjectPnlById(new Map());
+      }
+
       setLoading(false);
     }
     if (accessChecked && accessGranted && isValidPM) fetchData();
@@ -220,12 +217,13 @@ export default function PMBonusPage() {
   }
 
   // All-time bonus for the header card
-  const allTimeBonusRows = computeBonusRows(projects);
-  const allTimeBonus = allTimeBonusRows.reduce((sum, r) => sum + r.bonus, 0);
+  const allTimeBonusRows = buildPmBonusRows(projects, projectPnlById);
+  const allTimeBonus = allTimeBonusRows.reduce((sum: number, r: BonusRow) => sum + r.bonus, 0);
+  const allTimeSyncedCount = allTimeBonusRows.filter((row) => row.bonus_source === "qbo").length;
 
   const periodProjects = filterByPeriod(projects, activeTab);
-  const bonusRows = computeBonusRows(periodProjects);
-  bonusRows.sort((a, b) => {
+  const bonusRows = buildPmBonusRows(periodProjects, projectPnlById);
+  bonusRows.sort((a: BonusRow, b: BonusRow) => {
     if (!a.close_date && !b.close_date) return 0;
     if (!a.close_date) return 1;
     if (!b.close_date) return -1;
@@ -233,13 +231,14 @@ export default function PMBonusPage() {
   });
 
   const totals = bonusRows.reduce(
-    (acc, r) => ({
-      contract: acc.contract + (r.contract_amount ?? 0),
-      spent: acc.spent + r.total_spent,
-      gp: acc.gp + r.gross_profit,
+    (acc: { income: number; expenses: number; gp: number; bonus: number; synced: number }, r: BonusRow) => ({
+      income: acc.income + (r.qbo_income ?? 0),
+      expenses: acc.expenses + (r.qbo_expenses ?? 0),
+      gp: acc.gp + (r.gross_profit ?? 0),
       bonus: acc.bonus + r.bonus,
+      synced: acc.synced + (r.bonus_source === "qbo" ? 1 : 0),
     }),
-    { contract: 0, spent: 0, gp: 0, bonus: 0 }
+    { income: 0, expenses: 0, gp: 0, bonus: 0, synced: 0 }
   );
 
   const tabs: { value: TimePeriod; label: string }[] = [
@@ -276,9 +275,9 @@ export default function PMBonusPage() {
             {formatCurrency(allTimeBonus)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            1% of gross profit across {projects.length} completed project{projects.length !== 1 ? "s" : ""}
+            1% of QBO gross profit across {allTimeSyncedCount} synced completed project{allTimeSyncedCount !== 1 ? "s" : ""}
           </p>
-          <p className="text-xs text-muted-foreground italic mt-1">Projected — subject to change until finalized</p>
+          <p className="text-xs text-muted-foreground italic mt-1">QBO-backed projection — subject to change until books are finalized</p>
         </CardContent>
       </Card>
 
@@ -310,17 +309,18 @@ export default function PMBonusPage() {
                   <div className="rounded-lg border p-3">
                     <p className="text-xs font-medium text-muted-foreground">Total Projects</p>
                     <p className="text-2xl font-bold mt-1">{bonusRows.length}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{totals.synced} synced to QBO</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">Contract Value</p>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.contract)}</p>
+                    <p className="text-xs font-medium text-muted-foreground">QBO Income</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.income)}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">Total Spent</p>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.spent)}</p>
+                    <p className="text-xs font-medium text-muted-foreground">QBO Expenses</p>
+                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.expenses)}</p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">Gross Profit</p>
+                    <p className="text-xs font-medium text-muted-foreground">QBO Gross Profit</p>
                     <p className={`text-2xl font-bold mt-1 ${totals.gp >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                       {formatCurrency(totals.gp)}
                     </p>
@@ -330,7 +330,7 @@ export default function PMBonusPage() {
                     <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
                       {formatCurrency(totals.bonus)}
                     </p>
-                    <p className="text-xs text-muted-foreground italic mt-0.5">Projected — subject to change</p>
+                    <p className="text-xs text-muted-foreground italic mt-0.5">QBO-based bonus projection</p>
                   </div>
                 </div>
 
@@ -347,9 +347,9 @@ export default function PMBonusPage() {
                         <TableHead>Project Name</TableHead>
                         <TableHead>Client</TableHead>
                         <TableHead>Close Date</TableHead>
-                        <TableHead className="text-right">Contract</TableHead>
-                        <TableHead className="text-right">Total Spent</TableHead>
-                        <TableHead className="text-right">Gross Profit</TableHead>
+                        <TableHead className="text-right">QBO Income</TableHead>
+                        <TableHead className="text-right">QBO Expenses</TableHead>
+                        <TableHead className="text-right">QBO Gross Profit</TableHead>
                         <TableHead className="text-right">Bonus (1%)</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -379,19 +379,19 @@ export default function PMBonusPage() {
                               : "N/A"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(row.contract_amount)}
+                            {row.qbo_income != null ? formatCurrency(row.qbo_income) : <span className="text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(row.total_spent)}
+                            {row.qbo_expenses != null ? formatCurrency(row.qbo_expenses) : <span className="text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell
                             className={`text-right font-medium ${
-                              row.gross_profit < 0
+                              (row.gross_profit ?? 0) < 0
                                 ? "text-red-600 dark:text-red-400"
                                 : ""
                             }`}
                           >
-                            {formatCurrency(row.gross_profit)}
+                            {row.gross_profit != null ? formatCurrency(row.gross_profit) : <span className="text-muted-foreground">Awaiting QBO sync</span>}
                           </TableCell>
                           <TableCell
                             className={`text-right font-semibold ${
@@ -409,10 +409,10 @@ export default function PMBonusPage() {
                       <TableRow className="font-semibold">
                         <TableCell colSpan={4}>Totals</TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(totals.contract)}
+                          {formatCurrency(totals.income)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(totals.spent)}
+                          {formatCurrency(totals.expenses)}
                         </TableCell>
                         <TableCell
                           className={`text-right ${
