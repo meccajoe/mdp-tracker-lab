@@ -12,10 +12,11 @@ function read(p) {
   return fs.readFileSync(p, "utf8");
 }
 
-test("QBO project P&L route uses the QBO project filter instead of the legacy customer filter", () => {
+test("QBO project P&L route uses ProjectProfitabilitySummary instead of the broken project-filtered ProfitAndLoss report", () => {
   const source = read(pnlRoutePath);
 
-  assert.match(source, /ProfitAndLoss\?project=\$\{qboProjectId\}/);
+  assert.match(source, /ProjectProfitabilitySummary/);
+  assert.doesNotMatch(source, /ProfitAndLoss\?project=\$\{qboProjectId\}/);
   assert.doesNotMatch(source, /ProfitAndLoss\?customer=\$\{qboProjectId\}/);
 });
 
