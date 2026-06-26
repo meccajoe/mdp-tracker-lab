@@ -111,6 +111,15 @@ function filterByPeriod(projects: ProjectSummary[], period: TimePeriod): Project
   });
 }
 
+function formatPercent(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatBonusRate(value: number): string {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
 export default function PMBonusPage() {
   const params = useParams();
   const router = useRouter();
@@ -275,9 +284,9 @@ export default function PMBonusPage() {
             {formatCurrency(allTimeBonus)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            1% of each project's QBO gross profit across {allTimeSyncedCount} synced completed project{allTimeSyncedCount !== 1 ? "s" : ""}
+            Tiered bonus across {allTimeSyncedCount} synced completed project{allTimeSyncedCount !== 1 ? "s" : ""}
           </p>
-          <p className="text-xs text-muted-foreground italic mt-1">QBO-backed projection — subject to change until books are finalized</p>
+          <p className="text-xs text-muted-foreground italic mt-1">Tiered QBO-based bonus projection — under 30% margin = 0%, 30%–39.9% = 0.50%, 40%–49.9% = 0.75%, 50%+ = 1.00%</p>
         </CardContent>
       </Card>
 
@@ -350,7 +359,9 @@ export default function PMBonusPage() {
                         <TableHead className="text-right">QBO Income</TableHead>
                         <TableHead className="text-right">QBO Expenses</TableHead>
                         <TableHead className="text-right">QBO Gross Profit</TableHead>
-                        <TableHead className="text-right">Bonus (1%)</TableHead>
+                        <TableHead className="text-right">Project Profit Margin</TableHead>
+                        <TableHead className="text-right">Bonus Rate</TableHead>
+                        <TableHead className="text-right">Bonus</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -393,6 +404,12 @@ export default function PMBonusPage() {
                           >
                             {row.gross_profit != null ? formatCurrency(row.gross_profit) : <span className="text-muted-foreground">Awaiting QBO sync</span>}
                           </TableCell>
+                          <TableCell className="text-right">
+                            {formatPercent(row.profit_margin)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatBonusRate(row.bonus_rate)}
+                          </TableCell>
                           <TableCell
                             className={`text-right font-semibold ${
                               row.bonus > 0
@@ -422,6 +439,12 @@ export default function PMBonusPage() {
                           }`}
                         >
                           {formatCurrency(totals.gp)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          —
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          —
                         </TableCell>
                         <TableCell className="text-right text-green-600 dark:text-green-400">
                           {formatCurrency(totals.bonus)}
