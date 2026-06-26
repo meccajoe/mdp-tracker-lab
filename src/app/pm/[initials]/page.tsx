@@ -216,43 +216,8 @@ export default function PMBonusPage() {
     );
   }
 
-  // All-time bonus for the header card
-  const allTimeBonusRows = buildPmBonusRows(projects, projectPnlById);
-  const allTimeBonus = allTimeBonusRows.reduce((sum: number, r: BonusRow) => sum + r.bonus, 0);
-  const allTimeSyncedCount = allTimeBonusRows.filter((row) => row.bonus_source === "qbo").length;
-
-  const periodProjects = filterByPeriod(projects, activeTab);
-  const bonusRows = buildPmBonusRows(periodProjects, projectPnlById);
-  bonusRows.sort((a: BonusRow, b: BonusRow) => {
-    if (!a.close_date && !b.close_date) return 0;
-    if (!a.close_date) return 1;
-    if (!b.close_date) return -1;
-    return b.close_date.localeCompare(a.close_date);
-  });
-
-  const totals = bonusRows.reduce(
-    (acc: { income: number; expenses: number; gp: number; bonus: number; synced: number }, r: BonusRow) => ({
-      income: acc.income + (r.qbo_income ?? 0),
-      expenses: acc.expenses + (r.qbo_expenses ?? 0),
-      gp: acc.gp + (r.gross_profit ?? 0),
-      bonus: acc.bonus + r.bonus,
-      synced: acc.synced + (r.bonus_source === "qbo" ? 1 : 0),
-    }),
-    { income: 0, expenses: 0, gp: 0, bonus: 0, synced: 0 }
-  );
-
-  const tabs: { value: TimePeriod; label: string }[] = [
-    { value: "by-project", label: "By Project" },
-    { value: "this-month", label: "This Month" },
-    { value: "this-quarter", label: "This Quarter" },
-    { value: "this-half", label: "This Half" },
-    { value: "this-year", label: "This Year" },
-    { value: "all-time", label: "All Time" },
-  ];
-
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-bold flex-shrink-0">
           {initials}
@@ -263,178 +228,22 @@ export default function PMBonusPage() {
         </div>
       </div>
 
-      {/* All-time bonus hero card */}
-      <Card className="border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-950/20">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Total Bonus Earned (All Time)
-          </CardTitle>
+      <Card className="border-yellow-300 bg-yellow-50/70 dark:border-yellow-900 dark:bg-yellow-950/20">
+        <CardHeader>
+          <CardTitle>PM bonus tracker is temporarily unavailable</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-4xl font-bold text-green-600 dark:text-green-400">
-            {formatCurrency(allTimeBonus)}
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            QBO project profitability source is being repaired.
           </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            1% of each project's QBO gross profit across {allTimeSyncedCount} synced completed project{allTimeSyncedCount !== 1 ? "s" : ""}
+          <p>
+            We found that the current synced QBO profitability values are repeating company-level totals across projects instead of using true per-project profit from the QBO project details surface.
           </p>
-          <p className="text-xs text-muted-foreground italic mt-1">QBO-backed projection — subject to change until books are finalized</p>
+          <p>
+            The page is hidden until the tracker is reading the correct project-level income, expenses, and profit values.
+          </p>
         </CardContent>
       </Card>
-
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as TimePeriod)}
-      >
-        <Card>
-          <CardHeader className="pb-0">
-            <TabsList className="h-auto bg-transparent p-0 border-b w-full flex-wrap">
-              {tabs.map((t) => (
-                <TabsTrigger key={t.value} value={t.value} className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-4 py-2 -mb-px font-medium">
-                  {t.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {tabs.map((t) => (
-              <TabsContent key={t.value} value={t.value} className="mt-0 space-y-6">
-                {/* Period label */}
-                <p className="text-sm text-muted-foreground font-medium">
-                  {getPeriodLabel(t.value)}
-                </p>
-
-                {/* Summary stats for this period */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">Total Projects</p>
-                    <p className="text-2xl font-bold mt-1">{bonusRows.length}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{totals.synced} synced to QBO</p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">QBO Income</p>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.income)}</p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">QBO Expenses</p>
-                    <p className="text-2xl font-bold mt-1">{formatCurrency(totals.expenses)}</p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">QBO Gross Profit</p>
-                    <p className={`text-2xl font-bold mt-1 ${totals.gp >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                      {formatCurrency(totals.gp)}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-green-200 dark:border-green-900 p-3">
-                    <p className="text-xs font-medium text-muted-foreground">Bonus Earned</p>
-                    <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
-                      {formatCurrency(totals.bonus)}
-                    </p>
-                    <p className="text-xs text-muted-foreground italic mt-0.5">QBO-based bonus projection</p>
-                  </div>
-                </div>
-
-                {/* Bonus breakdown table */}
-                {bonusRows.length === 0 ? (
-                  <p className="text-muted-foreground py-8 text-center">
-                    No completed projects in this period.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[80px]">Project ID</TableHead>
-                        <TableHead>Project Name</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead>Close Date</TableHead>
-                        <TableHead className="text-right">QBO Income</TableHead>
-                        <TableHead className="text-right">QBO Expenses</TableHead>
-                        <TableHead className="text-right">QBO Gross Profit</TableHead>
-                        <TableHead className="text-right">Bonus (1%)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {bonusRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-mono text-sm">
-                            <Link
-                              href={`/projects/${row.id}`}
-                              className="hover:underline"
-                            >
-                              {row.id}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <Link
-                              href={`/projects/${row.id}`}
-                              className="text-blue-600 hover:underline"
-                            >
-                              {row.name}
-                            </Link>
-                          </TableCell>
-                          <TableCell>{row.client}</TableCell>
-                          <TableCell>
-                            {row.close_date
-                              ? formatDateCentral(row.close_date + "T00:00:00")
-                              : "N/A"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {row.qbo_income != null ? formatCurrency(row.qbo_income) : <span className="text-muted-foreground">—</span>}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {row.qbo_expenses != null ? formatCurrency(row.qbo_expenses) : <span className="text-muted-foreground">—</span>}
-                          </TableCell>
-                          <TableCell
-                            className={`text-right font-medium ${
-                              (row.gross_profit ?? 0) < 0
-                                ? "text-red-600 dark:text-red-400"
-                                : ""
-                            }`}
-                          >
-                            {row.gross_profit != null ? formatCurrency(row.gross_profit) : <span className="text-muted-foreground">Awaiting QBO sync</span>}
-                          </TableCell>
-                          <TableCell
-                            className={`text-right font-semibold ${
-                              row.bonus > 0
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-muted-foreground"
-                            }`}
-                          >
-                            {row.bonus > 0 ? formatCurrency(row.bonus) : "$0"}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="font-semibold">
-                        <TableCell colSpan={4}>Totals</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(totals.income)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(totals.expenses)}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right ${
-                            totals.gp < 0
-                              ? "text-red-600 dark:text-red-400"
-                              : ""
-                          }`}
-                        >
-                          {formatCurrency(totals.gp)}
-                        </TableCell>
-                        <TableCell className="text-right text-green-600 dark:text-green-400">
-                          {formatCurrency(totals.bonus)}
-                        </TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                )}
-              </TabsContent>
-            ))}
-          </CardContent>
-        </Card>
-      </Tabs>
     </div>
   );
 }
