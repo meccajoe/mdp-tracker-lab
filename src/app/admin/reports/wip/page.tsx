@@ -351,7 +351,7 @@ export default function WipReportPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl space-y-6">
+    <div className="container mx-auto py-8 px-4 xl:px-6 max-w-[1800px] space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">WIP Report</h1>

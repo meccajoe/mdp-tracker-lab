@@ -122,7 +122,7 @@ export default function VendorManagementPage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl space-y-6">
+    <div className="container mx-auto py-8 px-4 xl:px-6 max-w-[1800px] space-y-6">
       <h1 className="text-2xl font-bold">Vendor Management</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

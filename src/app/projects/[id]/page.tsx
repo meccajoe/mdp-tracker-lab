@@ -846,7 +846,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl space-y-6">
+    <div className="container mx-auto py-8 px-4 xl:px-6 max-w-[1800px] space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-1">

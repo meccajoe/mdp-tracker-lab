@@ -62,7 +62,7 @@ export default function FlagsPage() {
   const grandTotal = flaggedExpenses.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 xl:px-8 max-w-[1800px] mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">🚩 Flagged Expenses</h1>
         <p className="text-muted-foreground text-sm mt-1">Expenses flagged for review across all projects. Admin only.</p>
