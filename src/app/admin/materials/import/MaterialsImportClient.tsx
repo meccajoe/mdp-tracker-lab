@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,22 @@ interface PreviewSummary {
   bySheet: Record<string, number>;
   byStatus: Record<string, number>;
   byReason?: Record<string, number>;
+  committedAt?: string;
+  importedCount?: number;
+  dedupedCount?: number;
+  createdMaterialCount?: number;
+  matchedMaterialCount?: number;
+  skippedCount?: number;
+}
+
+interface ImportBatchHistory {
+  id: string;
+  source_name: string;
+  source_url?: string | null;
+  uploaded_by?: string | null;
+  status: string;
+  summary: PreviewSummary | null;
+  created_at: string;
 }
 
 interface PreviewCandidateMatch {
@@ -84,14 +100,23 @@ function buildSummary(rows: PreviewRow[]): PreviewSummary {
   };
 }
 
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
 export default function MaterialsImportClient() {
   const [filePath, setFilePath] = useState("");
   const [batchId, setBatchId] = useState<string | null>(null);
   const [summary, setSummary] = useState<PreviewSummary | null>(null);
   const [rows, setRows] = useState<PreviewRow[]>([]);
+  const [historyBatches, setHistoryBatches] = useState<ImportBatchHistory[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingCommit, setLoadingCommit] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
 
   const unresolvedReviewCount = summary?.byStatus?.needs_review ?? 0;
@@ -99,6 +124,43 @@ export default function MaterialsImportClient() {
   const visibleRows = useMemo(() => {
     return rows.filter((row) => statusFilter === "all" ? true : row.status === statusFilter);
   }, [rows, statusFilter]);
+
+  async function loadBatchHistory(selectedBatchId?: string) {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch("/api/materials/import/batches");
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? `Failed to load import history: ${response.status}`);
+      setHistoryBatches(payload.batches ?? []);
+
+      if (!batchId && !selectedBatchId && payload.batches?.[0]?.id) {
+        // passive history load only; do not auto-open any batch
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
+
+  useEffect(() => {
+    loadBatchHistory();
+  }, []);
+
+  async function loadBatch(batchHistoryId: string) {
+    try {
+      const response = await fetch(`/api/materials/import/batches/${batchHistoryId}`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? `Failed to load batch: ${response.status}`);
+      setBatchId(payload.batch.id);
+      setSummary(payload.batch.summary ?? buildSummary(payload.rows ?? []));
+      setRows(payload.rows ?? []);
+      setStatusFilter("all");
+      toast.success("Import batch loaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  }
 
   async function handlePreview() {
     if (!filePath.trim()) {
@@ -119,6 +181,7 @@ export default function MaterialsImportClient() {
       setSummary(payload.summary);
       setRows(payload.rows ?? []);
       setStatusFilter("all");
+      await loadBatchHistory(payload.batchId);
       toast.success("Preview Import ready");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -149,6 +212,8 @@ export default function MaterialsImportClient() {
       if (!response.ok) throw new Error(payload.error ?? `Commit failed: ${response.status}`);
       toast.success(`Commit Import complete (${payload.importedCount} rows, ${payload.dedupedCount ?? 0} deduped)`);
       setSummary(payload.summary ?? summary);
+      await loadBatchHistory(batchId);
+      await loadBatch(batchId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -193,6 +258,7 @@ export default function MaterialsImportClient() {
         return nextRows;
       });
 
+      await loadBatchHistory(batchId ?? undefined);
       toast.success(action === "skip" ? "Row skipped" : action === "approve" ? "Row approved" : "Row review saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -222,6 +288,46 @@ export default function MaterialsImportClient() {
             <Badge variant="outline">{unresolvedReviewCount} needs review</Badge>
           )}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-border p-4 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-medium">Import Batch History</h2>
+            <p className="text-sm text-muted-foreground">Reload prior preview runs, review what happened, and reopen a batch before cutover.</p>
+          </div>
+          <Button variant="outline" onClick={() => loadBatchHistory(batchId ?? undefined)} disabled={loadingHistory}>
+            {loadingHistory ? "Refreshing…" : "Refresh History"}
+          </Button>
+        </div>
+        {historyBatches.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No import batches recorded yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {historyBatches.map((batch) => (
+              <div key={batch.id} className="flex flex-col gap-3 rounded-md border border-border p-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="font-medium">{batch.source_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatTimestamp(batch.created_at)} • {batch.uploaded_by ?? "unknown uploader"}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>Status: {batch.status}</span>
+                    <span>Total: {batch.summary?.totalRows ?? 0}</span>
+                    <span>Needs review: {batch.summary?.byStatus?.needs_review ?? 0}</span>
+                    <span>Imported: {batch.summary?.importedCount ?? batch.summary?.byStatus?.imported ?? 0}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={batch.status === "committed" ? "secondary" : "outline"}>{batch.status}</Badge>
+                  <Button variant="outline" onClick={() => loadBatch(batch.id)}>
+                    {batch.id === batchId ? "Reload Batch" : "Open Batch"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {summary && (

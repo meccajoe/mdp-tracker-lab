@@ -3,12 +3,14 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-test("materials detail route now returns aliases alongside current vendor prices", () => {
+test("materials detail route now returns aliases current vendor prices and audit history", () => {
   const routePath = join(process.cwd(), "src/app/api/materials/[id]/route.ts");
   const source = readFileSync(routePath, "utf8");
 
   assert.match(source, /material_aliases\(/, "detail route should load material aliases");
   assert.match(source, /material_vendor_prices/, "detail route should still load vendor price rows");
+  assert.match(source, /from\("material_change_log"\)/, "detail route should load material audit history");
+  assert.match(source, /material_import_batches/, "detail route should include batch context for audit rows");
   assert.match(source, /requireMaterialsAdmin/, "detail route should require admin auth");
 });
 
@@ -45,4 +47,16 @@ test("materials alias routes support create update and delete flows with audit l
   assert.match(detailSource, /export async function PATCH/, "alias detail route should expose PATCH");
   assert.match(detailSource, /export async function DELETE/, "alias detail route should expose DELETE");
   assert.match(detailSource, /from\("material_change_log"\)\.insert/, "alias routes should audit changes");
+});
+
+test("materials import batch history routes expose recent batches and batch detail rows", () => {
+  const listRoutePath = join(process.cwd(), "src/app/api/materials/import/batches/route.ts");
+  const detailRoutePath = join(process.cwd(), "src/app/api/materials/import/batches/[batchId]/route.ts");
+  const listSource = readFileSync(listRoutePath, "utf8");
+  const detailSource = readFileSync(detailRoutePath, "utf8");
+
+  assert.match(listSource, /export async function GET/, "batch history route should expose GET");
+  assert.match(listSource, /from\("material_import_batches"\)/, "batch history route should query import batches");
+  assert.match(detailSource, /from\("material_import_rows"\)/, "batch detail route should load batch rows");
+  assert.match(detailSource, /from\("material_import_batches"\)/, "batch detail route should load the parent batch");
 });

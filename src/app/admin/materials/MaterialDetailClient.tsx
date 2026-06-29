@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -28,6 +28,24 @@ interface MaterialAlias {
   alias_text: string;
   normalized_alias_text?: string | null;
   created_at?: string | null;
+}
+
+interface MaterialChangeLogRow {
+  id: string;
+  entity_type: string;
+  change_type: string;
+  changed_by: string | null;
+  changed_at: string;
+  field_name?: string | null;
+  batch_id?: string | null;
+  batch?: {
+    id: string;
+    source_name?: string | null;
+    status?: string | null;
+    created_at?: string | null;
+  } | null;
+  old_value?: Record<string, unknown> | null;
+  new_value?: Record<string, unknown> | null;
 }
 
 interface MaterialVendorPrice {
@@ -157,6 +175,19 @@ function normalizeVendorPricePayload(row: MaterialVendorPrice, setAsDefault = fa
   };
 }
 
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function summarizeChange(row: MaterialChangeLogRow) {
+  const entityLabel = row.entity_type.replace(/_/g, " ");
+  const batchText = row.batch?.source_name ? ` · ${row.batch.source_name}` : "";
+  return `${row.change_type} ${entityLabel}${batchText}`;
+}
+
 export default function MaterialDetailClient({
   mode,
   materialId,
@@ -169,6 +200,7 @@ export default function MaterialDetailClient({
   const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [aliases, setAliases] = useState<MaterialAlias[]>([]);
   const [vendorPrices, setVendorPrices] = useState<MaterialVendorPrice[]>([]);
+  const [changeLog, setChangeLog] = useState<MaterialChangeLogRow[]>([]);
   const [newAlias, setNewAlias] = useState("");
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
@@ -217,6 +249,7 @@ export default function MaterialDetailClient({
       });
       setAliases((item.material_aliases ?? []) as MaterialAlias[]);
       setVendorPrices((item.material_vendor_prices ?? []).map((row: any, index: number) => toEditableVendorPrice(row, index)));
+      setChangeLog((item.material_change_log ?? []) as MaterialChangeLogRow[]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -231,6 +264,8 @@ export default function MaterialDetailClient({
   useEffect(() => {
     fetchMaterial();
   }, [fetchMaterial]);
+
+  const currentChangeLog = useMemo(() => changeLog.slice(0, 20), [changeLog]);
 
   function updateField<K extends keyof MaterialDetail>(key: K, value: MaterialDetail[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -664,6 +699,36 @@ export default function MaterialDetailClient({
                     {row.id ? "Retire" : "Remove"}
                   </Button>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border p-4">
+        <div className="mb-3">
+          <h2 className="font-medium">Audit History</h2>
+          <p className="text-xs text-muted-foreground">Recent material, alias, vendor price, and import events for this catalog record.</p>
+        </div>
+        {mode === "create" ? (
+          <p className="text-sm text-muted-foreground">Create the material first, then audit history will appear here.</p>
+        ) : currentChangeLog.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No audit history recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {currentChangeLog.map((row) => (
+              <div key={row.id} className="rounded-md border border-border p-3">
+                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                  <div className="font-medium capitalize">{summarizeChange(row)}</div>
+                  <div className="text-xs text-muted-foreground">{formatTimestamp(row.changed_at)}</div>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {row.changed_by ?? "Unknown user"}
+                  {row.batch_id ? ` • batch ${row.batch_id}` : ""}
+                </div>
+                {row.field_name ? (
+                  <div className="mt-2 text-xs text-muted-foreground">Field: {row.field_name}</div>
+                ) : null}
               </div>
             ))}
           </div>

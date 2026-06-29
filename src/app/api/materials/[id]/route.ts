@@ -79,6 +79,31 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
 
+  const { data: changeLogRows, error: changeLogError } = await supabase
+    .from("material_change_log")
+    .select(`
+      id,
+      material_id,
+      entity_type,
+      entity_id,
+      change_type,
+      field_name,
+      old_value,
+      new_value,
+      changed_by,
+      changed_at,
+      batch_id,
+      batch:material_import_batches(id, source_name, status, created_at)
+    `)
+    .eq("material_id", id)
+    .order("changed_at", { ascending: false })
+    .limit(40);
+
+  if (changeLogError) {
+    console.error("[materials/get:change-log]", changeLogError);
+    return NextResponse.json({ error: changeLogError.message }, { status: 500 });
+  }
+
   const currentPrices = (data.material_vendor_prices ?? []).filter((row: { is_current?: boolean | null }) => row.is_current);
   const aliases = [...(data.material_aliases ?? [])].sort((a: { alias_text?: string | null }, b: { alias_text?: string | null }) =>
     String(a.alias_text ?? "").localeCompare(String(b.alias_text ?? ""))
@@ -89,6 +114,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
       ...data,
       material_vendor_prices: currentPrices,
       material_aliases: aliases,
+      material_change_log: changeLogRows ?? [],
     },
   });
 }
