@@ -47,6 +47,16 @@ interface ImportBatchHistoryResponse {
   error?: string;
 }
 
+interface ImportBatchRowsResponse {
+  batch: ImportBatchHistory;
+  rows: PreviewRow[];
+  rowLimit: number;
+  rowOffset: number;
+  rowTotal: number;
+  rowsHasMore: boolean;
+  error?: string;
+}
+
 interface PreviewCandidateMatch {
   material_id: string | null;
   label: string | null;
@@ -124,6 +134,9 @@ export default function MaterialsImportClient() {
   const [historyBatches, setHistoryBatches] = useState<ImportBatchHistory[]>([]);
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [historyOffset, setHistoryOffset] = useState(0);
+  const [rowHasMore, setRowHasMore] = useState(false);
+  const [rowOffset, setRowOffset] = useState(0);
+  const [rowTotal, setRowTotal] = useState(0);
   const [statusFilter, setStatusFilter] = useState("all");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingCommit, setLoadingCommit] = useState(false);
@@ -165,19 +178,32 @@ export default function MaterialsImportClient() {
     await loadBatchHistory({ append: true, offset: historyOffset });
   }
 
-  async function loadBatch(batchHistoryId: string) {
+  async function loadBatch(batchHistoryId: string, options?: { append?: boolean; offset?: number }) {
     try {
-      const response = await fetch(`/api/materials/import/batches/${batchHistoryId}`);
-      const payload = await response.json();
+      const nextOffset = options?.offset ?? 0;
+      const params = new URLSearchParams({
+        offset: String(nextOffset),
+        limit: "250",
+      });
+      const response = await fetch(`/api/materials/import/batches/${batchHistoryId}?${params.toString()}`);
+      const payload = await response.json() as ImportBatchRowsResponse;
       if (!response.ok) throw new Error(payload.error ?? `Failed to load batch: ${response.status}`);
       setBatchId(payload.batch.id);
       setSummary(payload.batch.summary ?? buildSummary(payload.rows ?? []));
-      setRows(payload.rows ?? []);
+      setRows((current) => options?.append ? [...current, ...(payload.rows ?? [])] : (payload.rows ?? []));
+      setRowHasMore(payload.rowsHasMore ?? false);
+      setRowOffset((payload.rowOffset ?? nextOffset) + (payload.rows?.length ?? 0));
+      setRowTotal(payload.rowTotal ?? (payload.rows?.length ?? 0));
       setStatusFilter("all");
       toast.success("Import batch loaded");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  async function loadMoreRows() {
+    if (!batchId) return;
+    await loadBatch(batchId, { append: true, offset: rowOffset });
   }
 
   async function handlePreview() {
@@ -198,6 +224,9 @@ export default function MaterialsImportClient() {
       setBatchId(payload.batchId);
       setSummary(payload.summary);
       setRows(payload.rows ?? []);
+      setRowHasMore(payload.rowsHasMore ?? false);
+      setRowOffset((payload.rowOffset ?? 0) + (payload.rows?.length ?? 0));
+      setRowTotal(payload.rowTotal ?? (payload.rows?.length ?? 0));
       setStatusFilter("all");
       await loadBatchHistory();
       toast.success("Preview Import ready");
@@ -417,6 +446,7 @@ export default function MaterialsImportClient() {
             <div>
               <h2 className="font-medium">Review Queue</h2>
               <p className="text-sm text-muted-foreground">Resolve ambiguous or incomplete rows before commit. Parsed rows can still be edited here.</p>
+              <p className="text-xs text-muted-foreground">Showing {visibleRows.length} filtered rows from {rows.length} loaded / {rowTotal} total.</p>
             </div>
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value ?? "all")}>
               <SelectTrigger className="w-full md:w-56">
@@ -510,6 +540,14 @@ export default function MaterialsImportClient() {
               </div>
             ))}
           </div>
+
+          {rowHasMore && (
+            <div className="pt-2">
+              <Button variant="outline" onClick={loadMoreRows} disabled={loadingHistory}>
+                {loadingHistory ? "Loading…" : "Show More Rows"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

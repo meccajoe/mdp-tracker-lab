@@ -18,4 +18,5 @@ test("materials import client supports preview review filtering commit gating an
   assert.match(source, /Filter by status|Needs Review|Approve Row|Skip Row/, "import client should expose review filters and row actions");
   assert.match(source, /Import Batch History|Open Batch|Reload Batch/, "import client should expose prior batch history and reload actions");
   assert.match(source, /Show More History|Cutover Readiness|Commit Counters/, "import client should expose history pagination and cutover-readiness polish");
+  assert.match(source, /Show More Rows|loaded \/ \{rowTotal\} total|rowTotal/, "import client should support paging through large review queues");
 });

@@ -28,6 +28,15 @@ test("materials import review route supports save approve and skip actions", () 
   assert.match(source, /from\("materials"\)/, "review route should reload materials for re-matching");
 });
 
+test("materials import batch detail route supports row pagination for large review queues", () => {
+  const routePath = join(process.cwd(), "src/app/api/materials/import/batches/[batchId]/route.ts");
+  const source = readFileSync(routePath, "utf8");
+
+  assert.match(source, /searchParams\.get\("limit"\)|rowLimit/, "batch detail route should accept a row page limit");
+  assert.match(source, /searchParams\.get\("offset"\)|rowOffset/, "batch detail route should accept a row page offset");
+  assert.match(source, /rowsHasMore|count:\s*"exact"/, "batch detail route should report whether more staged rows remain");
+});
+
 test("materials import commit route dedupes current vendor prices, respects review status, and closes the batch", () => {
   const routePath = join(process.cwd(), "src/app/api/materials/import/commit/route.ts");
   const source = readFileSync(routePath, "utf8");

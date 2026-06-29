@@ -7,6 +7,8 @@ import { parseMaterialsWorkbook } from "@/lib/materials/workbook";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const PREVIEW_ROW_LIMIT = 250;
+
 export async function POST(req: NextRequest) {
   const auth = await requireMaterialsAdmin();
   if (!auth.ok) return auth.response;
@@ -69,22 +71,40 @@ export async function POST(req: NextRequest) {
       error_text: row.error_text,
     }));
 
-    const { data: insertedRows, error: rowsError } = await supabase
+    const { error: rowsInsertError } = await supabase
       .from("material_import_rows")
-      .insert(rowsPayload)
-      .select("id, sheet_name, source_row_number, normalized_candidate, status, error_text");
+      .insert(rowsPayload);
 
-    if (rowsError) {
-      console.error("[materials/import/preview:rows]", rowsError);
-      return NextResponse.json({ error: rowsError.message }, { status: 500 });
+    if (rowsInsertError) {
+      console.error("[materials/import/preview:rows]", rowsInsertError);
+      return NextResponse.json({ error: rowsInsertError.message }, { status: 500 });
     }
+
+    const { data: stagedRows, error: stagedRowsError, count } = await supabase
+      .from("material_import_rows")
+      .select("id, sheet_name, source_row_number, normalized_candidate, status, error_text", { count: "exact" })
+      .eq("batch_id", batch.id)
+      .order("sheet_name", { ascending: true })
+      .order("source_row_number", { ascending: true })
+      .range(0, PREVIEW_ROW_LIMIT - 1);
+
+    if (stagedRowsError) {
+      console.error("[materials/import/preview:rows:reload]", stagedRowsError);
+      return NextResponse.json({ error: stagedRowsError.message }, { status: 500 });
+    }
+
+    const rowTotal = typeof count === "number" ? count : stagedRows?.length ?? 0;
 
     return NextResponse.json({
       batchId: batch.id,
       summary,
-      rows: (insertedRows ?? []).slice(0, 100),
+      rows: stagedRows ?? [],
+      rowLimit: PREVIEW_ROW_LIMIT,
+      rowOffset: 0,
+      rowTotal,
+      rowsHasMore: (stagedRows?.length ?? 0) < rowTotal,
     });
   }
 
-  return NextResponse.json({ batchId: batch.id, summary, rows: [] });
+  return NextResponse.json({ batchId: batch.id, summary, rows: [], rowLimit: PREVIEW_ROW_LIMIT, rowOffset: 0, rowTotal: 0, rowsHasMore: false });
 }

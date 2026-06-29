@@ -30,31 +30,32 @@ test("normalizeMaterialDatabaseRows carries category headings into subsequent it
   assert.equal(normalized[0].sourceRowNumber, 4);
 });
 
-test("normalizeWoodRows repairs date-coerced thickness fractions and folds extra note columns into notes", () => {
+test("normalizeWoodRows parses the real left-side wood columns, repairs date-coerced thickness fractions, and keeps side-list entries", () => {
   const rows = [
-    [null, null, "Material", "Dimensions", "Thickness", "Price", null, null, null, null, null, null, null],
-    [null, "Plywood Co", "Birch Baltic", "5x5", new Date("2023-01-02T00:00:00Z"), 55.15, null, null, null, "Home Depot", "Wooden dowel", '1"', 4.66],
+    [null, "Material", "Dimensions", "Thickness", "Price", null, null, null, null, null, null, null, null],
+    ["Plywood Co", "Birch Baltic", "5x5", new Date("2023-01-02T00:00:00Z"), 55.15, null, null, null, "Home Depot", "Wooden dowel", '1"', 4.66],
   ];
 
   const normalized = normalizeWoodRows(rows);
 
-  assert.equal(normalized.length, 1);
+  assert.equal(normalized.length, 2);
   assert.equal(normalized[0].vendorName, "Plywood Co");
   assert.equal(normalized[0].materialName, "Birch Baltic");
   assert.equal(normalized[0].dimensions, "5x5");
   assert.equal(normalized[0].thicknessText, "1/2");
   assert.equal(normalized[0].price, 55.15);
-  assert.match(normalized[0].notes ?? "", /Home Depot/);
-  assert.match(normalized[0].notes ?? "", /Wooden dowel/);
-  assert.match(normalized[0].notes ?? "", /4.66/);
+  assert.equal(normalized[1].vendorName, "Home Depot");
+  assert.equal(normalized[1].materialName, "Wooden dowel");
+  assert.equal(normalized[1].dimensions, '1"');
+  assert.equal(normalized[1].price, 4.66);
 });
 
 test("normalizeMetalAluminumRows skips repeated header rows inside the sheet", () => {
   const rows = [
-    [null, null, "Material", "Dimension", "Price"],
-    [null, "Astro Sheet Metal", "Aluminum U-Channel", "1x1x.625", 19.7],
-    [null, null, "Material", "Dimension", "Price"],
-    [null, "Dimco Steel", "Round Tubing", '1"x14gauge', 132],
+    [null, "Material", "Dimension", "Price"],
+    ["Astro Sheet Metal", "Aluminum U-Channel", "1x1x.625", 19.7],
+    [null, "Material", "Dimension", "Price"],
+    ["Dimco Steel", "Round Tubing", '1"x14gauge', 132],
   ];
 
   const normalized = normalizeMetalAluminumRows(rows);
@@ -84,9 +85,9 @@ test("normalizeGraphicsRows explodes left and right side-by-side lists into sepa
 
 test("normalizePackagingRows inherits the most recent material group when vendor rows leave it blank", () => {
   const rows = [
-    [null, "Material", "Vendor", "Dimension", "Roll per Case", "Price Per Roll"],
-    [null, "Double Sided Carpet Tape", "Brons", '2"x36yds', 24, 8.49],
-    [null, null, "HBM Supply", '2"x25yds', 24, 6.5],
+    ["Material", "Vendor", "Dimension", "Roll per Case", "Price Per Roll"],
+    ["Double Sided Carpet Tape", "Brons", '2"x36yds', 24, 8.49],
+    [null, "HBM Supply", '2"x25yds', 24, 6.5],
   ];
 
   const normalized = normalizePackagingRows(rows);

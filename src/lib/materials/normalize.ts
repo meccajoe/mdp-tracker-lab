@@ -55,15 +55,15 @@ function isMaterialDatabaseHeaderRow(row: unknown[]): boolean {
 }
 
 function isMetalHeaderRow(row: unknown[]): boolean {
-  return asTrimmedString(row[2]) === "Material" && asTrimmedString(row[3]) === "Dimension";
+  return asTrimmedString(row[1]) === "Material" && asTrimmedString(row[2]) === "Dimension";
 }
 
 function isWoodHeaderRow(row: unknown[]): boolean {
-  return asTrimmedString(row[2]) === "Material" && asTrimmedString(row[3]) === "Dimensions";
+  return asTrimmedString(row[1]) === "Material" && asTrimmedString(row[2]) === "Dimensions";
 }
 
 function isPackagingHeaderRow(row: unknown[]): boolean {
-  return asTrimmedString(row[1]) === "Material" && asTrimmedString(row[2]) === "Vendor";
+  return asTrimmedString(row[0]) === "Material" && asTrimmedString(row[1]) === "Vendor";
 }
 
 function normalizeThickness(value: unknown): string | null {
@@ -120,22 +120,38 @@ export function normalizeWoodRows(rows: unknown[][]): NormalizedMaterialRow[] {
     if (!row.some((cell) => !isBlank(cell))) return;
     if (isWoodHeaderRow(row)) return;
 
-    const vendorName = asTrimmedString(row[1]);
-    const materialName = asTrimmedString(row[2]);
-    const price = asNumber(row[5]);
-    if (!vendorName || !materialName || price === null) return;
+    const leftVendorName = asTrimmedString(row[0]);
+    const leftMaterialName = asTrimmedString(row[1]);
+    const leftPrice = asNumber(row[4]);
+    if (leftVendorName && leftMaterialName && leftPrice !== null) {
+      normalized.push(
+        buildRow("Wood", index + 1, {
+          category: "Wood",
+          vendorName: leftVendorName,
+          materialName: leftMaterialName,
+          dimensions: asTrimmedString(row[2]),
+          thicknessText: normalizeThickness(row[3]),
+          price: leftPrice,
+          notes: joinNotes(row.slice(5, 8)),
+        })
+      );
+    }
 
-    normalized.push(
-      buildRow("Wood", index + 1, {
-        category: "Wood",
-        vendorName,
-        materialName,
-        dimensions: asTrimmedString(row[3]),
-        thicknessText: normalizeThickness(row[4]),
-        price,
-        notes: joinNotes(row.slice(9, 13)),
-      })
-    );
+    const rightVendorName = asTrimmedString(row[8]);
+    const rightMaterialName = asTrimmedString(row[9]);
+    const rightPrice = asNumber(row[11]);
+    if (rightVendorName && rightMaterialName && rightPrice !== null) {
+      normalized.push(
+        buildRow("Wood", index + 1, {
+          category: "Wood",
+          vendorName: rightVendorName,
+          materialName: rightMaterialName,
+          dimensions: asTrimmedString(row[10]),
+          price: rightPrice,
+          notes: joinNotes(row.slice(12)),
+        })
+      );
+    }
   });
 
   return normalized;
@@ -148,9 +164,9 @@ export function normalizeMetalAluminumRows(rows: unknown[][]): NormalizedMateria
     if (!row.some((cell) => !isBlank(cell))) return;
     if (isMetalHeaderRow(row)) return;
 
-    const vendorName = asTrimmedString(row[1]);
-    const materialName = asTrimmedString(row[2]);
-    const price = asNumber(row[4]);
+    const vendorName = asTrimmedString(row[0]);
+    const materialName = asTrimmedString(row[1]);
+    const price = asNumber(row[3]);
     if (!vendorName || !materialName || price === null) return;
 
     normalized.push(
@@ -158,8 +174,8 @@ export function normalizeMetalAluminumRows(rows: unknown[][]): NormalizedMateria
         category: "Metal/Aluminum",
         vendorName,
         materialName,
-        dimensions: asTrimmedString(row[3]),
-        unit: asTrimmedString(row[5]),
+        dimensions: asTrimmedString(row[2]),
+        unit: asTrimmedString(row[4]),
         price,
       })
     );
@@ -212,11 +228,11 @@ export function normalizePackagingRows(rows: unknown[][]): NormalizedMaterialRow
     if (!row.some((cell) => !isBlank(cell))) return;
     if (isPackagingHeaderRow(row)) return;
 
-    const maybeMaterial = asTrimmedString(row[1]);
+    const maybeMaterial = asTrimmedString(row[0]);
     if (maybeMaterial) currentMaterialName = maybeMaterial;
 
-    const vendorName = asTrimmedString(row[2]);
-    const price = asNumber(row[5]);
+    const vendorName = asTrimmedString(row[1]);
+    const price = asNumber(row[4]);
     if (!currentMaterialName || !vendorName || price === null) return;
 
     normalized.push(
@@ -224,8 +240,8 @@ export function normalizePackagingRows(rows: unknown[][]): NormalizedMaterialRow
         category: "Packaging Material",
         materialName: currentMaterialName,
         vendorName,
-        dimensions: asTrimmedString(row[3]),
-        packQuantity: asNumber(row[4]),
+        dimensions: asTrimmedString(row[2]),
+        packQuantity: asNumber(row[3]),
         price,
         unit: "roll",
       })

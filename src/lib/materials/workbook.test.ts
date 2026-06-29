@@ -34,16 +34,49 @@ test("parseMaterialsWorkbook parses known material sheets and returns normalized
       "Graphics"
     );
 
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        [null, "Material", "Dimensions", "Thickness", "Price"],
+        ["Plywood Co", "Birch Baltic", "5x5", new Date("2023-01-02T00:00:00Z"), 55.15, null, null, null, "Home Depot", "Wooden dowel", '1"', 4.66],
+      ]),
+      "Wood"
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        [null, "Material", "Dimension", "Price"],
+        ["Astro Sheet Metal", "Aluminum U-Channel", "1x1x.625", 19.7, "Each"],
+      ]),
+      "MetalAluminum"
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Material", "Vendor", "Dimension", "Roll per Case", "Price Per Roll"],
+        ["Double Sided Carpet Tape", "Brons", '2"x36yds', 24, 8.49],
+        [null, "HBM Supply", '2"x25yds', 24, 6.5],
+      ]),
+      "Packaging Material"
+    );
+
     const filePath = join(dir, "materials.xlsx");
     XLSX.writeFile(workbook, filePath);
 
     const parsed = parseMaterialsWorkbook(filePath);
 
-    assert.equal(parsed.totalRows, 3);
+    assert.equal(parsed.totalRows, 8);
     assert.equal(parsed.bySheet["MATERIAL DATA BASE"].length, 1);
+    assert.equal(parsed.bySheet.Wood.length, 2);
+    assert.equal(parsed.bySheet.MetalAluminum.length, 1);
     assert.equal(parsed.bySheet.Graphics.length, 2);
+    assert.equal(parsed.bySheet["Packaging Material"].length, 2);
     assert.equal(parsed.bySheet["MATERIAL DATA BASE"][0].category, "Pine");
+    assert.equal(parsed.bySheet.Wood[0].thicknessText, "1/2");
     assert.equal(parsed.bySheet.Graphics[1].vendorName, "Reece Supply");
+    assert.equal(parsed.bySheet["Packaging Material"][1].materialName, "Double Sided Carpet Tape");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
