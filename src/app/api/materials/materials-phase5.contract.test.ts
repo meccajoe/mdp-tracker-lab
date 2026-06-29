@@ -11,6 +11,7 @@ test("materials detail route now returns aliases current vendor prices and audit
   assert.match(source, /material_vendor_prices/, "detail route should still load vendor price rows");
   assert.match(source, /from\("material_change_log"\)/, "detail route should load material audit history");
   assert.match(source, /material_import_batches/, "detail route should include batch context for audit rows");
+  assert.match(source, /old_value|new_value/, "detail route should return audit payloads rich enough for UI diffs");
   assert.match(source, /requireMaterialsAdmin/, "detail route should require admin auth");
 });
 
@@ -57,6 +58,7 @@ test("materials import batch history routes expose recent batches and batch deta
 
   assert.match(listSource, /export async function GET/, "batch history route should expose GET");
   assert.match(listSource, /from\("material_import_batches"\)/, "batch history route should query import batches");
+  assert.match(listSource, /searchParams\.get\("limit"\)|searchParams\.get\("offset"\)/, "batch history route should support pagination inputs");
   assert.match(detailSource, /from\("material_import_rows"\)/, "batch detail route should load batch rows");
   assert.match(detailSource, /from\("material_import_batches"\)/, "batch detail route should load the parent batch");
 });

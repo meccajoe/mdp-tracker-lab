@@ -19,4 +19,5 @@ test("materials detail client supports canonical field editing alias/vendor mana
   assert.match(source, /Save Vendor Price|Add Vendor Price/, "detail client should expose vendor price editing controls");
   assert.match(source, /Save \+ Set Default/, "detail client should allow setting a vendor price row as the default price");
   assert.match(source, /Audit History|material_change_log/, "detail client should expose material audit history");
+  assert.match(source, /Changed fields:|Source ref:|Price:/, "detail client should render richer audit detail summaries");
 });

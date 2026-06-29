@@ -188,6 +188,52 @@ function summarizeChange(row: MaterialChangeLogRow) {
   return `${row.change_type} ${entityLabel}${batchText}`;
 }
 
+function summarizeScalar(value: unknown) {
+  if (value == null) return "—";
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : "—";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string") return value.trim() || "—";
+  return "[complex value]";
+}
+
+function summarizeChangeDetails(row: MaterialChangeLogRow) {
+  const oldValue = row.old_value ?? {};
+  const newValue = row.new_value ?? {};
+  const keySet = new Set<string>([
+    ...Object.keys(oldValue),
+    ...Object.keys(newValue),
+  ]);
+
+  const changedKeys = [...keySet].filter((key) => JSON.stringify(oldValue[key]) !== JSON.stringify(newValue[key]));
+  const sourceRef = summarizeScalar(newValue.source_ref ?? oldValue.source_ref);
+  const lines: string[] = [];
+
+  if (changedKeys.length > 0) {
+    lines.push(`Changed fields: ${changedKeys.slice(0, 6).join(", ")}`);
+  }
+
+  if (sourceRef !== "—") {
+    lines.push(`Source ref: ${sourceRef}`);
+  }
+
+  if (newValue.price != null || oldValue.price != null) {
+    const nextPrice = summarizeScalar(newValue.price);
+    const previousPrice = summarizeScalar(oldValue.price);
+    const basis = summarizeScalar(newValue.price_basis ?? oldValue.price_basis);
+    lines.push(`Price: ${previousPrice} → ${nextPrice}${basis !== "—" ? ` / ${basis}` : ""}`);
+  }
+
+  if (newValue.alias_text != null || oldValue.alias_text != null) {
+    lines.push(`Alias: ${summarizeScalar(oldValue.alias_text)} → ${summarizeScalar(newValue.alias_text)}`);
+  }
+
+  if (newValue.canonical_name != null || oldValue.canonical_name != null) {
+    lines.push(`Name: ${summarizeScalar(oldValue.canonical_name)} → ${summarizeScalar(newValue.canonical_name)}`);
+  }
+
+  return lines;
+}
+
 export default function MaterialDetailClient({
   mode,
   materialId,
@@ -728,6 +774,13 @@ export default function MaterialDetailClient({
                 </div>
                 {row.field_name ? (
                   <div className="mt-2 text-xs text-muted-foreground">Field: {row.field_name}</div>
+                ) : null}
+                {summarizeChangeDetails(row).length > 0 ? (
+                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {summarizeChangeDetails(row).map((line) => (
+                      <div key={`${row.id}-${line}`}>{line}</div>
+                    ))}
+                  </div>
                 ) : null}
               </div>
             ))}

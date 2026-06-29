@@ -38,6 +38,15 @@ interface ImportBatchHistory {
   created_at: string;
 }
 
+interface ImportBatchHistoryResponse {
+  batches: ImportBatchHistory[];
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+  error?: string;
+}
+
 interface PreviewCandidateMatch {
   material_id: string | null;
   label: string | null;
@@ -113,6 +122,8 @@ export default function MaterialsImportClient() {
   const [summary, setSummary] = useState<PreviewSummary | null>(null);
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [historyBatches, setHistoryBatches] = useState<ImportBatchHistory[]>([]);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyOffset, setHistoryOffset] = useState(0);
   const [statusFilter, setStatusFilter] = useState("all");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingCommit, setLoadingCommit] = useState(false);
@@ -125,17 +136,20 @@ export default function MaterialsImportClient() {
     return rows.filter((row) => statusFilter === "all" ? true : row.status === statusFilter);
   }, [rows, statusFilter]);
 
-  async function loadBatchHistory(selectedBatchId?: string) {
+  async function loadBatchHistory(options?: { append?: boolean; offset?: number }) {
     setLoadingHistory(true);
     try {
-      const response = await fetch("/api/materials/import/batches");
-      const payload = await response.json();
+      const nextOffset = options?.offset ?? 0;
+      const params = new URLSearchParams({
+        offset: String(nextOffset),
+        limit: "10",
+      });
+      const response = await fetch(`/api/materials/import/batches?${params.toString()}`);
+      const payload = await response.json() as ImportBatchHistoryResponse;
       if (!response.ok) throw new Error(payload.error ?? `Failed to load import history: ${response.status}`);
-      setHistoryBatches(payload.batches ?? []);
-
-      if (!batchId && !selectedBatchId && payload.batches?.[0]?.id) {
-        // passive history load only; do not auto-open any batch
-      }
+      setHistoryBatches((current) => options?.append ? [...current, ...(payload.batches ?? [])] : (payload.batches ?? []));
+      setHistoryHasMore(payload.hasMore ?? false);
+      setHistoryOffset((payload.offset ?? nextOffset) + (payload.batches?.length ?? 0));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -146,6 +160,10 @@ export default function MaterialsImportClient() {
   useEffect(() => {
     loadBatchHistory();
   }, []);
+
+  async function loadMoreBatchHistory() {
+    await loadBatchHistory({ append: true, offset: historyOffset });
+  }
 
   async function loadBatch(batchHistoryId: string) {
     try {
@@ -181,7 +199,7 @@ export default function MaterialsImportClient() {
       setSummary(payload.summary);
       setRows(payload.rows ?? []);
       setStatusFilter("all");
-      await loadBatchHistory(payload.batchId);
+      await loadBatchHistory();
       toast.success("Preview Import ready");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -212,7 +230,7 @@ export default function MaterialsImportClient() {
       if (!response.ok) throw new Error(payload.error ?? `Commit failed: ${response.status}`);
       toast.success(`Commit Import complete (${payload.importedCount} rows, ${payload.dedupedCount ?? 0} deduped)`);
       setSummary(payload.summary ?? summary);
-      await loadBatchHistory(batchId);
+      await loadBatchHistory();
       await loadBatch(batchId);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -258,7 +276,7 @@ export default function MaterialsImportClient() {
         return nextRows;
       });
 
-      await loadBatchHistory(batchId ?? undefined);
+      await loadBatchHistory();
       toast.success(action === "skip" ? "Row skipped" : action === "approve" ? "Row approved" : "Row review saved");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -296,7 +314,7 @@ export default function MaterialsImportClient() {
             <h2 className="font-medium">Import Batch History</h2>
             <p className="text-sm text-muted-foreground">Reload prior preview runs, review what happened, and reopen a batch before cutover.</p>
           </div>
-          <Button variant="outline" onClick={() => loadBatchHistory(batchId ?? undefined)} disabled={loadingHistory}>
+          <Button variant="outline" onClick={() => loadBatchHistory()} disabled={loadingHistory}>
             {loadingHistory ? "Refreshing…" : "Refresh History"}
           </Button>
         </div>
@@ -326,6 +344,13 @@ export default function MaterialsImportClient() {
                 </div>
               </div>
             ))}
+            {historyHasMore && (
+              <div className="pt-2">
+                <Button variant="outline" onClick={loadMoreBatchHistory} disabled={loadingHistory}>
+                  {loadingHistory ? "Loading…" : "Show More History"}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -336,7 +361,17 @@ export default function MaterialsImportClient() {
             <h2 className="font-medium">Summary</h2>
             <p className="text-sm text-muted-foreground">Batch ID: {batchId}</p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-4">
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Commit Counters</h3>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex justify-between gap-3"><span>Imported</span><span>{summary.importedCount ?? 0}</span></div>
+                <div className="flex justify-between gap-3"><span>Deduped</span><span>{summary.dedupedCount ?? 0}</span></div>
+                <div className="flex justify-between gap-3"><span>Created materials</span><span>{summary.createdMaterialCount ?? 0}</span></div>
+                <div className="flex justify-between gap-3"><span>Matched materials</span><span>{summary.matchedMaterialCount ?? 0}</span></div>
+                <div className="flex justify-between gap-3"><span>Skipped</span><span>{summary.skippedCount ?? 0}</span></div>
+              </div>
+            </div>
             <div>
               <h3 className="mb-2 text-sm font-medium">By Sheet</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
@@ -362,6 +397,15 @@ export default function MaterialsImportClient() {
                   <div key={reason} className="flex justify-between gap-3"><span>{reason}</span><span>{count}</span></div>
                 ))}
               </div>
+            </div>
+          </div>
+          <div className="rounded-md border border-border bg-muted/20 p-3">
+            <h3 className="mb-2 text-sm font-medium">Cutover Readiness</h3>
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between gap-3"><span>Preview batch loaded</span><span>{batchId ? "Ready" : "Missing"}</span></div>
+              <div className="flex items-center justify-between gap-3"><span>Unresolved review rows</span><span>{unresolvedReviewCount === 0 ? "Clear" : unresolvedReviewCount}</span></div>
+              <div className="flex items-center justify-between gap-3"><span>Rows ready to import</span><span>{summary.byStatus?.parsed ?? 0}</span></div>
+              <div className="flex items-center justify-between gap-3"><span>Commit status</span><span>{summary.committedAt ? `Committed ${formatTimestamp(summary.committedAt)}` : "Preview only"}</span></div>
             </div>
           </div>
         </div>
