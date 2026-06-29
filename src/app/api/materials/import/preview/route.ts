@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { parseMaterialsWorkbook } from "@/lib/materials/workbook";
 import { buildImportPreviewRows, summarizeImportRows } from "@/lib/materials/import";
 import { requireMaterialsAdmin } from "@/lib/materials/server";
+import { parseMaterialsWorkbook } from "@/lib/materials/workbook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +19,30 @@ export async function POST(req: NextRequest) {
   }
 
   const parsed = parseMaterialsWorkbook(body.filePath.trim());
-  const previewRows = buildImportPreviewRows(parsed);
+  const { data: existingMaterials, error: materialsError } = await supabase
+    .from("materials")
+    .select(`
+      id,
+      canonical_name,
+      category,
+      dimensions,
+      thickness_text,
+      material_aliases(
+        id,
+        alias_text,
+        normalized_alias_text
+      )
+    `)
+    .eq("active", true);
+
+  if (materialsError) {
+    console.error("[materials/import/preview:materials]", materialsError);
+    return NextResponse.json({ error: materialsError.message }, { status: 500 });
+  }
+
+  const previewRows = buildImportPreviewRows(parsed, {
+    existingMaterials: (existingMaterials ?? []) as any[],
+  });
   const summary = summarizeImportRows(previewRows);
 
   const { data: batch, error: batchError } = await supabase
@@ -40,13 +63,28 @@ export async function POST(req: NextRequest) {
   }
 
   if (previewRows.length > 0) {
-    const rowsPayload = previewRows.map((row) => ({ ...row, batch_id: batch.id }));
-    const { error: rowsError } = await supabase.from("material_import_rows").insert(rowsPayload);
+    const rowsPayload = previewRows.map((row) => ({
+      ...row,
+      batch_id: batch.id,
+      error_text: row.error_text,
+    }));
+
+    const { data: insertedRows, error: rowsError } = await supabase
+      .from("material_import_rows")
+      .insert(rowsPayload)
+      .select("id, sheet_name, source_row_number, normalized_candidate, status, error_text");
+
     if (rowsError) {
       console.error("[materials/import/preview:rows]", rowsError);
       return NextResponse.json({ error: rowsError.message }, { status: 500 });
     }
+
+    return NextResponse.json({
+      batchId: batch.id,
+      summary,
+      rows: (insertedRows ?? []).slice(0, 100),
+    });
   }
 
-  return NextResponse.json({ batchId: batch.id, summary, rows: previewRows.slice(0, 50) });
+  return NextResponse.json({ batchId: batch.id, summary, rows: [] });
 }

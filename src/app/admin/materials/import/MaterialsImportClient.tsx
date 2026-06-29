@@ -1,21 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface PreviewSummary {
   totalRows: number;
   bySheet: Record<string, number>;
   byStatus: Record<string, number>;
+  byReason?: Record<string, number>;
+}
+
+interface PreviewCandidateMatch {
+  material_id: string | null;
+  label: string | null;
+  matched_by: string;
+  confidence: number;
+  candidates?: Array<{
+    material_id: string;
+    label: string;
+    matched_by: string;
+    confidence: number;
+    alias_text?: string | null;
+  }>;
+}
+
+interface PreviewCandidate {
+  category: string | null;
+  materialName: string | null;
+  vendorName: string | null;
+  dimensions: string | null;
+  thicknessText: string | null;
+  unit: string | null;
+  price: number | null;
+  link?: string | null;
+  packQuantity?: number | null;
+  notes: string | null;
+  dedupe_key?: string | null;
+  match: PreviewCandidateMatch;
 }
 
 interface PreviewRow {
+  id: string;
   sheet_name: string;
   source_row_number: number;
-  normalized_candidate: Record<string, unknown>;
+  normalized_candidate: PreviewCandidate;
   status: string;
+  error_text: string | null;
+}
+
+function buildSummary(rows: PreviewRow[]): PreviewSummary {
+  const bySheet: Record<string, number> = {};
+  const byStatus: Record<string, number> = {};
+  const byReason: Record<string, number> = {};
+
+  for (const row of rows) {
+    bySheet[row.sheet_name] = (bySheet[row.sheet_name] ?? 0) + 1;
+    byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
+
+    if (row.error_text) {
+      for (const reason of row.error_text.split(",").map((value) => value.trim()).filter(Boolean)) {
+        byReason[reason] = (byReason[reason] ?? 0) + 1;
+      }
+    }
+  }
+
+  return {
+    totalRows: rows.length,
+    bySheet,
+    byStatus,
+    byReason,
+  };
 }
 
 export default function MaterialsImportClient() {
@@ -23,8 +89,16 @@ export default function MaterialsImportClient() {
   const [batchId, setBatchId] = useState<string | null>(null);
   const [summary, setSummary] = useState<PreviewSummary | null>(null);
   const [rows, setRows] = useState<PreviewRow[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [loadingCommit, setLoadingCommit] = useState(false);
+  const [savingRowId, setSavingRowId] = useState<string | null>(null);
+
+  const unresolvedReviewCount = summary?.byStatus?.needs_review ?? 0;
+
+  const visibleRows = useMemo(() => {
+    return rows.filter((row) => statusFilter === "all" ? true : row.status === statusFilter);
+  }, [rows, statusFilter]);
 
   async function handlePreview() {
     if (!filePath.trim()) {
@@ -44,6 +118,7 @@ export default function MaterialsImportClient() {
       setBatchId(payload.batchId);
       setSummary(payload.summary);
       setRows(payload.rows ?? []);
+      setStatusFilter("all");
       toast.success("Preview Import ready");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -58,6 +133,11 @@ export default function MaterialsImportClient() {
       return;
     }
 
+    if (unresolvedReviewCount > 0) {
+      toast.error("Resolve or skip all needs review rows before commit.");
+      return;
+    }
+
     setLoadingCommit(true);
     try {
       const response = await fetch("/api/materials/import/commit", {
@@ -67,7 +147,7 @@ export default function MaterialsImportClient() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? `Commit failed: ${response.status}`);
-      toast.success(`Commit Import complete (${payload.importedCount} rows)`);
+      toast.success(`Commit Import complete (${payload.importedCount} rows, ${payload.dedupedCount ?? 0} deduped)`);
       setSummary(payload.summary ?? summary);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -76,11 +156,56 @@ export default function MaterialsImportClient() {
     }
   }
 
+  function updateRowCandidate(rowId: string, key: keyof PreviewCandidate, value: string) {
+    setRows((current) => current.map((row) => {
+      if (row.id !== rowId) return row;
+      return {
+        ...row,
+        normalized_candidate: {
+          ...row.normalized_candidate,
+          [key]: key === "price"
+            ? (value.trim() ? Number(value) : null)
+            : key === "packQuantity"
+              ? (value.trim() ? Number(value) : null)
+              : value || null,
+        },
+      };
+    }));
+  }
+
+  async function saveRowReview(row: PreviewRow, action: "save_review" | "approve" | "skip") {
+    setSavingRowId(row.id);
+    try {
+      const response = await fetch(`/api/materials/import/rows/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          normalized_candidate: row.normalized_candidate,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? `Review update failed: ${response.status}`);
+
+      setRows((current) => {
+        const nextRows = current.map((currentRow) => currentRow.id === row.id ? payload.row : currentRow);
+        setSummary(buildSummary(nextRows));
+        return nextRows;
+      });
+
+      toast.success(action === "skip" ? "Row skipped" : action === "approve" ? "Row approved" : "Row review saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingRowId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Import Workbook</h1>
-        <p className="text-sm text-muted-foreground">Preview spreadsheet normalization before committing rows into the live materials catalog.</p>
+        <p className="text-sm text-muted-foreground">Preview spreadsheet normalization, resolve review rows, then commit clean rows into the live materials catalog.</p>
       </div>
 
       <div className="rounded-lg border border-border p-4 space-y-4">
@@ -88,9 +213,14 @@ export default function MaterialsImportClient() {
           <label className="text-xs font-medium text-muted-foreground">Workbook Path</label>
           <Input value={filePath} onChange={(e) => setFilePath(e.target.value)} placeholder="/absolute/path/to/materials.xlsx" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={handlePreview} disabled={loadingPreview}>{loadingPreview ? "Running Preview…" : "Preview Import"}</Button>
-          <Button variant="outline" onClick={handleCommit} disabled={loadingCommit || !batchId}>{loadingCommit ? "Committing…" : "Commit Import"}</Button>
+          <Button variant="outline" onClick={handleCommit} disabled={loadingCommit || !batchId || unresolvedReviewCount > 0}>
+            {loadingCommit ? "Committing…" : "Commit Import"}
+          </Button>
+          {unresolvedReviewCount > 0 && (
+            <Badge variant="outline">{unresolvedReviewCount} needs review</Badge>
+          )}
         </div>
       </div>
 
@@ -100,9 +230,9 @@ export default function MaterialsImportClient() {
             <h2 className="font-medium">Summary</h2>
             <p className="text-sm text-muted-foreground">Batch ID: {batchId}</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <div>
-              <h3 className="text-sm font-medium mb-2">By Sheet</h3>
+              <h3 className="mb-2 text-sm font-medium">By Sheet</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
                 {Object.entries(summary.bySheet).map(([sheet, count]) => (
                   <div key={sheet} className="flex justify-between gap-3"><span>{sheet}</span><span>{count}</span></div>
@@ -110,10 +240,20 @@ export default function MaterialsImportClient() {
               </div>
             </div>
             <div>
-              <h3 className="text-sm font-medium mb-2">Rows needing review / status</h3>
+              <h3 className="mb-2 text-sm font-medium">By Status</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
                 {Object.entries(summary.byStatus).map(([status, count]) => (
                   <div key={status} className="flex justify-between gap-3"><span>{status}</span><span>{count}</span></div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Review Reasons</h3>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                {Object.entries(summary.byReason ?? {}).length === 0 ? (
+                  <div>No review blockers.</div>
+                ) : Object.entries(summary.byReason ?? {}).map(([reason, count]) => (
+                  <div key={reason} className="flex justify-between gap-3"><span>{reason}</span><span>{count}</span></div>
                 ))}
               </div>
             </div>
@@ -122,20 +262,100 @@ export default function MaterialsImportClient() {
       )}
 
       {rows.length > 0 && (
-        <div className="rounded-lg border border-border p-4 space-y-3">
-          <div>
-            <h2 className="font-medium">Preview Rows</h2>
-            <p className="text-sm text-muted-foreground">Showing the first {rows.length} normalized rows from the preview batch.</p>
+        <div className="rounded-lg border border-border p-4 space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-medium">Review Queue</h2>
+              <p className="text-sm text-muted-foreground">Resolve ambiguous or incomplete rows before commit. Parsed rows can still be edited here.</p>
+            </div>
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value ?? "all")}>
+              <SelectTrigger className="w-full md:w-56">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Rows</SelectItem>
+                <SelectItem value="needs_review">Needs Review</SelectItem>
+                <SelectItem value="parsed">Parsed</SelectItem>
+                <SelectItem value="skipped">Skipped</SelectItem>
+                <SelectItem value="imported">Imported</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-2">
-            {rows.map((row, index) => (
-              <div key={`${row.sheet_name}-${row.source_row_number}-${index}`} className="rounded-md border border-border px-3 py-2 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="font-medium">{row.sheet_name} #{row.source_row_number}</span>
-                  <span className="text-muted-foreground">{row.status}</span>
+
+          <div className="space-y-3">
+            {visibleRows.map((row) => (
+              <div key={row.id} className="rounded-md border border-border p-4 space-y-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="font-medium">{row.sheet_name} #{row.source_row_number}</div>
+                    <div className="text-xs text-muted-foreground">Dedupe key: {row.normalized_candidate.dedupe_key ?? "—"}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={row.status === "needs_review" ? "outline" : "default"}>{row.status}</Badge>
+                    {row.normalized_candidate.match.label && (
+                      <Badge variant="secondary">
+                        {row.normalized_candidate.match.matched_by}: {row.normalized_candidate.match.label} ({row.normalized_candidate.match.confidence})
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground break-all">
-                  {JSON.stringify(row.normalized_candidate)}
+
+                {row.error_text && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    {row.error_text}
+                  </div>
+                )}
+
+                {row.normalized_candidate.match.candidates?.length ? (
+                  <div className="text-xs text-muted-foreground">
+                    Possible matches: {row.normalized_candidate.match.candidates.map((candidate) => `${candidate.label} (${candidate.confidence})`).join(" • ")}
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Material Name</label>
+                    <Input value={row.normalized_candidate.materialName ?? ""} onChange={(e) => updateRowCandidate(row.id, "materialName", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Category</label>
+                    <Input value={row.normalized_candidate.category ?? ""} onChange={(e) => updateRowCandidate(row.id, "category", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Vendor</label>
+                    <Input value={row.normalized_candidate.vendorName ?? ""} onChange={(e) => updateRowCandidate(row.id, "vendorName", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Dimensions</label>
+                    <Input value={row.normalized_candidate.dimensions ?? ""} onChange={(e) => updateRowCandidate(row.id, "dimensions", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Thickness</label>
+                    <Input value={row.normalized_candidate.thicknessText ?? ""} onChange={(e) => updateRowCandidate(row.id, "thicknessText", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Unit</label>
+                    <Input value={row.normalized_candidate.unit ?? ""} onChange={(e) => updateRowCandidate(row.id, "unit", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Price</label>
+                    <Input type="number" step="0.01" value={row.normalized_candidate.price ?? ""} onChange={(e) => updateRowCandidate(row.id, "price", e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Pack Quantity</label>
+                    <Input type="number" step="0.01" value={row.normalized_candidate.packQuantity ?? ""} onChange={(e) => updateRowCandidate(row.id, "packQuantity", e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Notes</label>
+                  <Textarea value={row.normalized_candidate.notes ?? ""} onChange={(e) => updateRowCandidate(row.id, "notes", e.target.value)} className="min-h-20" />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={() => saveRowReview(row, "save_review")} disabled={savingRowId === row.id}>Save Review</Button>
+                  <Button onClick={() => saveRowReview(row, "approve")} disabled={savingRowId === row.id}>Approve Row</Button>
+                  <Button variant="ghost" onClick={() => saveRowReview(row, "skip")} disabled={savingRowId === row.id}>Skip Row</Button>
                 </div>
               </div>
             ))}
