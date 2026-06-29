@@ -1,4 +1,5 @@
-import XLSX from "xlsx";
+import { readFileSync } from "node:fs";
+import * as XLSX from "xlsx";
 
 import {
   normalizeGraphicsRows,
@@ -18,7 +19,8 @@ const NORMALIZERS: Record<MaterialSheetName, (rows: unknown[][]) => ParsedMateri
 };
 
 export function parseMaterialsWorkbook(filePath: string): ParsedMaterialsWorkbook {
-  const workbook = XLSX.readFile(filePath, { cellDates: true });
+  const workbookBuffer = readFileSync(filePath);
+  const workbook = XLSX.read(workbookBuffer, { type: "buffer", cellDates: true });
 
   const bySheet: ParsedMaterialsWorkbook["bySheet"] = {
     "MATERIAL DATA BASE": [],
