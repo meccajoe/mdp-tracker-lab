@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+
 import { supabase } from "@/lib/supabase";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -15,16 +16,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface VendorOption {
   id: string;
   name: string;
 }
 
-interface MaterialVendorPrice {
+interface MaterialAlias {
   id: string;
-  price: number;
-  price_basis: string | null;
+  alias_text: string;
+  normalized_alias_text?: string | null;
+  created_at?: string | null;
+}
+
+interface MaterialVendorPrice {
+  id?: string;
+  localKey: string;
+  vendor_id: string;
+  vendor_sku: string;
+  vendor_material_name: string;
+  vendor_dimension_text: string;
+  unit: string;
+  pack_quantity: string;
+  price: string;
+  price_basis: string;
+  effective_date: string;
+  source_type: "manual" | "spreadsheet" | "invoice" | "bill";
+  source_ref: string;
+  notes: string;
   is_current: boolean;
   vendor: { id: string; name: string } | null;
 }
@@ -43,7 +63,6 @@ interface MaterialDetail {
   finish: string;
   notes: string;
   active: boolean;
-  material_vendor_prices?: MaterialVendorPrice[];
 }
 
 const EMPTY_FORM: MaterialDetail = {
@@ -59,8 +78,48 @@ const EMPTY_FORM: MaterialDetail = {
   finish: "",
   notes: "",
   active: true,
-  material_vendor_prices: [],
 };
+
+function createBlankVendorPriceRow(): MaterialVendorPrice {
+  return {
+    localKey: `new-${crypto.randomUUID()}`,
+    vendor_id: "",
+    vendor_sku: "",
+    vendor_material_name: "",
+    vendor_dimension_text: "",
+    unit: "",
+    pack_quantity: "",
+    price: "",
+    price_basis: "",
+    effective_date: "",
+    source_type: "manual",
+    source_ref: "",
+    notes: "",
+    is_current: true,
+    vendor: null,
+  };
+}
+
+function toEditableVendorPrice(row: any, index: number): MaterialVendorPrice {
+  return {
+    id: row.id,
+    localKey: row.id ?? `existing-${index}`,
+    vendor_id: row.vendor_id ?? row.vendor?.id ?? "",
+    vendor_sku: row.vendor_sku ?? "",
+    vendor_material_name: row.vendor_material_name ?? "",
+    vendor_dimension_text: row.vendor_dimension_text ?? "",
+    unit: row.unit ?? "",
+    pack_quantity: row.pack_quantity != null ? String(row.pack_quantity) : "",
+    price: row.price != null ? String(row.price) : "",
+    price_basis: row.price_basis ?? "",
+    effective_date: row.effective_date ?? "",
+    source_type: row.source_type ?? "manual",
+    source_ref: row.source_ref ?? "",
+    notes: row.notes ?? "",
+    is_current: row.is_current !== false,
+    vendor: row.vendor ?? null,
+  };
+}
 
 function normalizeFormToPayload(form: MaterialDetail) {
   return {
@@ -76,8 +135,25 @@ function normalizeFormToPayload(form: MaterialDetail) {
     finish: form.finish || null,
     notes: form.notes || null,
     active: form.active,
-    updated_by: "ferris",
-    created_by: "ferris",
+  };
+}
+
+function normalizeVendorPricePayload(row: MaterialVendorPrice, setAsDefault = false) {
+  return {
+    vendor_id: row.vendor_id || null,
+    vendor_sku: row.vendor_sku || null,
+    vendor_material_name: row.vendor_material_name || null,
+    vendor_dimension_text: row.vendor_dimension_text || null,
+    unit: row.unit || null,
+    pack_quantity: row.pack_quantity ? Number(row.pack_quantity) : null,
+    price: row.price ? Number(row.price) : null,
+    price_basis: row.price_basis || null,
+    effective_date: row.effective_date || null,
+    source_type: row.source_type,
+    source_ref: row.source_ref || null,
+    notes: row.notes || null,
+    is_current: row.is_current,
+    set_as_default: setAsDefault,
   };
 }
 
@@ -91,8 +167,13 @@ export default function MaterialDetailClient({
   const router = useRouter();
   const [form, setForm] = useState<MaterialDetail>(EMPTY_FORM);
   const [vendors, setVendors] = useState<VendorOption[]>([]);
+  const [aliases, setAliases] = useState<MaterialAlias[]>([]);
+  const [vendorPrices, setVendorPrices] = useState<MaterialVendorPrice[]>([]);
+  const [newAlias, setNewAlias] = useState("");
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
+  const [savingAliasKey, setSavingAliasKey] = useState<string | null>(null);
+  const [savingVendorPriceKey, setSavingVendorPriceKey] = useState<string | null>(null);
 
   const fetchVendors = useCallback(async () => {
     const { data, error } = await supabase
@@ -118,6 +199,7 @@ export default function MaterialDetailClient({
       if (!response.ok) throw new Error(`Failed to load material: ${response.status}`);
       const payload = await response.json() as { item: any };
       const item = payload.item;
+
       setForm({
         id: item.id,
         canonical_name: item.canonical_name ?? "",
@@ -132,8 +214,9 @@ export default function MaterialDetailClient({
         finish: item.finish ?? "",
         notes: item.notes ?? "",
         active: item.active !== false,
-        material_vendor_prices: item.material_vendor_prices ?? [],
       });
+      setAliases((item.material_aliases ?? []) as MaterialAlias[]);
+      setVendorPrices((item.material_vendor_prices ?? []).map((row: any, index: number) => toEditableVendorPrice(row, index)));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -149,17 +232,29 @@ export default function MaterialDetailClient({
     fetchMaterial();
   }, [fetchMaterial]);
 
-  const currentPriceSummary = useMemo(() => {
-    return (form.material_vendor_prices ?? []).map((row) => ({
-      id: row.id,
-      vendorName: row.vendor?.name ?? "Unknown vendor",
-      price: row.price,
-      price_basis: row.price_basis,
-    }));
-  }, [form.material_vendor_prices]);
-
   function updateField<K extends keyof MaterialDetail>(key: K, value: MaterialDetail[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateAlias(aliasId: string, value: string) {
+    setAliases((current) => current.map((alias) => (
+      alias.id === aliasId ? { ...alias, alias_text: value } : alias
+    )));
+  }
+
+  function updateVendorPriceRow(localKey: string, field: keyof MaterialVendorPrice, value: string | boolean | null) {
+    setVendorPrices((current) => current.map((row) => {
+      if (row.localKey !== localKey) return row;
+      return {
+        ...row,
+        [field]: value,
+        ...(field === "vendor_id"
+          ? {
+              vendor: vendors.find((vendor) => vendor.id === value) ?? null,
+            }
+          : {}),
+      };
+    }));
   }
 
   async function handleSave() {
@@ -201,7 +296,7 @@ export default function MaterialDetailClient({
       const response = await fetch(`/api/materials/${materialId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !form.active, updated_by: "ferris" }),
+        body: JSON.stringify({ active: !form.active }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? `Archive failed: ${response.status}`);
@@ -211,6 +306,117 @@ export default function MaterialDetailClient({
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCreateAlias() {
+    if (mode !== "edit" || !materialId || !newAlias.trim()) return;
+    setSavingAliasKey("new");
+    try {
+      const response = await fetch(`/api/materials/${materialId}/aliases`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alias_text: newAlias }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? `Alias save failed: ${response.status}`);
+      setNewAlias("");
+      toast.success("Alias added");
+      await fetchMaterial();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingAliasKey(null);
+    }
+  }
+
+  async function handleSaveAlias(alias: MaterialAlias) {
+    if (mode !== "edit" || !materialId || !alias.id) return;
+    setSavingAliasKey(alias.id);
+    try {
+      const response = await fetch(`/api/materials/${materialId}/aliases/${alias.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alias_text: alias.alias_text }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? `Alias update failed: ${response.status}`);
+      toast.success("Alias updated");
+      await fetchMaterial();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingAliasKey(null);
+    }
+  }
+
+  async function handleDeleteAlias(aliasId: string) {
+    if (mode !== "edit" || !materialId) return;
+    setSavingAliasKey(aliasId);
+    try {
+      const response = await fetch(`/api/materials/${materialId}/aliases/${aliasId}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? `Alias delete failed: ${response.status}`);
+      toast.success("Alias removed");
+      await fetchMaterial();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingAliasKey(null);
+    }
+  }
+
+  async function handleSaveVendorPrice(row: MaterialVendorPrice, setAsDefault = false) {
+    if (mode !== "edit" || !materialId) return;
+    if (!row.price.trim()) {
+      toast.error("Vendor price amount is required.");
+      return;
+    }
+
+    setSavingVendorPriceKey(row.localKey);
+    try {
+      const response = await fetch(
+        row.id ? `/api/materials/${materialId}/vendor-prices/${row.id}` : `/api/materials/${materialId}/vendor-prices`,
+        {
+          method: row.id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(normalizeVendorPricePayload(row, setAsDefault)),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? `Vendor price save failed: ${response.status}`);
+      toast.success(setAsDefault ? "Vendor price saved and set as default" : "Vendor price saved");
+      await fetchMaterial();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingVendorPriceKey(null);
+    }
+  }
+
+  async function handleRetireVendorPrice(row: MaterialVendorPrice) {
+    if (mode !== "edit" || !materialId) return;
+
+    if (!row.id) {
+      setVendorPrices((current) => current.filter((item) => item.localKey !== row.localKey));
+      return;
+    }
+
+    setSavingVendorPriceKey(row.localKey);
+    try {
+      const response = await fetch(`/api/materials/${materialId}/vendor-prices/${row.id}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? `Vendor price retire failed: ${response.status}`);
+      toast.success("Vendor price retired");
+      await fetchMaterial();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingVendorPriceKey(null);
     }
   }
 
@@ -304,32 +510,160 @@ export default function MaterialDetailClient({
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">Notes</label>
-        <textarea
+        <Textarea
           value={form.notes}
           onChange={(e) => updateField("notes", e.target.value)}
           placeholder="Notes"
-          className="min-h-28 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+          className="min-h-28"
         />
       </div>
 
       <div className="rounded-lg border border-border p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-medium">Current Vendor Prices</h2>
-            <p className="text-xs text-muted-foreground">Read-only in this slice. Editing vendor price rows lands next.</p>
+            <h2 className="font-medium">Material Aliases</h2>
+            <p className="text-xs text-muted-foreground">Add alternate names so search can still find the right canonical record.</p>
           </div>
           <Badge variant={form.active ? "default" : "outline"}>{form.active ? "Active" : "Inactive"}</Badge>
         </div>
-        {currentPriceSummary.length === 0 ? (
+
+        {mode === "create" ? (
+          <p className="text-sm text-muted-foreground">Create the material first, then add aliases.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input value={newAlias} onChange={(e) => setNewAlias(e.target.value)} placeholder="Add alias" />
+              <Button onClick={handleCreateAlias} disabled={savingAliasKey === "new"}>{savingAliasKey === "new" ? "Adding…" : "Add Alias"}</Button>
+            </div>
+            {aliases.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No aliases on this material yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {aliases.map((alias) => (
+                  <div key={alias.id} className="flex flex-col gap-2 rounded-md border border-border p-3 md:flex-row md:items-center">
+                    <Input value={alias.alias_text} onChange={(e) => updateAlias(alias.id, e.target.value)} />
+                    <div className="flex gap-2 md:w-auto">
+                      <Button variant="outline" onClick={() => handleSaveAlias(alias)} disabled={savingAliasKey === alias.id}>Save Alias</Button>
+                      <Button variant="ghost" onClick={() => handleDeleteAlias(alias.id)} disabled={savingAliasKey === alias.id}>Remove</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-medium">Current Vendor Prices</h2>
+            <p className="text-xs text-muted-foreground">Manage vendor-specific pricing rows and optionally set one as the default catalog price.</p>
+          </div>
+          {mode === "edit" && (
+            <Button variant="outline" onClick={() => setVendorPrices((current) => [...current, createBlankVendorPriceRow()])}>
+              Add Vendor Price
+            </Button>
+          )}
+        </div>
+
+        {mode === "create" ? (
+          <p className="text-sm text-muted-foreground">Create the material first, then add vendor price rows.</p>
+        ) : vendorPrices.length === 0 ? (
           <p className="text-sm text-muted-foreground">No current vendor prices on this record yet.</p>
         ) : (
-          <div className="space-y-2">
-            {currentPriceSummary.map((row) => (
-              <div key={row.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-                <span>{row.vendorName}</span>
-                <span className="text-muted-foreground">
-                  ${row.price.toFixed(2)}{row.price_basis ? ` / ${row.price_basis}` : ""}
-                </span>
+          <div className="space-y-4">
+            {vendorPrices.map((row) => (
+              <div key={row.localKey} className="rounded-md border border-border p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Vendor</label>
+                    <Select value={row.vendor_id || "none"} onValueChange={(value) => updateVendorPriceRow(row.localKey, "vendor_id", value === "none" ? "" : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select vendor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No vendor</SelectItem>
+                        {vendors.map((vendor) => (
+                          <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Price</label>
+                    <Input value={row.price} onChange={(e) => updateVendorPriceRow(row.localKey, "price", e.target.value)} type="number" step="0.01" placeholder="0.00" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Price Basis</label>
+                    <Input value={row.price_basis} onChange={(e) => updateVendorPriceRow(row.localKey, "price_basis", e.target.value)} placeholder="sheet / sq ft / ea" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Unit</label>
+                    <Input value={row.unit} onChange={(e) => updateVendorPriceRow(row.localKey, "unit", e.target.value)} placeholder="EA" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Pack Quantity</label>
+                    <Input value={row.pack_quantity} onChange={(e) => updateVendorPriceRow(row.localKey, "pack_quantity", e.target.value)} type="number" step="0.01" placeholder="1" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Effective Date</label>
+                    <Input value={row.effective_date} onChange={(e) => updateVendorPriceRow(row.localKey, "effective_date", e.target.value)} type="date" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Vendor SKU</label>
+                    <Input value={row.vendor_sku} onChange={(e) => updateVendorPriceRow(row.localKey, "vendor_sku", e.target.value)} placeholder="Vendor SKU" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Vendor Material Name</label>
+                    <Input value={row.vendor_material_name} onChange={(e) => updateVendorPriceRow(row.localKey, "vendor_material_name", e.target.value)} placeholder="Vendor material name" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Vendor Dimension Text</label>
+                    <Input value={row.vendor_dimension_text} onChange={(e) => updateVendorPriceRow(row.localKey, "vendor_dimension_text", e.target.value)} placeholder="Vendor dimension text" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground">Source Type</label>
+                    <Select value={row.source_type} onValueChange={(value) => updateVendorPriceRow(row.localKey, "source_type", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Source type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manual">Manual</SelectItem>
+                        <SelectItem value="spreadsheet">Spreadsheet</SelectItem>
+                        <SelectItem value="invoice">Invoice</SelectItem>
+                        <SelectItem value="bill">BILL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1 xl:col-span-2">
+                    <label className="text-xs font-medium text-muted-foreground">Source Ref</label>
+                    <Input value={row.source_ref} onChange={(e) => updateVendorPriceRow(row.localKey, "source_ref", e.target.value)} placeholder="Invoice number / spreadsheet row" />
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Notes</label>
+                  <Textarea value={row.notes} onChange={(e) => updateVendorPriceRow(row.localKey, "notes", e.target.value)} className="min-h-20" placeholder="Optional notes about this vendor price" />
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button onClick={() => handleSaveVendorPrice(row)} disabled={savingVendorPriceKey === row.localKey}>Save Vendor Price</Button>
+                  <Button variant="outline" onClick={() => handleSaveVendorPrice(row, true)} disabled={savingVendorPriceKey === row.localKey}>Save + Set Default</Button>
+                  <Button variant="ghost" onClick={() => handleRetireVendorPrice(row)} disabled={savingVendorPriceKey === row.localKey}>
+                    {row.id ? "Retire" : "Remove"}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

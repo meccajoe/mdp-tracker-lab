@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+
+import { requireMaterialsAdmin } from "@/lib/materials/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 function sanitizeMaterialPayload(payload: Record<string, unknown>) {
   return {
@@ -31,7 +25,10 @@ function sanitizeMaterialPayload(payload: Record<string, unknown>) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseAdmin();
+  const auth = await requireMaterialsAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { supabase, actorEmail } = auth;
 
   const rawPayload = (await req.json()) as Record<string, unknown>;
   const payload = sanitizeMaterialPayload(rawPayload);
@@ -42,7 +39,8 @@ export async function POST(req: NextRequest) {
 
   const insertPayload = {
     ...payload,
-    created_by: payload.created_by ?? payload.updated_by,
+    created_by: payload.created_by ?? payload.updated_by ?? actorEmail,
+    updated_by: payload.updated_by ?? actorEmail,
   };
 
   const { data, error } = await supabase
@@ -62,7 +60,7 @@ export async function POST(req: NextRequest) {
     entity_id: data.id,
     change_type: "create",
     new_value: data,
-    changed_by: payload.updated_by ?? payload.created_by ?? null,
+    changed_by: payload.updated_by ?? payload.created_by ?? actorEmail,
   });
 
   return NextResponse.json({ item: data }, { status: 201 });

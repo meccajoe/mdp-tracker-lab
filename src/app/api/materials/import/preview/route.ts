@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+
 import { parseMaterialsWorkbook } from "@/lib/materials/workbook";
 import { buildImportPreviewRows, summarizeImportRows } from "@/lib/materials/import";
+import { requireMaterialsAdmin } from "@/lib/materials/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseAdmin();
+  const auth = await requireMaterialsAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { supabase, actorEmail } = auth;
   const body = (await req.json()) as { filePath?: string; sourceName?: string; sourceUrl?: string; uploadedBy?: string };
 
   if (!body.filePath?.trim()) {
@@ -30,7 +27,7 @@ export async function POST(req: NextRequest) {
     .insert({
       source_name: body.sourceName?.trim() || body.filePath.trim().split("/").pop() || "materials-workbook.xlsx",
       source_url: body.sourceUrl?.trim() || null,
-      uploaded_by: body.uploadedBy?.trim() || "ferris",
+      uploaded_by: body.uploadedBy?.trim() || actorEmail,
       status: "preview",
       summary,
     })

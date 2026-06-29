@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+
+import { normalizeAliasText, requireMaterialsAdmin } from "@/lib/materials/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getSupabaseAdmin(): any {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
-
 async function resolveVendorId(supabase: any, vendorName: string | null): Promise<string | null> {
   if (!vendorName?.trim()) return null;
+
+  const normalizedVendorName = normalizeAliasText(vendorName);
+
+  const aliasLookup = await supabase
+    .from("vendor_aliases")
+    .select("vendor_id")
+    .eq("normalized_alias_text", normalizedVendorName)
+    .limit(1)
+    .maybeSingle();
+
+  const aliasMatch = aliasLookup.data as { vendor_id: string } | null;
+  if (aliasMatch?.vendor_id) return aliasMatch.vendor_id;
 
   const vendorLookup = await supabase
     .from("vendors")
@@ -40,8 +46,48 @@ async function resolveVendorId(supabase: any, vendorName: string | null): Promis
   return created.id;
 }
 
+async function captureVendorAlias(supabase: any, vendorId: string | null, vendorName: string | null, sourceType: string) {
+  if (!vendorId || !vendorName?.trim()) return;
+
+  const aliasText = vendorName.trim();
+  const normalizedAlias = normalizeAliasText(aliasText);
+  const { data: vendorRow } = await supabase
+    .from("vendors")
+    .select("name")
+    .eq("id", vendorId)
+    .maybeSingle();
+
+  if (normalizeAliasText(vendorRow?.name ?? "") === normalizedAlias) {
+    return;
+  }
+
+  const { data: existingAlias } = await supabase
+    .from("vendor_aliases")
+    .select("id, vendor_id")
+    .eq("normalized_alias_text", normalizedAlias)
+    .maybeSingle();
+
+  if (existingAlias?.vendor_id && existingAlias.vendor_id !== vendorId) {
+    return;
+  }
+
+  if (existingAlias?.id) {
+    return;
+  }
+
+  await supabase.from("vendor_aliases").insert({
+    vendor_id: vendorId,
+    alias_text: aliasText,
+    normalized_alias_text: normalizedAlias,
+    source_type: sourceType,
+  });
+}
+
 export async function POST(req: NextRequest) {
-  const supabase = getSupabaseAdmin();
+  const auth = await requireMaterialsAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { supabase, actorEmail } = auth;
   const body = (await req.json()) as { batchId?: string; updatedBy?: string };
 
   if (!body.batchId?.trim()) {
@@ -118,8 +164,8 @@ export async function POST(req: NextRequest) {
           default_vendor_id: vendorId,
           default_price: candidate.price,
           notes: candidate.notes ?? null,
-          created_by: body.updatedBy?.trim() || "ferris",
-          updated_by: body.updatedBy?.trim() || "ferris",
+          created_by: body.updatedBy?.trim() || actorEmail,
+          updated_by: body.updatedBy?.trim() || actorEmail,
         })
         .select("id")
         .single();
@@ -136,10 +182,12 @@ export async function POST(req: NextRequest) {
         entity_id: materialId,
         change_type: "create",
         new_value: candidate,
-        changed_by: body.updatedBy?.trim() || "ferris",
+        changed_by: body.updatedBy?.trim() || actorEmail,
         batch_id: batch.id,
       });
     }
+
+    await captureVendorAlias(supabase, vendorId, candidate.vendorName ?? null, "spreadsheet");
 
     const { error: priceError } = await supabase.from("material_vendor_prices").insert({
       material_id: materialId,
@@ -166,9 +214,9 @@ export async function POST(req: NextRequest) {
       entity_id: materialId,
       change_type: "import_commit",
       new_value: candidate,
-      changed_by: body.updatedBy?.trim() || "ferris",
+      changed_by: body.updatedBy?.trim() || actorEmail,
       batch_id: batch.id,
-    });
+      });
 
     const { error: rowUpdateError } = await supabase
       .from("material_import_rows")

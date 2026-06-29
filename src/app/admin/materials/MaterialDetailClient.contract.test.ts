@@ -15,4 +15,7 @@ test("materials detail client supports canonical field editing and archive/save 
   assert.match(source, /\/api\/materials\//, "detail client should use the materials detail API");
   assert.match(source, /Save Material|Create Material/, "detail client should expose a save action");
   assert.match(source, /Archive Material|Restore Material/, "detail client should expose archive/restore behavior");
+  assert.match(source, /Material Aliases|Add Alias/, "detail client should expose material alias management");
+  assert.match(source, /Save Vendor Price|Add Vendor Price/, "detail client should expose vendor price editing controls");
+  assert.match(source, /Save \+ Set Default/, "detail client should allow setting a vendor price row as the default price");
 });

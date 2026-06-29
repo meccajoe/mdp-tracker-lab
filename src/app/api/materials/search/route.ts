@@ -1,21 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+
+import { normalizeAliasText, requireMaterialsAdmin } from "@/lib/materials/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 const allowedSorts = ["canonical_name", "category", "updated_at", "default_price", "active"] as const;
 
 // GET /api/materials/search
 export async function GET(req: NextRequest) {
-  const supabase = getSupabaseAdmin();
+  const auth = await requireMaterialsAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { supabase } = auth;
   const { searchParams } = new URL(req.url);
 
   const q = searchParams.get("q")?.trim() ?? "";
@@ -70,6 +67,15 @@ export async function GET(req: NextRequest) {
 
   if (q) {
     const normalizedQuery = q.replace(/\s+/g, " ").trim();
+    const aliasQuery = normalizeAliasText(normalizedQuery);
+    const { data: aliasRows } = await supabase
+      .from("material_aliases")
+      .select("material_id")
+      .ilike("normalized_alias_text", `%${aliasQuery}%`)
+      .limit(100);
+
+    const aliasMaterialIds = Array.from(new Set((aliasRows ?? []).map((row: { material_id?: string | null }) => row.material_id).filter(Boolean)));
+    const aliasFilter = aliasMaterialIds.length > 0 ? `id.in.(${aliasMaterialIds.join(",")})` : null;
     query = query.or(
       [
         `canonical_name.ilike.%${normalizedQuery}%`,
@@ -78,7 +84,8 @@ export async function GET(req: NextRequest) {
         `thickness_text.ilike.%${normalizedQuery}%`,
         `sku_or_code.ilike.%${normalizedQuery}%`,
         `search_text.ilike.%${normalizedQuery}%`,
-      ].join(",")
+        aliasFilter,
+      ].filter(Boolean).join(",")
     );
   }
 
@@ -96,7 +103,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const items = (data ?? []).map((item) => {
+  const items = (data ?? []).map((item: { material_vendor_prices?: Array<{ is_current?: boolean | null }> } & Record<string, unknown>) => {
     const currentPrices = (item.material_vendor_prices ?? []).filter((priceRow: { is_current?: boolean | null }) => priceRow.is_current);
 
     return {

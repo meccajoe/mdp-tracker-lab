@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+
+import { requireMaterialsAdmin } from "@/lib/materials/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 function sanitizeMaterialPatch(payload: Record<string, unknown>) {
   const sanitized: Record<string, unknown> = {};
@@ -43,7 +37,10 @@ function sanitizeMaterialPatch(payload: Record<string, unknown>) {
 }
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const supabase = getSupabaseAdmin();
+  const auth = await requireMaterialsAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { supabase } = auth;
   const { id } = await context.params;
 
   const { data, error } = await supabase
@@ -66,6 +63,12 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
         source_ref,
         is_current,
         vendor:vendors(id, name)
+      ),
+      material_aliases(
+        id,
+        alias_text,
+        normalized_alias_text,
+        created_at
       )
     `)
     .eq("id", id)
@@ -77,20 +80,29 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const currentPrices = (data.material_vendor_prices ?? []).filter((row: { is_current?: boolean | null }) => row.is_current);
+  const aliases = [...(data.material_aliases ?? [])].sort((a: { alias_text?: string | null }, b: { alias_text?: string | null }) =>
+    String(a.alias_text ?? "").localeCompare(String(b.alias_text ?? ""))
+  );
 
   return NextResponse.json({
     item: {
       ...data,
       material_vendor_prices: currentPrices,
+      material_aliases: aliases,
     },
   });
 }
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const supabase = getSupabaseAdmin();
+  const auth = await requireMaterialsAdmin();
+  if (!auth.ok) return auth.response;
+
+  const { supabase, actorEmail } = auth;
   const { id } = await context.params;
   const rawPayload = (await req.json()) as Record<string, unknown>;
   const patchPayload = sanitizeMaterialPatch(rawPayload);
+
+  patchPayload.updated_by = patchPayload.updated_by ?? actorEmail;
 
   const { data: existing, error: existingError } = await supabase
     .from("materials")
@@ -128,7 +140,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     change_type: archiveAction,
     old_value: existing,
     new_value: data,
-    changed_by: typeof rawPayload.updated_by === "string" && rawPayload.updated_by.trim() ? rawPayload.updated_by.trim() : null,
+    changed_by: typeof rawPayload.updated_by === "string" && rawPayload.updated_by.trim() ? rawPayload.updated_by.trim() : actorEmail,
   });
 
   return NextResponse.json({ item: data });

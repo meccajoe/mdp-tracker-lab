@@ -37,7 +37,7 @@ export default function MaterialsImportClient() {
       const response = await fetch("/api/materials/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filePath, uploadedBy: "ferris" }),
+        body: JSON.stringify({ filePath }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? `Preview failed: ${response.status}`);
@@ -63,7 +63,7 @@ export default function MaterialsImportClient() {
       const response = await fetch("/api/materials/import/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchId, updatedBy: "ferris" }),
+        body: JSON.stringify({ batchId }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? `Commit failed: ${response.status}`);

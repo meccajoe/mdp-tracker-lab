@@ -9,6 +9,7 @@ test("materials search route queries catalog tables with safe filters and curren
 
   assert.match(source, /from\("materials"\)/, "route should query the materials catalog");
   assert.match(source, /material_vendor_prices/, "route should load current vendor price context");
+  assert.match(source, /from\("material_aliases"\)/, "route should expand search through material aliases");
   assert.match(source, /vendors/, "route should load vendor context");
   assert.match(source, /allowedSorts/, "route should define an allowlist for sortable fields");
   assert.match(source, /searchParams\.get\("q"\)/, "route should accept a full-text search query");
