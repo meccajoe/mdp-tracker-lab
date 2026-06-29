@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -130,7 +129,9 @@ export default function MaterialsClient() {
           <Link href="/admin/materials/import" className={buttonVariants({ variant: "outline" })}>
             Import Workbook
           </Link>
-          <Button onClick={() => toast.info("Add Material lands in the next slice after search hardening.")}>Add Material</Button>
+          <Link href="/admin/materials/new" className={buttonVariants({ variant: "default" })}>
+            Add Material
+          </Link>
         </div>
       </div>
 
@@ -189,20 +190,21 @@ export default function MaterialsClient() {
               <TableHead className="text-right">Default Price</TableHead>
               <TableHead className="text-right">Current Vendor Prices</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">Loading materials…</TableCell>
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Loading materials…</TableCell>
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-red-600">{error}</TableCell>
+                <TableCell colSpan={8} className="py-10 text-center text-red-600">{error}</TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">No materials found for the current filters.</TableCell>
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">No materials found for the current filters.</TableCell>
               </TableRow>
             ) : items.map((item) => (
               <TableRow key={item.id}>
@@ -219,6 +221,11 @@ export default function MaterialsClient() {
                 <TableCell className="text-right">{item.current_price_count}</TableCell>
                 <TableCell>
                   <Badge variant={item.active ? "default" : "outline"}>{item.active ? "Active" : "Inactive"}</Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/admin/materials/${item.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                    Edit
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}
