@@ -15,19 +15,16 @@ create table if not exists materials (
   finish text,
   notes text,
   search_text text generated always as (
-    trim(
-      concat_ws(
-        ' ',
-        canonical_name,
-        category,
-        coalesce(subcategory, ''),
-        coalesce(dimensions, ''),
-        coalesce(thickness_text, ''),
-        coalesce(base_unit, ''),
-        coalesce(sku_or_code, ''),
-        coalesce(finish, ''),
-        coalesce(notes, '')
-      )
+    btrim(
+      coalesce(canonical_name, '') || ' ' ||
+      coalesce(category, '') || ' ' ||
+      coalesce(subcategory, '') || ' ' ||
+      coalesce(dimensions, '') || ' ' ||
+      coalesce(thickness_text, '') || ' ' ||
+      coalesce(base_unit, '') || ' ' ||
+      coalesce(sku_or_code, '') || ' ' ||
+      coalesce(finish, '') || ' ' ||
+      coalesce(notes, '')
     )
   ) stored,
   active boolean not null default true,
