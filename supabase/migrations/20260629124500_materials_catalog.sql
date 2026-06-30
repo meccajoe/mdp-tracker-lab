@@ -90,6 +90,7 @@ create table if not exists material_import_rows (
   raw_row jsonb not null,
   parsed_row jsonb,
   normalized_candidate jsonb,
+  review_reasons jsonb not null default '[]'::jsonb,
   status text not null check (status in ('parsed', 'needs_review', 'skipped', 'imported', 'error')),
   error_text text,
   created_at timestamptz not null default now()
