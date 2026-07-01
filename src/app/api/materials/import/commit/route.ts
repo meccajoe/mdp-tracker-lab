@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { shouldCaptureMaterialAlias, sameMaterialText } from "@/lib/materials/match";
+import { shouldCaptureMaterialAlias } from "@/lib/materials/match";
 import type { MaterialImportNormalizedCandidate } from "@/lib/materials/import";
 import { normalizeAliasText, requireMaterialsAdmin } from "@/lib/materials/server";
+import { findExactVendorPriceDuplicate, type ExistingVendorPriceRecord } from "@/lib/materials/vendor-price-dedupe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type ExistingVendorPrice = {
-  id: string;
-  vendor_id: string | null;
-  vendor_sku: string | null;
-  vendor_material_name: string | null;
-  vendor_dimension_text: string | null;
-  unit: string | null;
-  pack_quantity: number | null;
-  price: number;
-  price_basis: string | null;
-  is_current: boolean;
-};
 
 async function resolveVendorId(supabase: any, vendorName: string | null): Promise<string | null> {
   if (!vendorName?.trim()) return null;
@@ -110,19 +98,6 @@ async function captureMaterialAlias(supabase: any, materialId: string, importedN
     alias_text: aliasText,
     normalized_alias_text: normalizedAlias,
   });
-}
-
-function isExactCurrentVendorPriceDuplicate(existingRows: ExistingVendorPrice[], candidate: MaterialImportNormalizedCandidate, vendorId: string | null) {
-  return existingRows.find((row) =>
-    row.is_current &&
-    row.vendor_id === vendorId &&
-    Number(row.price).toFixed(2) === Number(candidate.price ?? 0).toFixed(2) &&
-    (row.price_basis ?? null) === (candidate.unit ?? null) &&
-    sameMaterialText(row.unit, candidate.unit) &&
-    sameMaterialText(row.vendor_material_name, candidate.materialName) &&
-    sameMaterialText(row.vendor_dimension_text, candidate.dimensions) &&
-    Number(row.pack_quantity ?? 0) === Number(candidate.packQuantity ?? 0)
-  ) ?? null;
 }
 
 async function retireCurrentVendorPrices(supabase: any, materialId: string, vendorId: string | null) {
@@ -270,14 +245,13 @@ export async function POST(req: NextRequest) {
     const { data: existingVendorPrices, error: existingVendorPricesError } = await supabase
       .from("material_vendor_prices")
       .select("id, vendor_id, vendor_sku, vendor_material_name, vendor_dimension_text, unit, pack_quantity, price, price_basis, is_current")
-      .eq("material_id", materialResolution.materialId)
-      .eq("is_current", true);
+      .eq("material_id", materialResolution.materialId);
 
     if (existingVendorPricesError) {
       return NextResponse.json({ error: existingVendorPricesError.message }, { status: 500 });
     }
 
-    const duplicateRow = isExactCurrentVendorPriceDuplicate((existingVendorPrices ?? []) as ExistingVendorPrice[], candidate, vendorId);
+    const duplicateRow = findExactVendorPriceDuplicate((existingVendorPrices ?? []) as ExistingVendorPriceRecord[], candidate, vendorId);
     if (duplicateRow) {
       await supabase
         .from("material_import_rows")
