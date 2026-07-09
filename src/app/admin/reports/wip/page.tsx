@@ -41,6 +41,15 @@ function downloadCsv(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+type LiveCacheMode = "historical" | "today" | "live_qbo";
+
+function formatLiveSyncedAt(value: string | null): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString();
+}
+
 export default function WipReportPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -50,6 +59,9 @@ export default function WipReportPage() {
   const [liveRows, setLiveRows] = useState<WipReportRow[]>([]);
   const [liveAsOfDate, setLiveAsOfDate] = useState(new Date().toISOString().slice(0, 10));
   const [loadingLiveRows, setLoadingLiveRows] = useState(false);
+  const [liveCacheMode, setLiveCacheMode] = useState<LiveCacheMode | null>(null);
+  const [liveSyncedAt, setLiveSyncedAt] = useState<string | null>(null);
+  const [liveCacheTtlMinutes, setLiveCacheTtlMinutes] = useState(5);
   const [snapshots, setSnapshots] = useState<WipReportSnapshot[]>([]);
   const [snapshotRows, setSnapshotRows] = useState<WipReportSnapshotRow[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>("");
@@ -80,6 +92,25 @@ export default function WipReportPage() {
   const pmOptions = useMemo(() => uniqueValues(optionSourceRows.map((row) => row.pm_initials)), [optionSourceRows]);
   const customerOptions = useMemo(() => uniqueValues(optionSourceRows.map((row) => row.customer)), [optionSourceRows]);
   const classOptions = useMemo(() => uniqueValues(optionSourceRows.map((row) => row.wip_class)), [optionSourceRows]);
+  const liveSourceLabel = useMemo(() => {
+    if (liveCacheMode === "historical") return "Historical cache";
+    if (liveCacheMode === "today") return `Today cache (${liveCacheTtlMinutes} min TTL)`;
+    if (liveCacheMode === "live_qbo") return "Live QBO refresh";
+    return "QBO ProjectProfitabilitySummary";
+  }, [liveCacheMode, liveCacheTtlMinutes]);
+  const liveRefreshDetail = useMemo(() => {
+    const syncedLabel = formatLiveSyncedAt(liveSyncedAt);
+    if (liveCacheMode === "historical") {
+      return syncedLabel ? `Cached metrics synced ${syncedLabel}` : "Historical cache served from Supabase";
+    }
+    if (liveCacheMode === "today") {
+      return syncedLabel ? `Today cache synced ${syncedLabel}` : `Using cached today metrics for up to ${liveCacheTtlMinutes} minutes`;
+    }
+    if (liveCacheMode === "live_qbo") {
+      return syncedLabel ? `Fresh QBO sync completed ${syncedLabel}` : "Fetched directly from QBO";
+    }
+    return null;
+  }, [liveCacheMode, liveCacheTtlMinutes, liveSyncedAt]);
 
   const loadSnapshots = useCallback(async () => {
     const { data, error } = await supabase
@@ -120,7 +151,7 @@ export default function WipReportPage() {
     setSnapshotRows((data ?? []) as WipReportSnapshotRow[]);
   }, []);
 
-  const loadLiveRows = useCallback(async (asOfDate: string) => {
+  const loadLiveRows = useCallback(async (asOfDate: string, options?: { forceRefresh?: boolean }) => {
     setLoadingLiveRows(true);
 
     try {
@@ -129,11 +160,16 @@ export default function WipReportPage() {
         throw new Error("Authentication required");
       }
 
-      const response = await fetch(`/api/reports/wip/live?asOfDate=${encodeURIComponent(asOfDate)}`, {
+      const params = new URLSearchParams({ asOfDate });
+      if (options?.forceRefresh) {
+        params.set("forceRefresh", "1");
+      }
+
+      const response = await fetch(`/api/reports/wip/live?${params.toString()}`, {
         credentials: "include",
         cache: "no-store",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: "Bearer " + session.access_token,
         },
       });
 
@@ -143,6 +179,9 @@ export default function WipReportPage() {
       }
 
       setLiveRows((payload.rows ?? []) as WipReportRow[]);
+      setLiveCacheMode((payload.cacheMode as LiveCacheMode | undefined) ?? null);
+      setLiveSyncedAt(typeof payload.syncedAt === "string" ? payload.syncedAt : null);
+      setLiveCacheTtlMinutes(typeof payload.liveCacheTtlMinutes === "number" ? payload.liveCacheTtlMinutes : 5);
     } finally {
       setLoadingLiveRows(false);
     }
@@ -404,7 +443,7 @@ export default function WipReportPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {mode === "live" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="liveAsOfDate">As of Date</Label>
                 <Input id="liveAsOfDate" type="date" value={liveAsOfDate} onChange={(e) => setLiveAsOfDate(e.target.value)} />
@@ -412,7 +451,8 @@ export default function WipReportPage() {
               <div className="space-y-2">
                 <Label>Live Row Source</Label>
                 <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                  QBO ProjectProfitabilitySummary
+                  <div>{liveSourceLabel}</div>
+                  {liveRefreshDetail && <div className="mt-1 text-xs text-muted-foreground">{liveRefreshDetail}</div>}
                 </div>
               </div>
               <div className="space-y-2">
@@ -420,6 +460,12 @@ export default function WipReportPage() {
                 <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
                   {loadingLiveRows ? "Refreshing..." : `${liveRows.length} row(s) loaded`}
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Refresh Controls</Label>
+                <Button variant="outline" onClick={() => loadLiveRows(liveAsOfDate, { forceRefresh: true })} disabled={loadingLiveRows}>
+                  {loadingLiveRows ? "Refreshing..." : "Refresh from QBO"}
+                </Button>
               </div>
             </div>
           )}

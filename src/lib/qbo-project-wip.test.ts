@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildCachedQboProjectWipMetricRow, buildProjectProfitabilitySummaryUrl, buildQboProjectWipMetrics, canServeHistoricalWipCache } from "./qbo-project-wip.ts";
+import {
+  buildCachedQboProjectWipMetricRow,
+  buildProjectProfitabilitySummaryUrl,
+  buildQboProjectWipMetrics,
+  canServeCachedWipMetrics,
+  TODAY_WIP_CACHE_TTL_MINUTES,
+} from "./qbo-project-wip.ts";
 
 test("buildProjectProfitabilitySummaryUrl builds a date-scoped ProjectProfitabilitySummary report URL", () => {
   const url = buildProjectProfitabilitySummaryUrl({
@@ -66,6 +72,7 @@ test("buildCachedQboProjectWipMetricRow packages cacheable metrics with source m
   const row = buildCachedQboProjectWipMetricRow({
     projectId: "26144",
     asOfDate: "2026-07-09",
+    syncedAt: "2026-07-09T12:34:56.000Z",
     metrics: {
       total_billed_to_date: 1225,
       total_cost_to_date: 300,
@@ -85,20 +92,68 @@ test("buildCachedQboProjectWipMetricRow packages cacheable metrics with source m
     current_year_costs: 50,
     billing_source: "qbo_project_profitability_summary",
     cost_source: "qbo_project_profitability_summary",
+    synced_at: "2026-07-09T12:34:56.000Z",
   });
 });
 
-test("canServeHistoricalWipCache serves only complete historical caches", () => {
+test("canServeCachedWipMetrics serves complete historical caches unless explicitly bypassed", () => {
   assert.equal(
-    canServeHistoricalWipCache({ asOfDate: "2026-07-08", todayIso: "2026-07-09", cachedRowCount: 10, projectCount: 10 }),
+    canServeCachedWipMetrics({
+      asOfDate: "2026-07-08",
+      todayIso: "2026-07-09",
+      cachedRowCount: 10,
+      projectCount: 10,
+      latestSyncedAt: "2026-07-09T12:00:00.000Z",
+    }),
+      true,
+  );
+  assert.equal(
+    canServeCachedWipMetrics({
+      asOfDate: "2026-07-08",
+      todayIso: "2026-07-09",
+      cachedRowCount: 10,
+      projectCount: 10,
+      latestSyncedAt: "2026-07-09T12:00:00.000Z",
+      forceRefresh: true,
+    }),
+      false,
+  );
+  assert.equal(
+    canServeCachedWipMetrics({
+      asOfDate: "2026-07-08",
+      todayIso: "2026-07-09",
+      cachedRowCount: 9,
+      projectCount: 10,
+      latestSyncedAt: "2026-07-09T12:00:00.000Z",
+    }),
+      false,
+  );
+});
+
+test("canServeCachedWipMetrics serves a fresh same-day cache within the TTL window", () => {
+  const nowMs = Date.parse("2026-07-09T12:05:00.000Z");
+
+  assert.equal(
+    canServeCachedWipMetrics({
+      asOfDate: "2026-07-09",
+      todayIso: "2026-07-09",
+      cachedRowCount: 10,
+      projectCount: 10,
+      latestSyncedAt: "2026-07-09T12:01:00.000Z",
+      nowMs,
+    }),
     true,
   );
+
   assert.equal(
-    canServeHistoricalWipCache({ asOfDate: "2026-07-09", todayIso: "2026-07-09", cachedRowCount: 10, projectCount: 10 }),
-    false,
-  );
-  assert.equal(
-    canServeHistoricalWipCache({ asOfDate: "2026-07-08", todayIso: "2026-07-09", cachedRowCount: 9, projectCount: 10 }),
+    canServeCachedWipMetrics({
+      asOfDate: "2026-07-09",
+      todayIso: "2026-07-09",
+      cachedRowCount: 10,
+      projectCount: 10,
+      latestSyncedAt: `2026-07-09T11:${String(59 - TODAY_WIP_CACHE_TTL_MINUTES).padStart(2, "0")}:59.000Z`,
+      nowMs,
+    }),
     false,
   );
 });

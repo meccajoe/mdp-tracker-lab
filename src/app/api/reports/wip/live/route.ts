@@ -8,8 +8,9 @@ import {
   buildCachedQboProjectWipMetricRow,
   buildProjectProfitabilitySummaryUrl,
   buildQboProjectWipMetrics,
+  canServeCachedWipMetrics,
   CachedQboProjectWipMetricRow,
-  canServeHistoricalWipCache,
+  TODAY_WIP_CACHE_TTL_MINUTES,
 } from "@/lib/qbo-project-wip";
 import { parseProjectProfitabilitySummaryRow, QboProjectProfitabilityRow } from "@/lib/qbo-project-profitability";
 import { ProjectSummary } from "@/lib/types";
@@ -36,7 +37,7 @@ async function fetchProjectProfitabilityMap(accessToken: string, startDate: stri
 
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: "Bearer " + accessToken,
       Accept: "application/json",
     },
     cache: "no-store",
@@ -66,6 +67,11 @@ async function fetchProjectProfitabilityMap(accessToken: string, startDate: stri
 
 function buildRowsFromCachedMetrics(projects: ProjectSummary[], cachedMetricsByProjectId: Map<string, CachedQboProjectWipMetricRow>) {
   return projects.map((project) => buildLiveWipRow(project, cachedMetricsByProjectId.get(project.id) ?? null));
+}
+
+function parseForceRefresh(value: string | null): boolean {
+  if (!value) return false;
+  return value === "1" || value.toLowerCase() === "true";
 }
 
 async function requireWipAdmin(request: NextRequest) {
@@ -124,6 +130,7 @@ export async function GET(request: NextRequest) {
   }
 
   const asOfDate = request.nextUrl.searchParams.get("asOfDate") ?? new Date().toISOString().slice(0, 10);
+  const forceRefresh = parseForceRefresh(request.nextUrl.searchParams.get("forceRefresh"));
   if (!isIsoDate(asOfDate)) {
     return NextResponse.json({ error: "Invalid asOfDate. Expected YYYY-MM-DD." }, { status: 400 });
   }
@@ -154,22 +161,33 @@ export async function GET(request: NextRequest) {
 
   const typedCachedMetricsRows = (cachedMetricsRows ?? []) as CachedQboProjectWipMetricRow[];
   const cachedMetricsByProjectId = new Map(typedCachedMetricsRows.map((row) => [row.project_id, row]));
+  const latestSyncedAt = typedCachedMetricsRows.reduce<string | null>((latest, row) => {
+    if (!row.synced_at) return latest;
+    if (!latest || row.synced_at > latest) return row.synced_at;
+    return latest;
+  }, null);
 
-  if (canServeHistoricalWipCache({
+  if (canServeCachedWipMetrics({
     asOfDate,
     todayIso,
     cachedRowCount: typedCachedMetricsRows.length,
     projectCount: typedProjects.length,
+    latestSyncedAt,
+    forceRefresh,
   })) {
     return NextResponse.json({
       asOfDate,
       cached: true,
+      cacheMode: asOfDate < todayIso ? "historical" : "today",
+      syncedAt: latestSyncedAt,
+      liveCacheTtlMinutes: TODAY_WIP_CACHE_TTL_MINUTES,
       rows: buildRowsFromCachedMetrics(typedProjects, cachedMetricsByProjectId),
     });
   }
 
   try {
     const accessToken = await getQboAccessToken();
+    const syncedAt = new Date().toISOString();
     const [allTimeMap, currentYearMap] = await Promise.all([
       fetchProjectProfitabilityMap(accessToken, ALL_TIME_START_DATE, asOfDate),
       fetchProjectProfitabilityMap(accessToken, currentYearStartDate, asOfDate),
@@ -183,6 +201,7 @@ export async function GET(request: NextRequest) {
       return buildCachedQboProjectWipMetricRow({
         projectId: project.id,
         asOfDate,
+        syncedAt,
         metrics,
       });
     });
@@ -197,7 +216,14 @@ export async function GET(request: NextRequest) {
 
     const rows = buildRowsFromCachedMetrics(typedProjects, new Map(cacheRows.map((row) => [row.project_id, row])));
 
-    return NextResponse.json({ asOfDate, cached: false, rows });
+    return NextResponse.json({
+      asOfDate,
+      cached: false,
+      cacheMode: "live_qbo",
+      syncedAt,
+      liveCacheTtlMinutes: TODAY_WIP_CACHE_TTL_MINUTES,
+      rows,
+    });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to build live WIP report." },

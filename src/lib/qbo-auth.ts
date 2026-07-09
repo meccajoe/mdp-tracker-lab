@@ -4,6 +4,9 @@ const QBO_TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer
 const OP_ITEM = "QBO - Mecca HubSpot Integration";
 const OP_VAULT = "Archie";
 const OP_CREDS_ENV = "source ~/.config/archie/credentials/1password.env";
+const ACCESS_TOKEN_SAFETY_WINDOW_SECONDS = 60;
+
+let cachedAccessToken: { value: string; expiresAtMs: number } | null = null;
 
 function opGet(field: string): string {
   const cmd = `${OP_CREDS_ENV} && op item get "${OP_ITEM}" --vault ${OP_VAULT} --fields "${field}" --reveal`;
@@ -16,6 +19,10 @@ function opSet(field: string, value: string): void {
 }
 
 export async function getQboAccessToken(): Promise<string> {
+  if (cachedAccessToken && Date.now() < cachedAccessToken.expiresAtMs) {
+    return cachedAccessToken.value;
+  }
+
   const clientId = process.env.QBO_CLIENT_ID!;
   const clientSecret = process.env.QBO_CLIENT_SECRET!;
 
@@ -34,7 +41,7 @@ export async function getQboAccessToken(): Promise<string> {
   const response = await fetch(QBO_TOKEN_URL, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${authHeader}`,
+      Authorization: "Basic " + authHeader,
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
     },
@@ -46,7 +53,11 @@ export async function getQboAccessToken(): Promise<string> {
     throw new Error(`QBO token refresh failed (${response.status})`);
   }
 
-  const tokenData = (await response.json()) as { access_token?: string; refresh_token?: string };
+  const tokenData = (await response.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
 
   if (!tokenData.access_token) {
     throw new Error("No access token returned from QBO");
@@ -56,6 +67,12 @@ export async function getQboAccessToken(): Promise<string> {
   if (tokenData.refresh_token && tokenData.refresh_token !== refreshToken) {
     opSet("refresh_token", tokenData.refresh_token);
   }
+
+  const expiresInSeconds = typeof tokenData.expires_in === "number" ? tokenData.expires_in : 3600;
+  cachedAccessToken = {
+    value: tokenData.access_token,
+    expiresAtMs: Date.now() + Math.max(1, expiresInSeconds - ACCESS_TOKEN_SAFETY_WINDOW_SECONDS) * 1000,
+  };
 
   return tokenData.access_token;
 }

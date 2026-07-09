@@ -148,8 +148,10 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(page, /As of Date/);
   assert.match(page, /\/api\/reports\/wip\/live/);
   assert.match(page, /fetch\(/);
-  assert.match(page, /Authorization:\s*`Bearer \$\{session\.access_token\}`/);
+  assert.match(page, /Authorization:\s*"Bearer\s"\s*\+\s*session\.access_token/);
   assert.match(page, /supabase\.auth\.getSession\(/);
+  assert.match(page, /forceRefresh/);
+  assert.match(page, /Refresh from QBO/);
   assert.doesNotMatch(page, /Job Nickname/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
   assert.match(page, /from\("wip_report_snapshot_rows"\)/);
@@ -180,6 +182,9 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(liveRoute, /buildLiveWipRow/);
   assert.match(liveRoute, /from\("qbo_project_wip_metrics"\)/);
   assert.match(liveRoute, /\.upsert\(/);
+  assert.match(liveRoute, /cacheMode/);
+  assert.match(liveRoute, /liveCacheTtlMinutes/);
+  assert.match(liveRoute, /forceRefresh/);
   assert.match(liveRoute, /authorization/);
   assert.match(liveRoute, /auth\.getUser\(/);
   assert.match(liveRoute, /requireMaterialsAdmin|createServerClient|canManageProjectActions/);
@@ -215,7 +220,8 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(qboWip, /export function buildProjectProfitabilitySummaryUrl/);
   assert.match(qboWip, /export function buildQboProjectWipMetrics/);
   assert.match(qboWip, /export function buildCachedQboProjectWipMetricRow/);
-  assert.match(qboWip, /export function canServeHistoricalWipCache/);
+  assert.match(qboWip, /export const TODAY_WIP_CACHE_TTL_MINUTES/);
+  assert.match(qboWip, /export function canServeCachedWipMetrics/);
   assert.match(qboWip, /current_year_total_billings/);
   assert.match(qboWip, /current_year_total_retainage/);
 });

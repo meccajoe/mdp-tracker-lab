@@ -13,7 +13,10 @@ export interface CachedQboProjectWipMetricRow extends QboProjectWipMetrics {
   as_of_date: string;
   billing_source: string;
   cost_source: string;
+  synced_at?: string;
 }
+
+export const TODAY_WIP_CACHE_TTL_MINUTES = 5;
 
 export function buildProjectProfitabilitySummaryUrl(input: {
   realmId: string;
@@ -44,6 +47,7 @@ export function buildCachedQboProjectWipMetricRow(input: {
   projectId: string;
   asOfDate: string;
   metrics: QboProjectWipMetrics;
+  syncedAt: string;
 }): CachedQboProjectWipMetricRow {
   return {
     project_id: input.projectId,
@@ -55,14 +59,29 @@ export function buildCachedQboProjectWipMetricRow(input: {
     current_year_costs: input.metrics.current_year_costs,
     billing_source: "qbo_project_profitability_summary",
     cost_source: "qbo_project_profitability_summary",
+    synced_at: input.syncedAt,
   };
 }
 
-export function canServeHistoricalWipCache(input: {
+export function canServeCachedWipMetrics(input: {
   asOfDate: string;
   todayIso: string;
   cachedRowCount: number;
   projectCount: number;
+  latestSyncedAt: string | null;
+  forceRefresh?: boolean;
+  nowMs?: number;
+  todayCacheTtlMinutes?: number;
 }): boolean {
-  return input.asOfDate < input.todayIso && input.projectCount > 0 && input.cachedRowCount === input.projectCount;
+  if (input.forceRefresh) return false;
+  if (input.projectCount === 0 || input.cachedRowCount !== input.projectCount) return false;
+  if (input.asOfDate < input.todayIso) return true;
+  if (input.asOfDate !== input.todayIso || !input.latestSyncedAt) return false;
+
+  const syncedAtMs = Date.parse(input.latestSyncedAt);
+  if (!Number.isFinite(syncedAtMs)) return false;
+
+  const nowMs = input.nowMs ?? Date.now();
+  const ttlMinutes = input.todayCacheTtlMinutes ?? TODAY_WIP_CACHE_TTL_MINUTES;
+  return nowMs - syncedAtMs <= ttlMinutes * 60_000;
 }
