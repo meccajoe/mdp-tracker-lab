@@ -97,6 +97,21 @@ test('phase 1A migration expands WIP snapshot rows for the visible summary contr
   assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS current_year_costs numeric\(12,2\);/i);
 });
 
+test('phase 1C migration adds cached date-scoped QBO WIP metrics storage', () => {
+  const sql = findMigration('mdp_wip_qbo_metrics_cache');
+
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS qbo_project_wip_metrics/i);
+  assert.match(sql, /project_id text NOT NULL REFERENCES projects\(id\) ON DELETE CASCADE/i);
+  assert.match(sql, /as_of_date date NOT NULL/i);
+  assert.match(sql, /total_billed_to_date numeric\(12,2\)/i);
+  assert.match(sql, /current_year_total_billings numeric\(12,2\)/i);
+  assert.match(sql, /current_year_total_retainage numeric\(12,2\)/i);
+  assert.match(sql, /current_year_costs numeric\(12,2\)/i);
+  assert.match(sql, /billing_source text NOT NULL/i);
+  assert.match(sql, /cost_source text NOT NULL/i);
+  assert.match(sql, /PRIMARY KEY \(project_id, as_of_date\)/i);
+});
+
 test('sidebar exposes an admin-only Reports section with WIP route', () => {
   const source = read('../src/components/Sidebar.tsx');
 
@@ -161,6 +176,8 @@ test('wip report page, live route, and helpers support the server-computed visib
 
   assert.match(liveRoute, /ProjectProfitabilitySummary/);
   assert.match(liveRoute, /buildLiveWipRow/);
+  assert.match(liveRoute, /from\("qbo_project_wip_metrics"\)/);
+  assert.match(liveRoute, /\.upsert\(/);
   assert.match(liveRoute, /requireMaterialsAdmin|createServerClient|canManageProjectActions/);
 
   assert.match(modal, /Dialog/);
@@ -193,6 +210,8 @@ test('wip report page, live route, and helpers support the server-computed visib
 
   assert.match(qboWip, /export function buildProjectProfitabilitySummaryUrl/);
   assert.match(qboWip, /export function buildQboProjectWipMetrics/);
+  assert.match(qboWip, /export function buildCachedQboProjectWipMetricRow/);
+  assert.match(qboWip, /export function canServeHistoricalWipCache/);
   assert.match(qboWip, /current_year_total_billings/);
   assert.match(qboWip, /current_year_total_retainage/);
 });

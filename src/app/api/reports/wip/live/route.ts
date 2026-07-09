@@ -3,7 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMaterialsAdmin } from "@/lib/materials/server";
 import { getQboAccessToken } from "@/lib/qbo-auth";
 import { buildLiveWipRow } from "@/lib/wip-report";
-import { buildProjectProfitabilitySummaryUrl, buildQboProjectWipMetrics } from "@/lib/qbo-project-wip";
+import {
+  buildCachedQboProjectWipMetricRow,
+  buildProjectProfitabilitySummaryUrl,
+  buildQboProjectWipMetrics,
+  CachedQboProjectWipMetricRow,
+  canServeHistoricalWipCache,
+} from "@/lib/qbo-project-wip";
 import { parseProjectProfitabilitySummaryRow, QboProjectProfitabilityRow } from "@/lib/qbo-project-profitability";
 import { ProjectSummary } from "@/lib/types";
 
@@ -55,6 +61,10 @@ async function fetchProjectProfitabilityMap(accessToken: string, startDate: stri
   return map;
 }
 
+function buildRowsFromCachedMetrics(projects: ProjectSummary[], cachedMetricsByProjectId: Map<string, CachedQboProjectWipMetricRow>) {
+  return projects.map((project) => buildLiveWipRow(project, cachedMetricsByProjectId.get(project.id) ?? null));
+}
+
 export async function GET(request: NextRequest) {
   const admin = await requireMaterialsAdmin();
   if (!admin.ok) {
@@ -67,6 +77,7 @@ export async function GET(request: NextRequest) {
   }
 
   const currentYearStartDate = `${asOfDate.slice(0, 4)}-01-01`;
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   const { data: projects, error } = await admin.supabase
     .from("project_summary")
@@ -78,6 +89,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const typedProjects = (projects ?? []) as ProjectSummary[];
+
+  const { data: cachedMetricsRows, error: cachedMetricsError } = await admin.supabase
+    .from("qbo_project_wip_metrics")
+    .select("*")
+    .eq("as_of_date", asOfDate);
+
+  if (cachedMetricsError) {
+    return NextResponse.json({ error: cachedMetricsError.message }, { status: 500 });
+  }
+
+  const typedCachedMetricsRows = (cachedMetricsRows ?? []) as CachedQboProjectWipMetricRow[];
+  const cachedMetricsByProjectId = new Map(typedCachedMetricsRows.map((row) => [row.project_id, row]));
+
+  if (canServeHistoricalWipCache({
+    asOfDate,
+    todayIso,
+    cachedRowCount: typedCachedMetricsRows.length,
+    projectCount: typedProjects.length,
+  })) {
+    return NextResponse.json({
+      asOfDate,
+      cached: true,
+      rows: buildRowsFromCachedMetrics(typedProjects, cachedMetricsByProjectId),
+    });
+  }
+
   try {
     const accessToken = await getQboAccessToken();
     const [allTimeMap, currentYearMap] = await Promise.all([
@@ -85,14 +123,29 @@ export async function GET(request: NextRequest) {
       fetchProjectProfitabilityMap(accessToken, currentYearStartDate, asOfDate),
     ]);
 
-    const rows = ((projects ?? []) as ProjectSummary[]).map((project) => {
+    const cacheRows = typedProjects.map((project) => {
       const allTimeRow = project.job_number ? allTimeMap.get(project.job_number) ?? null : null;
       const currentYearRow = project.job_number ? currentYearMap.get(project.job_number) ?? null : null;
       const metrics = buildQboProjectWipMetrics({ allTimeRow, currentYearRow });
-      return buildLiveWipRow(project, metrics);
+
+      return buildCachedQboProjectWipMetricRow({
+        projectId: project.id,
+        asOfDate,
+        metrics,
+      });
     });
 
-    return NextResponse.json({ asOfDate, rows });
+    const { error: upsertError } = await admin.supabase
+      .from("qbo_project_wip_metrics")
+      .upsert(cacheRows, { onConflict: "project_id,as_of_date" });
+
+    if (upsertError) {
+      throw upsertError;
+    }
+
+    const rows = buildRowsFromCachedMetrics(typedProjects, new Map(cacheRows.map((row) => [row.project_id, row])));
+
+    return NextResponse.json({ asOfDate, cached: false, rows });
   } catch (routeError) {
     return NextResponse.json(
       { error: routeError instanceof Error ? routeError.message : "Failed to build live WIP report." },
