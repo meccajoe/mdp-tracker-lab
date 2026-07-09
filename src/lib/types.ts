@@ -106,6 +106,21 @@ export interface WipReportSnapshotRow {
   contract_date: string | null;
   contract_amount: number | null;
   estimated_cost: number | null;
+  updated_contract_amount: number | null;
+  updated_est_cost: number | null;
+  updated_est_gross_profit: number | null;
+  est_gpm_pct: number | null;
+  total_billed_to_date: number | null;
+  total_cost_to_date: number | null;
+  cost_pct_complete: number | null;
+  revenue_earned: number | null;
+  job_profit_earned: number | null;
+  job_profit_pct_earned: number | null;
+  billings_in_excess_of_costs: number | null;
+  costs_in_excess_of_billings: number | null;
+  current_year_total_billings: number | null;
+  current_year_total_retainage: number | null;
+  current_year_costs: number | null;
   estimated_cost_source: "derived" | "manual_override";
   sales_tax_included: string | null;
   completion_date: string | null;
@@ -113,6 +128,14 @@ export interface WipReportSnapshotRow {
   pm_initials: string | null;
   source_updated_at: string | null;
   created_at?: string;
+}
+
+export interface QboProjectPnl {
+  project_id: string;
+  qbo_income: number | null;
+  qbo_expenses: number | null;
+  qbo_net_income: number | null;
+  synced_at: string | null;
 }
 
 export interface Expense {

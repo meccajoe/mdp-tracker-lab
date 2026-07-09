@@ -59,7 +59,42 @@ test('project types expose WIP reporting fields and snapshot interfaces', () => 
   assert.match(source, /estimated_cost_override: number \| null;/);
   assert.match(source, /export interface WipReportSnapshot/);
   assert.match(source, /export interface WipReportSnapshotRow/);
+  assert.match(source, /updated_contract_amount: number \| null;/);
+  assert.match(source, /updated_est_cost: number \| null;/);
+  assert.match(source, /updated_est_gross_profit: number \| null;/);
+  assert.match(source, /est_gpm_pct: number \| null;/);
+  assert.match(source, /total_billed_to_date: number \| null;/);
+  assert.match(source, /total_cost_to_date: number \| null;/);
+  assert.match(source, /cost_pct_complete: number \| null;/);
+  assert.match(source, /revenue_earned: number \| null;/);
+  assert.match(source, /job_profit_earned: number \| null;/);
+  assert.match(source, /job_profit_pct_earned: number \| null;/);
+  assert.match(source, /billings_in_excess_of_costs: number \| null;/);
+  assert.match(source, /costs_in_excess_of_billings: number \| null;/);
+  assert.match(source, /current_year_total_billings: number \| null;/);
+  assert.match(source, /current_year_total_retainage: number \| null;/);
+  assert.match(source, /current_year_costs: number \| null;/);
   assert.doesNotMatch(source, /job_nickname: string \| null;/);
+});
+
+test('phase 1A migration expands WIP snapshot rows for the visible summary contract', () => {
+  const sql = findMigration('mdp_wip_visible_summary_phase1a');
+
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS updated_contract_amount numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS updated_est_cost numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS updated_est_gross_profit numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS est_gpm_pct numeric\(12,6\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS total_billed_to_date numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS total_cost_to_date numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS cost_pct_complete numeric\(12,6\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS revenue_earned numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS job_profit_earned numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS job_profit_pct_earned numeric\(12,6\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS billings_in_excess_of_costs numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS costs_in_excess_of_billings numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS current_year_total_billings numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS current_year_total_retainage numeric\(12,2\);/i);
+  assert.match(sql, /ALTER TABLE wip_report_snapshot_rows ADD COLUMN IF NOT EXISTS current_year_costs numeric\(12,2\);/i);
 });
 
 test('sidebar exposes an admin-only Reports section with WIP route', () => {
@@ -78,9 +113,10 @@ test('edit project page exposes the remaining WIP reporting metadata fields with
   assert.match(source, /Estimated Cost Override/);
 });
 
-test('wip report page and helper support live view, snapshots, exports, snapshot editing/deletion, project drill-in modal, and omit job nickname', () => {
+test('wip report page and helper support the visible-summary WIP surface with QBO actuals, snapshots, exports, and project drill-ins', () => {
   const page = read('../src/app/admin/reports/wip/page.tsx');
   const helper = read('../src/lib/wip-report.ts');
+  const formulas = read('../src/lib/wip-report-formulas.ts');
   const modal = read('../src/components/wip-project-dialog.tsx');
   const estimatedCostDialog = read('../src/components/wip-estimated-cost-dialog.tsx');
 
@@ -92,10 +128,9 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(page, /Save Snapshot Changes/);
   assert.match(page, /Draft/);
   assert.match(page, /Final/);
-  assert.match(page, /Contract Date/);
-  assert.match(page, /Completion Date/);
   assert.doesNotMatch(page, /Job Nickname/);
   assert.match(page, /from\("project_summary"\)/);
+  assert.match(page, /from\("qbo_project_pnl"\)/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
   assert.match(page, /from\("wip_report_snapshot_rows"\)/);
   assert.match(page, /\.update\(\{/);
@@ -105,9 +140,23 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(page, /WipEstimatedCostDialog/);
   assert.match(page, /Badge/);
   assert.match(page, /getPmChipClassName/);
-  assert.match(page, /triggerLabel=\{row\.project_number \?\? "—"\}/);
+  assert.match(page, /Updated Contract Amount/);
+  assert.match(page, /Updated Est Cost/);
+  assert.match(page, /Updated Est Gross Profit/);
+  assert.match(page, /Est GPM%/);
+  assert.match(page, /Total Billed to Date/);
+  assert.match(page, /Total Cost to Date/);
+  assert.match(page, /Cost % Complete/);
+  assert.match(page, /Revenue Earned/);
+  assert.match(page, /Job Profit Earned/);
+  assert.match(page, /Job Profit % Earned/);
+  assert.match(page, /Billings in Excess of Costs/);
+  assert.match(page, /Costs in Excess of Billings/);
+  assert.match(page, /Current Year Total Billings/);
+  assert.match(page, /Current Year Total Retainage/);
+  assert.match(page, /Current Year Costs/);
   assert.match(page, /triggerLabel=\{row\.project_name\}/);
-  assert.match(page, /triggerLabel=\{formatCurrency\(row\.estimated_cost\)\}/);
+  assert.match(page, /triggerLabel=\{formatCurrency\(row\.updated_est_cost\)\}/);
   assert.match(page, /text-blue-600/);
   assert.match(page, /text-emerald-700/);
   assert.match(page, /text-rose-700/);
@@ -140,7 +189,13 @@ test('wip report page and helper support live view, snapshots, exports, snapshot
   assert.match(helper, /export function buildWipCsv/);
   assert.match(helper, /export function buildWipWorkbook/);
   assert.match(helper, /export function resolveEstimatedCost/);
+  assert.match(helper, /export function buildLiveWipRow/);
   assert.doesNotMatch(helper, /job_nickname/);
+
+  assert.match(formulas, /export interface WipFinancialActuals/);
+  assert.match(formulas, /export function buildWipSummaryMetrics/);
+  assert.match(formulas, /billings_in_excess_of_costs/);
+  assert.match(formulas, /costs_in_excess_of_billings/);
 });
 
 test('package.json includes xlsx for native Excel export', () => {

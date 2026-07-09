@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WipProjectDialog } from "@/components/wip-project-dialog";
 import { WipEstimatedCostDialog } from "@/components/wip-estimated-cost-dialog";
-import { ProjectSummary, WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
+import { ProjectSummary, QboProjectPnl, WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
 import {
   EMPTY_WIP_FILTERS,
   WipFilters,
@@ -49,6 +49,7 @@ export default function WipReportPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [mode, setMode] = useState<"live" | "snapshot">("live");
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [qboProjectPnls, setQboProjectPnls] = useState<QboProjectPnl[]>([]);
   const [snapshots, setSnapshots] = useState<WipReportSnapshot[]>([]);
   const [snapshotRows, setSnapshotRows] = useState<WipReportSnapshotRow[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>("");
@@ -62,7 +63,14 @@ export default function WipReportPage() {
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [loadingSnapshotRows, setLoadingSnapshotRows] = useState(false);
 
-  const liveRows = useMemo(() => projects.map(buildLiveWipRow), [projects]);
+  const qboPnlByProjectId = useMemo(
+    () => new Map(qboProjectPnls.map((row) => [row.project_id, row])),
+    [qboProjectPnls],
+  );
+  const liveRows = useMemo(
+    () => projects.map((project) => buildLiveWipRow(project, qboPnlByProjectId.get(project.id) ?? null)),
+    [projects, qboPnlByProjectId],
+  );
   const currentSnapshot = useMemo(
     () => snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? null,
     [snapshots, selectedSnapshotId],
@@ -143,8 +151,9 @@ export default function WipReportPage() {
 
     setAuthorized(true);
 
-    const [projectResponse, snapshotResponse] = await Promise.all([
+    const [projectResponse, qboPnlResponse, snapshotResponse] = await Promise.all([
       supabase.from("project_summary").select("*").order("client").order("name"),
+      supabase.from("qbo_project_pnl").select("*"),
       loadSnapshots(),
     ]);
 
@@ -152,7 +161,12 @@ export default function WipReportPage() {
       throw projectResponse.error;
     }
 
+    if (qboPnlResponse.error) {
+      throw qboPnlResponse.error;
+    }
+
     setProjects((projectResponse.data ?? []) as ProjectSummary[]);
+    setQboProjectPnls((qboPnlResponse.data ?? []) as QboProjectPnl[]);
 
     if (snapshotResponse.length > 0) {
       setSelectedSnapshotId(snapshotResponse[0].id);
@@ -437,7 +451,7 @@ export default function WipReportPage() {
               <Input
                 value={filters.search}
                 onChange={(e) => updateFilter("search", e.target.value)}
-                placeholder="Customer, project #, project name, or nickname"
+                placeholder="Customer, project #, or project name"
               />
             </div>
           </div>
@@ -604,64 +618,57 @@ export default function WipReportPage() {
                 <thead className="bg-muted/45 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium">Customer</th>
-                    <th className="px-3 py-2 font-medium">Project #</th>
-                    <th className="px-3 py-2 font-medium">Project Name</th>
-                    <th className="px-3 py-2 font-medium">Class</th>
-                    <th className="px-3 py-2 font-medium">Contract Date</th>
-                    <th className="px-3 py-2 font-medium text-right">Contract Amount</th>
-                    <th className="px-3 py-2 font-medium text-right">Estimated Cost</th>
-                    <th className="px-3 py-2 font-medium">Sales Tax Included</th>
-                    <th className="px-3 py-2 font-medium">Completion Date</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">PM</th>
-                    <th className="px-3 py-2 font-medium">Estimate Source</th>
+                    <th className="px-3 py-2 font-medium">Project</th>
+                    <th className="px-3 py-2 font-medium text-right">Updated Contract Amount</th>
+                    <th className="px-3 py-2 font-medium text-right">Updated Est Cost</th>
+                    <th className="px-3 py-2 font-medium text-right">Updated Est Gross Profit</th>
+                    <th className="px-3 py-2 font-medium text-right">Est GPM%</th>
+                    <th className="px-3 py-2 font-medium text-right">Total Billed to Date</th>
+                    <th className="px-3 py-2 font-medium text-right">Total Cost to Date</th>
+                    <th className="px-3 py-2 font-medium text-right">Cost % Complete</th>
+                    <th className="px-3 py-2 font-medium text-right">Revenue Earned</th>
+                    <th className="px-3 py-2 font-medium text-right">Job Profit Earned</th>
+                    <th className="px-3 py-2 font-medium text-right">Job Profit % Earned</th>
+                    <th className="px-3 py-2 font-medium text-right">Billings in Excess of Costs</th>
+                    <th className="px-3 py-2 font-medium text-right">Costs in Excess of Billings</th>
+                    <th className="px-3 py-2 font-medium text-right">Current Year Total Billings</th>
+                    <th className="px-3 py-2 font-medium text-right">Current Year Total Retainage</th>
+                    <th className="px-3 py-2 font-medium text-right">Current Year Costs</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRows.map((row) => (
                     <tr key={`${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="border-t border-border/70 even:bg-muted/15 hover:bg-muted/35 transition-colors">
                       <td className="px-3 py-2">{row.customer}</td>
-                      <td className="px-3 py-2">
-                        <WipProjectDialog
-                          row={row}
-                          triggerLabel={row.project_number ?? "—"}
-                          triggerClassName="text-left font-mono text-sm font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 min-w-[260px]">
                         <WipProjectDialog
                           row={row}
                           triggerLabel={row.project_name}
                           triggerClassName="text-left font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
                         />
+                        <div className="mt-1 font-mono text-xs text-muted-foreground">{row.project_number ?? "—"}</div>
                       </td>
-                      <td className="px-3 py-2">{row.wip_class ?? "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{formatDate(row.contract_date)}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.contract_amount)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.updated_contract_amount)}</td>
                       <td className="px-3 py-2 text-right">
                         <WipEstimatedCostDialog
                           row={row}
-                          triggerLabel={formatCurrency(row.estimated_cost)}
+                          triggerLabel={formatCurrency(row.updated_est_cost)}
                           triggerClassName="text-right font-semibold text-rose-700 underline-offset-4 hover:underline dark:text-rose-400"
                         />
                       </td>
-                      <td className="px-3 py-2">{row.sales_tax_included || "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{formatDate(row.completion_date)}</td>
-                      <td className="px-3 py-2">
-                        <Badge variant="outline" className={getStatusChipClassName(row.project_status)}>
-                          {row.project_status ?? "—"}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2">
-                        <Badge variant="outline" className={getPmChipClassName(row.pm_initials)}>
-                          {row.pm_initials ?? "—"}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2">
-                        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-                          {row.estimated_cost_source === "manual_override" ? "Manual Override" : "Derived"}
-                        </Badge>
-                      </td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.updated_est_gross_profit)}</td>
+                      <td className="px-3 py-2 text-right">{formatPercent(row.est_gpm_pct)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.total_billed_to_date)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.total_cost_to_date)}</td>
+                      <td className="px-3 py-2 text-right">{formatPercent(row.cost_pct_complete)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.revenue_earned)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.job_profit_earned)}</td>
+                      <td className="px-3 py-2 text-right">{formatPercent(row.job_profit_pct_earned)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.billings_in_excess_of_costs)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.costs_in_excess_of_billings)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.current_year_total_billings)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.current_year_total_retainage)}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(row.current_year_costs)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -672,6 +679,11 @@ export default function WipReportPage() {
       </Card>
     </div>
   );
+}
+
+function formatPercent(value: number | null): string {
+  if (value == null) return "—";
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 function uniqueValues(values: Array<string | null | undefined>) {
