@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { canManageProjectActions } from "@/lib/admin-access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,7 @@ function downloadCsv(content: string, filename: string) {
 }
 
 type LiveCacheMode = "historical" | "today" | "live_qbo";
+type LiveRefreshKind = "auto" | "force";
 
 function formatLiveSyncedAt(value: string | null): string | null {
   if (!value) return null;
@@ -62,18 +64,22 @@ export default function WipReportPage() {
   const [liveCacheMode, setLiveCacheMode] = useState<LiveCacheMode | null>(null);
   const [liveSyncedAt, setLiveSyncedAt] = useState<string | null>(null);
   const [liveCacheTtlMinutes, setLiveCacheTtlMinutes] = useState(5);
+  const [liveRefreshKind, setLiveRefreshKind] = useState<LiveRefreshKind>("auto");
   const [snapshots, setSnapshots] = useState<WipReportSnapshot[]>([]);
   const [snapshotRows, setSnapshotRows] = useState<WipReportSnapshotRow[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>("");
   const [filters, setFilters] = useState<WipFilters>(EMPTY_WIP_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [snapshotDate, setSnapshotDate] = useState(new Date().toISOString().slice(0, 10));
   const [snapshotStatus, setSnapshotStatus] = useState<"draft" | "final">("draft");
   const [snapshotNotes, setSnapshotNotes] = useState("");
+  const [createSnapshotOpen, setCreateSnapshotOpen] = useState(false);
   const [editingSnapshot, setEditingSnapshot] = useState(false);
   const [savingSnapshotChanges, setSavingSnapshotChanges] = useState(false);
   const [deletingSnapshot, setDeletingSnapshot] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [loadingSnapshotRows, setLoadingSnapshotRows] = useState(false);
+  const liveRequestIdRef = useRef(0);
 
   const currentSnapshot = useMemo(
     () => snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? null,
@@ -93,12 +99,16 @@ export default function WipReportPage() {
   const customerOptions = useMemo(() => uniqueValues(optionSourceRows.map((row) => row.customer)), [optionSourceRows]);
   const classOptions = useMemo(() => uniqueValues(optionSourceRows.map((row) => row.wip_class)), [optionSourceRows]);
   const liveSourceLabel = useMemo(() => {
+    if (loadingLiveRows && liveRefreshKind === "force") return "Refreshing from QBO...";
     if (liveCacheMode === "historical") return "Historical cache";
     if (liveCacheMode === "today") return `Today cache (${liveCacheTtlMinutes} min TTL)`;
     if (liveCacheMode === "live_qbo") return "Live QBO refresh";
     return "QBO ProjectProfitabilitySummary";
-  }, [liveCacheMode, liveCacheTtlMinutes]);
+  }, [liveCacheMode, liveCacheTtlMinutes, liveRefreshKind, loadingLiveRows]);
   const liveRefreshDetail = useMemo(() => {
+    if (loadingLiveRows && liveRefreshKind === "force") {
+      return "Pulling fresh QBO totals now. Cached rows will update when the refresh finishes.";
+    }
     const syncedLabel = formatLiveSyncedAt(liveSyncedAt);
     if (liveCacheMode === "historical") {
       return syncedLabel ? `Cached metrics synced ${syncedLabel}` : "Historical cache served from Supabase";
@@ -110,7 +120,14 @@ export default function WipReportPage() {
       return syncedLabel ? `Fresh QBO sync completed ${syncedLabel}` : "Fetched directly from QBO";
     }
     return null;
-  }, [liveCacheMode, liveCacheTtlMinutes, liveSyncedAt]);
+  }, [liveCacheMode, liveCacheTtlMinutes, liveRefreshKind, liveSyncedAt, loadingLiveRows]);
+  const liveRefreshStatusLabel = useMemo(() => {
+    if (loadingLiveRows) {
+      return liveRefreshKind === "force" ? "Refreshing from QBO..." : "Refreshing...";
+    }
+
+    return `${liveRows.length} row(s) loaded`;
+  }, [liveRefreshKind, liveRows.length, loadingLiveRows]);
 
   const loadSnapshots = useCallback(async () => {
     const { data, error } = await supabase
@@ -152,6 +169,9 @@ export default function WipReportPage() {
   }, []);
 
   const loadLiveRows = useCallback(async (asOfDate: string, options?: { forceRefresh?: boolean }) => {
+    const requestId = liveRequestIdRef.current + 1;
+    liveRequestIdRef.current = requestId;
+    setLiveRefreshKind(options?.forceRefresh ? "force" : "auto");
     setLoadingLiveRows(true);
 
     try {
@@ -178,12 +198,18 @@ export default function WipReportPage() {
         throw new Error(payload?.error || "Failed to load live WIP report.");
       }
 
+      if (requestId !== liveRequestIdRef.current) {
+        return;
+      }
+
       setLiveRows((payload.rows ?? []) as WipReportRow[]);
       setLiveCacheMode((payload.cacheMode as LiveCacheMode | undefined) ?? null);
       setLiveSyncedAt(typeof payload.syncedAt === "string" ? payload.syncedAt : null);
       setLiveCacheTtlMinutes(typeof payload.liveCacheTtlMinutes === "number" ? payload.liveCacheTtlMinutes : 5);
     } finally {
-      setLoadingLiveRows(false);
+      if (requestId === liveRequestIdRef.current) {
+        setLoadingLiveRows(false);
+      }
     }
   }, []);
 
@@ -438,140 +464,152 @@ export default function WipReportPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
           <CardTitle>Filters</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => setFiltersOpen((open) => !open)}>
+            {filtersOpen ? <ChevronDownIcon className="mr-2 size-4" /> : <ChevronRightIcon className="mr-2 size-4" />}
+            {filtersOpen ? "Hide" : "Show"}
+          </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {mode === "live" && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="liveAsOfDate">As of Date</Label>
-                <Input id="liveAsOfDate" type="date" value={liveAsOfDate} onChange={(e) => setLiveAsOfDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Live Row Source</Label>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                  <div>{liveSourceLabel}</div>
-                  {liveRefreshDetail && <div className="mt-1 text-xs text-muted-foreground">{liveRefreshDetail}</div>}
+        {filtersOpen && (
+          <CardContent className="space-y-4">
+            {mode === "live" && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="liveAsOfDate">As of Date</Label>
+                  <Input id="liveAsOfDate" type="date" value={liveAsOfDate} onChange={(e) => setLiveAsOfDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Live Row Source</Label>
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                    <div>{liveSourceLabel}</div>
+                    {liveRefreshDetail && <div className="mt-1 text-xs text-muted-foreground">{liveRefreshDetail}</div>}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Live Refresh Status</Label>
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                    {liveRefreshStatusLabel}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Refresh Controls</Label>
+                  <Button variant="outline" onClick={() => loadLiveRows(liveAsOfDate, { forceRefresh: true })} disabled={loadingLiveRows}>
+                    {loadingLiveRows && liveRefreshKind === "force" ? "Refreshing from QBO..." : "Refresh from QBO"}
+                  </Button>
                 </div>
               </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <div className="space-y-2">
-                <Label>Live Refresh Status</Label>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                  {loadingLiveRows ? "Refreshing..." : `${liveRows.length} row(s) loaded`}
-                </div>
+                <Label>Status</Label>
+                <select className={selectClass} value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}>
+                  <option value="All">All</option>
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                  <option value="On Hold">On Hold</option>
+                  <option value="Pending">Pending</option>
+                </select>
               </div>
               <div className="space-y-2">
-                <Label>Refresh Controls</Label>
-                <Button variant="outline" onClick={() => loadLiveRows(liveAsOfDate, { forceRefresh: true })} disabled={loadingLiveRows}>
-                  {loadingLiveRows ? "Refreshing..." : "Refresh from QBO"}
-                </Button>
+                <Label>PM</Label>
+                <select className={selectClass} value={filters.pm} onChange={(e) => updateFilter("pm", e.target.value)}>
+                  <option value="All">All</option>
+                  {pmOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Customer</Label>
+                <select className={selectClass} value={filters.customer} onChange={(e) => updateFilter("customer", e.target.value)}>
+                  <option value="All">All</option>
+                  {customerOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Class</Label>
+                <select className={selectClass} value={filters.wipClass} onChange={(e) => updateFilter("wipClass", e.target.value)}>
+                  <option value="All">All</option>
+                  {classOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Contract Date From</Label>
+                <Input type="date" value={filters.contractDateFrom} onChange={(e) => updateFilter("contractDateFrom", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Contract Date To</Label>
+                <Input type="date" value={filters.contractDateTo} onChange={(e) => updateFilter("contractDateTo", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Completion Date From</Label>
+                <Input type="date" value={filters.completionDateFrom} onChange={(e) => updateFilter("completionDateFrom", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Completion Date To</Label>
+                <Input type="date" value={filters.completionDateTo} onChange={(e) => updateFilter("completionDateTo", e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Sales Tax Included</Label>
+                <select className={selectClass} value={filters.salesTax} onChange={(e) => updateFilter("salesTax", e.target.value as WipFilters["salesTax"])}>
+                  <option value="any">Any</option>
+                  <option value="has_value">Has value</option>
+                  <option value="missing">Missing</option>
+                </select>
+              </div>
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                <Label>Search</Label>
+                <Input
+                  value={filters.search}
+                  onChange={(e) => updateFilter("search", e.target.value)}
+                  placeholder="Customer, project #, or project name"
+                />
               </div>
             </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <select className={selectClass} value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}>
-                <option value="All">All</option>
-                <option value="Active">Active</option>
-                <option value="Completed">Completed</option>
-                <option value="On Hold">On Hold</option>
-                <option value="Pending">Pending</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>PM</Label>
-              <select className={selectClass} value={filters.pm} onChange={(e) => updateFilter("pm", e.target.value)}>
-                <option value="All">All</option>
-                {pmOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Customer</Label>
-              <select className={selectClass} value={filters.customer} onChange={(e) => updateFilter("customer", e.target.value)}>
-                <option value="All">All</option>
-                {customerOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Class</Label>
-              <select className={selectClass} value={filters.wipClass} onChange={(e) => updateFilter("wipClass", e.target.value)}>
-                <option value="All">All</option>
-                {classOptions.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Contract Date From</Label>
-              <Input type="date" value={filters.contractDateFrom} onChange={(e) => updateFilter("contractDateFrom", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Contract Date To</Label>
-              <Input type="date" value={filters.contractDateTo} onChange={(e) => updateFilter("contractDateTo", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Completion Date From</Label>
-              <Input type="date" value={filters.completionDateFrom} onChange={(e) => updateFilter("completionDateFrom", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Completion Date To</Label>
-              <Input type="date" value={filters.completionDateTo} onChange={(e) => updateFilter("completionDateTo", e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Sales Tax Included</Label>
-              <select className={selectClass} value={filters.salesTax} onChange={(e) => updateFilter("salesTax", e.target.value as WipFilters["salesTax"])}>
-                <option value="any">Any</option>
-                <option value="has_value">Has value</option>
-                <option value="missing">Missing</option>
-              </select>
-            </div>
-            <div className="space-y-2 md:col-span-2 xl:col-span-3">
-              <Label>Search</Label>
-              <Input
-                value={filters.search}
-                onChange={(e) => updateFilter("search", e.target.value)}
-                placeholder="Customer, project #, or project name"
-              />
-            </div>
-          </div>
-        </CardContent>
+          </CardContent>
+        )}
       </Card>
 
       {mode === "live" && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
             <CardTitle>Create Snapshot</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setCreateSnapshotOpen((open) => !open)}>
+              {createSnapshotOpen ? <ChevronDownIcon className="mr-2 size-4" /> : <ChevronRightIcon className="mr-2 size-4" />}
+              {createSnapshotOpen ? "Hide" : "Show"}
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="snapshotDate">As of Date</Label>
-                <Input id="snapshotDate" type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="snapshotStatus">Status</Label>
-                <select id="snapshotStatus" className={selectClass} value={snapshotStatus} onChange={(e) => setSnapshotStatus(e.target.value as "draft" | "final")}>
-                  <option value="draft">Draft</option>
-                  <option value="final">Final</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Rows in Current View</Label>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                  {filteredRows.length}
+          {createSnapshotOpen && (
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="snapshotDate">As of Date</Label>
+                  <Input id="snapshotDate" type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="snapshotStatus">Status</Label>
+                  <select id="snapshotStatus" className={selectClass} value={snapshotStatus} onChange={(e) => setSnapshotStatus(e.target.value as "draft" | "final")}>
+                    <option value="draft">Draft</option>
+                    <option value="final">Final</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rows in Current View</Label>
+                  <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                    {filteredRows.length}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="snapshotNotes">Notes</Label>
-              <Textarea id="snapshotNotes" value={snapshotNotes} onChange={(e) => setSnapshotNotes(e.target.value)} rows={3} />
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={handleCreateSnapshot} disabled={creatingSnapshot}>
-                {creatingSnapshot ? "Creating..." : "Create Snapshot"}
-              </Button>
-            </div>
-          </CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="snapshotNotes">Notes</Label>
+                <Textarea id="snapshotNotes" value={snapshotNotes} onChange={(e) => setSnapshotNotes(e.target.value)} rows={3} />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleCreateSnapshot} disabled={creatingSnapshot}>
+                  {creatingSnapshot ? "Creating..." : "Create Snapshot"}
+                </Button>
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 
