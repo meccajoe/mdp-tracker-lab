@@ -124,9 +124,17 @@ export default function WipReportPage() {
     setLoadingLiveRows(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Authentication required");
+      }
+
       const response = await fetch(`/api/reports/wip/live?asOfDate=${encodeURIComponent(asOfDate)}`, {
         credentials: "include",
         cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       const payload = await response.json().catch(() => ({}));

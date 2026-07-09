@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-import { requireMaterialsAdmin } from "@/lib/materials/server";
+import { getSupabaseAdmin, requireMaterialsAdmin } from "@/lib/materials/server";
 import { getQboAccessToken } from "@/lib/qbo-auth";
 import { buildLiveWipRow } from "@/lib/wip-report";
 import {
@@ -19,6 +20,8 @@ export const maxDuration = 60;
 
 const QBO_REALM_ID = "9130350693918016";
 const ALL_TIME_START_DATE = "2000-01-01";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 function isIsoDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -65,8 +68,57 @@ function buildRowsFromCachedMetrics(projects: ProjectSummary[], cachedMetricsByP
   return projects.map((project) => buildLiveWipRow(project, cachedMetricsByProjectId.get(project.id) ?? null));
 }
 
+async function requireWipAdmin(request: NextRequest) {
+  const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+  const bearer = authHeader?.replace(/^Bearer\s+/i, "").trim() || "";
+
+  if (bearer) {
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser(bearer);
+
+    if (authError || !user?.email) {
+      return {
+        ok: false as const,
+        response: NextResponse.json({ error: "Authentication required" }, { status: 401 }),
+      };
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data: roleRow, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("email", user.email.toLowerCase())
+      .maybeSingle();
+
+    if (roleError) {
+      return {
+        ok: false as const,
+        response: NextResponse.json({ error: roleError.message }, { status: 500 }),
+      };
+    }
+
+    if (roleRow?.role !== "admin") {
+      return {
+        ok: false as const,
+        response: NextResponse.json({ error: "Admin access required" }, { status: 403 }),
+      };
+    }
+
+    return {
+      ok: true as const,
+      supabase,
+      actorEmail: user.email.toLowerCase(),
+    };
+  }
+
+  return requireMaterialsAdmin();
+}
+
 export async function GET(request: NextRequest) {
-  const admin = await requireMaterialsAdmin();
+  const admin = await requireWipAdmin(request);
   if (!admin.ok) {
     return admin.response;
   }

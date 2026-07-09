@@ -148,6 +148,8 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(page, /As of Date/);
   assert.match(page, /\/api\/reports\/wip\/live/);
   assert.match(page, /fetch\(/);
+  assert.match(page, /Authorization:\s*`Bearer \$\{session\.access_token\}`/);
+  assert.match(page, /supabase\.auth\.getSession\(/);
   assert.doesNotMatch(page, /Job Nickname/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
   assert.match(page, /from\("wip_report_snapshot_rows"\)/);
@@ -178,6 +180,8 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(liveRoute, /buildLiveWipRow/);
   assert.match(liveRoute, /from\("qbo_project_wip_metrics"\)/);
   assert.match(liveRoute, /\.upsert\(/);
+  assert.match(liveRoute, /authorization/);
+  assert.match(liveRoute, /auth\.getUser\(/);
   assert.match(liveRoute, /requireMaterialsAdmin|createServerClient|canManageProjectActions/);
 
   assert.match(modal, /Dialog/);
