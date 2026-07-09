@@ -14,12 +14,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { WipProjectDialog } from "@/components/wip-project-dialog";
 import { WipEstimatedCostDialog } from "@/components/wip-estimated-cost-dialog";
-import { ProjectSummary, QboProjectPnl, WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
+import { WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
 import {
   EMPTY_WIP_FILTERS,
   WipFilters,
   WipReportRow,
-  buildLiveWipRow,
   buildSnapshotRows,
   buildWipCsv,
   buildWipWorkbook,
@@ -48,8 +47,9 @@ export default function WipReportPage() {
   const [authorized, setAuthorized] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [mode, setMode] = useState<"live" | "snapshot">("live");
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [qboProjectPnls, setQboProjectPnls] = useState<QboProjectPnl[]>([]);
+  const [liveRows, setLiveRows] = useState<WipReportRow[]>([]);
+  const [liveAsOfDate, setLiveAsOfDate] = useState(new Date().toISOString().slice(0, 10));
+  const [loadingLiveRows, setLoadingLiveRows] = useState(false);
   const [snapshots, setSnapshots] = useState<WipReportSnapshot[]>([]);
   const [snapshotRows, setSnapshotRows] = useState<WipReportSnapshotRow[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>("");
@@ -63,14 +63,6 @@ export default function WipReportPage() {
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [loadingSnapshotRows, setLoadingSnapshotRows] = useState(false);
 
-  const qboPnlByProjectId = useMemo(
-    () => new Map(qboProjectPnls.map((row) => [row.project_id, row])),
-    [qboProjectPnls],
-  );
-  const liveRows = useMemo(
-    () => projects.map((project) => buildLiveWipRow(project, qboPnlByProjectId.get(project.id) ?? null)),
-    [projects, qboPnlByProjectId],
-  );
   const currentSnapshot = useMemo(
     () => snapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ?? null,
     [snapshots, selectedSnapshotId],
@@ -128,6 +120,26 @@ export default function WipReportPage() {
     setSnapshotRows((data ?? []) as WipReportSnapshotRow[]);
   }, []);
 
+  const loadLiveRows = useCallback(async (asOfDate: string) => {
+    setLoadingLiveRows(true);
+
+    try {
+      const response = await fetch(`/api/reports/wip/live?asOfDate=${encodeURIComponent(asOfDate)}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load live WIP report.");
+      }
+
+      setLiveRows((payload.rows ?? []) as WipReportRow[]);
+    } finally {
+      setLoadingLiveRows(false);
+    }
+  }, []);
+
   const checkAdminAndLoad = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -151,22 +163,7 @@ export default function WipReportPage() {
 
     setAuthorized(true);
 
-    const [projectResponse, qboPnlResponse, snapshotResponse] = await Promise.all([
-      supabase.from("project_summary").select("*").order("client").order("name"),
-      supabase.from("qbo_project_pnl").select("*"),
-      loadSnapshots(),
-    ]);
-
-    if (projectResponse.error) {
-      throw projectResponse.error;
-    }
-
-    if (qboPnlResponse.error) {
-      throw qboPnlResponse.error;
-    }
-
-    setProjects((projectResponse.data ?? []) as ProjectSummary[]);
-    setQboProjectPnls((qboPnlResponse.data ?? []) as QboProjectPnl[]);
+    const snapshotResponse = await loadSnapshots();
 
     if (snapshotResponse.length > 0) {
       setSelectedSnapshotId(snapshotResponse[0].id);
@@ -195,6 +192,14 @@ export default function WipReportPage() {
       toast.error(error instanceof Error ? error.message : "Failed to load snapshot rows");
     });
   }, [loadSnapshotRows, mode, selectedSnapshotId]);
+
+  useEffect(() => {
+    if (!authorized || mode !== "live") return;
+
+    loadLiveRows(liveAsOfDate).catch((error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to load live WIP report");
+    });
+  }, [authorized, liveAsOfDate, loadLiveRows, mode]);
 
   useEffect(() => {
     if (!currentSnapshot) return;
@@ -337,7 +342,7 @@ export default function WipReportPage() {
 
     const suffix = mode === "snapshot" && currentSnapshot
       ? `snapshot-${currentSnapshot.snapshot_date}-${currentSnapshot.status}`
-      : `live-${new Date().toISOString().slice(0, 10)}`;
+      : `live-${liveAsOfDate}`;
 
     downloadCsv(buildWipCsv(filteredRows), `mdp-wip-report-${suffix}.csv`);
   }
@@ -351,7 +356,7 @@ export default function WipReportPage() {
     const workbook = buildWipWorkbook(filteredRows);
     const suffix = mode === "snapshot" && currentSnapshot
       ? `snapshot-${currentSnapshot.snapshot_date}-${currentSnapshot.status}`
-      : `live-${new Date().toISOString().slice(0, 10)}`;
+      : `live-${liveAsOfDate}`;
 
     XLSX.writeFile(workbook, `mdp-wip-report-${suffix}.xlsx`);
   }
@@ -390,6 +395,26 @@ export default function WipReportPage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {mode === "live" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="liveAsOfDate">As of Date</Label>
+                <Input id="liveAsOfDate" type="date" value={liveAsOfDate} onChange={(e) => setLiveAsOfDate(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Live Row Source</Label>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                  QBO ProjectProfitabilitySummary
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Live Refresh Status</Label>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                  {loadingLiveRows ? "Refreshing..." : `${liveRows.length} row(s) loaded`}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
@@ -599,12 +624,12 @@ export default function WipReportPage() {
           <CardTitle>
             {mode === "snapshot" && currentSnapshot
               ? `Snapshot View — ${formatDate(currentSnapshot.snapshot_date)} (${currentSnapshot.status})`
-              : "Live WIP View"}
+              : `Live WIP View — ${formatDate(liveAsOfDate)}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-            <span>{filteredRows.length} row(s)</span>
+            <span>{loadingLiveRows && mode === "live" ? "Refreshing live rows..." : `${filteredRows.length} row(s)`}</span>
             {mode === "snapshot" && currentSnapshot?.notes && <span>Notes: {currentSnapshot.notes}</span>}
           </div>
 

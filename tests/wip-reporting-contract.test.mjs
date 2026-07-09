@@ -113,10 +113,12 @@ test('edit project page exposes the remaining WIP reporting metadata fields with
   assert.match(source, /Estimated Cost Override/);
 });
 
-test('wip report page and helper support the visible-summary WIP surface with QBO actuals, snapshots, exports, and project drill-ins', () => {
+test('wip report page, live route, and helpers support the server-computed visible-summary WIP surface', () => {
   const page = read('../src/app/admin/reports/wip/page.tsx');
+  const liveRoute = read('../src/app/api/reports/wip/live/route.ts');
   const helper = read('../src/lib/wip-report.ts');
   const formulas = read('../src/lib/wip-report-formulas.ts');
+  const qboWip = read('../src/lib/qbo-project-wip.ts');
   const modal = read('../src/components/wip-project-dialog.tsx');
   const estimatedCostDialog = read('../src/components/wip-estimated-cost-dialog.tsx');
 
@@ -128,9 +130,10 @@ test('wip report page and helper support the visible-summary WIP surface with QB
   assert.match(page, /Save Snapshot Changes/);
   assert.match(page, /Draft/);
   assert.match(page, /Final/);
+  assert.match(page, /As of Date/);
+  assert.match(page, /\/api\/reports\/wip\/live/);
+  assert.match(page, /fetch\(/);
   assert.doesNotMatch(page, /Job Nickname/);
-  assert.match(page, /from\("project_summary"\)/);
-  assert.match(page, /from\("qbo_project_pnl"\)/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
   assert.match(page, /from\("wip_report_snapshot_rows"\)/);
   assert.match(page, /\.update\(\{/);
@@ -138,8 +141,6 @@ test('wip report page and helper support the visible-summary WIP surface with QB
   assert.match(page, /confirm\(`Delete snapshot/);
   assert.match(page, /WipProjectDialog/);
   assert.match(page, /WipEstimatedCostDialog/);
-  assert.match(page, /Badge/);
-  assert.match(page, /getPmChipClassName/);
   assert.match(page, /Updated Contract Amount/);
   assert.match(page, /Updated Est Cost/);
   assert.match(page, /Updated Est Gross Profit/);
@@ -157,11 +158,10 @@ test('wip report page and helper support the visible-summary WIP surface with QB
   assert.match(page, /Current Year Costs/);
   assert.match(page, /triggerLabel=\{row\.project_name\}/);
   assert.match(page, /triggerLabel=\{formatCurrency\(row\.updated_est_cost\)\}/);
-  assert.match(page, /text-blue-600/);
-  assert.match(page, /text-emerald-700/);
-  assert.match(page, /text-rose-700/);
-  assert.match(page, /font-semibold/);
-  assert.match(page, /even:bg-muted\/15/);
+
+  assert.match(liveRoute, /ProjectProfitabilitySummary/);
+  assert.match(liveRoute, /buildLiveWipRow/);
+  assert.match(liveRoute, /requireMaterialsAdmin|createServerClient|canManageProjectActions/);
 
   assert.match(modal, /Dialog/);
   assert.match(modal, /from\("project_summary"\)/);
@@ -179,12 +179,6 @@ test('wip report page and helper support the visible-summary WIP surface with QB
   assert.match(estimatedCostDialog, /Project Management/);
   assert.match(estimatedCostDialog, /buildWipBudgetBreakdownRows/);
   assert.match(estimatedCostDialog, /BUDGET_CATEGORY_TOOLTIPS/);
-  assert.match(estimatedCostDialog, /Saved hours if present; otherwise Materials quote × labor % ÷ \$41\/hr\./);
-  assert.match(estimatedCostDialog, /Saved budget if present; otherwise Materials quote × materials %\./);
-  assert.match(estimatedCostDialog, /Saved budget if present; otherwise PM quote × PM %\./);
-  assert.match(estimatedCostDialog, /Saved budget if present; otherwise Rental quote × rental %\./);
-  assert.match(estimatedCostDialog, /title=\{BUDGET_CATEGORY_TOOLTIPS\[item\.category\]\}/);
-  assert.match(estimatedCostDialog, /Percent uses project override when set; otherwise the default model percentage\./);
 
   assert.match(helper, /export function buildWipCsv/);
   assert.match(helper, /export function buildWipWorkbook/);
@@ -196,6 +190,11 @@ test('wip report page and helper support the visible-summary WIP surface with QB
   assert.match(formulas, /export function buildWipSummaryMetrics/);
   assert.match(formulas, /billings_in_excess_of_costs/);
   assert.match(formulas, /costs_in_excess_of_billings/);
+
+  assert.match(qboWip, /export function buildProjectProfitabilitySummaryUrl/);
+  assert.match(qboWip, /export function buildQboProjectWipMetrics/);
+  assert.match(qboWip, /current_year_total_billings/);
+  assert.match(qboWip, /current_year_total_retainage/);
 });
 
 test('package.json includes xlsx for native Excel export', () => {

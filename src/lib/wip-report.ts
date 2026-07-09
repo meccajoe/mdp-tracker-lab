@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
-import { ProjectSummary, QboProjectPnl, WipReportSnapshotRow } from "@/lib/types";
-import { buildWipSummaryMetrics } from "@/lib/wip-report-formulas";
+import { ProjectSummary, WipReportSnapshotRow } from "@/lib/types";
+import { buildWipSummaryMetrics, WipFinancialActuals } from "@/lib/wip-report-formulas";
 
 export type EstimatedCostSource = "derived" | "manual_override";
 export type SnapshotStatus = "draft" | "final";
@@ -78,16 +78,16 @@ export function resolveEstimatedCost(project: Pick<ProjectSummary, "estimated_co
   };
 }
 
-export function buildLiveWipRow(project: ProjectSummary, qboProjectPnl: QboProjectPnl | null = null): WipReportRow {
+export function buildLiveWipRow(project: ProjectSummary, financialActuals: Partial<WipFinancialActuals> | null = null): WipReportRow {
   const estimated = resolveEstimatedCost(project);
   const metrics = buildWipSummaryMetrics({
     updated_contract_amount: project.contract_amount,
     updated_est_cost: estimated.value,
-    total_billed_to_date: qboProjectPnl?.qbo_income ?? null,
-    total_cost_to_date: qboProjectPnl?.qbo_expenses ?? null,
-    current_year_total_billings: null,
-    current_year_total_retainage: null,
-    current_year_costs: null,
+    total_billed_to_date: financialActuals?.total_billed_to_date ?? null,
+    total_cost_to_date: financialActuals?.total_cost_to_date ?? null,
+    current_year_total_billings: financialActuals?.current_year_total_billings ?? null,
+    current_year_total_retainage: financialActuals?.current_year_total_retainage ?? null,
+    current_year_costs: financialActuals?.current_year_costs ?? null,
   });
 
   return {
