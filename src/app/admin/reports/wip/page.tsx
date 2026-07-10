@@ -104,9 +104,7 @@ export default function WipReportPage() {
 
     const sortedRows = [...filteredRows];
     sortedRows.sort((left, right) => {
-      const leftValue = getSortableValue(left, sortColumn);
-      const rightValue = getSortableValue(right, sortColumn);
-      const comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });
+      const comparison = compareWipRows(left, right, sortColumn);
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
@@ -849,12 +847,21 @@ function SortIndicator({ active, direction }: { active: boolean; direction: WipS
   return <ChevronDownIcon className="size-3 rotate-180" />;
 }
 
-function getSortableValue(row: WipReportRow, column: WipSortColumn): string {
+function compareWipRows(left: WipReportRow, right: WipReportRow, column: WipSortColumn): number {
   if (column === "customer") {
-    return row.customer;
+    return compareNaturalText(left.customer, right.customer);
   }
 
-  return `${row.project_name} ${row.project_number ?? ""}`.trim();
+  const projectNameComparison = compareNaturalText(left.project_name, right.project_name);
+  if (projectNameComparison !== 0) {
+    return projectNameComparison;
+  }
+
+  return compareNaturalText(left.project_number ?? "", right.project_number ?? "");
+}
+
+function compareNaturalText(left: string, right: string): number {
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
 }
 
 function formatPercent(value: number | null): string {

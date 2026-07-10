@@ -155,6 +155,9 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(page, /toggleSort\("customer"\)/);
   assert.match(page, /toggleSort\("project"\)/);
   assert.match(page, /function SortIndicator/);
+  assert.match(page, /function compareWipRows/);
+  assert.match(page, /left\.project_number \?\? ""/);
+  assert.match(page, /right\.project_number \?\? ""/);
   assert.match(page, /const displayedRows = useMemo/);
   assert.doesNotMatch(page, /Job Nickname/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
