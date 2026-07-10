@@ -39,6 +39,10 @@ Optional for schema rollout script:
 
 Import `slack/app-manifest.example.yaml` or copy its settings into the Slack app manually.
 
+For the exact admin click-path and post-install checklist, see:
+
+- `docs/slack-app-admin-checklist.md`
+
 ### Required bot scopes
 
 These were chosen to match the current implementation:
@@ -101,6 +105,18 @@ bash scripts/apply-slack-copilot-remote.sh
 ```
 
 This uses the linked project ref already stored in `supabase/.temp/project-ref`.
+
+## Slack install order
+
+Use this order to avoid partial setup confusion:
+
+1. complete the remote schema rollout
+2. import/apply the Slack manifest
+3. install or reinstall the Slack app to the workspace
+4. set `MDP_SLACK_BOT_TOKEN` and `MDP_SLACK_SIGNING_SECRET` in production
+5. restart the app process
+6. invite the bot into at least one public test channel and one private test channel if needed
+7. run the smoke tests below
 
 ## Post-rollout smoke test
 

@@ -49,12 +49,19 @@ Current supported Slack flows:
 
 Created alert subscriptions default to **Slack DM delivery to the creating user**.
 
-See `docs/slack-copilot-setup.md` for:
+See these docs for Slack setup:
+
+- `docs/slack-copilot-setup.md`
+- `docs/slack-app-admin-checklist.md`
+
+They cover:
 
 - Slack app manifest wiring
 - required scopes
+- install / reinstall order
 - migration rollout steps
 - remote schema repair script usage
+- channel invite and smoke-test steps
 
 ## Schema rollout for Slack copilot
 
