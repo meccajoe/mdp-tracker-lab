@@ -44,7 +44,7 @@ function downloadCsv(content: string, filename: string) {
 
 type LiveCacheMode = "historical" | "today" | "live_qbo";
 type LiveRefreshKind = "auto" | "force";
-type WipSortColumn = "customer" | "project";
+type WipSortColumn = "customer" | "projectNumber" | "project";
 type WipSortDirection = "asc" | "desc";
 
 function formatLiveSyncedAt(value: string | null): string | null {
@@ -768,6 +768,12 @@ export default function WipReportPage() {
                       </button>
                     </th>
                     <th className="px-3 py-2 font-medium">
+                      <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("projectNumber")}>
+                        Job #
+                        <SortIndicator active={sortColumn === "projectNumber"} direction={sortDirection} />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2 font-medium">
                       <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("project")}>
                         Project
                         <SortIndicator active={sortColumn === "project"} direction={sortDirection} />
@@ -794,13 +800,13 @@ export default function WipReportPage() {
                   {displayedRows.map((row) => (
                     <tr key={`${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="border-t border-border/70 even:bg-muted/15 hover:bg-muted/35 transition-colors">
                       <td className="px-3 py-2">{row.customer}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{row.project_number ?? "—"}</td>
                       <td className="px-3 py-2 min-w-[260px]">
                         <WipProjectDialog
                           row={row}
                           triggerLabel={row.project_name}
                           triggerClassName="text-left font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
                         />
-                        <div className="mt-1 font-mono text-xs text-muted-foreground">{row.project_number ?? "—"}</div>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.updated_contract_amount)}</td>
                       <td className="px-3 py-2 text-right">
@@ -850,6 +856,15 @@ function SortIndicator({ active, direction }: { active: boolean; direction: WipS
 function compareWipRows(left: WipReportRow, right: WipReportRow, column: WipSortColumn): number {
   if (column === "customer") {
     return compareNaturalText(left.customer, right.customer);
+  }
+
+  if (column === "projectNumber") {
+    const projectNumberComparison = compareNaturalText(left.project_number ?? "", right.project_number ?? "");
+    if (projectNumberComparison !== 0) {
+      return projectNumberComparison;
+    }
+
+    return compareNaturalText(left.project_name, right.project_name);
   }
 
   const projectNameComparison = compareNaturalText(left.project_name, right.project_name);

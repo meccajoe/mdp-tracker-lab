@@ -153,9 +153,12 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(page, /forceRefresh/);
   assert.match(page, /Refresh from QBO/);
   assert.match(page, /toggleSort\("customer"\)/);
+  assert.match(page, /toggleSort\("projectNumber"\)/);
   assert.match(page, /toggleSort\("project"\)/);
   assert.match(page, /function SortIndicator/);
   assert.match(page, /function compareWipRows/);
+  assert.match(page, /Job #/);
+  assert.match(page, /column === "projectNumber"/);
   assert.match(page, /left\.project_number \?\? ""/);
   assert.match(page, /right\.project_number \?\? ""/);
   assert.match(page, /const displayedRows = useMemo/);
