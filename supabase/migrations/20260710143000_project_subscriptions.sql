@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS project_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  project_id text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   created_by_email text NOT NULL,
   channel text NOT NULL DEFAULT 'mdp_tracker',
   target_json jsonb NOT NULL DEFAULT '{}'::jsonb,

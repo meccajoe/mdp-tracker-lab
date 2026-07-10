@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS project_conversation_threads (
   slack_team_id text NOT NULL,
   channel_id text NOT NULL,
   thread_ts text NOT NULL,
-  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  project_id text NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   created_by_slack_user_id text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),

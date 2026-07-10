@@ -53,7 +53,7 @@ REPAIR_ARGS=(--db-url "$DB_URL")
 
 for migration in "${MIGRATIONS[@]}"; do
   echo "Applying ${migration} ..."
-  supabase db query "${QUERY_ARGS[@]}" -f "$migration"
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -f "$migration"
 done
 
 echo "Repairing migration history ..."
