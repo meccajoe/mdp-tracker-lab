@@ -8,6 +8,7 @@ test("Slack actions route saves and manages subscriptions with DM delivery defau
   const source = readFileSync(routePath, "utf8");
 
   assert.match(source, /verifySlackRequest\(/, "route should verify Slack signatures");
+  assert.match(source, /buildSlackSubscriptionActionResponse\(/, "route should return explicit confirmation UI after button actions");
   assert.match(source, /lookupSlackEmailByUserId\(/, "route should try to resolve the Slack user email");
   assert.match(source, /buildSubscriptionCreatePayload\(/, "route should reuse the shared subscription payload builder");
   assert.match(source, /channel: "slack_dm"/, "route should default Slack-created subscriptions to DM delivery");

@@ -14,6 +14,11 @@ import type { ProjectSubscriptionListRow } from "@/lib/project-subscription-stor
 
 export type SlackMessageBlock = Record<string, unknown>;
 
+export type SlackSubscriptionActionConfirmation = {
+  tone: "success" | "warning" | "danger";
+  text: string;
+};
+
 export type SlackProjectIntent =
   | "summary"
   | "budget"
@@ -315,6 +320,40 @@ export function buildSlackSubscriptionListResponse(args: {
   }
 
   return { text, blocks };
+}
+
+function buildSlackSubscriptionActionConfirmationBlock(confirmation: SlackSubscriptionActionConfirmation): SlackMessageBlock {
+  const emoji = confirmation.tone === "danger" ? "🗑️" : confirmation.tone === "warning" ? "⏸️" : "✅";
+  return {
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text: `${emoji} ${confirmation.text}`,
+      },
+    ],
+  };
+}
+
+export function buildSlackSubscriptionActionResponse(args: {
+  projectId: string;
+  projectName: string;
+  subscriptions: ProjectSubscriptionListRow[];
+  confirmation: SlackSubscriptionActionConfirmation;
+}) {
+  const list = buildSlackSubscriptionListResponse({
+    projectId: args.projectId,
+    projectName: args.projectName,
+    subscriptions: args.subscriptions,
+  });
+
+  return {
+    text: `${args.confirmation.text}\n\n${list.text}`,
+    blocks: [
+      buildSlackSubscriptionActionConfirmationBlock(args.confirmation),
+      ...((list.blocks ?? []) as SlackMessageBlock[]),
+    ],
+  };
 }
 
 export function buildSlackNotificationBlocks(args: {

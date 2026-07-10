@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildSlackNotificationBlocks,
   buildSlackProjectResponse,
+  buildSlackSubscriptionActionResponse,
   buildSlackSubscriptionListResponse,
   parseSlackProjectCommand,
   stripSlackBotMention,
@@ -124,6 +125,41 @@ test("buildSlackSubscriptionListResponse renders management buttons", () => {
   });
 
   assert.match(response.text, /sub_123/);
-  assert.ok(response.blocks?.some((block) => JSON.stringify(block).includes("manage_project_subscription")));
+  assert.ok(response.blocks?.some((block) => JSON.stringify(block).includes("pause_project_subscription")));
+  assert.ok(response.blocks?.some((block) => JSON.stringify(block).includes("delete_project_subscription")));
   assert.ok(response.blocks?.some((block) => JSON.stringify(block).includes("Pause")));
+});
+
+test("buildSlackSubscriptionActionResponse prepends a confirmation block", () => {
+  const response = buildSlackSubscriptionActionResponse({
+    projectId: "26144",
+    projectName: "Nissan Texas Letters Repair",
+    subscriptions: [{
+      id: "sub_123",
+      project_id: "26144",
+      created_by_email: "joe@meccadesign.com",
+      channel: "slack_dm",
+      target_json: { slack_user_id: "U123" },
+      subscription_type: "metric_threshold_alert",
+      metric_key: "qbo_total_hours",
+      condition_operator: ">=",
+      threshold_value: 95,
+      schedule_cron: null,
+      status: "paused",
+      cooldown_minutes: 60,
+      summary_text: "Alert when labor hours reach 95 hrs",
+      last_triggered_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      rule_json: { unit: "hours" },
+    }],
+    confirmation: {
+      tone: "warning",
+      text: "Paused subscription sub_123.",
+    },
+  });
+
+  assert.match(response.text, /Paused subscription sub_123/);
+  assert.equal(response.blocks?.[0]?.type, "context");
+  assert.match(JSON.stringify(response.blocks?.[0]), /Paused subscription sub_123/);
 });

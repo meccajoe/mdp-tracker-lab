@@ -6,9 +6,8 @@ import { listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } f
 import { buildSubscriptionCreatePayload } from "@/lib/project-subscriptions";
 import { lookupSlackEmailByUserId } from "@/lib/slack-delivery";
 import {
-  buildSlackSubscriptionListResponse,
+  buildSlackSubscriptionActionResponse,
   decodeSlackSubscriptionActionValue,
-  recommendationToSlackText,
 } from "@/lib/slack-project-copilot";
 import { verifySlackRequest } from "@/lib/slack-request";
 
@@ -121,20 +120,19 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const response = buildSlackSubscriptionListResponse({
+    const response = buildSlackSubscriptionActionResponse({
       projectId: actionPayload.projectId,
       projectName: context.data.project.name,
       subscriptions: list.data ?? [],
+      confirmation: {
+        tone: "success",
+        text: `Saved ${actionPayload.recommendation.type === "digest" ? "digest" : "alert"}. Delivery: Slack DM to <@${slackUserId}>.`,
+      },
     });
 
     return NextResponse.json({
       response_action: "update",
-      text: [
-        "✅ Project alert saved.",
-        `• Delivery: Slack DM to <@${slackUserId}>`,
-        "",
-        recommendationToSlackText(actionPayload.recommendation),
-      ].join("\n"),
+      text: response.text,
       blocks: response.blocks,
     });
   }
@@ -170,10 +168,18 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const response = buildSlackSubscriptionListResponse({
+    const response = buildSlackSubscriptionActionResponse({
       projectId: actionPayload.projectId,
       projectName: context.data.project.name,
       subscriptions: list.data ?? [],
+      confirmation: {
+        tone: actionPayload.action === "delete" ? "danger" : actionPayload.action === "pause" ? "warning" : "success",
+        text: actionPayload.action === "delete"
+          ? `Deleted subscription ${actionPayload.subscriptionId}.`
+          : actionPayload.action === "pause"
+            ? `Paused subscription ${actionPayload.subscriptionId}.`
+            : `Resumed subscription ${actionPayload.subscriptionId}.`,
+      },
     });
 
     return NextResponse.json({

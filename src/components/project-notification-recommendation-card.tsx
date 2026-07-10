@@ -167,6 +167,7 @@ export function ProjectNotificationRecommendationCard({
   const [sendingTestKey, setSendingTestKey] = useState<string | null>(null);
   const [localPreviewMode, setLocalPreviewMode] = useState(false);
   const [slackStatus, setSlackStatus] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
 
   async function loadSubscriptions() {
     setSubscriptionsLoading(true);
@@ -225,6 +226,7 @@ export function ProjectNotificationRecommendationCard({
 
     setSavingSubscription(true);
     setSubscriptionsError(null);
+    setSubscriptionStatus(null);
     try {
       const response = await fetch(`/api/projects/${projectId}/subscriptions`, {
         method: "POST",
@@ -239,6 +241,7 @@ export function ProjectNotificationRecommendationCard({
       }
       setLocalPreviewMode(false);
       setSubscriptions((current) => [data.subscription!, ...current]);
+      setSubscriptionStatus(result.recommendation.type === "digest" ? "Digest created." : "Alert created.");
     } catch (requestError) {
       setLocalPreviewMode(true);
       const previewSubscription = buildPreviewSubscription(projectId, result.recommendation);
@@ -246,6 +249,7 @@ export function ProjectNotificationRecommendationCard({
       writePreviewSubscriptions(projectId, next);
       setSubscriptions(next);
       setSubscriptionsError("Preview mode: saved locally in this browser until the persistent subscription tables are live.");
+      setSubscriptionStatus(result.recommendation.type === "digest" ? "Digest saved in preview mode." : "Alert saved in preview mode.");
       console.warn(requestError);
     } finally {
       setSavingSubscription(false);
@@ -255,6 +259,7 @@ export function ProjectNotificationRecommendationCard({
   async function updateSubscription(subscriptionId: string, action: "pause" | "resume" | "delete") {
     setUpdatingSubscriptionId(subscriptionId);
     setSubscriptionsError(null);
+    setSubscriptionStatus(null);
     try {
       const response = await fetch(`/api/projects/${projectId}/subscriptions/${subscriptionId}`, {
         method: "PATCH",
@@ -275,6 +280,7 @@ export function ProjectNotificationRecommendationCard({
           current.map((subscription) => (subscription.id === subscriptionId ? data.subscription! : subscription))
         );
       }
+      setSubscriptionStatus(action === "delete" ? "Subscription deleted." : action === "pause" ? "Subscription paused." : "Subscription resumed.");
     } catch (requestError) {
       setLocalPreviewMode(true);
       let next = subscriptions;
@@ -294,6 +300,7 @@ export function ProjectNotificationRecommendationCard({
       writePreviewSubscriptions(projectId, next);
       setSubscriptions(next);
       setSubscriptionsError("Preview mode: saved locally in this browser until the persistent subscription tables are live.");
+      setSubscriptionStatus(action === "delete" ? "Subscription deleted in preview mode." : action === "pause" ? "Subscription paused in preview mode." : "Subscription resumed in preview mode.");
       console.warn(requestError);
     } finally {
       setUpdatingSubscriptionId(null);
@@ -379,6 +386,12 @@ export function ProjectNotificationRecommendationCard({
         {slackStatus && (
           <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
             {slackStatus}
+          </div>
+        )}
+
+        {subscriptionStatus && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {subscriptionStatus}
           </div>
         )}
 
