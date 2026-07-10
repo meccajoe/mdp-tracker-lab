@@ -5,23 +5,46 @@ import {
   type RecommendationProjectFacts,
   type ThresholdRecommendation,
 } from "@/lib/project-notification-recommendations";
-import type { DigestRecommendationInput, ThresholdRecommendationInput } from "@/lib/project-subscriptions";
+import type {
+  DigestRecommendationInput,
+  SubscriptionAction,
+  ThresholdRecommendationInput,
+} from "@/lib/project-subscriptions";
+import type { ProjectSubscriptionListRow } from "@/lib/project-subscription-store";
 
 export type SlackMessageBlock = Record<string, unknown>;
 
-export type SlackProjectIntent = "summary" | "budget" | "labor" | "notify" | "help";
+export type SlackProjectIntent =
+  | "summary"
+  | "budget"
+  | "labor"
+  | "notify"
+  | "subscriptions"
+  | "pause"
+  | "resume"
+  | "delete"
+  | "help";
 
 export type SlackProjectCommand = {
-  projectId: string;
+  projectId: string | null;
+  explicitProject: boolean;
   intent: SlackProjectIntent;
   requestText: string;
+  subscriptionId: string | null;
 };
 
-export type SlackSubscriptionActionPayload = {
-  type: "create_subscription";
-  projectId: string;
-  recommendation: ThresholdRecommendationInput | DigestRecommendationInput;
-};
+export type SlackSubscriptionActionPayload =
+  | {
+      type: "create_subscription";
+      projectId: string;
+      recommendation: ThresholdRecommendationInput | DigestRecommendationInput;
+    }
+  | {
+      type: "manage_subscription";
+      projectId: string;
+      subscriptionId: string;
+      action: SubscriptionAction;
+    };
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -39,7 +62,66 @@ function buildHelpText() {
     "• `/project 26144 budget`",
     "• `/project 26144 labor`",
     "• `/project 26144 notify labor too high`",
+    "• `/project 26144 subscriptions`",
+    "• `/project 26144 pause <subscription-id>`",
   ].join("\n");
+}
+
+function isIntentToken(token: string) {
+  return /^(summary|budget|labor|hours|notify|subscriptions|pause|resume|delete|help)$/i.test(token);
+}
+
+function parseIntentParts(parts: string[], projectId: string | null, explicitProject: boolean): SlackProjectCommand | { error: string } {
+  if (parts.length === 0) {
+    return { projectId, explicitProject, intent: "summary", requestText: "summary", subscriptionId: null };
+  }
+
+  const [first, ...rest] = parts;
+  const requestText = parts.join(" ").trim();
+
+  if (/^summary$/i.test(first)) {
+    return { projectId, explicitProject, intent: "summary", requestText, subscriptionId: null };
+  }
+
+  if (/^budget$/i.test(first)) {
+    return { projectId, explicitProject, intent: "budget", requestText, subscriptionId: null };
+  }
+
+  if (/^(labor|hours)$/i.test(first)) {
+    return { projectId, explicitProject, intent: "labor", requestText, subscriptionId: null };
+  }
+
+  if (/^notify$/i.test(first)) {
+    const notifyText = rest.join(" ").trim();
+    if (!notifyText) {
+      return { error: "Tell me what to watch, like `/project 26144 notify labor too high`." };
+    }
+    return { projectId, explicitProject, intent: "notify", requestText: notifyText, subscriptionId: null };
+  }
+
+  if (/^subscriptions$/i.test(first)) {
+    return { projectId, explicitProject, intent: "subscriptions", requestText, subscriptionId: null };
+  }
+
+  if (/^(pause|resume|delete)$/i.test(first)) {
+    const subscriptionId = rest[0]?.trim() ?? "";
+    if (!subscriptionId) {
+      return { error: `Include a subscription id, like "/project 26144 ${first.toLowerCase()} <subscription-id>".` };
+    }
+    return {
+      projectId,
+      explicitProject,
+      intent: first.toLowerCase() as "pause" | "resume" | "delete",
+      requestText,
+      subscriptionId,
+    };
+  }
+
+  if (/^help$/i.test(first)) {
+    return { projectId, explicitProject, intent: "help", requestText, subscriptionId: null };
+  }
+
+  return { error: buildHelpText() };
 }
 
 export function stripSlackBotMention(text: string) {
@@ -52,37 +134,14 @@ export function parseSlackProjectCommand(text: string): SlackProjectCommand | { 
     return { error: buildHelpText() };
   }
 
-  const [projectId, ...rest] = normalized.split(/\s+/);
-  if (!projectId) {
-    return { error: buildHelpText() };
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  const [first, ...rest] = parts;
+
+  if (isIntentToken(first)) {
+    return parseIntentParts(parts, null, false);
   }
 
-  const requestText = rest.join(" ").trim();
-  if (!requestText) {
-    return { projectId, intent: "summary", requestText: "summary" };
-  }
-
-  if (/^summary\b/i.test(requestText)) {
-    return { projectId, intent: "summary", requestText };
-  }
-
-  if (/^budget\b/i.test(requestText)) {
-    return { projectId, intent: "budget", requestText };
-  }
-
-  if (/^labor\b/i.test(requestText) || /^hours\b/i.test(requestText)) {
-    return { projectId, intent: "labor", requestText };
-  }
-
-  if (/^notify\b/i.test(requestText)) {
-    return { projectId, intent: "notify", requestText: requestText.replace(/^notify\b/i, "").trim() };
-  }
-
-  if (/^help\b/i.test(requestText)) {
-    return { projectId, intent: "help", requestText };
-  }
-
-  return { error: buildHelpText() };
+  return parseIntentParts(rest, first, true);
 }
 
 export function buildProjectSummaryText(project: RecommendationProjectFacts) {
@@ -153,6 +212,111 @@ export function decodeSlackSubscriptionActionValue(value: string): SlackSubscrip
   return JSON.parse(value) as SlackSubscriptionActionPayload;
 }
 
+function formatLastTriggered(value: string | null) {
+  if (!value) return "never";
+  return new Date(value).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" });
+}
+
+function buildSubscriptionManagementElements(projectId: string, subscription: ProjectSubscriptionListRow) {
+  const elements: Array<Record<string, unknown>> = [];
+
+  if (subscription.status === "active") {
+    elements.push({
+      type: "button",
+      action_id: "manage_project_subscription",
+      text: { type: "plain_text", text: "Pause" },
+      value: encodeSlackSubscriptionActionValue({
+        type: "manage_subscription",
+        projectId,
+        subscriptionId: subscription.id,
+        action: "pause",
+      }),
+    });
+  }
+
+  if (subscription.status === "paused") {
+    elements.push({
+      type: "button",
+      action_id: "manage_project_subscription",
+      text: { type: "plain_text", text: "Resume" },
+      value: encodeSlackSubscriptionActionValue({
+        type: "manage_subscription",
+        projectId,
+        subscriptionId: subscription.id,
+        action: "resume",
+      }),
+    });
+  }
+
+  elements.push({
+    type: "button",
+    action_id: "manage_project_subscription",
+    style: "danger",
+    text: { type: "plain_text", text: "Delete" },
+    value: encodeSlackSubscriptionActionValue({
+      type: "manage_subscription",
+      projectId,
+      subscriptionId: subscription.id,
+      action: "delete",
+    }),
+  });
+
+  return elements;
+}
+
+export function buildSlackSubscriptionListResponse(args: {
+  projectId: string;
+  projectName: string;
+  subscriptions: ProjectSubscriptionListRow[];
+}) {
+  if (args.subscriptions.length === 0) {
+    return {
+      text: `You don’t have any Slack DM subscriptions for project ${args.projectId} yet.`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Project ${args.projectId} — ${args.projectName}*\nYou don’t have any Slack DM subscriptions for this project yet.`,
+          },
+        },
+      ] as SlackMessageBlock[],
+    };
+  }
+
+  const text = [
+    `Project ${args.projectId} — ${args.projectName}`,
+    ...args.subscriptions.map((subscription) => `• ${subscription.id} — ${subscription.summary_text} — ${subscription.status} — last triggered ${formatLastTriggered(subscription.last_triggered_at)}`),
+  ].join("\n");
+
+  const blocks: SlackMessageBlock[] = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Project ${args.projectId} — ${args.projectName}*\nYour Slack DM subscriptions:`,
+      },
+    },
+  ];
+
+  for (const subscription of args.subscriptions.slice(0, 10)) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${subscription.summary_text}*\n• id: ${subscription.id}\n• status: ${subscription.status}\n• last triggered: ${formatLastTriggered(subscription.last_triggered_at)}`,
+      },
+    });
+
+    blocks.push({
+      type: "actions",
+      elements: buildSubscriptionManagementElements(args.projectId, subscription),
+    });
+  }
+
+  return { text, blocks };
+}
+
 export function buildSlackNotificationBlocks(args: {
   project: RecommendationProjectFacts;
   recommendation: ProjectNotificationRecommendation;
@@ -218,6 +382,11 @@ export function buildSlackProjectResponse(args: {
         blocks: buildSlackNotificationBlocks({ project: args.project, recommendation }),
       };
     }
+    case "subscriptions":
+    case "pause":
+    case "resume":
+    case "delete":
+      return { text: "Subscription management is handled separately." };
     case "help":
       return { text: buildHelpText() };
   }

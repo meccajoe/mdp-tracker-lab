@@ -2,12 +2,16 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { fetchProjectCopilotContext } from "@/lib/project-copilot-context";
+import { listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
 import {
   buildSlackProjectHelpText,
   buildSlackProjectResponse,
+  buildSlackSubscriptionListResponse,
   parseSlackProjectCommand,
 } from "@/lib/slack-project-copilot";
+import { lookupSlackEmailByUserId } from "@/lib/slack-delivery";
 import { verifySlackRequest } from "@/lib/slack-request";
+import { findSlackThreadBinding, upsertSlackThreadBinding } from "@/lib/slack-thread-bindings";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,6 +19,15 @@ const MDP_SLACK_SIGNING_SECRET = process.env.MDP_SLACK_SIGNING_SECRET;
 
 function getSupabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
+
+async function lookupCreatorEmail(slackUserId: string | null) {
+  if (!slackUserId) return null;
+  try {
+    return await lookupSlackEmailByUserId(slackUserId);
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -41,18 +54,121 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
-  const context = await fetchProjectCopilotContext(supabase as never, parsed.projectId);
+  const slackUserId = form.get("user_id");
+  const creatorEmail = await lookupCreatorEmail(slackUserId);
+  const channelId = form.get("channel_id");
+  const teamId = form.get("team_id");
+  const threadTs = form.get("thread_ts") ?? form.get("message_ts");
+
+  let projectId = parsed.projectId;
+  if (!projectId && teamId && channelId && threadTs) {
+    const binding = await findSlackThreadBinding({
+      supabase,
+      slackTeamId: teamId,
+      channelId,
+      threadTs,
+    });
+
+    if (binding.error) {
+      return NextResponse.json({ response_type: "ephemeral", text: binding.error }, { status: 500 });
+    }
+
+    projectId = binding.data?.project_id ?? null;
+  }
+
+  if (!projectId) {
+    return NextResponse.json({
+      response_type: "ephemeral",
+      text: `This command needs a project job number unless the Slack thread is already bound. ${buildSlackProjectHelpText()}`,
+    });
+  }
+
+  const context = await fetchProjectCopilotContext(supabase, projectId);
   if (context.error || !context.data) {
     return NextResponse.json({
       response_type: "ephemeral",
       text: context.error === "Project not found"
-        ? `I couldn’t find project ${parsed.projectId}. ${buildSlackProjectHelpText()}`
+        ? `I couldn’t find project ${projectId}. ${buildSlackProjectHelpText()}`
         : (context.error ?? "Failed to load project context"),
     }, { status: context.error === "Project not found" ? 200 : 500 });
   }
 
+  if (parsed.explicitProject && teamId && channelId && threadTs) {
+    await upsertSlackThreadBinding({
+      supabase,
+      slackTeamId: teamId,
+      channelId,
+      threadTs,
+      projectId,
+      createdBySlackUserId: slackUserId,
+    });
+  }
+
+  if (parsed.intent === "subscriptions") {
+    if (!slackUserId) {
+      return NextResponse.json({ response_type: "ephemeral", text: "Missing Slack user context." }, { status: 400 });
+    }
+
+    const result = await listSlackDmSubscriptionsForProject({
+      supabase,
+      projectId,
+      slackUserId,
+      createdByEmail: creatorEmail,
+    });
+
+    if (result.error) {
+      return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
+    }
+
+    const response = buildSlackSubscriptionListResponse({
+      projectId,
+      projectName: context.data.project.name,
+      subscriptions: result.data ?? [],
+    });
+
+    return NextResponse.json({ response_type: "ephemeral", text: response.text, blocks: response.blocks });
+  }
+
+  if (parsed.intent === "pause" || parsed.intent === "resume" || parsed.intent === "delete") {
+    if (!slackUserId || !parsed.subscriptionId) {
+      return NextResponse.json({ response_type: "ephemeral", text: "Missing Slack user or subscription id." }, { status: 400 });
+    }
+
+    const updated = await updateSlackDmSubscriptionStatus({
+      supabase,
+      projectId,
+      subscriptionId: parsed.subscriptionId,
+      action: parsed.intent,
+      slackUserId,
+      createdByEmail: creatorEmail,
+    });
+
+    if (updated.error) {
+      return NextResponse.json({ response_type: "ephemeral", text: updated.error }, { status: 500 });
+    }
+
+    const result = await listSlackDmSubscriptionsForProject({
+      supabase,
+      projectId,
+      slackUserId,
+      createdByEmail: creatorEmail,
+    });
+
+    if (result.error) {
+      return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
+    }
+
+    const response = buildSlackSubscriptionListResponse({
+      projectId,
+      projectName: context.data.project.name,
+      subscriptions: result.data ?? [],
+    });
+
+    return NextResponse.json({ response_type: "ephemeral", text: response.text, blocks: response.blocks });
+  }
+
   const response = buildSlackProjectResponse({
-    command: parsed,
+    command: { ...parsed, projectId },
     project: context.data.project,
     categoryActuals: context.data.categoryActuals,
   });

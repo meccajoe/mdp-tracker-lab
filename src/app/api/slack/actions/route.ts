@@ -1,9 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
+import { fetchProjectCopilotContext } from "@/lib/project-copilot-context";
+import { listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
 import { buildSubscriptionCreatePayload } from "@/lib/project-subscriptions";
 import { lookupSlackEmailByUserId } from "@/lib/slack-delivery";
-import { decodeSlackSubscriptionActionValue, recommendationToSlackText } from "@/lib/slack-project-copilot";
+import {
+  buildSlackSubscriptionListResponse,
+  decodeSlackSubscriptionActionValue,
+  recommendationToSlackText,
+} from "@/lib/slack-project-copilot";
 import { verifySlackRequest } from "@/lib/slack-request";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -12,6 +18,14 @@ const MDP_SLACK_SIGNING_SECRET = process.env.MDP_SLACK_SIGNING_SECRET;
 
 function getSupabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
+
+async function lookupCreatorEmail(slackUserId: string) {
+  try {
+    return await lookupSlackEmailByUserId(slackUserId);
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -44,7 +58,7 @@ export async function POST(request: NextRequest) {
   };
 
   const action = payload.actions?.[0];
-  if (payload.type !== "block_actions" || !action?.value || action.action_id !== "create_project_subscription") {
+  if (payload.type !== "block_actions" || !action?.value || !action.action_id) {
     return NextResponse.json({ text: "Unsupported Slack action." }, { status: 400 });
   }
 
@@ -54,54 +68,120 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ text: "Missing Slack user." }, { status: 400 });
   }
 
-  let creatorIdentifier = `slack:${slackUserId}`;
-  try {
-    const email = await lookupSlackEmailByUserId(slackUserId);
-    if (email) {
-      creatorIdentifier = email;
-    }
-  } catch {
-    // Keep the Slack-user fallback so alert creation still works even if email lookup scope is missing.
-  }
-
-  const subscriptionPayload = buildSubscriptionCreatePayload({
-    projectId: actionPayload.projectId,
-    createdByEmail: creatorIdentifier,
-    recommendation: actionPayload.recommendation,
-    channel: "slack_dm",
-    targetJson: {
-      delivery: "slack_dm",
-      slack_user_id: slackUserId,
-      slack_team_id: payload.team?.id ?? null,
-      origin_channel_id: payload.channel?.id ?? null,
-      origin_thread_ts: payload.message?.thread_ts ?? payload.container?.thread_ts ?? null,
-      created_via: "slack",
-    },
-  });
-
+  const creatorEmail = await lookupCreatorEmail(slackUserId);
+  const creatorIdentifier = creatorEmail ?? `slack:${slackUserId}`;
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from("project_subscriptions")
-    .insert(subscriptionPayload)
-    .select("id, summary_text")
-    .single();
 
-  if (error) {
+  const context = await fetchProjectCopilotContext(supabase, actionPayload.projectId);
+  if (context.error || !context.data) {
     return NextResponse.json({
       response_action: "update",
-      text: `I couldn’t save that subscription yet: ${error.message}`,
+      text: context.error ?? "Failed to load project context",
     }, { status: 500 });
   }
 
-  return NextResponse.json({
-    response_action: "update",
-    text: [
-      "✅ Project alert saved.",
-      data?.summary_text ? `• ${data.summary_text}` : null,
-      `• Delivery: Slack DM to <@${slackUserId}>`,
-      `• Subscription id: ${String((data as { id?: string } | null)?.id ?? "unknown")}`,
-      "",
-      recommendationToSlackText(actionPayload.recommendation),
-    ].filter(Boolean).join("\n"),
-  });
+  if (action.action_id === "create_project_subscription" && actionPayload.type === "create_subscription") {
+    const subscriptionPayload = buildSubscriptionCreatePayload({
+      projectId: actionPayload.projectId,
+      createdByEmail: creatorIdentifier,
+      recommendation: actionPayload.recommendation,
+      channel: "slack_dm",
+      targetJson: {
+        delivery: "slack_dm",
+        slack_user_id: slackUserId,
+        slack_team_id: payload.team?.id ?? null,
+        origin_channel_id: payload.channel?.id ?? null,
+        origin_thread_ts: payload.message?.thread_ts ?? payload.container?.thread_ts ?? null,
+        created_via: "slack",
+      },
+    });
+
+    const { error } = await supabase
+      .from("project_subscriptions")
+      .insert(subscriptionPayload);
+
+    if (error) {
+      return NextResponse.json({
+        response_action: "update",
+        text: `I couldn’t save that subscription yet: ${error.message}`,
+      }, { status: 500 });
+    }
+
+    const list = await listSlackDmSubscriptionsForProject({
+      supabase,
+      projectId: actionPayload.projectId,
+      slackUserId,
+      createdByEmail: creatorEmail,
+    });
+
+    if (list.error) {
+      return NextResponse.json({
+        response_action: "update",
+        text: list.error,
+      }, { status: 500 });
+    }
+
+    const response = buildSlackSubscriptionListResponse({
+      projectId: actionPayload.projectId,
+      projectName: context.data.project.name,
+      subscriptions: list.data ?? [],
+    });
+
+    return NextResponse.json({
+      response_action: "update",
+      text: [
+        "✅ Project alert saved.",
+        `• Delivery: Slack DM to <@${slackUserId}>`,
+        "",
+        recommendationToSlackText(actionPayload.recommendation),
+      ].join("\n"),
+      blocks: response.blocks,
+    });
+  }
+
+  if (action.action_id === "manage_project_subscription" && actionPayload.type === "manage_subscription") {
+    const updated = await updateSlackDmSubscriptionStatus({
+      supabase,
+      projectId: actionPayload.projectId,
+      subscriptionId: actionPayload.subscriptionId,
+      action: actionPayload.action,
+      slackUserId,
+      createdByEmail: creatorEmail,
+    });
+
+    if (updated.error) {
+      return NextResponse.json({
+        response_action: "update",
+        text: updated.error,
+      }, { status: 500 });
+    }
+
+    const list = await listSlackDmSubscriptionsForProject({
+      supabase,
+      projectId: actionPayload.projectId,
+      slackUserId,
+      createdByEmail: creatorEmail,
+    });
+
+    if (list.error) {
+      return NextResponse.json({
+        response_action: "update",
+        text: list.error,
+      }, { status: 500 });
+    }
+
+    const response = buildSlackSubscriptionListResponse({
+      projectId: actionPayload.projectId,
+      projectName: context.data.project.name,
+      subscriptions: list.data ?? [],
+    });
+
+    return NextResponse.json({
+      response_action: "update",
+      text: response.text,
+      blocks: response.blocks,
+    });
+  }
+
+  return NextResponse.json({ text: "Unsupported Slack action." }, { status: 400 });
 }
