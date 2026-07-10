@@ -44,6 +44,8 @@ function downloadCsv(content: string, filename: string) {
 
 type LiveCacheMode = "historical" | "today" | "live_qbo";
 type LiveRefreshKind = "auto" | "force";
+type WipSortColumn = "customer" | "project";
+type WipSortDirection = "asc" | "desc";
 
 function formatLiveSyncedAt(value: string | null): string | null {
   if (!value) return null;
@@ -70,6 +72,8 @@ export default function WipReportPage() {
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>("");
   const [filters, setFilters] = useState<WipFilters>(EMPTY_WIP_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [sortColumn, setSortColumn] = useState<WipSortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<WipSortDirection>("asc");
   const [snapshotDate, setSnapshotDate] = useState(new Date().toISOString().slice(0, 10));
   const [snapshotStatus, setSnapshotStatus] = useState<"draft" | "final">("draft");
   const [snapshotNotes, setSnapshotNotes] = useState("");
@@ -93,6 +97,21 @@ export default function WipReportPage() {
   }, [liveRows, mode, snapshotRows]);
 
   const filteredRows = useMemo(() => activeRows.filter((row) => matchesWipFilters(row, filters)), [activeRows, filters]);
+  const displayedRows = useMemo(() => {
+    if (!sortColumn) {
+      return filteredRows;
+    }
+
+    const sortedRows = [...filteredRows];
+    sortedRows.sort((left, right) => {
+      const leftValue = getSortableValue(left, sortColumn);
+      const rightValue = getSortableValue(right, sortColumn);
+      const comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    return sortedRows;
+  }, [filteredRows, sortColumn, sortDirection]);
 
   const optionSourceRows = mode === "snapshot" ? activeRows : liveRows;
   const pmOptions = useMemo(() => uniqueValues(optionSourceRows.map((row) => row.pm_initials)), [optionSourceRows]);
@@ -285,13 +304,23 @@ export default function WipReportPage() {
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
+  function toggleSort(column: WipSortColumn) {
+    if (sortColumn !== column) {
+      setSortColumn(column);
+      setSortDirection("asc");
+      return;
+    }
+
+    setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+  }
+
   async function handleCreateSnapshot() {
     if (!snapshotDate) {
       toast.error("Snapshot date is required.");
       return;
     }
 
-    if (filteredRows.length === 0) {
+    if (displayedRows.length === 0) {
       toast.error("No rows in the current view to snapshot.");
       return;
     }
@@ -315,7 +344,7 @@ export default function WipReportPage() {
         throw snapshotError ?? new Error("Failed to create snapshot header.");
       }
 
-      const snapshotRowPayload = buildSnapshotRows(filteredRows).map((row) => ({
+      const snapshotRowPayload = buildSnapshotRows(displayedRows).map((row) => ({
         snapshot_id: snapshotData.id,
         ...row,
       }));
@@ -408,7 +437,7 @@ export default function WipReportPage() {
   }
 
   function handleExportCsv() {
-    if (filteredRows.length === 0) {
+    if (displayedRows.length === 0) {
       toast.error("No rows to export.");
       return;
     }
@@ -417,16 +446,16 @@ export default function WipReportPage() {
       ? `snapshot-${currentSnapshot.snapshot_date}-${currentSnapshot.status}`
       : `live-${liveAsOfDate}`;
 
-    downloadCsv(buildWipCsv(filteredRows), `mdp-wip-report-${suffix}.csv`);
+    downloadCsv(buildWipCsv(displayedRows), `mdp-wip-report-${suffix}.csv`);
   }
 
   function handleExportExcel() {
-    if (filteredRows.length === 0) {
+    if (displayedRows.length === 0) {
       toast.error("No rows to export.");
       return;
     }
 
-    const workbook = buildWipWorkbook(filteredRows);
+    const workbook = buildWipWorkbook(displayedRows);
     const suffix = mode === "snapshot" && currentSnapshot
       ? `snapshot-${currentSnapshot.snapshot_date}-${currentSnapshot.status}`
       : `live-${liveAsOfDate}`;
@@ -595,7 +624,7 @@ export default function WipReportPage() {
                 <div className="space-y-2">
                   <Label>Rows in Current View</Label>
                   <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                    {filteredRows.length}
+                    {displayedRows.length}
                   </div>
                 </div>
               </div>
@@ -721,21 +750,31 @@ export default function WipReportPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
-            <span>{loadingLiveRows && mode === "live" ? "Refreshing live rows..." : `${filteredRows.length} row(s)`}</span>
+            <span>{loadingLiveRows && mode === "live" ? "Refreshing live rows..." : `${displayedRows.length} row(s)`}</span>
             {mode === "snapshot" && currentSnapshot?.notes && <span>Notes: {currentSnapshot.notes}</span>}
           </div>
 
           {mode === "snapshot" && !selectedSnapshotId ? (
             <p className="text-sm text-muted-foreground">Select a snapshot to view frozen rows.</p>
-          ) : filteredRows.length === 0 ? (
+          ) : displayedRows.length === 0 ? (
             <p className="text-sm text-muted-foreground">No WIP rows match the current filters.</p>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border shadow-xs">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/45 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Customer</th>
-                    <th className="px-3 py-2 font-medium">Project</th>
+                    <th className="px-3 py-2 font-medium">
+                      <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("customer")}>
+                        Customer
+                        <SortIndicator active={sortColumn === "customer"} direction={sortDirection} />
+                      </button>
+                    </th>
+                    <th className="px-3 py-2 font-medium">
+                      <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => toggleSort("project")}>
+                        Project
+                        <SortIndicator active={sortColumn === "project"} direction={sortDirection} />
+                      </button>
+                    </th>
                     <th className="px-3 py-2 font-medium text-right">Updated Contract Amount</th>
                     <th className="px-3 py-2 font-medium text-right">Updated Est Cost</th>
                     <th className="px-3 py-2 font-medium text-right">Updated Est Gross Profit</th>
@@ -754,7 +793,7 @@ export default function WipReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRows.map((row) => (
+                  {displayedRows.map((row) => (
                     <tr key={`${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="border-t border-border/70 even:bg-muted/15 hover:bg-muted/35 transition-colors">
                       <td className="px-3 py-2">{row.customer}</td>
                       <td className="px-3 py-2 min-w-[260px]">
@@ -796,6 +835,26 @@ export default function WipReportPage() {
       </Card>
     </div>
   );
+}
+
+function SortIndicator({ active, direction }: { active: boolean; direction: WipSortDirection }) {
+  if (!active) {
+    return <ChevronDownIcon className="size-3 opacity-40" />;
+  }
+
+  if (direction === "asc") {
+    return <ChevronDownIcon className="size-3" />;
+  }
+
+  return <ChevronDownIcon className="size-3 rotate-180" />;
+}
+
+function getSortableValue(row: WipReportRow, column: WipSortColumn): string {
+  if (column === "customer") {
+    return row.customer;
+  }
+
+  return `${row.project_name} ${row.project_number ?? ""}`.trim();
 }
 
 function formatPercent(value: number | null): string {

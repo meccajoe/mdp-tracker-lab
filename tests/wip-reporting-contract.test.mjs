@@ -152,6 +152,10 @@ test('wip report page, live route, and helpers support the server-computed visib
   assert.match(page, /supabase\.auth\.getSession\(/);
   assert.match(page, /forceRefresh/);
   assert.match(page, /Refresh from QBO/);
+  assert.match(page, /toggleSort\("customer"\)/);
+  assert.match(page, /toggleSort\("project"\)/);
+  assert.match(page, /function SortIndicator/);
+  assert.match(page, /const displayedRows = useMemo/);
   assert.doesNotMatch(page, /Job Nickname/);
   assert.match(page, /from\("wip_report_snapshots"\)/);
   assert.match(page, /from\("wip_report_snapshot_rows"\)/);
