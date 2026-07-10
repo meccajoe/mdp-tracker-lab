@@ -124,6 +124,10 @@ function normalizeText(value: string) {
   return value.trim().toLowerCase();
 }
 
+function matchesThresholdIntent(requestText: string) {
+  return /(too high|gets too high|getting high|warn|watch|exceeds?|exceeded|above|over|passes?|hits?|reaches?)/.test(requestText);
+}
+
 function roundHours(value: number) {
   if (value >= 20) return Math.round(value);
   return Math.round(value * 2) / 2;
@@ -325,7 +329,7 @@ export function buildProjectNotificationRecommendation(input: BuildRecommendatio
     return buildDigestRecommendation(input.project);
   }
 
-  if (/labor|hours/.test(requestText) && (/too high|gets too high|getting high|warn/.test(requestText))) {
+  if (/labor|hours/.test(requestText) && matchesThresholdIntent(requestText)) {
     return buildLaborRecommendation(input.project);
   }
 
@@ -334,11 +338,11 @@ export function buildProjectNotificationRecommendation(input: BuildRecommendatio
   }
 
   const categoryScopeKey = findCategoryScopeKey(requestText);
-  if (categoryScopeKey && /too high|gets too high|getting high|warn|watch/.test(requestText)) {
+  if (categoryScopeKey && matchesThresholdIntent(requestText)) {
     return buildCategoryRecommendation(input.project, requestText, input.categoryActuals);
   }
 
-  if (/spend|cost/.test(requestText) && /too high|getting high|over budget|warn|watch/.test(requestText)) {
+  if (/spend|cost/.test(requestText) && matchesThresholdIntent(requestText)) {
     return buildTotalSpendRecommendation(input.project);
   }
 
