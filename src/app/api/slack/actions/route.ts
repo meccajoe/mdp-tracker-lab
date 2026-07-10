@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (action.action_id === "manage_project_subscription" && actionPayload.type === "manage_subscription") {
+  if (["pause_project_subscription", "resume_project_subscription", "delete_project_subscription"].includes(action.action_id) && actionPayload.type === "manage_subscription") {
     const updated = await updateSlackDmSubscriptionStatus({
       supabase,
       projectId: actionPayload.projectId,

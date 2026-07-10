@@ -223,7 +223,7 @@ function buildSubscriptionManagementElements(projectId: string, subscription: Pr
   if (subscription.status === "active") {
     elements.push({
       type: "button",
-      action_id: "manage_project_subscription",
+      action_id: "pause_project_subscription",
       text: { type: "plain_text", text: "Pause" },
       value: encodeSlackSubscriptionActionValue({
         type: "manage_subscription",
@@ -237,7 +237,7 @@ function buildSubscriptionManagementElements(projectId: string, subscription: Pr
   if (subscription.status === "paused") {
     elements.push({
       type: "button",
-      action_id: "manage_project_subscription",
+      action_id: "resume_project_subscription",
       text: { type: "plain_text", text: "Resume" },
       value: encodeSlackSubscriptionActionValue({
         type: "manage_subscription",
@@ -250,7 +250,7 @@ function buildSubscriptionManagementElements(projectId: string, subscription: Pr
 
   elements.push({
     type: "button",
-    action_id: "manage_project_subscription",
+    action_id: "delete_project_subscription",
     style: "danger",
     text: { type: "plain_text", text: "Delete" },
     value: encodeSlackSubscriptionActionValue({
