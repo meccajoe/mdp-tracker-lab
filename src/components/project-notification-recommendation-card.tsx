@@ -164,7 +164,9 @@ export function ProjectNotificationRecommendationCard({
   const [subscriptionsError, setSubscriptionsError] = useState<string | null>(null);
   const [savingSubscription, setSavingSubscription] = useState(false);
   const [updatingSubscriptionId, setUpdatingSubscriptionId] = useState<string | null>(null);
+  const [sendingTestKey, setSendingTestKey] = useState<string | null>(null);
   const [localPreviewMode, setLocalPreviewMode] = useState(false);
+  const [slackStatus, setSlackStatus] = useState<string | null>(null);
 
   async function loadSubscriptions() {
     setSubscriptionsLoading(true);
@@ -194,6 +196,7 @@ export function ProjectNotificationRecommendationCard({
   async function getRecommendation() {
     setLoading(true);
     setError(null);
+    setSlackStatus(null);
     try {
       const response = await fetch(`/api/projects/${projectId}/copilot/notification-recommendation`, {
         method: "POST",
@@ -297,12 +300,35 @@ export function ProjectNotificationRecommendationCard({
     }
   }
 
+  async function sendSlackTest(payload: { subscriptionId?: string; summaryText?: string; recommendationMessage?: string }, key: string) {
+    setSendingTestKey(key);
+    setSlackStatus(null);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/subscriptions/test-delivery`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json()) as { error?: string; targetEmail?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Slack delivery failed");
+      }
+      setSlackStatus(`Sent test to Slack for ${data.targetEmail}.`);
+    } catch (requestError) {
+      setSlackStatus(requestError instanceof Error ? requestError.message : "Slack delivery failed");
+    } finally {
+      setSendingTestKey(null);
+    }
+  }
+
   return (
     <Card className="border-0 shadow-none">
       <CardHeader className="px-0 pb-3 pt-0">
         <CardTitle className="text-base">Notification recommendation preview</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Alerts stay in MDP Tracker for now. Once Slack is wired, the same subscriptions can deliver there too.
+          Slack is the first real delivery target. Email can come later once sender infrastructure exists.
         </p>
       </CardHeader>
       <CardContent className="space-y-4 px-0 pb-0">
@@ -350,6 +376,12 @@ export function ProjectNotificationRecommendationCard({
           </div>
         )}
 
+        {slackStatus && (
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            {slackStatus}
+          </div>
+        )}
+
         {result?.recommendation.type === "threshold" && (() => {
           const recommendation = result.recommendation as ThresholdRecommendation;
           return (
@@ -379,7 +411,10 @@ export function ProjectNotificationRecommendationCard({
                   ))}
                 </div>
               </div>
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => sendSlackTest({ summaryText: `Alert when ${recommendation.metricKey === "qbo_total_hours" ? "labor hours" : recommendation.scopeKey} reach ${formatValue(recommendation.spotlight.threshold, recommendation.unit)}`, recommendationMessage: recommendation.message }, "recommendation-threshold")} disabled={sendingTestKey === "recommendation-threshold"}>
+                  {sendingTestKey === "recommendation-threshold" ? "Sending..." : "Send test to Slack"}
+                </Button>
                 <Button type="button" onClick={createSubscription} disabled={savingSubscription}>
                   {savingSubscription ? "Saving..." : "Create suggested alert"}
                 </Button>
@@ -399,7 +434,10 @@ export function ProjectNotificationRecommendationCard({
                 ))}
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => sendSlackTest({ summaryText: "Weekday 4pm project digest", recommendationMessage: result.recommendation.message }, "recommendation-digest")} disabled={sendingTestKey === "recommendation-digest"}>
+                {sendingTestKey === "recommendation-digest" ? "Sending..." : "Send test to Slack"}
+              </Button>
               <Button type="button" onClick={createSubscription} disabled={savingSubscription}>
                 {savingSubscription ? "Saving..." : "Create default digest"}
               </Button>
@@ -417,7 +455,7 @@ export function ProjectNotificationRecommendationCard({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium">Saved project subscriptions</p>
-              <p className="text-xs text-muted-foreground">Until Slack is wired, these alerts live here in MDP Tracker and can be managed from this modal.</p>
+              <p className="text-xs text-muted-foreground">Before the evaluator exists, use these rows to manage the definitions and send test deliveries to Slack.</p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={loadSubscriptions} disabled={subscriptionsLoading}>
               {subscriptionsLoading ? "Refreshing..." : "Refresh"}
@@ -455,6 +493,15 @@ export function ProjectNotificationRecommendationCard({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => sendSlackTest({ subscriptionId: subscription.id }, `subscription-${subscription.id}`)}
+                        disabled={sendingTestKey === `subscription-${subscription.id}`}
+                      >
+                        {sendingTestKey === `subscription-${subscription.id}` ? "Sending..." : "Send test to Slack"}
+                      </Button>
                       {subscription.status === "active" ? (
                         <Button
                           type="button"
