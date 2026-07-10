@@ -33,17 +33,6 @@ async function lookupCreatorEmail(slackUserId: string | null) {
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
-  const isValid = verifySlackRequest({
-    rawBody,
-    signature: request.headers.get("x-slack-signature"),
-    timestamp: request.headers.get("x-slack-request-timestamp"),
-    signingSecret: MDP_SLACK_SIGNING_SECRET,
-  });
-
-  if (!isValid) {
-    return NextResponse.json({ error: "Invalid Slack signature" }, { status: 401 });
-  }
-
   const body = JSON.parse(rawBody) as {
     type?: string;
     challenge?: string;
@@ -62,6 +51,17 @@ export async function POST(request: NextRequest) {
 
   if (body.type === "url_verification") {
     return NextResponse.json({ challenge: body.challenge ?? "" });
+  }
+
+  const isValid = verifySlackRequest({
+    rawBody,
+    signature: request.headers.get("x-slack-signature"),
+    timestamp: request.headers.get("x-slack-request-timestamp"),
+    signingSecret: MDP_SLACK_SIGNING_SECRET,
+  });
+
+  if (!isValid) {
+    return NextResponse.json({ error: "Invalid Slack signature" }, { status: 401 });
   }
 
   if (body.type !== "event_callback" || body.event?.type !== "app_mention" || !body.event.channel || !body.event.text) {

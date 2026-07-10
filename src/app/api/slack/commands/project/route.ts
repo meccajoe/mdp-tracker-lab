@@ -32,6 +32,11 @@ async function lookupCreatorEmail(slackUserId: string | null) {
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
+  const form = new URLSearchParams(rawBody);
+  if (form.get("ssl_check") === "1") {
+    return NextResponse.json({ ok: true });
+  }
+
   const isValid = verifySlackRequest({
     rawBody,
     signature: request.headers.get("x-slack-signature"),
@@ -41,11 +46,6 @@ export async function POST(request: NextRequest) {
 
   if (!isValid) {
     return NextResponse.json({ error: "Invalid Slack signature" }, { status: 401 });
-  }
-
-  const form = new URLSearchParams(rawBody);
-  if (form.get("ssl_check") === "1") {
-    return NextResponse.json({ ok: true });
   }
 
   const parsed = parseSlackProjectCommand(form.get("text") ?? "");
