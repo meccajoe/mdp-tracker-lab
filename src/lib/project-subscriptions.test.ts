@@ -56,6 +56,30 @@ test("buildSubscriptionCreatePayload creates a digest subscription from a digest
   assert.match(payload.summary_text, /weekday 4pm/i);
 });
 
+test("buildSubscriptionCreatePayload supports Slack DM delivery targets", () => {
+  const payload = buildSubscriptionCreatePayload({
+    projectId: "26144",
+    createdByEmail: "slack:U123",
+    channel: "slack_dm",
+    targetJson: { delivery: "slack_dm", slack_user_id: "U123" },
+    recommendation: {
+      type: "threshold",
+      metricKey: "qbo_total_hours",
+      scopeKey: "budget_hrs",
+      unit: "hours",
+      currentValue: 62,
+      basisValue: 100,
+      basisLabel: "Labor budget hours",
+      spotlight: { id: "warning", label: "Warning", threshold: 95 },
+      options: [{ id: "warning", label: "Warning", threshold: 95 }],
+      message: "Project 26144 has a labor budget of 100 hours and is currently at 62 hours. I recommend a warning alert at 95 hours.",
+    },
+  });
+
+  assert.equal(payload.channel, "slack_dm");
+  assert.deepEqual(payload.target_json, { delivery: "slack_dm", slack_user_id: "U123" });
+});
+
 test("buildSubscriptionSummary renders clear human-readable labels", () => {
   const summary = buildSubscriptionSummary({
     subscription_type: "metric_threshold_alert",

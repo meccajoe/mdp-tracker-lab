@@ -1,5 +1,7 @@
 const SLACK_BOT_TOKEN = process.env.MDP_SLACK_BOT_TOKEN;
 
+export type SlackMessageBlock = Record<string, unknown>;
+
 export function buildSlackTestMessage(args: {
   projectId: string;
   projectName: string;
@@ -43,6 +45,12 @@ export async function lookupSlackUserByEmail(email: string) {
   return user.id;
 }
 
+export async function lookupSlackEmailByUserId(userId: string) {
+  const data = await slackApi("users.info", { user: userId });
+  const user = data.user as { profile?: { email?: string } } | undefined;
+  return user?.profile?.email?.toLowerCase() ?? null;
+}
+
 export async function openSlackDmChannel(userId: string) {
   const data = await slackApi("conversations.open", { users: userId });
   const channel = data.channel as { id?: string } | undefined;
@@ -54,6 +62,21 @@ export async function openSlackDmChannel(userId: string) {
 
 export async function sendSlackMessage(channel: string, text: string) {
   const data = await slackApi("chat.postMessage", { channel, text });
+  return (data.ts as string | undefined) ?? null;
+}
+
+export async function sendSlackChannelMessage(args: {
+  channel: string;
+  text: string;
+  threadTs?: string | null;
+  blocks?: SlackMessageBlock[];
+}) {
+  const data = await slackApi("chat.postMessage", {
+    channel: args.channel,
+    text: args.text,
+    thread_ts: args.threadTs ?? undefined,
+    blocks: args.blocks,
+  });
   return (data.ts as string | undefined) ?? null;
 }
 

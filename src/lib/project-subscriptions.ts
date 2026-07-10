@@ -27,7 +27,7 @@ export type RecommendationInput = ThresholdRecommendationInput | DigestRecommend
 export type ProjectSubscriptionRecord = {
   project_id: string;
   created_by_email: string;
-  channel: "mdp_tracker";
+  channel: "mdp_tracker" | "slack_dm";
   target_json: Record<string, unknown>;
   subscription_type: SubscriptionType;
   metric_key: string | null;
@@ -135,12 +135,14 @@ export function buildSubscriptionCreatePayload(args: {
   projectId: string;
   createdByEmail: string;
   recommendation: RecommendationInput;
+  channel?: ProjectSubscriptionRecord["channel"];
+  targetJson?: Record<string, unknown>;
 }): ProjectSubscriptionRecord {
   const base = {
     project_id: args.projectId,
     created_by_email: args.createdByEmail,
-    channel: "mdp_tracker" as const,
-    target_json: { surface: "project_modal" },
+    channel: args.channel ?? ("mdp_tracker" as const),
+    target_json: args.targetJson ?? { surface: "project_modal" },
     status: "active" as const,
     cooldown_minutes: 60,
   };
