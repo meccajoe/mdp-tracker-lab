@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabaseAdmin();
   const slackUserId = form.get("user_id");
-  const creatorEmail = await lookupCreatorEmail(slackUserId);
   const channelId = form.get("channel_id");
   const teamId = form.get("team_id");
   const threadTs = form.get("thread_ts") ?? form.get("message_ts");
@@ -109,6 +108,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ response_type: "ephemeral", text: "Missing Slack user context." }, { status: 400 });
     }
 
+    const creatorEmail = await lookupCreatorEmail(slackUserId);
+
     const result = await listSlackDmSubscriptionsForProject({
       supabase,
       projectId,
@@ -133,6 +134,8 @@ export async function POST(request: NextRequest) {
     if (!slackUserId || !parsed.subscriptionId) {
       return NextResponse.json({ response_type: "ephemeral", text: "Missing Slack user or subscription id." }, { status: 400 });
     }
+
+    const creatorEmail = await lookupCreatorEmail(slackUserId);
 
     const updated = await updateSlackDmSubscriptionStatus({
       supabase,
