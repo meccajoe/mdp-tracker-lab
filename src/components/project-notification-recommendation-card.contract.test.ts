@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-test("project detail page exposes a notification recommendation preview card wired to the new API route", () => {
+test("project detail page uses a bell-triggered modal for notification recommendations instead of an inline card", () => {
   const componentPath = join(process.cwd(), "src/components/project-notification-recommendation-card.tsx");
   const pagePath = join(process.cwd(), "src/app/projects/[id]/page.tsx");
 
@@ -11,10 +11,13 @@ test("project detail page exposes a notification recommendation preview card wir
   const pageSource = readFileSync(pagePath, "utf8");
 
   assert.match(componentSource, /\/api\/projects\/\$\{projectId\}\/copilot\/notification-recommendation/, "component should post to the notification recommendation API route");
-  assert.match(componentSource, /Notification recommendation preview/i, "component should render preview card copy");
   assert.match(componentSource, /Get recommendation/i, "component should expose a call-to-action button");
-  assert.match(componentSource, /Use 95 hrs|Use \$34,000|Recommended thresholds|defaultSections|spotlight/i, "component should render recommendation details");
+  assert.match(componentSource, /Recommended thresholds|defaultSections|spotlight/i, "component should render recommendation details");
 
-  assert.match(pageSource, /project-notification-recommendation-card/i, "project detail page should import the preview card component");
-  assert.match(pageSource, /<ProjectNotificationRecommendationCard[\s\S]*projectId=\{projectId\}[\s\S]*project=\{project\}/, "project detail page should render the preview card with the current project context");
+  assert.match(pageSource, /project-notification-recommendation-card/i, "project detail page should import the recommendation component");
+  assert.match(pageSource, /Bell/, "project detail page should import or render a bell icon for the trigger");
+  assert.match(pageSource, /DialogTrigger[\s\S]*aria-label=\"Open project notification recommendations\"/, "page should expose a bell-style modal trigger with an explicit label");
+  assert.match(pageSource, /DialogTitle>[\s\S]*Project notifications/i, "page should render a project notifications modal title");
+  assert.match(pageSource, /DialogContent[\s\S]*<ProjectNotificationRecommendationCard[\s\S]*projectId=\{projectId\}[\s\S]*project=\{project\}/, "page should render the recommendation component inside dialog content");
+  assert.equal((pageSource.match(/<ProjectNotificationRecommendationCard/g) ?? []).length, 1, "page should render exactly one recommendation component instance");
 });

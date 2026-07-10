@@ -55,7 +55,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2, Flag, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Flag, ChevronDown, ChevronRight, Loader2, Bell } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -880,11 +880,35 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
-        {effectiveIsAdmin && (
-          <Link href={`/projects/${projectId}/edit`}>
-            <Button variant="outline" size="sm">Edit Project</Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <Dialog>
+            <DialogTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  aria-label="Open project notification recommendations"
+                  title="Project notifications"
+                />
+              }
+            >
+              <Bell className="h-4 w-4" />
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Project notifications</DialogTitle>
+              </DialogHeader>
+              <ProjectNotificationRecommendationCard projectId={projectId} project={project} />
+            </DialogContent>
+          </Dialog>
+          {effectiveIsAdmin && (
+            <Link href={`/projects/${projectId}/edit`}>
+              <Button variant="outline" size="sm">Edit Project</Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {project.notes && (
@@ -972,8 +996,6 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       </div>
-
-      <ProjectNotificationRecommendationCard projectId={projectId} project={project} />
 
       <Separator />
 
