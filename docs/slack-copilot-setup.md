@@ -129,9 +129,30 @@ After schema rollout and Slack app install:
 5. pause/resume/delete one subscription
 6. verify a follow-up in the same thread works without repeating the job number once thread binding has been created
 
+## Automatic evaluator route
+
+The repo now includes an evaluator route that scans active project subscriptions, decides which ones should fire, and delivers Slack DMs when appropriate:
+
+- route: `/api/cron/evaluate-project-subscriptions`
+- auth: `Authorization: Bearer $CRON_SECRET`
+
+Useful query params:
+
+- `dryRun=1` → evaluate without writing runs or sending DMs
+- `force=1` → force scheduled digests for testing even outside the normal 4pm weekday window
+- `projectId=26144` → limit evaluation to one project
+- `subscriptionId=<uuid>` → limit evaluation to one subscription
+
+Current behavior:
+
+- threshold alerts fire on threshold crossings, not every poll while already above threshold
+- weekday digest schedule is interpreted in `America/Chicago`
+- Slack DM delivery is supported for subscriptions with a stored Slack user id or resolvable creator email
+- the route records runs/deliveries when not in dry-run mode
+
 ## Known remaining gaps
 
-- no automatic evaluator firing yet
+- evaluator route exists, but non-Vercel deployments still need an external cron or scheduler to call it
 - no email delivery yet
 - slash-command responses are ephemeral; app mention replies are threaded
 - thread binding works only after the backing table exists remotely

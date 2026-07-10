@@ -2,7 +2,7 @@ import {
   CATEGORY_SCOPE_CONFIG,
   type CategoryScopeKey,
   type RecommendationProjectFacts,
-} from "@/lib/project-notification-recommendations";
+} from "./project-notification-recommendations.ts";
 
 export type ProjectCopilotContext = {
   project: RecommendationProjectFacts;

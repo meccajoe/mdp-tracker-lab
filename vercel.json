@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/sync-hubspot-quotes",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/evaluate-project-subscriptions",
+      "schedule": "5 * * * *"
     }
   ]
 }

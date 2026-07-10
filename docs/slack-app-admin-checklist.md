@@ -98,7 +98,7 @@ If that fails, verify:
 
 ## 8. Known current limitations
 
-- no automatic alert evaluator yet
+- the evaluator route now exists, but something still has to call `/api/cron/evaluate-project-subscriptions` on a schedule in non-Vercel deployments
 - no email delivery yet
 - slash command responses are ephemeral by design for now
-- DM delivery depends on the Slack user email lookup working inside the workspace
+- DM delivery depends on the Slack user email lookup working inside the workspace when no Slack user id is stored on the subscription
