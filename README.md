@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MDP Tracker
 
-## Getting Started
+MDP Tracker is the internal project-cost and project-operations app for Mecca Design & Production.
 
-First, run the development server:
+## Core stack
+
+- Next.js app router
+- Supabase (Postgres + Auth)
+- HubSpot, QBO, BILL, Monday integrations
+- Slack project copilot entrypoints for project Q&A and alert setup
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.local.example` to `.env.local` and fill in the values you need.
 
-## Learn More
+Key env vars for the current Slack copilot slice:
 
-To learn more about Next.js, take a look at the following resources:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `MDP_SLACK_BOT_TOKEN`
+- `MDP_SLACK_SIGNING_SECRET`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Slack copilot
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Current routes:
 
-## Deploy on Vercel
+- `/api/slack/commands/project`
+- `/api/slack/actions`
+- `/api/slack/events`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Current supported Slack flows:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/project <job-number> summary|budget|labor|notify ...`
+- `/project <job-number> subscriptions`
+- `/project <job-number> pause <subscription-id>`
+- `/project <job-number> resume <subscription-id>`
+- `/project <job-number> delete <subscription-id>`
+- `@bot <job-number> ...` app mentions
+
+Created alert subscriptions default to **Slack DM delivery to the creating user**.
+
+See `docs/slack-copilot-setup.md` for:
+
+- Slack app manifest wiring
+- required scopes
+- migration rollout steps
+- remote schema repair script usage
+
+## Schema rollout for Slack copilot
+
+The current Slack slices depend on these migrations existing remotely:
+
+- `supabase/migrations/20260710143000_project_subscriptions.sql`
+- `supabase/migrations/20260710190000_project_conversation_threads.sql`
+
+Preferred helper:
+
+```bash
+bash scripts/apply-slack-copilot-remote.sh
+```
+
+That helper applies both SQL files directly, repairs migration history, and verifies the resulting tables.

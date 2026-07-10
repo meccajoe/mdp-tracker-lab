@@ -1,0 +1,41 @@
+_metadata:
+  major_version: 1
+  minor_version: 1
+
+display_information:
+  name: MDP Project Copilot
+  description: Project Q&A and alert setup for Mecca Design projects.
+  background_color: "#4A154B"
+
+features:
+  bot_user:
+    display_name: MDP Project Copilot
+    always_online: true
+  slash_commands:
+    - command: /project
+      description: Query a project or manage project alerts
+      usage_hint: "<job-number> <summary|budget|labor|notify|subscriptions>"
+      should_escape: false
+      url: https://projects.meccadesign.com/api/slack/commands/project
+
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - chat:write
+      - commands
+      - im:write
+      - users:read
+      - users:read.email
+
+settings:
+  interactivity:
+    is_enabled: true
+    request_url: https://projects.meccadesign.com/api/slack/actions
+  event_subscriptions:
+    request_url: https://projects.meccadesign.com/api/slack/events
+    bot_events:
+      - app_mention
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
