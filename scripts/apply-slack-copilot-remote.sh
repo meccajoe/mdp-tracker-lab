@@ -14,17 +14,42 @@ VERSIONS=(
 )
 
 if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
-  QUERY_ARGS=(--db-url "$SUPABASE_DB_URL")
-  REPAIR_ARGS=(--db-url "$SUPABASE_DB_URL")
+  DB_URL="$SUPABASE_DB_URL"
 elif [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
-  QUERY_ARGS=(--linked --password "$SUPABASE_DB_PASSWORD")
-  REPAIR_ARGS=(--linked --password "$SUPABASE_DB_PASSWORD")
+  POOLER_URL_FILE="supabase/.temp/pooler-url"
+  if [[ ! -f "$POOLER_URL_FILE" ]]; then
+    echo "Missing $POOLER_URL_FILE. Set SUPABASE_DB_URL instead." >&2
+    exit 1
+  fi
+
+  BASE_DB_URL="$(cat "$POOLER_URL_FILE")"
+  DB_URL="$(python3 - <<'PY' "$BASE_DB_URL" "$SUPABASE_DB_PASSWORD"
+import sys
+from urllib.parse import quote, urlsplit, urlunsplit
+
+base = sys.argv[1]
+password = quote(sys.argv[2], safe='')
+parts = urlsplit(base)
+if '@' not in parts.netloc:
+    raise SystemExit('Pooler URL is missing username/host information.')
+userinfo, hostinfo = parts.netloc.split('@', 1)
+if ':' in userinfo:
+    username = userinfo.split(':', 1)[0]
+else:
+    username = userinfo
+netloc = f"{username}:{password}@{hostinfo}"
+print(urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment)))
+PY
+ )"
 else
   echo "Set SUPABASE_DB_URL or SUPABASE_DB_PASSWORD before running this script." >&2
   echo "- SUPABASE_DB_URL works without Supabase CLI profile setup." >&2
   echo "- SUPABASE_DB_PASSWORD uses the linked project in supabase/.temp/project-ref." >&2
   exit 1
 fi
+
+QUERY_ARGS=(--db-url "$DB_URL")
+REPAIR_ARGS=(--db-url "$DB_URL")
 
 for migration in "${MIGRATIONS[@]}"; do
   echo "Applying ${migration} ..."
