@@ -1,6 +1,7 @@
 export type SubscriptionStatus = "active" | "paused" | "archived";
 export type SubscriptionAction = "pause" | "resume" | "delete";
 export type SubscriptionType = "metric_threshold_alert" | "scheduled_digest";
+export type SubscriptionScopeType = "project" | "my_active_projects" | "pm_active_projects" | "all_active_projects";
 
 export type ThresholdRecommendationInput = {
   type: "threshold";
@@ -25,11 +26,13 @@ export type DigestRecommendationInput = {
 export type RecommendationInput = ThresholdRecommendationInput | DigestRecommendationInput;
 
 export type ProjectSubscriptionRecord = {
-  project_id: string;
+  project_id: string | null;
   created_by_email: string;
   channel: "mdp_tracker" | "slack_dm";
   target_json: Record<string, unknown>;
   subscription_type: SubscriptionType;
+  scope_type: SubscriptionScopeType;
+  scope_json: Record<string, unknown>;
   metric_key: string | null;
   condition_operator: string | null;
   threshold_value: number | null;
@@ -102,47 +105,80 @@ function labelScope(scopeKey: string) {
   }
 }
 
+export function buildSubscriptionScopeLabel(scopeType: SubscriptionScopeType, scopeJson: Record<string, unknown> = {}) {
+  switch (scopeType) {
+    case "project": {
+      const projectId = typeof scopeJson.project_id === "string" ? scopeJson.project_id : null;
+      return projectId ? `project ${projectId}` : "project";
+    }
+    case "my_active_projects":
+      return "my active projects";
+    case "pm_active_projects": {
+      const pmInitials = typeof scopeJson.pm_initials === "string" ? scopeJson.pm_initials : null;
+      return pmInitials ? `${pmInitials} active projects` : "PM active projects";
+    }
+    case "all_active_projects":
+      return "all active projects";
+    default:
+      return "portfolio";
+  }
+}
+
 export function buildSubscriptionSummary(input: {
   subscription_type: SubscriptionType;
+  scope_type?: SubscriptionScopeType;
+  scope_json?: Record<string, unknown>;
   metric_key: string | null;
   condition_operator: string | null;
   threshold_value: number | null;
   schedule_cron: string | null;
   rule_json: Record<string, unknown>;
 }) {
+  const scopeType = input.scope_type ?? "project";
+  const scopeLabel = buildSubscriptionScopeLabel(scopeType, input.scope_json ?? {});
+
   if (input.subscription_type === "scheduled_digest") {
     if (input.schedule_cron === "0 16 * * 1-5") {
-      return "Weekday 4pm project digest";
+      return scopeType === "project"
+        ? "Weekday 4pm project digest"
+        : `Weekday 4pm portfolio digest — ${scopeLabel}`;
     }
-    return "Project digest";
+    return scopeType === "project" ? "Project digest" : `Portfolio digest — ${scopeLabel}`;
   }
 
   if (!input.metric_key || input.threshold_value == null || input.condition_operator == null) {
-    return "Project alert";
+    return scopeType === "project" ? "Project alert" : `Portfolio alert — ${scopeLabel}`;
   }
 
   const unit = (input.rule_json.unit as "hours" | "currency" | "percent" | undefined) ?? "hours";
   const scopePrefix = input.metric_key === "category_actual_spend" || input.metric_key === "budget_variance_pct"
     ? `${labelScope(String(input.rule_json.scopeKey ?? ""))} `
     : "";
+  const subject = scopeType === "project" ? "" : `${scopeLabel} `;
 
-  return `Alert when ${scopePrefix}${labelMetric(input.metric_key)} ${input.condition_operator} ${formatThresholdValue(input.threshold_value, unit)}`
+  return `Alert when ${subject}${scopePrefix}${labelMetric(input.metric_key)} ${input.condition_operator} ${formatThresholdValue(input.threshold_value, unit)}`
     .replace(" >= ", " reach ")
     .replace(" <= ", " drop to ");
 }
 
 export function buildSubscriptionCreatePayload(args: {
-  projectId: string;
+  projectId?: string | null;
   createdByEmail: string;
   recommendation: RecommendationInput;
   channel?: ProjectSubscriptionRecord["channel"];
   targetJson?: Record<string, unknown>;
+  scopeType?: SubscriptionScopeType;
+  scopeJson?: Record<string, unknown>;
 }): ProjectSubscriptionRecord {
+  const scopeType = args.scopeType ?? "project";
+  const scopeJson = args.scopeJson ?? (scopeType === "project" && args.projectId ? { project_id: args.projectId } : {});
   const base = {
-    project_id: args.projectId,
+    project_id: scopeType === "project" ? (args.projectId ?? null) : null,
     created_by_email: args.createdByEmail,
     channel: args.channel ?? ("mdp_tracker" as const),
     target_json: args.targetJson ?? { surface: "project_modal" },
+    scope_type: scopeType,
+    scope_json: scopeJson,
     status: "active" as const,
     cooldown_minutes: 60,
   };

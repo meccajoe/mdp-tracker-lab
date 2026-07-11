@@ -7,10 +7,12 @@ cd "$ROOT_DIR"
 MIGRATIONS=(
   "supabase/migrations/20260710143000_project_subscriptions.sql"
   "supabase/migrations/20260710190000_project_conversation_threads.sql"
+  "supabase/migrations/20260711111500_project_subscription_scopes.sql"
 )
 VERSIONS=(
   "20260710143000"
   "20260710190000"
+  "20260711111500"
 )
 
 if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
@@ -68,11 +70,21 @@ where table_schema = 'public'
 order by table_name;
 SQL
 
+echo "Verifying scope columns ..."
+supabase db query "${QUERY_ARGS[@]}" <<'SQL'
+select column_name
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'project_subscriptions'
+  and column_name in ('scope_type', 'scope_json')
+order by column_name;
+SQL
+
 echo "Verifying migration history ..."
 supabase db query "${QUERY_ARGS[@]}" <<'SQL'
 select version
 from supabase_migrations.schema_migrations
-where version in ('20260710143000', '20260710190000')
+where version in ('20260710143000', '20260710190000', '20260711111500')
 order by version;
 SQL
 

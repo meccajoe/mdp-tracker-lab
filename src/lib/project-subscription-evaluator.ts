@@ -1,14 +1,18 @@
 import { openSlackDmChannel, sendSlackDmByEmail, sendSlackMessage } from "./slack-delivery.ts";
+import { buildPortfolioDigestText, resolvePortfolioProjects } from "./project-portfolio-subscriptions.ts";
 import { fetchProjectCopilotContext, type ProjectCopilotContext } from "./project-copilot-context.ts";
 import type { CategoryScopeKey, RecommendationProjectFacts } from "./project-notification-recommendations.ts";
+import type { SubscriptionScopeType } from "./project-subscriptions.ts";
 
 export type EvaluatableProjectSubscription = {
   id: string;
-  project_id: string;
+  project_id: string | null;
   created_by_email: string;
   channel: string;
   target_json: Record<string, unknown> | null;
   subscription_type: "metric_threshold_alert" | "scheduled_digest";
+  scope_type: SubscriptionScopeType;
+  scope_json: Record<string, unknown> | null;
   metric_key: string | null;
   condition_operator: string | null;
   threshold_value: number | null;
@@ -51,6 +55,21 @@ export type SubscriptionEvaluationResult = {
 
 const APP_TIME_ZONE = "America/Chicago";
 const DIGEST_DELIVERY_WINDOW_MINUTES = 75;
+const PROJECT_SUBSCRIPTION_EVALUATOR_SELECT = "id, project_id, created_by_email, channel, target_json, subscription_type, scope_type, scope_json, metric_key, condition_operator, threshold_value, rule_json, schedule_cron, status, cooldown_minutes, last_evaluated_at, last_triggered_at, summary_text, created_at, updated_at";
+const LEGACY_PROJECT_SUBSCRIPTION_EVALUATOR_SELECT = "id, project_id, created_by_email, channel, target_json, subscription_type, metric_key, condition_operator, threshold_value, rule_json, schedule_cron, status, cooldown_minutes, last_evaluated_at, last_triggered_at, summary_text, created_at, updated_at";
+
+function schemaColumnMissing(message?: string | null) {
+  return !!message && (message.includes("scope_type") || message.includes("scope_json"));
+}
+
+function applySubscriptionScopeDefaults(row: Record<string, unknown>): EvaluatableProjectSubscription {
+  return {
+    ...(row as unknown as Omit<EvaluatableProjectSubscription, "scope_type" | "scope_json" | "project_id">),
+    project_id: typeof row.project_id === "string" ? row.project_id : null,
+    scope_type: (row.scope_type as SubscriptionScopeType | undefined) ?? "project",
+    scope_json: (row.scope_json as Record<string, unknown> | null | undefined) ?? (typeof row.project_id === "string" ? { project_id: row.project_id } : {}),
+  };
+}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -490,7 +509,7 @@ async function evaluateThresholdSubscription(args: {
   if (currentValue == null) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "skipped",
       reason: "missing_metric_value",
@@ -528,7 +547,7 @@ async function evaluateThresholdSubscription(args: {
 
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "skipped",
       reason: "threshold_not_met",
@@ -558,7 +577,7 @@ async function evaluateThresholdSubscription(args: {
 
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "skipped",
       reason: "already_triggered_state",
@@ -571,7 +590,7 @@ async function evaluateThresholdSubscription(args: {
   if (isCooldownActive(args.subscription, args.now)) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "skipped",
       reason: "cooldown_active",
@@ -590,7 +609,7 @@ async function evaluateThresholdSubscription(args: {
   if (args.dryRun) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "would_trigger",
       reason: "threshold_crossed",
@@ -617,7 +636,7 @@ async function evaluateThresholdSubscription(args: {
   if (run.error || !run.data) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "error",
       reason: run.error ?? "failed_to_record_run",
@@ -646,7 +665,7 @@ async function evaluateThresholdSubscription(args: {
 
   return {
     subscriptionId: args.subscription.id,
-    projectId: args.subscription.project_id,
+    projectId: args.subscription.project_id ?? "project",
     subscriptionType: args.subscription.subscription_type,
     outcome: delivery.status === "delivered" ? "triggered" : "error",
     reason: delivery.status === "delivered" ? "threshold_crossed" : (delivery.errorText ?? "delivery_failed"),
@@ -676,7 +695,7 @@ async function evaluateDigestSubscription(args: {
   if (!due) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "skipped",
       reason: "digest_not_due",
@@ -686,14 +705,14 @@ async function evaluateDigestSubscription(args: {
 
   const recentExpenseActivity = await fetchRecentExpenseActivity({
     supabase: args.supabase,
-    projectId: args.subscription.project_id,
+    projectId: args.subscription.project_id ?? "project",
     since: args.subscription.last_triggered_at,
   });
 
   if (recentExpenseActivity.error || !recentExpenseActivity.data) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "error",
       reason: recentExpenseActivity.error ?? "failed_to_load_expenses",
@@ -711,7 +730,7 @@ async function evaluateDigestSubscription(args: {
   if (args.dryRun) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "would_trigger",
       reason: "digest_due",
@@ -736,7 +755,7 @@ async function evaluateDigestSubscription(args: {
   if (run.error || !run.data) {
     return {
       subscriptionId: args.subscription.id,
-      projectId: args.subscription.project_id,
+      projectId: args.subscription.project_id ?? "project",
       subscriptionType: args.subscription.subscription_type,
       outcome: "error",
       reason: run.error ?? "failed_to_record_run",
@@ -763,7 +782,123 @@ async function evaluateDigestSubscription(args: {
 
   return {
     subscriptionId: args.subscription.id,
-    projectId: args.subscription.project_id,
+    projectId: args.subscription.project_id ?? "project",
+    subscriptionType: args.subscription.subscription_type,
+    outcome: delivery.status === "delivered" ? "triggered" : "error",
+    reason: delivery.status === "delivered" ? "digest_due" : (delivery.errorText ?? "delivery_failed"),
+    summaryText: digest.text,
+    delivery,
+  };
+}
+
+async function evaluatePortfolioDigestSubscription(args: {
+  supabase: any;
+  subscription: EvaluatableProjectSubscription;
+  previousRun: SubscriptionRunRow | null;
+  now: Date;
+  dryRun?: boolean;
+  force?: boolean;
+}): Promise<SubscriptionEvaluationResult> {
+  const due = isDigestDue({
+    scheduleCron: args.subscription.schedule_cron,
+    lastTriggeredAt: args.subscription.last_triggered_at,
+    now: args.now,
+    force: args.force,
+  });
+
+  if (!due) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "skipped",
+      reason: "digest_not_due",
+      summaryText: args.subscription.summary_text,
+    };
+  }
+
+  const projects = await resolvePortfolioProjects({
+    supabase: args.supabase,
+    scopeType: args.subscription.scope_type,
+    scopeJson: args.subscription.scope_json,
+    createdByEmail: args.subscription.created_by_email,
+  });
+
+  if (projects.error) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "error",
+      reason: projects.error,
+      summaryText: args.subscription.summary_text,
+    };
+  }
+
+  const digest = buildPortfolioDigestText({
+    scopeType: args.subscription.scope_type,
+    scopeJson: args.subscription.scope_json,
+    summaryText: args.subscription.summary_text,
+    projects: projects.data,
+    previousSnapshot: args.previousRun?.snapshot_json,
+  });
+
+  if (args.dryRun) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "would_trigger",
+      reason: "digest_due",
+      summaryText: digest.text,
+      delivery: {
+        channel: args.subscription.channel,
+        target: typeof args.subscription.target_json?.slack_user_id === "string" ? args.subscription.target_json.slack_user_id : args.subscription.created_by_email,
+        status: "would_deliver",
+      },
+    };
+  }
+
+  const nowIso = args.now.toISOString();
+  const run = await recordRun({
+    supabase: args.supabase,
+    subscriptionId: args.subscription.id,
+    outcome: "triggered",
+    reason: "digest_due",
+    snapshotJson: digest.snapshot,
+  });
+
+  if (run.error || !run.data) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "error",
+      reason: run.error ?? "failed_to_record_run",
+      summaryText: args.subscription.summary_text,
+    };
+  }
+
+  const delivery = await deliverToSubscriptionTarget({ subscription: args.subscription, text: digest.text });
+  await recordDelivery({
+    supabase: args.supabase,
+    subscriptionRunId: run.data.id,
+    channel: delivery.channel,
+    target: delivery.target,
+    deliveryStatus: delivery.status,
+    externalMessageId: delivery.externalMessageId,
+    errorText: delivery.errorText,
+  });
+  await updateSubscriptionTimestamps({
+    supabase: args.supabase,
+    subscriptionId: args.subscription.id,
+    lastEvaluatedAt: nowIso,
+    lastTriggeredAt: delivery.status === "delivered" ? nowIso : null,
+  });
+
+  return {
+    subscriptionId: args.subscription.id,
+    projectId: args.subscription.project_id ?? args.subscription.scope_type,
     subscriptionType: args.subscription.subscription_type,
     outcome: delivery.status === "delivered" ? "triggered" : "error",
     reason: delivery.status === "delivered" ? "digest_due" : (delivery.errorText ?? "delivery_failed"),
@@ -781,23 +916,81 @@ export async function evaluateProjectSubscriptions(args: {
   subscriptionId?: string | null;
 }) {
   const now = args.now ?? new Date();
-  let query = args.supabase
-    .from("project_subscriptions")
-    .select("id, project_id, created_by_email, channel, target_json, subscription_type, metric_key, condition_operator, threshold_value, rule_json, schedule_cron, status, cooldown_minutes, last_evaluated_at, last_triggered_at, summary_text, created_at, updated_at")
-    .eq("status", "active")
-    .order("created_at", { ascending: true });
+  const buildQuery = (selectClause: string) => {
+    let query = args.supabase
+      .from("project_subscriptions")
+      .select(selectClause)
+      .eq("status", "active")
+      .order("created_at", { ascending: true });
 
-  if (args.projectId) query = query.eq("project_id", args.projectId);
-  if (args.subscriptionId) query = query.eq("id", args.subscriptionId);
+    if (args.projectId) query = query.eq("project_id", args.projectId);
+    if (args.subscriptionId) query = query.eq("id", args.subscriptionId);
+    return query;
+  };
 
-  const { data, error } = await query;
+  let { data, error } = await buildQuery(PROJECT_SUBSCRIPTION_EVALUATOR_SELECT);
+  if (error && schemaColumnMissing(error.message)) {
+    const legacy = await buildQuery(LEGACY_PROJECT_SUBSCRIPTION_EVALUATOR_SELECT);
+    data = legacy.data;
+    error = legacy.error;
+  }
+
   if (error) {
     return { results: [] as SubscriptionEvaluationResult[], error: error.message };
   }
 
   const results: SubscriptionEvaluationResult[] = [];
 
-  for (const subscription of (data ?? []) as EvaluatableProjectSubscription[]) {
+  for (const subscription of ((data ?? []) as Array<Record<string, unknown>>).map(applySubscriptionScopeDefaults)) {
+    const previousRun = await fetchLatestRun(args.supabase, subscription.id);
+    if (previousRun.error) {
+      results.push({
+        subscriptionId: subscription.id,
+        projectId: subscription.project_id ?? subscription.scope_type,
+        subscriptionType: subscription.subscription_type,
+        outcome: "error",
+        reason: previousRun.error,
+        summaryText: subscription.summary_text,
+      });
+      continue;
+    }
+
+    if (subscription.scope_type !== "project") {
+      if (subscription.subscription_type !== "scheduled_digest") {
+        results.push({
+          subscriptionId: subscription.id,
+          projectId: subscription.project_id ?? subscription.scope_type,
+          subscriptionType: subscription.subscription_type,
+          outcome: "skipped",
+          reason: "unsupported_portfolio_subscription_type",
+          summaryText: subscription.summary_text,
+        });
+        continue;
+      }
+
+      results.push(await evaluatePortfolioDigestSubscription({
+        supabase: args.supabase,
+        subscription,
+        previousRun: previousRun.data,
+        now,
+        dryRun: args.dryRun,
+        force: args.force,
+      }));
+      continue;
+    }
+
+    if (!subscription.project_id) {
+      results.push({
+        subscriptionId: subscription.id,
+        projectId: "project",
+        subscriptionType: subscription.subscription_type,
+        outcome: "error",
+        reason: "missing_project_id",
+        summaryText: subscription.summary_text,
+      });
+      continue;
+    }
+
     const context = await fetchProjectCopilotContext(args.supabase, subscription.project_id);
     if (context.error || !context.data) {
       results.push({
@@ -806,19 +999,6 @@ export async function evaluateProjectSubscriptions(args: {
         subscriptionType: subscription.subscription_type,
         outcome: "error",
         reason: context.error ?? "failed_to_load_project_context",
-        summaryText: subscription.summary_text,
-      });
-      continue;
-    }
-
-    const previousRun = await fetchLatestRun(args.supabase, subscription.id);
-    if (previousRun.error) {
-      results.push({
-        subscriptionId: subscription.id,
-        projectId: subscription.project_id,
-        subscriptionType: subscription.subscription_type,
-        outcome: "error",
-        reason: previousRun.error,
         summaryText: subscription.summary_text,
       });
       continue;

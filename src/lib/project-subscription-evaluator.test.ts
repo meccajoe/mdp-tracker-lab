@@ -10,6 +10,8 @@ const baseSubscription: EvaluatableProjectSubscription = {
   channel: "slack_dm",
   target_json: { slack_user_id: "U123" },
   subscription_type: "metric_threshold_alert",
+  scope_type: "project",
+  scope_json: { project_id: "26144" },
   metric_key: "total_spent",
   condition_operator: ">=",
   threshold_value: 600,

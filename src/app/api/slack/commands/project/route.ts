@@ -2,13 +2,20 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { fetchProjectCopilotContext } from "@/lib/project-copilot-context";
-import { listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
+import { buildSubscriptionCreatePayload } from "@/lib/project-subscriptions";
+import { listSlackDmSubscriptions, listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
 import {
   buildSlackProjectHelpText,
   buildSlackProjectResponse,
   buildSlackSubscriptionListResponse,
   parseSlackProjectCommand,
 } from "@/lib/slack-project-copilot";
+import {
+  buildSlackPortfolioConfirmationText,
+  buildSlackPortfolioHelpText,
+  buildSlackPortfolioSubscriptionListText,
+  parseSlackPortfolioCommand,
+} from "@/lib/slack-portfolio-copilot";
 import { lookupSlackEmailByUserId } from "@/lib/slack-delivery";
 import { verifySlackRequest } from "@/lib/slack-request";
 import { findSlackThreadBinding, upsertSlackThreadBinding } from "@/lib/slack-thread-bindings";
@@ -60,17 +67,120 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid Slack signature" }, { status: 401 });
     }
 
-    const parsed = parseSlackProjectCommand(form.get("text") ?? "");
-    if ("error" in parsed) {
-      console.log("[slack/project] parse error", { elapsedMs: Date.now() - startedAt, error: parsed.error });
-      return NextResponse.json({ response_type: "ephemeral", text: parsed.error });
-    }
-
+    const commandText = form.get("text") ?? "";
     const supabase = getSupabaseAdmin();
     const slackUserId = form.get("user_id");
     const channelId = form.get("channel_id");
     const teamId = form.get("team_id");
     const threadTs = form.get("thread_ts") ?? form.get("message_ts");
+
+    if (/^portfolio\b/i.test(commandText.trim())) {
+      if (!slackUserId) {
+        return NextResponse.json({ response_type: "ephemeral", text: "Missing Slack user context." }, { status: 400 });
+      }
+
+      const creatorEmail = await lookupCreatorEmail(slackUserId);
+      const portfolio = parseSlackPortfolioCommand(commandText);
+      if ("error" in portfolio) {
+        return NextResponse.json({ response_type: "ephemeral", text: portfolio.error || buildSlackPortfolioHelpText() });
+      }
+
+      if (portfolio.intent === "help") {
+        return NextResponse.json({ response_type: "ephemeral", text: buildSlackPortfolioHelpText() });
+      }
+
+      if (portfolio.intent === "subscriptions") {
+        const result = await listSlackDmSubscriptions({
+          supabase,
+          slackUserId,
+          createdByEmail: creatorEmail,
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+        });
+        if (result.error) {
+          return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
+        }
+        return NextResponse.json({
+          response_type: "ephemeral",
+          text: buildSlackPortfolioSubscriptionListText(result.data ?? []),
+        });
+      }
+
+      if (portfolio.intent === "pause" || portfolio.intent === "resume" || portfolio.intent === "delete") {
+        const updated = await updateSlackDmSubscriptionStatus({
+          supabase,
+          subscriptionId: portfolio.subscriptionId!,
+          action: portfolio.intent,
+          slackUserId,
+          createdByEmail: creatorEmail,
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+        });
+        if (updated.error) {
+          return NextResponse.json({ response_type: "ephemeral", text: updated.error }, { status: 500 });
+        }
+        const result = await listSlackDmSubscriptions({
+          supabase,
+          slackUserId,
+          createdByEmail: creatorEmail,
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+        });
+        if (result.error) {
+          return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
+        }
+        return NextResponse.json({
+          response_type: "ephemeral",
+          text: `${buildSlackPortfolioConfirmationText({ action: portfolio.intent, subscriptionId: portfolio.subscriptionId })}\n\n${buildSlackPortfolioSubscriptionListText(result.data ?? [])}`,
+        });
+      }
+
+      if (portfolio.intent === "create_digest") {
+        const payload = buildSubscriptionCreatePayload({
+          createdByEmail: (creatorEmail ?? `slack:${slackUserId}`).toLowerCase(),
+          recommendation: {
+            type: "digest",
+            digestKey: "portfolio_digest",
+            defaultSections: ["portfolio_health", "biggest_changes", "highest_spend_projects"],
+            message: "I can send a portfolio digest.",
+          },
+          channel: "slack_dm",
+          targetJson: {
+            delivery: "slack_dm",
+            slack_user_id: slackUserId,
+            slack_team_id: teamId ?? null,
+            origin_channel_id: channelId ?? null,
+            origin_thread_ts: threadTs ?? null,
+            created_via: "slack_portfolio",
+          },
+          scopeType: portfolio.scopeType ?? "all_active_projects",
+          scopeJson: portfolio.scopeJson,
+        });
+
+        const { error } = await supabase.from("project_subscriptions").insert(payload);
+        if (error) {
+          return NextResponse.json({ response_type: "ephemeral", text: error.message }, { status: 500 });
+        }
+
+        const result = await listSlackDmSubscriptions({
+          supabase,
+          slackUserId,
+          createdByEmail: creatorEmail,
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+        });
+        if (result.error) {
+          return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
+        }
+
+        return NextResponse.json({
+          response_type: "ephemeral",
+          text: `${buildSlackPortfolioConfirmationText({ action: "create", scopeType: portfolio.scopeType, scopeJson: portfolio.scopeJson })}\n\n${buildSlackPortfolioSubscriptionListText(result.data ?? [])}`,
+        });
+      }
+    }
+
+    const parsed = parseSlackProjectCommand(commandText);
+    if ("error" in parsed) {
+      console.log("[slack/project] parse error", { elapsedMs: Date.now() - startedAt, error: parsed.error });
+      return NextResponse.json({ response_type: "ephemeral", text: parsed.error });
+    }
 
     let projectId = parsed.projectId;
     if (!projectId && teamId && channelId && threadTs) {

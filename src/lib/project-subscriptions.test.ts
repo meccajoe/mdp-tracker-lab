@@ -29,6 +29,8 @@ test("buildSubscriptionCreatePayload creates an active threshold subscription fr
   });
 
   assert.equal(payload.project_id, "26144");
+  assert.equal(payload.scope_type, "project");
+  assert.deepEqual(payload.scope_json, { project_id: "26144" });
   assert.equal(payload.created_by_email, "joe@meccadesign.com");
   assert.equal(payload.subscription_type, "metric_threshold_alert");
   assert.equal(payload.metric_key, "qbo_total_hours");
@@ -80,6 +82,28 @@ test("buildSubscriptionCreatePayload supports Slack DM delivery targets", () => 
   assert.deepEqual(payload.target_json, { delivery: "slack_dm", slack_user_id: "U123" });
 });
 
+test("buildSubscriptionCreatePayload supports portfolio digest scopes", () => {
+  const payload = buildSubscriptionCreatePayload({
+    createdByEmail: "paul@meccadesign.com",
+    channel: "slack_dm",
+    targetJson: { delivery: "slack_dm", slack_user_id: "U123" },
+    scopeType: "all_active_projects",
+    scopeJson: {},
+    recommendation: {
+      type: "digest",
+      digestKey: "portfolio_digest",
+      defaultSections: ["portfolio_health"],
+      message: "I can send a portfolio digest.",
+    },
+  });
+
+  assert.equal(payload.project_id, null);
+  assert.equal(payload.scope_type, "all_active_projects");
+  assert.deepEqual(payload.scope_json, {});
+  assert.match(payload.summary_text, /portfolio digest/i);
+  assert.match(payload.summary_text, /all active projects/i);
+});
+
 test("buildSubscriptionSummary renders clear human-readable labels", () => {
   const summary = buildSubscriptionSummary({
     subscription_type: "metric_threshold_alert",
@@ -91,6 +115,21 @@ test("buildSubscriptionSummary renders clear human-readable labels", () => {
   });
 
   assert.equal(summary, "Alert when labor hours reach 95 hrs");
+});
+
+test("buildSubscriptionSummary renders portfolio scope labels for digests", () => {
+  const summary = buildSubscriptionSummary({
+    subscription_type: "scheduled_digest",
+    scope_type: "pm_active_projects",
+    scope_json: { pm_initials: "PM" },
+    metric_key: null,
+    condition_operator: null,
+    threshold_value: null,
+    schedule_cron: "0 16 * * 1-5",
+    rule_json: {},
+  });
+
+  assert.equal(summary, "Weekday 4pm portfolio digest — PM active projects");
 });
 
 test("getNextStatusForAction supports pause resume and archive actions", () => {
