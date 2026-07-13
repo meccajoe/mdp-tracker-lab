@@ -14,6 +14,7 @@ test("project subscriptions routes authenticate, manage the current user's Slack
   assert.match(routeSource, /buildSubscriptionCreatePayload\(/, "subscriptions route should build inserts from recommendation-backed payloads");
   assert.match(routeSource, /channel:\s*"slack_dm"/, "subscriptions route should create Slack DM subscriptions from the web app");
   assert.match(routeSource, /created_via:\s*"project_modal"/, "subscriptions route should tag subscriptions created from the project modal");
+  assert.match(routeSource, /resolveSlackIdentityForProjectModal\(|slack_user_id|slack_email/, "subscriptions route should persist Slack identity metadata for project-modal subscriptions");
   assert.match(routeSource, /const userEmail = auth\.user\.email\.toLowerCase\(\)/, "subscriptions route should normalize the authenticated user's email once");
   assert.match(routeSource, /\.eq\("channel",\s*"slack_dm"\)/, "subscriptions route should list only Slack-backed subscriptions");
   assert.match(routeSource, /\.eq\("created_by_email",\s*userEmail\)/, "subscriptions route should list only the authenticated user's subscriptions");

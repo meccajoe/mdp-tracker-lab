@@ -87,18 +87,30 @@ test("buildSubscriptionCreatePayload supports project-modal Slack delivery targe
     projectId: "26144",
     createdByEmail: "joe@meccadesign.com",
     channel: "slack_dm",
-    targetJson: { delivery: "slack_dm", created_via: "project_modal", source_surface: "mdp_tracker_project" },
+    targetJson: {
+      delivery: "slack_dm",
+      created_via: "project_modal",
+      source_surface: "mdp_tracker_project",
+      slack_user_id: "U0A8ZL56YKG",
+      slack_email: "mecca.joe@gmail.com",
+    },
     recommendation: {
       type: "digest",
-      digestKey: "daily_pm",
-      defaultSections: ["labor_hours", "total_spend", "spend_by_category"],
-      message: "I can send a daily PM digest.",
+      digestKey: "project_status_digest",
+      defaultSections: ["financial_summary", "recent_expenses"],
+      message: "Keep me posted",
     },
   });
 
   assert.equal(payload.channel, "slack_dm");
   assert.equal(payload.created_by_email, "joe@meccadesign.com");
-  assert.deepEqual(payload.target_json, { delivery: "slack_dm", created_via: "project_modal", source_surface: "mdp_tracker_project" });
+  assert.deepEqual(payload.target_json, {
+    delivery: "slack_dm",
+    created_via: "project_modal",
+    source_surface: "mdp_tracker_project",
+    slack_user_id: "U0A8ZL56YKG",
+    slack_email: "mecca.joe@gmail.com",
+  });
   assert.match(payload.summary_text, /weekday 4pm/i);
 });
 
@@ -189,6 +201,33 @@ test("buildSubscriptionSummary special-cases portfolio exception alerts", () => 
     rule_json: { unit: "percent", scopeKey: "budget_hrs" },
   });
   assert.equal(laborSummary, "Alert when any saved portfolio client-a project reaches 95% of labor budget");
+});
+
+test("buildSubscriptionSummary renders saved-portfolio utilization thresholds for specific budgets", () => {
+  const fabricationSummary = buildSubscriptionSummary({
+    subscription_type: "metric_threshold_alert",
+    scope_type: "saved_portfolio",
+    scope_json: { portfolio_name: "client-a" },
+    metric_key: "budget_utilization_pct",
+    condition_operator: ">=",
+    threshold_value: 90,
+    schedule_cron: null,
+    rule_json: { unit: "percent", scopeKey: "budget_materials" },
+  });
+
+  const totalBudgetSummary = buildSubscriptionSummary({
+    subscription_type: "metric_threshold_alert",
+    scope_type: "saved_portfolio",
+    scope_json: { portfolio_name: "client-a" },
+    metric_key: "budget_utilization_pct",
+    condition_operator: ">=",
+    threshold_value: 100,
+    schedule_cron: null,
+    rule_json: { unit: "percent", scopeKey: "total_budget" },
+  });
+
+  assert.equal(fabricationSummary, "Alert when any saved portfolio client-a project reaches 90% of fabrication budget");
+  assert.equal(totalBudgetSummary, "Alert when any saved portfolio client-a project reaches 100% of total budget");
 });
 
 test("getNextStatusForAction supports pause resume and archive actions", () => {

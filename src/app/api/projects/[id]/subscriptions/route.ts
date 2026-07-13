@@ -8,6 +8,7 @@ import {
   type DigestRecommendationInput,
   type ThresholdRecommendationInput,
 } from "@/lib/project-subscriptions";
+import { lookupSlackEmailByUserId, lookupSlackUserByEmail } from "@/lib/slack-delivery";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -15,6 +16,69 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 function getSupabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+}
+
+function extractSlackUserIdFromRow(row: Record<string, unknown>) {
+  const targetJson = (row.target_json as Record<string, unknown> | null | undefined) ?? null;
+  const directSlackUserId = typeof targetJson?.slack_user_id === "string" ? targetJson.slack_user_id.trim().toUpperCase() : "";
+  if (directSlackUserId && !directSlackUserId.startsWith("UTEST")) {
+    return directSlackUserId;
+  }
+
+  const createdByEmail = typeof row.created_by_email === "string" ? row.created_by_email : "";
+  if (/^slack:/i.test(createdByEmail)) {
+    const parsed = createdByEmail.split(":", 2)[1]?.trim().toUpperCase() ?? "";
+    if (parsed && !parsed.startsWith("UTEST")) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+async function resolveSlackUserIdForProjectModal(args: { supabase: ReturnType<typeof getSupabaseAdmin>; userEmail: string }) {
+  try {
+    return await lookupSlackUserByEmail(args.userEmail);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/No Slack user found for /i.test(message)) {
+      return null;
+    }
+  }
+
+  const { data, error } = await args.supabase
+    .from("project_subscriptions")
+    .select("created_by_email, target_json")
+    .eq("channel", "slack_dm")
+    .order("updated_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    return null;
+  }
+
+  for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    const slackUserId = extractSlackUserIdFromRow(row);
+    if (slackUserId) {
+      return slackUserId;
+    }
+  }
+
+  return null;
+}
+
+async function resolveSlackIdentityForProjectModal(args: { supabase: ReturnType<typeof getSupabaseAdmin>; userEmail: string }) {
+  const slackUserId = await resolveSlackUserIdForProjectModal(args);
+  if (!slackUserId) {
+    return { slackUserId: null, slackEmail: null };
+  }
+
+  try {
+    const slackEmail = await lookupSlackEmailByUserId(slackUserId);
+    return { slackUserId, slackEmail };
+  } catch {
+    return { slackUserId, slackEmail: null };
+  }
 }
 
 async function requireAuthenticatedUser() {
@@ -107,6 +171,14 @@ export async function POST(
   });
 
   const supabase = getSupabaseAdmin();
+  const slackIdentity = await resolveSlackIdentityForProjectModal({ supabase, userEmail });
+  if (slackIdentity.slackUserId) {
+    payload.target_json = {
+      ...(payload.target_json ?? {}),
+      slack_user_id: slackIdentity.slackUserId,
+      slack_email: slackIdentity.slackEmail ?? undefined,
+    };
+  }
   const { data, error } = await supabase
     .from("project_subscriptions")
     .insert(payload)

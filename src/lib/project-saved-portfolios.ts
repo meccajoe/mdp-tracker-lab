@@ -8,6 +8,8 @@ export type SavedPortfolioProjectMembership = {
   project_id: string;
   ordinal: number;
   monitor_keys: PortfolioMonitorKey[];
+  project_name?: string | null;
+  client_name?: string | null;
 };
 
 export type SavedPortfolioRow = {
@@ -34,6 +36,31 @@ function parsePortfolioMemberships(rows: Array<Record<string, unknown>> | null |
     .sort((a, b) => a.ordinal - b.ordinal);
 }
 
+async function fetchProjectIdentityMap(args: { supabase: any; projectIds: string[] }) {
+  if (args.projectIds.length === 0) {
+    return { data: {} as Record<string, { project_name: string | null; client_name: string | null }>, error: null };
+  }
+
+  const { data, error } = await args.supabase
+    .from("project_summary")
+    .select("id, name, client")
+    .in("id", args.projectIds);
+
+  if (error) {
+    return { data: {} as Record<string, { project_name: string | null; client_name: string | null }>, error: error.message };
+  }
+
+  const map = ((data ?? []) as Array<Record<string, unknown>>).reduce<Record<string, { project_name: string | null; client_name: string | null }>>((acc, row) => {
+    acc[String(row.id)] = {
+      project_name: typeof row.name === "string" ? row.name : null,
+      client_name: typeof row.client === "string" ? row.client : null,
+    };
+    return acc;
+  }, {});
+
+  return { data: map, error: null };
+}
+
 export async function listSavedPortfolios(args: {
   supabase: any;
   createdByEmail: string;
@@ -48,8 +75,21 @@ export async function listSavedPortfolios(args: {
     return { data: null, error: error.message };
   }
 
-  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
-    const projects = parsePortfolioMemberships((row.project_portfolio_projects as Array<Record<string, unknown>> | null | undefined) ?? []);
+  const membershipRows = ((data ?? []) as Array<Record<string, unknown>>).map((row) =>
+    parsePortfolioMemberships((row.project_portfolio_projects as Array<Record<string, unknown>> | null | undefined) ?? [])
+  );
+  const projectIds = Array.from(new Set(membershipRows.flatMap((items) => items.map((item) => item.project_id))));
+  const identities = await fetchProjectIdentityMap({ supabase: args.supabase, projectIds });
+  if (identities.error) {
+    return { data: null, error: identities.error };
+  }
+
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row, index) => {
+    const projects = membershipRows[index].map((membership) => ({
+      ...membership,
+      project_name: identities.data[membership.project_id]?.project_name ?? null,
+      client_name: identities.data[membership.project_id]?.client_name ?? null,
+    }));
     return {
       id: String(row.id),
       created_by_email: String(row.created_by_email),

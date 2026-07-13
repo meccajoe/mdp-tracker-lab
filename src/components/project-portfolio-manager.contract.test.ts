@@ -12,5 +12,7 @@ test("project portfolio manager supports saved portfolios plus Slack-backed port
   assert.match(source, /Portfolio digests and alerts/i, "component should render a portfolio manager section title");
   assert.match(source, /Save portfolio/i, "component should support saving named project portfolios");
   assert.match(source, /Create portfolio/i, "component should support creating a portfolio digest or alert from the tracker");
+  assert.match(source, /Project .*Client|project_name|client_name/i, "portfolio center should render project names or client names for saved portfolio memberships");
+  assert.match(source, /Fabrication reaches 90%|Travel reaches 100%|Labor reaches 95%|over budget/i, "portfolio center should expose richer monitor presets");
   assert.match(source, /All active projects|PM active projects|Saved portfolio/i, "component should expose portfolio scope choices");
 });

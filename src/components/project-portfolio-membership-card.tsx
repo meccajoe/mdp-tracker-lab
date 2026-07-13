@@ -11,6 +11,8 @@ type SavedPortfolioProject = {
   project_id: string;
   ordinal: number;
   monitor_keys: PortfolioMonitorKey[];
+  project_name?: string | null;
+  client_name?: string | null;
 };
 
 type SavedPortfolio = {
@@ -49,8 +51,10 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
   const [savedPortfolios, setSavedPortfolios] = useState<SavedPortfolio[]>([]);
   const [selectedPortfolioSlug, setSelectedPortfolioSlug] = useState("");
   const [selectedMonitorKeys, setSelectedMonitorKeys] = useState<PortfolioMonitorKey[]>([]);
+  const [newPortfolioName, setNewPortfolioName] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [creatingPortfolio, setCreatingPortfolio] = useState(false);
   const [removingSlug, setRemovingSlug] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,13 +95,25 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
   useEffect(() => {
     const selected = savedPortfolios.find((portfolio) => portfolio.slug === selectedPortfolioSlug);
     const existingMembership = selected?.projects?.find((project) => project.project_id === projectId);
-    setSelectedMonitorKeys(existingMembership?.monitor_keys ?? ["labor_budget_warning", "total_budget_overrun"]);
+    setSelectedMonitorKeys(existingMembership?.monitor_keys ?? (["labor_budget_95", "budget_materials_90"] as PortfolioMonitorKey[]));
   }, [projectId, savedPortfolios, selectedPortfolioSlug]);
 
   function toggleMonitorKey(monitorKey: PortfolioMonitorKey) {
     setSelectedMonitorKeys((current) => current.includes(monitorKey)
       ? current.filter((value) => value !== monitorKey)
       : [...current, monitorKey]);
+  }
+
+  async function saveMembershipToPortfolio(slug: string) {
+    const response = await fetch(`/api/project-portfolios/${slug}/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId,
+        monitorKeys: normalizePortfolioMonitorKeys(selectedMonitorKeys),
+      }),
+    });
+    return parseApiResponse<{ portfolio?: SavedPortfolio }>(response);
   }
 
   async function saveMembership() {
@@ -110,15 +126,7 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
     setError(null);
     setStatus(null);
     try {
-      const response = await fetch(`/api/project-portfolios/${selectedPortfolioSlug}/projects`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          monitorKeys: normalizePortfolioMonitorKeys(selectedMonitorKeys),
-        }),
-      });
-      const { error } = await parseApiResponse<{ portfolio?: SavedPortfolio }>(response);
+      const { error } = await saveMembershipToPortfolio(selectedPortfolioSlug);
       if (error) throw new Error(error);
       setStatus("Saved portfolio membership for this project.");
       await loadSavedPortfolios();
@@ -126,6 +134,42 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
       setError(requestError instanceof Error ? requestError.message : "Failed to save portfolio membership");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function createPortfolioWithProject() {
+    if (!newPortfolioName.trim()) {
+      setError("Name the new portfolio first.");
+      return;
+    }
+
+    setCreatingPortfolio(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const createResponse = await fetch("/api/project-portfolios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPortfolioName.trim(), projectIds: [projectId] }),
+      });
+      const { data, error } = await parseApiResponse<{ portfolio?: SavedPortfolio }>(createResponse);
+      if (error || !data?.portfolio?.slug) {
+        throw new Error(error ?? "Failed to create new portfolio");
+      }
+
+      const membershipResult = await saveMembershipToPortfolio(data.portfolio.slug);
+      if (membershipResult.error) {
+        throw new Error(membershipResult.error);
+      }
+
+      setSelectedPortfolioSlug(data.portfolio.slug);
+      setNewPortfolioName("");
+      setStatus(`Created portfolio ${data.portfolio.name} with this project.`);
+      await loadSavedPortfolios();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to create new portfolio with this project");
+    } finally {
+      setCreatingPortfolio(false);
     }
   }
 
@@ -171,6 +215,10 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
       </div>
 
       <div className="space-y-3 rounded-xl border p-4">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Add this project to a portfolio</p>
+          <p className="text-xs text-muted-foreground">Choose an existing portfolio or create a new portfolio with this project.</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm sm:col-span-2">
             <span className="text-muted-foreground">Saved portfolio</span>
@@ -180,6 +228,20 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
                 <option key={portfolio.id} value={portfolio.slug}>{portfolio.name}</option>
               ))}
             </select>
+          </label>
+          <label className="space-y-1 text-sm sm:col-span-2">
+            <span className="text-muted-foreground">Create a new portfolio with this project</span>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                value={newPortfolioName}
+                onChange={(event) => setNewPortfolioName(event.target.value)}
+                className="w-full rounded-md border px-3 py-2"
+                placeholder="whatnot-shelves-watchlist"
+              />
+              <Button type="button" variant="outline" onClick={() => void createPortfolioWithProject()} disabled={creatingPortfolio || !newPortfolioName.trim() || selectedMonitorKeys.length === 0}>
+                {creatingPortfolio ? "Creating..." : "Create new portfolio"}
+              </Button>
+            </div>
           </label>
         </div>
 
@@ -229,6 +291,11 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
                     <div>
                       <div className="text-sm font-medium">{portfolio.name}</div>
                       <div className="text-xs text-muted-foreground">{portfolio.slug}</div>
+                    </div>
+                    <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">Project {membership?.project_id}</span>
+                      {membership?.project_name ? ` · ${membership.project_name}` : ""}
+                      {membership?.client_name ? ` · Client: ${membership.client_name}` : ""}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {(membership?.monitor_keys ?? []).map((monitorKey) => (

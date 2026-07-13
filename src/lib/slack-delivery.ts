@@ -15,6 +15,19 @@ export function buildSlackTestMessage(args: {
   ].filter(Boolean).join("\n\n");
 }
 
+function buildSlackRequestBody(body: Record<string, unknown>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(body)) {
+    if (value == null) continue;
+    if (typeof value === "string") {
+      params.set(key, value);
+      continue;
+    }
+    params.set(key, JSON.stringify(value));
+  }
+  return params;
+}
+
 async function slackApi(path: string, body: Record<string, unknown>) {
   if (!SLACK_BOT_TOKEN) {
     throw new Error("MDP_SLACK_BOT_TOKEN is not configured");
@@ -24,9 +37,9 @@ async function slackApi(path: string, body: Record<string, unknown>) {
     method: "POST",
     headers: {
       Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
     },
-    body: JSON.stringify(body),
+    body: buildSlackRequestBody(body).toString(),
   });
 
   const data = (await response.json()) as Record<string, unknown>;
@@ -37,7 +50,16 @@ async function slackApi(path: string, body: Record<string, unknown>) {
 }
 
 export async function lookupSlackUserByEmail(email: string) {
-  const data = await slackApi("users.lookupByEmail", { email });
+  let data: Record<string, unknown>;
+  try {
+    data = await slackApi("users.lookupByEmail", { email });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === "users_not_found") {
+      throw new Error(`No Slack user found for ${email}`);
+    }
+    throw error;
+  }
   const user = data.user as { id?: string } | undefined;
   if (!user?.id) {
     throw new Error(`No Slack user found for ${email}`);
@@ -86,3 +108,13 @@ export async function sendSlackDmByEmail(email: string, text: string) {
   const ts = await sendSlackMessage(channelId, text);
   return { userId, channelId, ts };
 }
+
+export default {
+  buildSlackTestMessage,
+  lookupSlackEmailByUserId,
+  lookupSlackUserByEmail,
+  openSlackDmChannel,
+  sendSlackChannelMessage,
+  sendSlackDmByEmail,
+  sendSlackMessage,
+};

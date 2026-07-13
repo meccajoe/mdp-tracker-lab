@@ -133,6 +133,18 @@ export function getCurrentMetricValue(subscription: EvaluatableProjectSubscripti
       const budget = getBudgetValue(context.project, scopeKey);
       return calculateBudgetVariancePercent(actual, budget);
     }
+    case "budget_utilization_pct": {
+      const scopeKey = getRuleScopeKey(subscription);
+      if (!scopeKey) return null;
+      if (scopeKey === "total_budget") {
+        if (!context.project.total_budget) return null;
+        return (context.project.total_spent / context.project.total_budget) * 100;
+      }
+      const actual = context.categoryActuals[scopeKey as CategoryScopeKey] ?? 0;
+      const budget = getBudgetValue(context.project, scopeKey);
+      if (!budget) return null;
+      return (actual / budget) * 100;
+    }
     case "labor_budget_pct": {
       if (!context.project.budget_hrs || context.project.budget_hrs <= 0) return null;
       return (context.project.qbo_total_hours / context.project.budget_hrs) * 100;
@@ -344,12 +356,14 @@ function buildThresholdMessage(args: {
   const unit = getRuleUnit(args.subscription);
   const threshold = args.subscription.threshold_value ?? 0;
   const scopeKey = getRuleScopeKey(args.subscription);
-  const currentLabel = scopeKey && (args.subscription.metric_key === "category_actual_spend" || args.subscription.metric_key === "budget_variance_pct")
-    ? `${scopeKey.replace(/^budget_/, "")} ${args.subscription.metric_key === "budget_variance_pct" ? "variance" : "spend"}`
+  const currentLabel = scopeKey && (args.subscription.metric_key === "category_actual_spend" || args.subscription.metric_key === "budget_variance_pct" || args.subscription.metric_key === "budget_utilization_pct")
+    ? `${scopeKey.replace(/^budget_/, "")} ${args.subscription.metric_key === "budget_variance_pct" ? "variance" : args.subscription.metric_key === "budget_utilization_pct" ? "budget used" : "spend"}`
     : args.subscription.metric_key === "qbo_total_hours"
       ? "labor hours"
       : args.subscription.metric_key === "total_spent"
         ? "total spend"
+        : args.subscription.metric_key === "labor_budget_pct"
+          ? "labor budget used"
         : "metric";
 
   const lines = [
@@ -451,7 +465,55 @@ async function updateSubscriptionTimestamps(args: {
   return { error: error?.message ?? null };
 }
 
+function extractSlackUserIdForDelivery(args: {
+  targetJson?: Record<string, unknown> | null;
+  createdByEmail?: string | null;
+}) {
+  const directSlackUserId = typeof args.targetJson?.slack_user_id === "string"
+    ? args.targetJson.slack_user_id.trim().toUpperCase()
+    : "";
+  if (directSlackUserId && !directSlackUserId.startsWith("UTEST")) {
+    return directSlackUserId;
+  }
+
+  const createdByEmail = String(args.createdByEmail ?? "").trim();
+  if (/^slack:/i.test(createdByEmail)) {
+    const parsed = createdByEmail.split(":", 2)[1]?.trim().toUpperCase() ?? "";
+    if (parsed && !parsed.startsWith("UTEST")) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+async function findFallbackSlackUserIdForDelivery(supabase: any) {
+  const { data, error } = await supabase
+    .from("project_subscriptions")
+    .select("created_by_email, target_json")
+    .eq("channel", "slack_dm")
+    .order("updated_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    return null;
+  }
+
+  for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    const slackUserId = extractSlackUserIdForDelivery({
+      targetJson: (row.target_json as Record<string, unknown> | null | undefined) ?? null,
+      createdByEmail: typeof row.created_by_email === "string" ? row.created_by_email : null,
+    });
+    if (slackUserId) {
+      return slackUserId;
+    }
+  }
+
+  return null;
+}
+
 async function deliverToSubscriptionTarget(args: {
+  supabase: any;
   subscription: EvaluatableProjectSubscription;
   text: string;
 }) {
@@ -465,9 +527,10 @@ async function deliverToSubscriptionTarget(args: {
     };
   }
 
-  const slackUserId = typeof args.subscription.target_json?.slack_user_id === "string"
-    ? args.subscription.target_json.slack_user_id
-    : null;
+  const slackUserId = extractSlackUserIdForDelivery({
+    targetJson: args.subscription.target_json,
+    createdByEmail: args.subscription.created_by_email,
+  });
 
   try {
     if (slackUserId) {
@@ -491,12 +554,38 @@ async function deliverToSubscriptionTarget(args: {
       errorText: null,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Slack DM delivery failed";
+    if (/No Slack user found for /i.test(message)) {
+      const fallbackSlackUserId = await findFallbackSlackUserIdForDelivery(args.supabase);
+      if (fallbackSlackUserId && fallbackSlackUserId !== slackUserId) {
+        try {
+          const channelId = await openSlackDmChannel(fallbackSlackUserId);
+          const ts = await sendSlackMessage(channelId, args.text);
+          return {
+            channel: "slack_dm",
+            target: fallbackSlackUserId,
+            status: "delivered" as const,
+            externalMessageId: ts,
+            errorText: null,
+          };
+        } catch (fallbackError) {
+          return {
+            channel: "slack_dm",
+            target: fallbackSlackUserId,
+            status: "failed" as const,
+            externalMessageId: null,
+            errorText: fallbackError instanceof Error ? fallbackError.message : "Slack DM delivery failed",
+          };
+        }
+      }
+    }
+
     return {
       channel: "slack_dm",
       target: slackUserId,
       status: "failed" as const,
       externalMessageId: null,
-      errorText: error instanceof Error ? error.message : "Slack DM delivery failed",
+      errorText: message,
     };
   }
 }
@@ -650,7 +739,7 @@ async function evaluateThresholdSubscription(args: {
     };
   }
 
-  const delivery = await deliverToSubscriptionTarget({ subscription: args.subscription, text: message.text });
+  const delivery = await deliverToSubscriptionTarget({ supabase: args.supabase, subscription: args.subscription, text: message.text });
   await recordDelivery({
     supabase: args.supabase,
     subscriptionRunId: run.data.id,
@@ -767,7 +856,7 @@ async function evaluateDigestSubscription(args: {
     };
   }
 
-  const delivery = await deliverToSubscriptionTarget({ subscription: args.subscription, text: digest.text });
+  const delivery = await deliverToSubscriptionTarget({ supabase: args.supabase, subscription: args.subscription, text: digest.text });
   await recordDelivery({
     supabase: args.supabase,
     subscriptionRunId: run.data.id,
@@ -961,7 +1050,7 @@ async function evaluatePortfolioThresholdSubscription(args: {
     };
   }
 
-  const delivery = await deliverToSubscriptionTarget({ subscription: args.subscription, text: alert.text });
+  const delivery = await deliverToSubscriptionTarget({ supabase: args.supabase, subscription: args.subscription, text: alert.text });
   await recordDelivery({
     supabase: args.supabase,
     subscriptionRunId: run.data.id,
@@ -1078,7 +1167,7 @@ async function evaluatePortfolioDigestSubscription(args: {
     };
   }
 
-  const delivery = await deliverToSubscriptionTarget({ subscription: args.subscription, text: digest.text });
+  const delivery = await deliverToSubscriptionTarget({ supabase: args.supabase, subscription: args.subscription, text: digest.text });
   await recordDelivery({
     supabase: args.supabase,
     subscriptionRunId: run.data.id,

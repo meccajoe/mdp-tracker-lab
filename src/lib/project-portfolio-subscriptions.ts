@@ -262,6 +262,10 @@ export function buildPortfolioThresholdAlertText(args: {
   const scopeLabel = buildSubscriptionScopeLabel(args.scopeType, args.scopeJson ?? {});
   const metricLabel = args.metricKey === "labor_budget_pct"
     ? "labor budget"
+    : args.metricKey === "budget_utilization_pct"
+      ? args.scopeKey && args.scopeKey !== "total_budget"
+        ? `${String(args.scopeKey).replace(/^budget_/, "")} budget used`
+        : "total budget used"
     : args.metricKey === "budget_variance_pct"
       ? args.scopeKey && args.scopeKey !== "total_budget"
         ? `${String(args.scopeKey).replace(/^budget_/, "")} budget variance`

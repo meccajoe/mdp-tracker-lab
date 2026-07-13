@@ -11,5 +11,6 @@ test("subscription test-delivery route authenticates, resolves the target user e
   assert.match(source, /from\("project_summary"\)/, "route should load project summary context");
   assert.match(source, /from\("project_subscriptions"\)/, "route should be able to load saved subscription rows");
   assert.match(source, /sendSlackDmByEmail\(/, "route should use the shared Slack DM helper");
+  assert.match(source, /openSlackDmChannel\(|sendSlackMessage\(|findFallbackSlackUserId\(/, "route should support fallback Slack user-id delivery when email lookup is unavailable");
   assert.match(source, /MDP_SLACK_BOT_TOKEN/, "route should depend on the existing Slack bot token env var");
 });

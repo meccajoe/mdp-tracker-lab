@@ -10,6 +10,8 @@ type SavedPortfolioProject = {
   project_id: string;
   ordinal: number;
   monitor_keys: PortfolioMonitorKey[];
+  project_name?: string | null;
+  client_name?: string | null;
 };
 
 type SavedPortfolio = {
@@ -330,7 +332,12 @@ export function ProjectPortfolioManager({
                         {(portfolio.projects ?? []).map((project) => (
                           <div key={`${portfolio.id}:${project.project_id}`} className="rounded-md border px-3 py-3">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="text-sm font-medium">Project {project.project_id}</div>
+                              <div>
+                                <div className="text-sm font-medium">Project {project.project_id}{project.project_name ? ` · ${project.project_name}` : ""}</div>
+                                {project.client_name && (
+                                  <div className="text-xs text-muted-foreground">Client: {project.client_name}</div>
+                                )}
+                              </div>
                               <div className="flex flex-wrap gap-2">
                                 {project.monitor_keys.length > 0 ? project.monitor_keys.map((monitorKey) => {
                                   const config = getPortfolioMonitorConfig(monitorKey);
@@ -466,6 +473,10 @@ export function ProjectPortfolioManager({
             ))}
           </div>
         )}
+      </div>
+
+      <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+        Popular presets: Labor reaches 95% of budget · Fabrication reaches 90% of budget · Travel reaches 100% of budget · Total project over budget.
       </div>
 
       <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">

@@ -67,6 +67,8 @@ function labelMetric(metricKey: string) {
       return "total spend";
     case "budget_variance_pct":
       return "budget variance";
+    case "budget_utilization_pct":
+      return "budget used";
     case "labor_budget_pct":
       return "labor budget";
     default:
@@ -157,7 +159,7 @@ export function buildSubscriptionSummary(input: {
   }
 
   const unit = (input.rule_json.unit as "hours" | "currency" | "percent" | undefined) ?? "hours";
-  const scopePrefix = input.metric_key === "category_actual_spend" || input.metric_key === "budget_variance_pct"
+  const scopePrefix = input.metric_key === "category_actual_spend" || input.metric_key === "budget_variance_pct" || input.metric_key === "budget_utilization_pct"
     ? `${labelScope(String(input.rule_json.scopeKey ?? ""))} `
     : "";
   const subject = scopeType === "project" ? "" : `${scopeLabel} `;
@@ -171,6 +173,12 @@ export function buildSubscriptionSummary(input: {
 
   if (scopeType !== "project" && input.metric_key === "labor_budget_pct") {
     return `Alert when any ${scopeLabel} project reaches ${formatThresholdValue(input.threshold_value, unit)} of labor budget`;
+  }
+
+  if (scopeType !== "project" && input.metric_key === "budget_utilization_pct") {
+    const scopeKey = String(input.rule_json.scopeKey ?? "");
+    const label = scopeKey === "total_budget" ? "total budget" : `${labelScope(scopeKey)} budget`;
+    return `Alert when any ${scopeLabel} project reaches ${formatThresholdValue(input.threshold_value ?? 0, unit)} of ${label}`;
   }
 
   return `Alert when ${subject}${scopePrefix}${labelMetric(input.metric_key)} ${input.condition_operator} ${formatThresholdValue(input.threshold_value, unit)}`
