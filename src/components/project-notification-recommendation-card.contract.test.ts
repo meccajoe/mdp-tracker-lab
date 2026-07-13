@@ -13,6 +13,7 @@ test("project detail page uses a bell-triggered modal for synced Slack digests a
   assert.match(componentSource, /\/api\/projects\/\$\{projectId\}\/copilot\/notification-recommendation/, "component should post to the notification recommendation API route");
   assert.match(componentSource, /Get recommendation/i, "component should expose a call-to-action button");
   assert.match(componentSource, /Create alert|Create digest/, "component should expose a direct create-from-prompt action alongside recommendations");
+  assert.match(componentSource, /project-portfolio-manager/i, "component should wire in the portfolio manager for admin users");
   assert.match(componentSource, /Recommended thresholds|defaultSections|spotlight/i, "component should render recommendation details");
   assert.match(componentSource, /Slack digests and alerts/i, "component should present itself as a Slack digests and alerts manager");
   assert.match(componentSource, /same Slack digests and alerts|same digests and alerts/i, "component should explain that web and Slack manage the same subscriptions");

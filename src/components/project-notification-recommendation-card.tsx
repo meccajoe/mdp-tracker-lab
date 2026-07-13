@@ -6,6 +6,7 @@ import type { ProjectSummary } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ProjectPortfolioManager } from "@/components/project-portfolio-manager";
 
 type ThresholdRecommendation = {
   type: "threshold";
@@ -125,9 +126,13 @@ async function parseApiResponse<T>(response: Response): Promise<{ data: (T & { e
 export function ProjectNotificationRecommendationCard({
   projectId,
   project,
+  canManagePortfolios = false,
+  defaultPmInitials = null,
 }: {
   projectId: string;
   project: ProjectSummary;
+  canManagePortfolios?: boolean;
+  defaultPmInitials?: string | null;
 }) {
   const [prompt, setPrompt] = useState("notify me when labor gets too high");
   const [loading, setLoading] = useState(false);
@@ -542,6 +547,10 @@ export function ProjectNotificationRecommendationCard({
           </div>
         )}
       </div>
+
+      {canManagePortfolios && (
+        <ProjectPortfolioManager projectId={projectId} defaultPmInitials={defaultPmInitials} />
+      )}
     </div>
   );
 }

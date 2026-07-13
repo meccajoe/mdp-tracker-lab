@@ -900,7 +900,12 @@ export default function ProjectDetailPage() {
               <DialogHeader>
                 <DialogTitle>Slack digests and alerts</DialogTitle>
               </DialogHeader>
-              <ProjectNotificationRecommendationCard projectId={projectId} project={project} />
+              <ProjectNotificationRecommendationCard
+                projectId={projectId}
+                project={project}
+                canManagePortfolios={effectiveIsAdmin}
+                defaultPmInitials={project.pm ?? null}
+              />
             </DialogContent>
           </Dialog>
           {effectiveIsAdmin && (
