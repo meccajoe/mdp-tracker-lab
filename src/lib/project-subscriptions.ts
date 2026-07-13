@@ -1,7 +1,7 @@
 export type SubscriptionStatus = "active" | "paused" | "archived";
 export type SubscriptionAction = "pause" | "resume" | "delete";
 export type SubscriptionType = "metric_threshold_alert" | "scheduled_digest";
-export type SubscriptionScopeType = "project" | "my_active_projects" | "pm_active_projects" | "all_active_projects";
+export type SubscriptionScopeType = "project" | "my_active_projects" | "pm_active_projects" | "all_active_projects" | "saved_portfolio";
 
 export type ThresholdRecommendationInput = {
   type: "threshold";
@@ -67,6 +67,8 @@ function labelMetric(metricKey: string) {
       return "total spend";
     case "budget_variance_pct":
       return "budget variance";
+    case "labor_budget_pct":
+      return "labor budget";
     default:
       return metricKey;
   }
@@ -119,6 +121,10 @@ export function buildSubscriptionScopeLabel(scopeType: SubscriptionScopeType, sc
     }
     case "all_active_projects":
       return "all active projects";
+    case "saved_portfolio": {
+      const portfolioName = typeof scopeJson.portfolio_name === "string" ? scopeJson.portfolio_name : null;
+      return portfolioName ? `saved portfolio ${portfolioName}` : "saved portfolio";
+    }
     default:
       return "portfolio";
   }
@@ -155,6 +161,14 @@ export function buildSubscriptionSummary(input: {
     ? `${labelScope(String(input.rule_json.scopeKey ?? ""))} `
     : "";
   const subject = scopeType === "project" ? "" : `${scopeLabel} `;
+
+  if (scopeType !== "project" && input.metric_key === "budget_variance_pct" && input.threshold_value === 0) {
+    return `Alert when any ${scopeLabel} project goes over budget`;
+  }
+
+  if (scopeType !== "project" && input.metric_key === "labor_budget_pct") {
+    return `Alert when any ${scopeLabel} project reaches ${formatThresholdValue(input.threshold_value, unit)} of labor budget`;
+  }
 
   return `Alert when ${subject}${scopePrefix}${labelMetric(input.metric_key)} ${input.condition_operator} ${formatThresholdValue(input.threshold_value, unit)}`
     .replace(" >= ", " reach ")

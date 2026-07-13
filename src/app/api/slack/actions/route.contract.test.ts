@@ -9,6 +9,8 @@ test("Slack actions route saves and manages subscriptions with DM delivery defau
 
   assert.match(source, /verifySlackRequest\(/, "route should verify Slack signatures");
   assert.match(source, /buildSlackSubscriptionActionResponse\(/, "route should return explicit confirmation UI after button actions");
+  assert.match(source, /decodeSlackPortfolioActionValue\(/, "route should support portfolio setup buttons");
+  assert.match(source, /buildSlackPortfolioSubscriptionListText\(/, "route should confirm portfolio button-created subscriptions");
   assert.match(source, /lookupSlackEmailByUserId\(/, "route should try to resolve the Slack user email");
   assert.match(source, /buildSubscriptionCreatePayload\(/, "route should reuse the shared subscription payload builder");
   assert.match(source, /channel: "slack_dm"/, "route should default Slack-created subscriptions to DM delivery");

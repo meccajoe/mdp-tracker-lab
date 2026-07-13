@@ -1,4 +1,5 @@
 import { buildSubscriptionScopeLabel, type SubscriptionScopeType } from "@/lib/project-subscriptions";
+import { getSavedPortfolioBySlug } from "@/lib/project-saved-portfolios";
 
 export type PortfolioProjectSnapshot = {
   id: string;
@@ -8,6 +9,7 @@ export type PortfolioProjectSnapshot = {
   total_budget: number;
   total_spent: number;
   qbo_total_hours: number;
+  budget_hrs: number | null;
   due_date: string | null;
 };
 
@@ -31,6 +33,30 @@ export async function lookupUserPmInitials(args: {
   };
 }
 
+async function resolveSavedPortfolioProjectIds(args: {
+  supabase: any;
+  createdByEmail: string;
+  scopeJson?: Record<string, unknown> | null;
+}) {
+  const portfolioSlug = typeof args.scopeJson?.portfolio_slug === "string" ? args.scopeJson.portfolio_slug : null;
+  if (!portfolioSlug) {
+    return { data: [] as string[], error: "Saved portfolio slug is required." };
+  }
+
+  const portfolio = await getSavedPortfolioBySlug({
+    supabase: args.supabase,
+    createdByEmail: args.createdByEmail,
+    slug: portfolioSlug,
+  });
+  if (portfolio.error) {
+    return { data: [] as string[], error: portfolio.error };
+  }
+  if (!portfolio.data) {
+    return { data: [] as string[], error: `Saved portfolio ${portfolioSlug} was not found.` };
+  }
+  return { data: portfolio.data.project_ids ?? [], error: null };
+}
+
 export async function resolvePortfolioProjects(args: {
   supabase: any;
   scopeType: SubscriptionScopeType;
@@ -42,6 +68,7 @@ export async function resolvePortfolioProjects(args: {
   }
 
   let pmInitials: string | null = null;
+  let exactProjectIds: string[] | null = null;
   if (args.scopeType === "my_active_projects") {
     const resolved = await lookupUserPmInitials({ supabase: args.supabase, email: args.createdByEmail });
     if (resolved.error) {
@@ -56,11 +83,24 @@ export async function resolvePortfolioProjects(args: {
     if (!pmInitials) {
       return { data: [] as PortfolioProjectSnapshot[], error: "PM initials are required for this portfolio scope." };
     }
+  } else if (args.scopeType === "saved_portfolio") {
+    const saved = await resolveSavedPortfolioProjectIds({
+      supabase: args.supabase,
+      createdByEmail: args.createdByEmail,
+      scopeJson: args.scopeJson,
+    });
+    if (saved.error) {
+      return { data: [] as PortfolioProjectSnapshot[], error: saved.error };
+    }
+    exactProjectIds = saved.data;
+    if (exactProjectIds.length === 0) {
+      return { data: [] as PortfolioProjectSnapshot[], error: "Saved portfolio has no projects yet." };
+    }
   }
 
   let query = args.supabase
     .from("project_summary")
-    .select("id, name, pm, status, total_budget, total_spent, qbo_total_hours, due_date")
+    .select("id, name, pm, status, total_budget, total_spent, qbo_total_hours, budget_hrs, due_date")
     .eq("status", "Active")
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
@@ -68,13 +108,16 @@ export async function resolvePortfolioProjects(args: {
   if (pmInitials) {
     query = query.eq("pm", pmInitials);
   }
+  if (exactProjectIds) {
+    query = query.in("id", exactProjectIds);
+  }
 
   const { data, error } = await query;
   if (error) {
     return { data: [] as PortfolioProjectSnapshot[], error: error.message };
   }
 
-  const projects = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
     id: String(row.id),
     name: String(row.name ?? row.id),
     pm: typeof row.pm === "string" ? row.pm : null,
@@ -82,10 +125,16 @@ export async function resolvePortfolioProjects(args: {
     total_budget: typeof row.total_budget === "number" ? row.total_budget : Number(row.total_budget ?? 0) || 0,
     total_spent: typeof row.total_spent === "number" ? row.total_spent : Number(row.total_spent ?? 0) || 0,
     qbo_total_hours: typeof row.qbo_total_hours === "number" ? row.qbo_total_hours : Number(row.qbo_total_hours ?? 0) || 0,
+    budget_hrs: typeof row.budget_hrs === "number" ? row.budget_hrs : Number(row.budget_hrs ?? 0) || null,
     due_date: typeof row.due_date === "string" ? row.due_date : null,
   }));
 
-  return { data: projects, error: null };
+  if (exactProjectIds) {
+    const order = new Map(exactProjectIds.map((projectId, index) => [projectId, index]));
+    rows.sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999));
+  }
+
+  return { data: rows, error: null };
 }
 
 function formatCurrency(value: number) {
@@ -98,6 +147,10 @@ function formatCurrency(value: number) {
 
 function formatHours(value: number) {
   return Number.isInteger(value) ? `${value.toLocaleString()} hrs` : `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} hrs`;
+}
+
+function formatPercent(value: number) {
+  return `${Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString("en-US", { maximumFractionDigits: 1 })}%`;
 }
 
 export function buildPortfolioDigestText(args: {
@@ -155,7 +208,7 @@ export function buildPortfolioDigestText(args: {
     "",
     "Projects needing attention",
     ...(overBudget.length > 0
-      ? overBudget.slice(0, 5).map((project) => `• ${project.id} — ${project.name}: ${formatCurrency(project.total_spent)} on ${formatCurrency(project.total_budget)} budget`) 
+      ? overBudget.slice(0, 5).map((project) => `• ${project.id} — ${project.name}: ${formatCurrency(project.total_spent)} on ${formatCurrency(project.total_budget)} budget`)
       : nearingBudget.length > 0
         ? nearingBudget.map((project) => `• ${project.id} — ${project.name}: ${Math.round((project.total_spent / Math.max(project.total_budget, 1)) * 100)}% of budget used`)
         : ["• No active projects are currently at or above 85% of budget."]),
@@ -183,6 +236,47 @@ export function buildPortfolioDigestText(args: {
       total_spent: totalSpent,
       total_hours: totalHours,
       project_count: args.projects.length,
+    },
+  };
+}
+
+export function buildPortfolioThresholdAlertText(args: {
+  scopeType: SubscriptionScopeType;
+  scopeJson?: Record<string, unknown> | null;
+  summaryText: string;
+  metricKey: string | null;
+  thresholdValue: number | null;
+  matchingProjects: Array<PortfolioProjectSnapshot & { currentValue: number }>;
+}) {
+  const scopeLabel = buildSubscriptionScopeLabel(args.scopeType, args.scopeJson ?? {});
+  const metricLabel = args.metricKey === "labor_budget_pct"
+    ? "labor budget"
+    : args.metricKey === "budget_variance_pct"
+      ? "budget variance"
+      : "portfolio metric";
+
+  const lines = [
+    `🔔 Portfolio alert — ${scopeLabel}`,
+    args.summaryText,
+    "",
+    `• Matching projects: ${args.matchingProjects.length}`,
+    ...(args.thresholdValue != null ? [`• Threshold: ${args.metricKey === "labor_budget_pct" || args.metricKey === "budget_variance_pct" ? formatPercent(args.thresholdValue) : String(args.thresholdValue)}`] : []),
+    "",
+    ...args.matchingProjects.slice(0, 10).map((project) => {
+      const formattedValue = args.metricKey === "labor_budget_pct" || args.metricKey === "budget_variance_pct"
+        ? formatPercent(project.currentValue)
+        : formatCurrency(project.currentValue);
+      return `• ${project.id} — ${project.name}: ${metricLabel} ${formattedValue}`;
+    }),
+  ];
+
+  return {
+    text: lines.join("\n"),
+    snapshot: {
+      matching_project_ids: args.matchingProjects.map((project) => project.id),
+      metric_key: args.metricKey,
+      threshold_value: args.thresholdValue,
+      project_count: args.matchingProjects.length,
     },
   };
 }

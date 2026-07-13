@@ -2,13 +2,18 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { fetchProjectCopilotContext } from "@/lib/project-copilot-context";
-import { listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
+import { listSlackDmSubscriptions, listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
 import { buildSubscriptionCreatePayload } from "@/lib/project-subscriptions";
 import { lookupSlackEmailByUserId } from "@/lib/slack-delivery";
 import {
   buildSlackSubscriptionActionResponse,
   decodeSlackSubscriptionActionValue,
 } from "@/lib/slack-project-copilot";
+import {
+  buildSlackPortfolioConfirmationText,
+  buildSlackPortfolioSubscriptionListText,
+  decodeSlackPortfolioActionValue,
+} from "@/lib/slack-portfolio-copilot";
 import { verifySlackRequest } from "@/lib/slack-request";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -61,7 +66,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ text: "Unsupported Slack action." }, { status: 400 });
   }
 
-  const actionPayload = decodeSlackSubscriptionActionValue(action.value);
   const slackUserId = payload.user?.id;
   if (!slackUserId) {
     return NextResponse.json({ text: "Missing Slack user." }, { status: 400 });
@@ -71,6 +75,49 @@ export async function POST(request: NextRequest) {
   const creatorIdentifier = creatorEmail ?? `slack:${slackUserId}`;
   const supabase = getSupabaseAdmin();
 
+  if (action.action_id === "create_portfolio_subscription") {
+    const actionPayload = decodeSlackPortfolioActionValue(action.value);
+    const subscriptionPayload = buildSubscriptionCreatePayload({
+      createdByEmail: creatorIdentifier,
+      recommendation: actionPayload.recommendation,
+      channel: "slack_dm",
+      targetJson: {
+        delivery: "slack_dm",
+        slack_user_id: slackUserId,
+        slack_team_id: payload.team?.id ?? null,
+        origin_channel_id: payload.channel?.id ?? null,
+        origin_thread_ts: payload.message?.thread_ts ?? payload.container?.thread_ts ?? null,
+        created_via: "slack_portfolio_button",
+      },
+      scopeType: actionPayload.scopeType,
+      scopeJson: actionPayload.scopeJson,
+    });
+
+    const { error } = await supabase.from("project_subscriptions").insert(subscriptionPayload);
+    if (error) {
+      return NextResponse.json({
+        response_action: "update",
+        text: `I couldn’t save that portfolio subscription yet: ${error.message}`,
+      }, { status: 500 });
+    }
+
+    const list = await listSlackDmSubscriptions({
+      supabase,
+      slackUserId,
+      createdByEmail: creatorEmail,
+      scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects", "saved_portfolio"],
+    });
+    if (list.error) {
+      return NextResponse.json({ response_action: "update", text: list.error }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      response_action: "update",
+      text: `${buildSlackPortfolioConfirmationText({ action: "create", scopeType: actionPayload.scopeType, scopeJson: actionPayload.scopeJson })}\n\n${buildSlackPortfolioSubscriptionListText(list.data ?? [])}`,
+    });
+  }
+
+  const actionPayload = decodeSlackSubscriptionActionValue(action.value);
   const context = await fetchProjectCopilotContext(supabase, actionPayload.projectId);
   if (context.error || !context.data) {
     return NextResponse.json({
@@ -95,10 +142,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const { error } = await supabase
-      .from("project_subscriptions")
-      .insert(subscriptionPayload);
-
+    const { error } = await supabase.from("project_subscriptions").insert(subscriptionPayload);
     if (error) {
       return NextResponse.json({
         response_action: "update",
@@ -114,10 +158,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (list.error) {
-      return NextResponse.json({
-        response_action: "update",
-        text: list.error,
-      }, { status: 500 });
+      return NextResponse.json({ response_action: "update", text: list.error }, { status: 500 });
     }
 
     const response = buildSlackSubscriptionActionResponse({
@@ -148,10 +189,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (updated.error) {
-      return NextResponse.json({
-        response_action: "update",
-        text: updated.error,
-      }, { status: 500 });
+      return NextResponse.json({ response_action: "update", text: updated.error }, { status: 500 });
     }
 
     const list = await listSlackDmSubscriptionsForProject({
@@ -162,10 +200,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (list.error) {
-      return NextResponse.json({
-        response_action: "update",
-        text: list.error,
-      }, { status: 500 });
+      return NextResponse.json({ response_action: "update", text: list.error }, { status: 500 });
     }
 
     const response = buildSlackSubscriptionActionResponse({

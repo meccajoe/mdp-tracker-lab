@@ -66,6 +66,17 @@ test("getCurrentMetricValue calculates category variance percent from scope budg
   assert.equal(Math.round((result ?? 0) * 100) / 100, -6.67);
 });
 
+test("getCurrentMetricValue calculates labor budget percentage", () => {
+  const subscription: EvaluatableProjectSubscription = {
+    ...baseSubscription,
+    metric_key: "labor_budget_pct",
+    rule_json: { unit: "percent", scopeKey: "budget_hrs" },
+  };
+
+  const result = getCurrentMetricValue(subscription, context);
+  assert.equal(Math.round((result ?? 0) * 100) / 100, 15.88);
+});
+
 test("isDigestDue recognizes the weekday 4pm local digest window once per day", () => {
   const dueAtWindow = isDigestDue({
     scheduleCron: "0 16 * * 1-5",

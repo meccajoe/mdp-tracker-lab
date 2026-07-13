@@ -1,5 +1,5 @@
 import { openSlackDmChannel, sendSlackDmByEmail, sendSlackMessage } from "./slack-delivery.ts";
-import { buildPortfolioDigestText, resolvePortfolioProjects } from "./project-portfolio-subscriptions.ts";
+import { buildPortfolioDigestText, buildPortfolioThresholdAlertText, resolvePortfolioProjects } from "./project-portfolio-subscriptions.ts";
 import { fetchProjectCopilotContext, type ProjectCopilotContext } from "./project-copilot-context.ts";
 import type { CategoryScopeKey, RecommendationProjectFacts } from "./project-notification-recommendations.ts";
 import type { SubscriptionScopeType } from "./project-subscriptions.ts";
@@ -132,6 +132,10 @@ export function getCurrentMetricValue(subscription: EvaluatableProjectSubscripti
       const actual = context.categoryActuals[scopeKey as CategoryScopeKey] ?? 0;
       const budget = getBudgetValue(context.project, scopeKey);
       return calculateBudgetVariancePercent(actual, budget);
+    }
+    case "labor_budget_pct": {
+      if (!context.project.budget_hrs || context.project.budget_hrs <= 0) return null;
+      return (context.project.qbo_total_hours / context.project.budget_hrs) * 100;
     }
     default:
       return null;
@@ -791,6 +795,195 @@ async function evaluateDigestSubscription(args: {
   };
 }
 
+async function evaluatePortfolioThresholdSubscription(args: {
+  supabase: any;
+  subscription: EvaluatableProjectSubscription;
+  previousRun: SubscriptionRunRow | null;
+  now: Date;
+  dryRun?: boolean;
+}): Promise<SubscriptionEvaluationResult> {
+  const projects = await resolvePortfolioProjects({
+    supabase: args.supabase,
+    scopeType: args.subscription.scope_type,
+    scopeJson: args.subscription.scope_json,
+    createdByEmail: args.subscription.created_by_email,
+  });
+
+  if (projects.error) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "error",
+      reason: projects.error,
+      summaryText: args.subscription.summary_text,
+    };
+  }
+
+  const thresholdValue = args.subscription.threshold_value;
+  const matchingProjects = projects.data
+    .map((project) => {
+      const currentValue = args.subscription.metric_key === "budget_variance_pct"
+        ? (project.total_budget > 0 ? ((project.total_spent - project.total_budget) / project.total_budget) * 100 : null)
+        : args.subscription.metric_key === "labor_budget_pct"
+          ? (project.budget_hrs && project.budget_hrs > 0 ? (project.qbo_total_hours / project.budget_hrs) * 100 : null)
+          : null;
+      return currentValue == null
+        ? null
+        : compareAgainstThreshold(args.subscription.condition_operator, currentValue, thresholdValue)
+          ? { ...project, currentValue }
+          : null;
+    })
+    .filter((project): project is (typeof projects.data)[number] & { currentValue: number } => Boolean(project));
+
+  const previousMatches = new Set(((args.previousRun?.snapshot_json?.matching_project_ids ?? []) as string[]).map(String));
+  const currentMatchIds = matchingProjects.map((project) => project.id);
+  const sameMatchSet = currentMatchIds.length === previousMatches.size && currentMatchIds.every((id) => previousMatches.has(id));
+
+  if (matchingProjects.length === 0) {
+    if (!args.dryRun) {
+      const nowIso = args.now.toISOString();
+      await recordRun({
+        supabase: args.supabase,
+        subscriptionId: args.subscription.id,
+        outcome: "skipped",
+        reason: "threshold_not_met",
+        snapshotJson: {
+          matching_project_ids: [],
+          threshold_value: thresholdValue,
+          metric_key: args.subscription.metric_key,
+        },
+      });
+      await updateSubscriptionTimestamps({ supabase: args.supabase, subscriptionId: args.subscription.id, lastEvaluatedAt: nowIso });
+    }
+
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "skipped",
+      reason: "threshold_not_met",
+      summaryText: args.subscription.summary_text,
+      thresholdValue,
+    };
+  }
+
+  if (sameMatchSet) {
+    if (!args.dryRun) {
+      const nowIso = args.now.toISOString();
+      await recordRun({
+        supabase: args.supabase,
+        subscriptionId: args.subscription.id,
+        outcome: "skipped",
+        reason: "already_triggered_state",
+        snapshotJson: {
+          matching_project_ids: currentMatchIds,
+          threshold_value: thresholdValue,
+          metric_key: args.subscription.metric_key,
+        },
+      });
+      await updateSubscriptionTimestamps({ supabase: args.supabase, subscriptionId: args.subscription.id, lastEvaluatedAt: nowIso });
+    }
+
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "skipped",
+      reason: "already_triggered_state",
+      summaryText: args.subscription.summary_text,
+      thresholdValue,
+    };
+  }
+
+  if (isCooldownActive(args.subscription, args.now)) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "skipped",
+      reason: "cooldown_active",
+      summaryText: args.subscription.summary_text,
+      thresholdValue,
+    };
+  }
+
+  const alert = buildPortfolioThresholdAlertText({
+    scopeType: args.subscription.scope_type,
+    scopeJson: args.subscription.scope_json,
+    summaryText: args.subscription.summary_text,
+    metricKey: args.subscription.metric_key,
+    thresholdValue,
+    matchingProjects,
+  });
+
+  if (args.dryRun) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "would_trigger",
+      reason: "threshold_crossed",
+      summaryText: alert.text,
+      thresholdValue,
+      delivery: {
+        channel: args.subscription.channel,
+        target: typeof args.subscription.target_json?.slack_user_id === "string" ? args.subscription.target_json.slack_user_id : args.subscription.created_by_email,
+        status: "would_deliver",
+      },
+    };
+  }
+
+  const nowIso = args.now.toISOString();
+  const run = await recordRun({
+    supabase: args.supabase,
+    subscriptionId: args.subscription.id,
+    outcome: "triggered",
+    reason: "threshold_crossed",
+    snapshotJson: alert.snapshot,
+  });
+
+  if (run.error || !run.data) {
+    return {
+      subscriptionId: args.subscription.id,
+      projectId: args.subscription.project_id ?? args.subscription.scope_type,
+      subscriptionType: args.subscription.subscription_type,
+      outcome: "error",
+      reason: run.error ?? "failed_to_record_run",
+      summaryText: args.subscription.summary_text,
+      thresholdValue,
+    };
+  }
+
+  const delivery = await deliverToSubscriptionTarget({ subscription: args.subscription, text: alert.text });
+  await recordDelivery({
+    supabase: args.supabase,
+    subscriptionRunId: run.data.id,
+    channel: delivery.channel,
+    target: delivery.target,
+    deliveryStatus: delivery.status,
+    externalMessageId: delivery.externalMessageId,
+    errorText: delivery.errorText,
+  });
+  await updateSubscriptionTimestamps({
+    supabase: args.supabase,
+    subscriptionId: args.subscription.id,
+    lastEvaluatedAt: nowIso,
+    lastTriggeredAt: delivery.status === "delivered" ? nowIso : null,
+  });
+
+  return {
+    subscriptionId: args.subscription.id,
+    projectId: args.subscription.project_id ?? args.subscription.scope_type,
+    subscriptionType: args.subscription.subscription_type,
+    outcome: delivery.status === "delivered" ? "triggered" : "error",
+    reason: delivery.status === "delivered" ? "threshold_crossed" : (delivery.errorText ?? "delivery_failed"),
+    summaryText: alert.text,
+    thresholdValue,
+    delivery,
+  };
+}
+
 async function evaluatePortfolioDigestSubscription(args: {
   supabase: any;
   subscription: EvaluatableProjectSubscription;
@@ -956,26 +1149,37 @@ export async function evaluateProjectSubscriptions(args: {
     }
 
     if (subscription.scope_type !== "project") {
-      if (subscription.subscription_type !== "scheduled_digest") {
-        results.push({
-          subscriptionId: subscription.id,
-          projectId: subscription.project_id ?? subscription.scope_type,
-          subscriptionType: subscription.subscription_type,
-          outcome: "skipped",
-          reason: "unsupported_portfolio_subscription_type",
-          summaryText: subscription.summary_text,
-        });
+      if (subscription.subscription_type === "metric_threshold_alert") {
+        results.push(await evaluatePortfolioThresholdSubscription({
+          supabase: args.supabase,
+          subscription,
+          previousRun: previousRun.data,
+          now,
+          dryRun: args.dryRun,
+        }));
         continue;
       }
 
-      results.push(await evaluatePortfolioDigestSubscription({
-        supabase: args.supabase,
-        subscription,
-        previousRun: previousRun.data,
-        now,
-        dryRun: args.dryRun,
-        force: args.force,
-      }));
+      if (subscription.subscription_type === "scheduled_digest") {
+        results.push(await evaluatePortfolioDigestSubscription({
+          supabase: args.supabase,
+          subscription,
+          previousRun: previousRun.data,
+          now,
+          dryRun: args.dryRun,
+          force: args.force,
+        }));
+        continue;
+      }
+
+      results.push({
+        subscriptionId: subscription.id,
+        projectId: subscription.project_id ?? subscription.scope_type,
+        subscriptionType: subscription.subscription_type,
+        outcome: "skipped",
+        reason: "unsupported_portfolio_subscription_type",
+        summaryText: subscription.summary_text,
+      });
       continue;
     }
 

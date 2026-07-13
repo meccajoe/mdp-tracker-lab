@@ -52,6 +52,7 @@ export async function PATCH(
     return auth.error ?? NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
+  const userEmail = auth.user.email.toLowerCase();
   const { id, subscriptionId } = await context.params;
   const body = (await request.json().catch(() => ({}))) as { action?: SubscriptionAction };
   if (!body.action || !["pause", "resume", "delete"].includes(body.action)) {
@@ -64,7 +65,9 @@ export async function PATCH(
     .update({ status: getNextStatusForAction(body.action), updated_at: new Date().toISOString() })
     .eq("project_id", id)
     .eq("id", subscriptionId)
-    .select("id, project_id, created_by_email, subscription_type, metric_key, condition_operator, threshold_value, schedule_cron, status, cooldown_minutes, summary_text, last_triggered_at, created_at, updated_at, rule_json")
+    .eq("channel", "slack_dm")
+    .eq("created_by_email", userEmail)
+    .select("id, project_id, created_by_email, channel, target_json, subscription_type, metric_key, condition_operator, threshold_value, schedule_cron, status, cooldown_minutes, summary_text, last_triggered_at, created_at, updated_at, rule_json")
     .single();
 
   if (error) {

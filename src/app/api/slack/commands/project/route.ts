@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 import { fetchProjectCopilotContext } from "@/lib/project-copilot-context";
+import { listSavedPortfolios, deleteSavedPortfolio, upsertSavedPortfolio } from "@/lib/project-saved-portfolios";
 import { buildSubscriptionCreatePayload } from "@/lib/project-subscriptions";
 import { listSlackDmSubscriptions, listSlackDmSubscriptionsForProject, updateSlackDmSubscriptionStatus } from "@/lib/project-subscription-store";
 import {
@@ -13,7 +14,10 @@ import {
 import {
   buildSlackPortfolioConfirmationText,
   buildSlackPortfolioHelpText,
+  buildSlackPortfolioRecommendation,
+  buildSlackPortfolioSetupBlocks,
   buildSlackPortfolioSubscriptionListText,
+  buildSlackSavedPortfolioListText,
   parseSlackPortfolioCommand,
 } from "@/lib/slack-portfolio-copilot";
 import { lookupSlackEmailByUserId } from "@/lib/slack-delivery";
@@ -43,17 +47,8 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text();
     const form = new URLSearchParams(rawBody);
     if (form.get("ssl_check") === "1") {
-      console.log("[slack/project] ssl_check");
       return NextResponse.json({ ok: true });
     }
-
-    console.log("[slack/project] received", {
-      command: form.get("command"),
-      text: form.get("text"),
-      teamId: form.get("team_id"),
-      channelId: form.get("channel_id"),
-      userId: form.get("user_id"),
-    });
 
     const isValid = verifySlackRequest({
       rawBody,
@@ -63,7 +58,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!isValid) {
-      console.warn("[slack/project] invalid signature");
       return NextResponse.json({ error: "Invalid Slack signature" }, { status: 401 });
     }
 
@@ -80,13 +74,58 @@ export async function POST(request: NextRequest) {
       }
 
       const creatorEmail = await lookupCreatorEmail(slackUserId);
+      const creatorIdentifier = (creatorEmail ?? `slack:${slackUserId}`).toLowerCase();
       const portfolio = parseSlackPortfolioCommand(commandText);
       if ("error" in portfolio) {
         return NextResponse.json({ response_type: "ephemeral", text: portfolio.error || buildSlackPortfolioHelpText() });
       }
 
+      if (portfolio.intent === "setup") {
+        return NextResponse.json({
+          response_type: "ephemeral",
+          text: "Portfolio subscription setup",
+          blocks: buildSlackPortfolioSetupBlocks(),
+        });
+      }
+
       if (portfolio.intent === "help") {
         return NextResponse.json({ response_type: "ephemeral", text: buildSlackPortfolioHelpText() });
+      }
+
+      if (portfolio.intent === "saved_portfolios") {
+        const portfolios = await listSavedPortfolios({ supabase, createdByEmail: creatorIdentifier });
+        if (portfolios.error) {
+          return NextResponse.json({ response_type: "ephemeral", text: portfolios.error }, { status: 500 });
+        }
+        return NextResponse.json({ response_type: "ephemeral", text: buildSlackSavedPortfolioListText(portfolios.data ?? []) });
+      }
+
+      if (portfolio.intent === "save_portfolio") {
+        const saved = await upsertSavedPortfolio({
+          supabase,
+          createdByEmail: creatorIdentifier,
+          name: portfolio.portfolioName!,
+          projectIds: portfolio.projectIds ?? [],
+        });
+        if (saved.error || !saved.data) {
+          return NextResponse.json({ response_type: "ephemeral", text: saved.error ?? "Failed to save portfolio." }, { status: 500 });
+        }
+        return NextResponse.json({
+          response_type: "ephemeral",
+          text: `Saved portfolio ${saved.data.slug} with ${(saved.data.project_ids ?? []).length} project(s).`,
+        });
+      }
+
+      if (portfolio.intent === "delete_saved") {
+        const deleted = await deleteSavedPortfolio({
+          supabase,
+          createdByEmail: creatorIdentifier,
+          slug: portfolio.portfolioName!,
+        });
+        if (deleted.error) {
+          return NextResponse.json({ response_type: "ephemeral", text: deleted.error }, { status: 500 });
+        }
+        return NextResponse.json({ response_type: "ephemeral", text: `Deleted saved portfolio ${deleted.data?.slug}.` });
       }
 
       if (portfolio.intent === "subscriptions") {
@@ -94,7 +133,7 @@ export async function POST(request: NextRequest) {
           supabase,
           slackUserId,
           createdByEmail: creatorEmail,
-          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects", "saved_portfolio"],
         });
         if (result.error) {
           return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
@@ -112,7 +151,7 @@ export async function POST(request: NextRequest) {
           action: portfolio.intent,
           slackUserId,
           createdByEmail: creatorEmail,
-          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects", "saved_portfolio"],
         });
         if (updated.error) {
           return NextResponse.json({ response_type: "ephemeral", text: updated.error }, { status: 500 });
@@ -121,7 +160,7 @@ export async function POST(request: NextRequest) {
           supabase,
           slackUserId,
           createdByEmail: creatorEmail,
-          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects", "saved_portfolio"],
         });
         if (result.error) {
           return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
@@ -132,15 +171,23 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      if (portfolio.intent === "create_digest") {
+      if (portfolio.intent === "create_digest" || portfolio.intent === "create_exception") {
+        const recommendation = portfolio.intent === "create_digest"
+          ? {
+              type: "digest" as const,
+              digestKey: "portfolio_digest",
+              defaultSections: ["portfolio_health", "biggest_changes", "highest_spend_projects"],
+              message: "I can send a portfolio digest.",
+            }
+          : buildSlackPortfolioRecommendation({
+              scopeType: portfolio.scopeType!,
+              scopeJson: portfolio.scopeJson,
+              exceptionKey: portfolio.exceptionKey!,
+            }).recommendation;
+
         const payload = buildSubscriptionCreatePayload({
-          createdByEmail: (creatorEmail ?? `slack:${slackUserId}`).toLowerCase(),
-          recommendation: {
-            type: "digest",
-            digestKey: "portfolio_digest",
-            defaultSections: ["portfolio_health", "biggest_changes", "highest_spend_projects"],
-            message: "I can send a portfolio digest.",
-          },
+          createdByEmail: creatorIdentifier,
+          recommendation,
           channel: "slack_dm",
           targetJson: {
             delivery: "slack_dm",
@@ -150,7 +197,7 @@ export async function POST(request: NextRequest) {
             origin_thread_ts: threadTs ?? null,
             created_via: "slack_portfolio",
           },
-          scopeType: portfolio.scopeType ?? "all_active_projects",
+          scopeType: portfolio.scopeType!,
           scopeJson: portfolio.scopeJson,
         });
 
@@ -163,7 +210,7 @@ export async function POST(request: NextRequest) {
           supabase,
           slackUserId,
           createdByEmail: creatorEmail,
-          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects"],
+          scopeTypes: ["my_active_projects", "pm_active_projects", "all_active_projects", "saved_portfolio"],
         });
         if (result.error) {
           return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
@@ -178,7 +225,6 @@ export async function POST(request: NextRequest) {
 
     const parsed = parseSlackProjectCommand(commandText);
     if ("error" in parsed) {
-      console.log("[slack/project] parse error", { elapsedMs: Date.now() - startedAt, error: parsed.error });
       return NextResponse.json({ response_type: "ephemeral", text: parsed.error });
     }
 
@@ -192,7 +238,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (binding.error) {
-        console.warn("[slack/project] binding lookup error", { elapsedMs: Date.now() - startedAt, error: binding.error });
         return NextResponse.json({ response_type: "ephemeral", text: binding.error }, { status: 500 });
       }
 
@@ -200,7 +245,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!projectId) {
-      console.log("[slack/project] no project", { elapsedMs: Date.now() - startedAt });
       return NextResponse.json({
         response_type: "ephemeral",
         text: `This command needs a project job number unless the Slack thread is already bound. ${buildSlackProjectHelpText()}`,
@@ -209,7 +253,6 @@ export async function POST(request: NextRequest) {
 
     const context = await fetchProjectCopilotContext(supabase, projectId);
     if (context.error || !context.data) {
-      console.warn("[slack/project] context error", { elapsedMs: Date.now() - startedAt, error: context.error, projectId });
       return NextResponse.json({
         response_type: "ephemeral",
         text: context.error === "Project not found"
@@ -235,7 +278,6 @@ export async function POST(request: NextRequest) {
       }
 
       const creatorEmail = await lookupCreatorEmail(slackUserId);
-
       const result = await listSlackDmSubscriptionsForProject({
         supabase,
         projectId,
@@ -244,7 +286,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (result.error) {
-        console.warn("[slack/project] subscriptions error", { elapsedMs: Date.now() - startedAt, error: result.error, projectId });
         return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
       }
 
@@ -254,7 +295,6 @@ export async function POST(request: NextRequest) {
         subscriptions: result.data ?? [],
       });
 
-      console.log("[slack/project] subscriptions ok", { elapsedMs: Date.now() - startedAt, projectId });
       return NextResponse.json({ response_type: "ephemeral", text: response.text, blocks: response.blocks });
     }
 
@@ -264,7 +304,6 @@ export async function POST(request: NextRequest) {
       }
 
       const creatorEmail = await lookupCreatorEmail(slackUserId);
-
       const updated = await updateSlackDmSubscriptionStatus({
         supabase,
         projectId,
@@ -275,7 +314,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (updated.error) {
-        console.warn("[slack/project] manage error", { elapsedMs: Date.now() - startedAt, error: updated.error, projectId, action: parsed.intent });
         return NextResponse.json({ response_type: "ephemeral", text: updated.error }, { status: 500 });
       }
 
@@ -287,7 +325,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (result.error) {
-        console.warn("[slack/project] list after manage error", { elapsedMs: Date.now() - startedAt, error: result.error, projectId, action: parsed.intent });
         return NextResponse.json({ response_type: "ephemeral", text: result.error }, { status: 500 });
       }
 
@@ -297,7 +334,6 @@ export async function POST(request: NextRequest) {
         subscriptions: result.data ?? [],
       });
 
-      console.log("[slack/project] manage ok", { elapsedMs: Date.now() - startedAt, projectId, action: parsed.intent });
       return NextResponse.json({ response_type: "ephemeral", text: response.text, blocks: response.blocks });
     }
 
@@ -307,7 +343,6 @@ export async function POST(request: NextRequest) {
       categoryActuals: context.data.categoryActuals,
     });
 
-    console.log("[slack/project] summary ok", { elapsedMs: Date.now() - startedAt, projectId, intent: parsed.intent });
     return NextResponse.json({
       response_type: "ephemeral",
       text: response.text,

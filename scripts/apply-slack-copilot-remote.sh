@@ -8,11 +8,15 @@ MIGRATIONS=(
   "supabase/migrations/20260710143000_project_subscriptions.sql"
   "supabase/migrations/20260710190000_project_conversation_threads.sql"
   "supabase/migrations/20260711111500_project_subscription_scopes.sql"
+  "supabase/migrations/20260711130000_project_saved_portfolios.sql"
+  "supabase/migrations/20260711142000_project_subscription_scope_saved_portfolio.sql"
 )
 VERSIONS=(
   "20260710143000"
   "20260710190000"
   "20260711111500"
+  "20260711130000"
+  "20260711142000"
 )
 
 if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
@@ -80,11 +84,20 @@ where table_schema = 'public'
 order by column_name;
 SQL
 
+echo "Verifying saved portfolio tables ..."
+supabase db query "${QUERY_ARGS[@]}" <<'SQL'
+select table_name
+from information_schema.tables
+where table_schema = 'public'
+  and table_name in ('project_portfolios', 'project_portfolio_projects')
+order by table_name;
+SQL
+
 echo "Verifying migration history ..."
 supabase db query "${QUERY_ARGS[@]}" <<'SQL'
 select version
 from supabase_migrations.schema_migrations
-where version in ('20260710143000', '20260710190000', '20260711111500')
+where version in ('20260710143000', '20260710190000', '20260711111500', '20260711130000', '20260711142000')
 order by version;
 SQL
 

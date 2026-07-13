@@ -52,16 +52,19 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAuthenticatedUser();
-  if (auth.error) {
-    return auth.error;
+  if (auth.error || !auth.user?.email) {
+    return auth.error ?? NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
+  const userEmail = auth.user.email.toLowerCase();
   const { id } = await context.params;
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("project_subscriptions")
-    .select("id, project_id, created_by_email, subscription_type, metric_key, condition_operator, threshold_value, schedule_cron, status, cooldown_minutes, summary_text, last_triggered_at, created_at, updated_at, rule_json")
+    .select("id, project_id, created_by_email, channel, target_json, subscription_type, metric_key, condition_operator, threshold_value, schedule_cron, status, cooldown_minutes, summary_text, last_triggered_at, created_at, updated_at, rule_json")
     .eq("project_id", id)
+    .eq("channel", "slack_dm")
+    .eq("created_by_email", userEmail)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
 
@@ -81,6 +84,7 @@ export async function POST(
     return auth.error ?? NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
+  const userEmail = auth.user.email.toLowerCase();
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
     recommendation?: ThresholdRecommendationInput | DigestRecommendationInput;
@@ -92,15 +96,21 @@ export async function POST(
 
   const payload = buildSubscriptionCreatePayload({
     projectId: id,
-    createdByEmail: auth.user.email.toLowerCase(),
+    createdByEmail: userEmail,
     recommendation: body.recommendation,
+    channel: "slack_dm",
+    targetJson: {
+      delivery: "slack_dm",
+      created_via: "project_modal",
+      source_surface: "mdp_tracker_project",
+    },
   });
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("project_subscriptions")
     .insert(payload)
-    .select("id, project_id, created_by_email, subscription_type, metric_key, condition_operator, threshold_value, schedule_cron, status, cooldown_minutes, summary_text, last_triggered_at, created_at, updated_at, rule_json")
+    .select("id, project_id, created_by_email, channel, target_json, subscription_type, metric_key, condition_operator, threshold_value, schedule_cron, status, cooldown_minutes, summary_text, last_triggered_at, created_at, updated_at, rule_json")
     .single();
 
   if (error) {

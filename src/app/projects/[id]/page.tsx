@@ -889,8 +889,8 @@ export default function ProjectDetailPage() {
                   variant="outline"
                   size="sm"
                   className="h-9 w-9 p-0"
-                  aria-label="Open project notification recommendations"
-                  title="Project notifications"
+                  aria-label="Open Slack digests and alerts"
+                  title="Slack digests and alerts"
                 />
               }
             >
@@ -898,7 +898,7 @@ export default function ProjectDetailPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Project notifications</DialogTitle>
+                <DialogTitle>Slack digests and alerts</DialogTitle>
               </DialogHeader>
               <ProjectNotificationRecommendationCard projectId={projectId} project={project} />
             </DialogContent>

@@ -12,7 +12,10 @@ test("Slack /project command route verifies signatures, supports thread binding,
   assert.match(source, /fetchProjectCopilotContext\(/, "route should load project context from Supabase");
   assert.match(source, /parseSlackProjectCommand\(/, "route should parse project slash commands");
   assert.match(source, /parseSlackPortfolioCommand\(/, "route should parse portfolio slash commands");
-  assert.match(source, /buildSubscriptionCreatePayload\(/, "route should be able to create portfolio digest subscriptions");
+  assert.match(source, /buildSlackPortfolioSetupBlocks\(/, "route should support button-based portfolio setup");
+  assert.match(source, /buildSubscriptionCreatePayload\(/, "route should be able to create portfolio subscriptions");
+  assert.match(source, /upsertSavedPortfolio\(/, "route should support saving named portfolios");
+  assert.match(source, /listSavedPortfolios\(/, "route should support listing named portfolios");
   assert.match(source, /findSlackThreadBinding\(/, "route should resolve thread-bound projects when a job number is omitted");
   assert.match(source, /upsertSlackThreadBinding\(/, "route should persist explicit project bindings for future follow-ups");
   assert.match(source, /listSlackDmSubscriptionsForProject\(/, "route should list Slack DM subscriptions");

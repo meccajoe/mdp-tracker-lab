@@ -42,6 +42,8 @@ type RecommendationResponse = {
 type ProjectSubscription = {
   id: string;
   project_id: string;
+  channel?: string;
+  target_json?: Record<string, unknown> | null;
   subscription_type: "metric_threshold_alert" | "scheduled_digest";
   metric_key: string | null;
   condition_operator: string | null;
@@ -80,74 +82,6 @@ function formatDateTime(value: string | null) {
   });
 }
 
-function getPreviewStorageKey(projectId: string) {
-  return `project-subscriptions:${projectId}`;
-}
-
-function readPreviewSubscriptions(projectId: string): ProjectSubscription[] {
-  if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(getPreviewStorageKey(projectId));
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as ProjectSubscription[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writePreviewSubscriptions(projectId: string, subscriptions: ProjectSubscription[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getPreviewStorageKey(projectId), JSON.stringify(subscriptions));
-}
-
-function buildPreviewSubscription(projectId: string, recommendation: ThresholdRecommendation | DigestRecommendation): ProjectSubscription {
-  const now = new Date().toISOString();
-
-  if (recommendation.type === "digest") {
-    return {
-      id: `preview-${crypto.randomUUID()}`,
-      project_id: projectId,
-      subscription_type: "scheduled_digest",
-      metric_key: null,
-      condition_operator: null,
-      threshold_value: null,
-      schedule_cron: "0 16 * * 1-5",
-      status: "active",
-      cooldown_minutes: 60,
-      summary_text: "Weekday 4pm project digest",
-      last_triggered_at: null,
-      created_at: now,
-      updated_at: now,
-      rule_json: {
-        digestKey: recommendation.digestKey,
-        sections: recommendation.defaultSections,
-      },
-    };
-  }
-
-  return {
-    id: `preview-${crypto.randomUUID()}`,
-    project_id: projectId,
-    subscription_type: "metric_threshold_alert",
-    metric_key: recommendation.metricKey,
-    condition_operator: ">=",
-    threshold_value: recommendation.spotlight.threshold,
-    schedule_cron: null,
-    status: "active",
-    cooldown_minutes: 60,
-    summary_text: `Alert when ${recommendation.metricKey === "qbo_total_hours" ? "labor hours" : recommendation.scopeKey} reach ${formatValue(recommendation.spotlight.threshold, recommendation.unit)}`,
-    last_triggered_at: null,
-    created_at: now,
-    updated_at: now,
-    rule_json: {
-      scopeKey: recommendation.scopeKey,
-      unit: recommendation.unit,
-      optionId: recommendation.spotlight.id,
-    },
-  };
-}
-
 export function ProjectNotificationRecommendationCard({
   projectId,
   project,
@@ -165,7 +99,6 @@ export function ProjectNotificationRecommendationCard({
   const [savingSubscription, setSavingSubscription] = useState(false);
   const [updatingSubscriptionId, setUpdatingSubscriptionId] = useState<string | null>(null);
   const [sendingTestKey, setSendingTestKey] = useState<string | null>(null);
-  const [localPreviewMode, setLocalPreviewMode] = useState(false);
   const [slackStatus, setSlackStatus] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
 
@@ -178,13 +111,10 @@ export function ProjectNotificationRecommendationCard({
       if (!response.ok) {
         throw new Error(data.error ?? "Failed to load subscriptions");
       }
-      setLocalPreviewMode(false);
       setSubscriptions(data.subscriptions ?? []);
     } catch (requestError) {
-      setLocalPreviewMode(true);
-      setSubscriptions(readPreviewSubscriptions(projectId));
-      setSubscriptionsError("Preview mode: saved locally in this browser until the persistent subscription tables are live.");
-      console.warn(requestError);
+      setSubscriptions([]);
+      setSubscriptionsError(requestError instanceof Error ? requestError.message : "Failed to load Slack subscriptions");
     } finally {
       setSubscriptionsLoading(false);
     }
@@ -239,18 +169,10 @@ export function ProjectNotificationRecommendationCard({
       if (!response.ok) {
         throw new Error(data.error ?? "Failed to create subscription");
       }
-      setLocalPreviewMode(false);
       setSubscriptions((current) => [data.subscription!, ...current]);
-      setSubscriptionStatus(result.recommendation.type === "digest" ? "Digest created." : "Alert created.");
+      setSubscriptionStatus(result.recommendation.type === "digest" ? "Slack digest created." : "Slack alert created.");
     } catch (requestError) {
-      setLocalPreviewMode(true);
-      const previewSubscription = buildPreviewSubscription(projectId, result.recommendation);
-      const next = [previewSubscription, ...subscriptions];
-      writePreviewSubscriptions(projectId, next);
-      setSubscriptions(next);
-      setSubscriptionsError("Preview mode: saved locally in this browser until the persistent subscription tables are live.");
-      setSubscriptionStatus(result.recommendation.type === "digest" ? "Digest saved in preview mode." : "Alert saved in preview mode.");
-      console.warn(requestError);
+      setSubscriptionsError(requestError instanceof Error ? requestError.message : "Failed to create Slack subscription");
     } finally {
       setSavingSubscription(false);
     }
@@ -272,7 +194,6 @@ export function ProjectNotificationRecommendationCard({
       if (!response.ok) {
         throw new Error(data.error ?? `Failed to ${action} subscription`);
       }
-      setLocalPreviewMode(false);
       if (action === "delete") {
         setSubscriptions((current) => current.filter((subscription) => subscription.id !== subscriptionId));
       } else {
@@ -282,26 +203,7 @@ export function ProjectNotificationRecommendationCard({
       }
       setSubscriptionStatus(action === "delete" ? "Subscription deleted." : action === "pause" ? "Subscription paused." : "Subscription resumed.");
     } catch (requestError) {
-      setLocalPreviewMode(true);
-      let next = subscriptions;
-      if (action === "delete") {
-        next = subscriptions.filter((subscription) => subscription.id !== subscriptionId);
-      } else {
-        next = subscriptions.map((subscription) =>
-          subscription.id === subscriptionId
-            ? {
-                ...subscription,
-                status: action === "pause" ? "paused" : "active",
-                updated_at: new Date().toISOString(),
-              }
-            : subscription
-        );
-      }
-      writePreviewSubscriptions(projectId, next);
-      setSubscriptions(next);
-      setSubscriptionsError("Preview mode: saved locally in this browser until the persistent subscription tables are live.");
-      setSubscriptionStatus(action === "delete" ? "Subscription deleted in preview mode." : action === "pause" ? "Subscription paused in preview mode." : "Subscription resumed in preview mode.");
-      console.warn(requestError);
+      setSubscriptionsError(requestError instanceof Error ? requestError.message : `Failed to ${action} Slack subscription`);
     } finally {
       setUpdatingSubscriptionId(null);
     }
@@ -333,14 +235,14 @@ export function ProjectNotificationRecommendationCard({
   return (
     <Card className="border-0 shadow-none">
       <CardHeader className="px-0 pb-3 pt-0">
-        <CardTitle className="text-base">Notification recommendation preview</CardTitle>
+        <CardTitle className="text-base">Slack digests and alerts</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Slack is the first real delivery target. Email can come later once sender infrastructure exists.
+          Create and manage the same Slack digests and alerts you can access from Slack. Changes here stay synced with your Slack subscriptions for this project.
         </p>
       </CardHeader>
       <CardContent className="space-y-4 px-0 pb-0">
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-          Testing on <span className="font-medium text-foreground">{project.name}</span> ({projectId})
+          Managing Slack delivery for <span className="font-medium text-foreground">{project.name}</span> ({projectId})
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">
@@ -394,6 +296,10 @@ export function ProjectNotificationRecommendationCard({
             {subscriptionStatus}
           </div>
         )}
+
+        <div className="rounded-md border bg-blue-50/70 px-3 py-2 text-sm text-blue-900">
+          New subscriptions created here deliver as Slack DMs to you and show up in Slack subscription management for this project.
+        </div>
 
         {result?.recommendation.type === "threshold" && (() => {
           const recommendation = result.recommendation as ThresholdRecommendation;
@@ -467,19 +373,13 @@ export function ProjectNotificationRecommendationCard({
         <div className="space-y-3 rounded-lg border p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium">Saved project subscriptions</p>
-              <p className="text-xs text-muted-foreground">Before the evaluator exists, use these rows to manage the definitions and send test deliveries to Slack.</p>
+              <p className="text-sm font-medium">Saved Slack subscriptions</p>
+              <p className="text-xs text-muted-foreground">These are your live Slack digests and alerts for this project. Pause, resume, delete, or test the same subscriptions you can manage in Slack.</p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={loadSubscriptions} disabled={subscriptionsLoading}>
               {subscriptionsLoading ? "Refreshing..." : "Refresh"}
             </Button>
           </div>
-
-          {localPreviewMode && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Preview mode: saved locally in this browser until the persistent subscription tables are live.
-            </div>
-          )}
 
           {subscriptionsError && (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -489,7 +389,7 @@ export function ProjectNotificationRecommendationCard({
 
           {subscriptions.length === 0 ? (
             <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
-              No saved subscriptions yet.
+              No Slack digests or alerts saved for this project yet.
             </div>
           ) : (
             <div className="space-y-2">
