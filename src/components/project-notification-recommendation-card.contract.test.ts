@@ -26,6 +26,7 @@ test("project detail page uses a bell-triggered modal for synced Slack digests a
   assert.match(pageSource, /Bell/, "project detail page should import or render a bell icon for the trigger");
   assert.match(pageSource, /DialogTrigger[\s\S]*aria-label=\"Open Slack digests and alerts\"/, "page should expose a bell-style modal trigger with a Slack-specific label");
   assert.match(pageSource, /DialogTitle>[\s\S]*Slack digests and alerts/i, "page should render a Slack digests and alerts modal title");
+  assert.match(pageSource, /DialogContent className=\"max-h-\[90vh\] overflow-y-auto sm:max-w-2xl\"/, "page should cap the modal height and allow internal scrolling when the content grows taller than the viewport");
   assert.match(pageSource, /DialogContent[\s\S]*<ProjectNotificationRecommendationCard[\s\S]*projectId=\{projectId\}[\s\S]*project=\{project\}/, "page should render the recommendation component inside dialog content");
   assert.equal((pageSource.match(/<ProjectNotificationRecommendationCard/g) ?? []).length, 1, "page should render exactly one recommendation component instance");
 });

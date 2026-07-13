@@ -896,7 +896,7 @@ export default function ProjectDetailPage() {
             >
               <Bell className="h-4 w-4" />
             </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Slack digests and alerts</DialogTitle>
               </DialogHeader>
