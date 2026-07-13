@@ -821,20 +821,25 @@ async function evaluatePortfolioThresholdSubscription(args: {
   }
 
   const thresholdValue = args.subscription.threshold_value;
-  const matchingProjects = projects.data
-    .map((project) => {
-      const currentValue = args.subscription.metric_key === "budget_variance_pct"
-        ? (project.total_budget > 0 ? ((project.total_spent - project.total_budget) / project.total_budget) * 100 : null)
-        : args.subscription.metric_key === "labor_budget_pct"
-          ? (project.budget_hrs && project.budget_hrs > 0 ? (project.qbo_total_hours / project.budget_hrs) * 100 : null)
-          : null;
-      return currentValue == null
-        ? null
-        : compareAgainstThreshold(args.subscription.condition_operator, currentValue, thresholdValue)
-          ? { ...project, currentValue }
-          : null;
-    })
-    .filter((project): project is (typeof projects.data)[number] & { currentValue: number } => Boolean(project));
+  const portfolioMonitorKey = typeof args.subscription.scope_json?.portfolio_monitor_key === "string"
+    ? args.subscription.scope_json.portfolio_monitor_key
+    : null;
+  const candidateProjects = portfolioMonitorKey
+    ? projects.data.filter((project) => (project.monitor_keys ?? []).includes(portfolioMonitorKey))
+    : projects.data;
+  const matchingProjects = (await Promise.all(candidateProjects.map(async (project) => {
+    const context = await fetchProjectCopilotContext(args.supabase, project.id);
+    if (context.error || !context.data) {
+      return null;
+    }
+
+    const currentValue = getCurrentMetricValue(args.subscription, context.data);
+    return currentValue == null
+      ? null
+      : compareAgainstThreshold(args.subscription.condition_operator, currentValue, thresholdValue)
+        ? { ...project, currentValue }
+        : null;
+  }))).filter((project): project is (typeof projects.data)[number] & { currentValue: number } => Boolean(project));
 
   const previousMatches = new Set(((args.previousRun?.snapshot_json?.matching_project_ids ?? []) as string[]).map(String));
   const currentMatchIds = matchingProjects.map((project) => project.id);
@@ -913,6 +918,7 @@ async function evaluatePortfolioThresholdSubscription(args: {
     scopeJson: args.subscription.scope_json,
     summaryText: args.subscription.summary_text,
     metricKey: args.subscription.metric_key,
+    scopeKey: getRuleScopeKey(args.subscription),
     thresholdValue,
     matchingProjects,
   });

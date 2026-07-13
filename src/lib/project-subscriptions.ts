@@ -163,7 +163,10 @@ export function buildSubscriptionSummary(input: {
   const subject = scopeType === "project" ? "" : `${scopeLabel} `;
 
   if (scopeType !== "project" && input.metric_key === "budget_variance_pct" && input.threshold_value === 0) {
-    return `Alert when any ${scopeLabel} project goes over budget`;
+    const scopeKey = String(input.rule_json.scopeKey ?? "");
+    return scopeKey && scopeKey !== "total_budget"
+      ? `Alert when any ${scopeLabel} project goes over ${labelScope(scopeKey)} budget`
+      : `Alert when any ${scopeLabel} project goes over budget`;
   }
 
   if (scopeType !== "project" && input.metric_key === "labor_budget_pct") {

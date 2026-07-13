@@ -2,14 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { getPortfolioMonitorConfig, listPortfolioMonitorOptions, type PortfolioMonitorKey } from "@/lib/project-portfolio-monitoring";
+
+type SavedPortfolioProject = {
+  project_id: string;
+  ordinal: number;
+  monitor_keys: PortfolioMonitorKey[];
+};
 
 type SavedPortfolio = {
   id: string;
   name: string;
   slug: string;
   project_ids?: string[];
+  projects?: SavedPortfolioProject[];
 };
 
 type PortfolioSubscription = {
@@ -57,14 +65,14 @@ function formatDateTime(value: string | null) {
 }
 
 export function ProjectPortfolioManager({
-  projectId,
+  initialProjectId = null,
   defaultPmInitials,
 }: {
-  projectId: string;
+  initialProjectId?: string | null;
   defaultPmInitials?: string | null;
 }) {
   const [portfolioName, setPortfolioName] = useState("");
-  const [portfolioProjects, setPortfolioProjects] = useState(projectId);
+  const [portfolioProjects, setPortfolioProjects] = useState(initialProjectId ?? "");
   const [scopeType, setScopeType] = useState<"my_active_projects" | "all_active_projects" | "pm_active_projects" | "saved_portfolio">("all_active_projects");
   const [mode, setMode] = useState<"digest" | "over_budget" | "labor_risk">("digest");
   const [pmInitials, setPmInitials] = useState(defaultPmInitials ?? "");
@@ -77,6 +85,7 @@ export function ProjectPortfolioManager({
   const [savingSubscription, setSavingSubscription] = useState(false);
   const [updatingSubscriptionId, setUpdatingSubscriptionId] = useState<string | null>(null);
   const [deletingPortfolioSlug, setDeletingPortfolioSlug] = useState<string | null>(null);
+  const [creatingMonitorKey, setCreatingMonitorKey] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,6 +95,8 @@ export function ProjectPortfolioManager({
     { value: "pm_active_projects", label: "PM active projects" },
     { value: "saved_portfolio", label: "Saved portfolio" },
   ]), []);
+
+  const monitorOptions = useMemo(() => listPortfolioMonitorOptions(), []);
 
   async function loadSavedPortfolios() {
     setLoadingPortfolios(true);
@@ -142,7 +153,7 @@ export function ProjectPortfolioManager({
       if (error || !data?.portfolio) throw new Error(error ?? "Failed to save portfolio");
       setStatus(`Saved portfolio ${data.portfolio.name}.`);
       setPortfolioName("");
-      setPortfolioProjects(projectId);
+      setPortfolioProjects(initialProjectId ?? "");
       await loadSavedPortfolios();
       setSelectedPortfolioSlug(data.portfolio.slug);
     } catch (requestError) {
@@ -172,7 +183,7 @@ export function ProjectPortfolioManager({
     }
   }
 
-  async function createPortfolioSubscription() {
+  async function createPortfolioSubscription(extra?: { monitorKey?: PortfolioMonitorKey; portfolioSlug?: string; scopeTypeOverride?: typeof scopeType; modeOverride?: typeof mode }) {
     setSavingSubscription(true);
     setError(null);
     setStatus(null);
@@ -181,21 +192,29 @@ export function ProjectPortfolioManager({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scopeType,
+          scopeType: extra?.scopeTypeOverride ?? scopeType,
           pmInitials,
-          portfolioSlug: selectedPortfolioSlug,
-          mode,
+          portfolioSlug: extra?.portfolioSlug ?? selectedPortfolioSlug,
+          mode: extra?.monitorKey ? "over_budget" : (extra?.modeOverride ?? mode),
+          monitorKey: extra?.monitorKey,
         }),
       });
       const { data, error } = await parseApiResponse<{ subscription?: PortfolioSubscription }>(response);
       if (error || !data?.subscription) throw new Error(error ?? "Failed to create portfolio subscription");
-      setStatus(mode === "digest" ? "Portfolio digest created." : "Portfolio alert created.");
+      const effectiveMode = extra?.monitorKey ? "over_budget" : (extra?.modeOverride ?? mode);
+      setStatus(extra?.monitorKey ? "Portfolio monitor alert created." : effectiveMode === "digest" ? "Portfolio digest created." : "Portfolio alert created.");
       await loadPortfolioSubscriptions();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to create portfolio subscription");
     } finally {
       setSavingSubscription(false);
     }
+  }
+
+  async function createMonitorAlert(portfolioSlug: string, monitorKey: PortfolioMonitorKey) {
+    setCreatingMonitorKey(`${portfolioSlug}:${monitorKey}`);
+    await createPortfolioSubscription({ portfolioSlug, monitorKey });
+    setCreatingMonitorKey(null);
   }
 
   async function updatePortfolioSubscription(subscriptionId: string, action: "pause" | "resume" | "delete") {
@@ -220,11 +239,11 @@ export function ProjectPortfolioManager({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-dashed p-5">
+    <div className="space-y-6 rounded-xl border p-5">
       <div className="space-y-1">
-        <p className="text-sm font-medium">Portfolio digests and alerts</p>
-        <p className="text-xs text-muted-foreground">
-          Create Slack-backed multi-project digests and alerts for Paul/admin workflows directly from the tracker.
+        <p className="text-lg font-semibold">Portfolio digests and alerts</p>
+        <p className="text-sm text-muted-foreground">
+          Create Slack-backed portfolio subscriptions here, then use project modals only for adding individual jobs into portfolios with the monitors you care about.
         </p>
       </div>
 
@@ -270,37 +289,101 @@ export function ProjectPortfolioManager({
             {savingPortfolio ? "Saving..." : "Save portfolio"}
           </Button>
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">Saved portfolios</p>
-            <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
-              {loadingPortfolios ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-          {savedPortfolios.length === 0 ? (
-            <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No saved portfolios yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {savedPortfolios.map((portfolio) => (
-                <div key={portfolio.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-3">
-                  <div>
-                    <div className="text-sm font-medium">{portfolio.name}</div>
-                    <div className="text-xs text-muted-foreground">{portfolio.slug} · {portfolio.project_ids?.length ?? 0} project(s)</div>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void deletePortfolio(portfolio.slug)} disabled={deletingPortfolioSlug === portfolio.slug}>
-                    {deletingPortfolioSlug === portfolio.slug ? "Deleting..." : "Delete"}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium">Saved portfolios</p>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
+            {loadingPortfolios ? "Refreshing..." : "Refresh"}
+          </Button>
         </div>
+        {savedPortfolios.length === 0 ? (
+          <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No saved portfolios yet.</div>
+        ) : (
+          <div className="space-y-4">
+            {savedPortfolios.map((portfolio) => {
+              const uniqueMonitorKeys = Array.from(new Set((portfolio.projects ?? []).flatMap((item) => item.monitor_keys)));
+              return (
+                <div key={portfolio.id} className="space-y-4 rounded-xl border p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="text-sm font-medium">{portfolio.name}</div>
+                      <div className="text-xs text-muted-foreground">{portfolio.slug} · {portfolio.projects?.length ?? portfolio.project_ids?.length ?? 0} project(s)</div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setScopeType("saved_portfolio"); setSelectedPortfolioSlug(portfolio.slug); setMode("digest"); void createPortfolioSubscription({ portfolioSlug: portfolio.slug, scopeTypeOverride: "saved_portfolio", modeOverride: "digest" }); }} disabled={savingSubscription}>
+                        Create digest
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => void deletePortfolio(portfolio.slug)} disabled={deletingPortfolioSlug === portfolio.slug}>
+                        {deletingPortfolioSlug === portfolio.slug ? "Deleting..." : "Delete"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projects in this portfolio</p>
+                    {(portfolio.projects ?? []).length === 0 ? (
+                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No projects saved yet.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {(portfolio.projects ?? []).map((project) => (
+                          <div key={`${portfolio.id}:${project.project_id}`} className="rounded-md border px-3 py-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="text-sm font-medium">Project {project.project_id}</div>
+                              <div className="flex flex-wrap gap-2">
+                                {project.monitor_keys.length > 0 ? project.monitor_keys.map((monitorKey) => {
+                                  const config = getPortfolioMonitorConfig(monitorKey);
+                                  return (
+                                    <Badge key={monitorKey} variant="outline">{config?.label ?? monitorKey}</Badge>
+                                  );
+                                }) : <span className="text-xs text-muted-foreground">No monitors saved yet</span>}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Create alerts from saved monitor coverage</p>
+                    {uniqueMonitorKeys.length === 0 ? (
+                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                        Add projects to this portfolio from a project modal and choose the budgets/stats you want monitored.
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {uniqueMonitorKeys.map((monitorKey) => {
+                          const config = getPortfolioMonitorConfig(monitorKey);
+                          const projectCount = (portfolio.projects ?? []).filter((project) => project.monitor_keys.includes(monitorKey as PortfolioMonitorKey)).length;
+                          return (
+                            <Button
+                              key={`${portfolio.slug}:${monitorKey}`}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void createMonitorAlert(portfolio.slug, monitorKey as PortfolioMonitorKey)}
+                              disabled={creatingMonitorKey === `${portfolio.slug}:${monitorKey}`}
+                            >
+                              {creatingMonitorKey === `${portfolio.slug}:${monitorKey}` ? "Saving..." : `Create ${config?.label ?? monitorKey} alert (${projectCount})`}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="space-y-3 rounded-xl border p-4">
         <div>
           <p className="text-sm font-medium">Create portfolio subscription</p>
-          <p className="text-xs text-muted-foreground">Create portfolio digests or alerts that deliver to your Slack DM and also show up in Slack management flows.</p>
+          <p className="text-xs text-muted-foreground">Create portfolio digests or broad exception alerts that deliver to Slack and also show up in Slack management flows.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
@@ -337,8 +420,13 @@ export function ProjectPortfolioManager({
             </label>
           )}
         </div>
+        {scopeType === "saved_portfolio" && (
+          <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+            For project-specific budget watches, use the saved monitor alerts above. This generic section is for broader digest / over-budget / labor-risk portfolio subscriptions.
+          </div>
+        )}
         <div className="flex justify-end">
-          <Button type="button" onClick={createPortfolioSubscription} disabled={savingSubscription || (scopeType === "pm_active_projects" && !pmInitials.trim()) || (scopeType === "saved_portfolio" && !selectedPortfolioSlug)}>
+          <Button type="button" onClick={() => void createPortfolioSubscription()} disabled={savingSubscription || (scopeType === "pm_active_projects" && !pmInitials.trim()) || (scopeType === "saved_portfolio" && !selectedPortfolioSlug)}>
             {savingSubscription ? "Saving..." : `Create portfolio ${mode === "digest" ? "digest" : "alert"}`}
           </Button>
         </div>
@@ -378,6 +466,10 @@ export function ProjectPortfolioManager({
             ))}
           </div>
         )}
+      </div>
+
+      <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+        Available monitor types: {monitorOptions.map((option) => option.label).join(" · ")}
       </div>
     </div>
   );

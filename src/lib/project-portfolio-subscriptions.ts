@@ -1,5 +1,5 @@
-import { buildSubscriptionScopeLabel, type SubscriptionScopeType } from "@/lib/project-subscriptions";
-import { getSavedPortfolioBySlug } from "@/lib/project-saved-portfolios";
+import { buildSubscriptionScopeLabel, type SubscriptionScopeType } from "./project-subscriptions.ts";
+import { getSavedPortfolioBySlug } from "./project-saved-portfolios.ts";
 
 export type PortfolioProjectSnapshot = {
   id: string;
@@ -11,6 +11,7 @@ export type PortfolioProjectSnapshot = {
   qbo_total_hours: number;
   budget_hrs: number | null;
   due_date: string | null;
+  monitor_keys?: string[];
 };
 
 export async function lookupUserPmInitials(args: {
@@ -33,14 +34,14 @@ export async function lookupUserPmInitials(args: {
   };
 }
 
-async function resolveSavedPortfolioProjectIds(args: {
+async function resolveSavedPortfolioProjects(args: {
   supabase: any;
   createdByEmail: string;
   scopeJson?: Record<string, unknown> | null;
 }) {
   const portfolioSlug = typeof args.scopeJson?.portfolio_slug === "string" ? args.scopeJson.portfolio_slug : null;
   if (!portfolioSlug) {
-    return { data: [] as string[], error: "Saved portfolio slug is required." };
+    return { data: [] as Array<{ project_id: string; monitor_keys: string[] }>, error: "Saved portfolio slug is required." };
   }
 
   const portfolio = await getSavedPortfolioBySlug({
@@ -49,12 +50,18 @@ async function resolveSavedPortfolioProjectIds(args: {
     slug: portfolioSlug,
   });
   if (portfolio.error) {
-    return { data: [] as string[], error: portfolio.error };
+    return { data: [] as Array<{ project_id: string; monitor_keys: string[] }>, error: portfolio.error };
   }
   if (!portfolio.data) {
-    return { data: [] as string[], error: `Saved portfolio ${portfolioSlug} was not found.` };
+    return { data: [] as Array<{ project_id: string; monitor_keys: string[] }>, error: `Saved portfolio ${portfolioSlug} was not found.` };
   }
-  return { data: portfolio.data.project_ids ?? [], error: null };
+  return {
+    data: (portfolio.data.projects ?? []).map((project) => ({
+      project_id: project.project_id,
+      monitor_keys: project.monitor_keys ?? [],
+    })),
+    error: null,
+  };
 }
 
 export async function resolvePortfolioProjects(args: {
@@ -69,6 +76,7 @@ export async function resolvePortfolioProjects(args: {
 
   let pmInitials: string | null = null;
   let exactProjectIds: string[] | null = null;
+  let savedMonitorMap: Record<string, string[]> | null = null;
   if (args.scopeType === "my_active_projects") {
     const resolved = await lookupUserPmInitials({ supabase: args.supabase, email: args.createdByEmail });
     if (resolved.error) {
@@ -84,7 +92,7 @@ export async function resolvePortfolioProjects(args: {
       return { data: [] as PortfolioProjectSnapshot[], error: "PM initials are required for this portfolio scope." };
     }
   } else if (args.scopeType === "saved_portfolio") {
-    const saved = await resolveSavedPortfolioProjectIds({
+    const saved = await resolveSavedPortfolioProjects({
       supabase: args.supabase,
       createdByEmail: args.createdByEmail,
       scopeJson: args.scopeJson,
@@ -92,7 +100,8 @@ export async function resolvePortfolioProjects(args: {
     if (saved.error) {
       return { data: [] as PortfolioProjectSnapshot[], error: saved.error };
     }
-    exactProjectIds = saved.data;
+    exactProjectIds = saved.data.map((item) => item.project_id);
+    savedMonitorMap = Object.fromEntries(saved.data.map((item) => [item.project_id, item.monitor_keys]));
     if (exactProjectIds.length === 0) {
       return { data: [] as PortfolioProjectSnapshot[], error: "Saved portfolio has no projects yet." };
     }
@@ -127,6 +136,7 @@ export async function resolvePortfolioProjects(args: {
     qbo_total_hours: typeof row.qbo_total_hours === "number" ? row.qbo_total_hours : Number(row.qbo_total_hours ?? 0) || 0,
     budget_hrs: typeof row.budget_hrs === "number" ? row.budget_hrs : Number(row.budget_hrs ?? 0) || null,
     due_date: typeof row.due_date === "string" ? row.due_date : null,
+    monitor_keys: savedMonitorMap?.[String(row.id)] ?? [],
   }));
 
   if (exactProjectIds) {
@@ -245,6 +255,7 @@ export function buildPortfolioThresholdAlertText(args: {
   scopeJson?: Record<string, unknown> | null;
   summaryText: string;
   metricKey: string | null;
+  scopeKey?: string | null;
   thresholdValue: number | null;
   matchingProjects: Array<PortfolioProjectSnapshot & { currentValue: number }>;
 }) {
@@ -252,7 +263,9 @@ export function buildPortfolioThresholdAlertText(args: {
   const metricLabel = args.metricKey === "labor_budget_pct"
     ? "labor budget"
     : args.metricKey === "budget_variance_pct"
-      ? "budget variance"
+      ? args.scopeKey && args.scopeKey !== "total_budget"
+        ? `${String(args.scopeKey).replace(/^budget_/, "")} budget variance`
+        : "budget variance"
       : "portfolio metric";
 
   const lines = [

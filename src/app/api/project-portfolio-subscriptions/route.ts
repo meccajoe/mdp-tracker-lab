@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { buildPortfolioMonitorRecommendation, buildPortfolioMonitorScopeExtension, type PortfolioMonitorKey } from "@/lib/project-portfolio-monitoring";
 import { getSavedPortfolioBySlug } from "@/lib/project-saved-portfolios";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildSubscriptionCreatePayload, type DigestRecommendationInput, type SubscriptionScopeType, type ThresholdRecommendationInput } from "@/lib/project-subscriptions";
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
     pmInitials?: string;
     portfolioSlug?: string;
     mode?: "digest" | "over_budget" | "labor_risk";
+    monitorKey?: PortfolioMonitorKey;
   };
 
   const scopeType = body.scopeType;
@@ -101,7 +103,16 @@ export async function POST(request: NextRequest) {
   }
 
   let recommendation: ThresholdRecommendationInput | DigestRecommendationInput;
-  if (mode === "digest") {
+  if (body.monitorKey) {
+    recommendation = buildPortfolioMonitorRecommendation({
+      monitorKey: body.monitorKey,
+      scopeLabel,
+    });
+    scopeJson = {
+      ...scopeJson,
+      ...buildPortfolioMonitorScopeExtension(body.monitorKey),
+    };
+  } else if (mode === "digest") {
     recommendation = buildPortfolioDigestRecommendation(scopeLabel);
   } else {
     recommendation = buildSlackPortfolioRecommendation({

@@ -6,7 +6,7 @@ import type { ProjectSummary } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ProjectPortfolioManager } from "@/components/project-portfolio-manager";
+import { ProjectPortfolioMembershipCard } from "@/components/project-portfolio-membership-card";
 
 type ThresholdRecommendation = {
   type: "threshold";
@@ -549,7 +549,7 @@ export function ProjectNotificationRecommendationCard({
       </div>
 
       {canManagePortfolios && (
-        <ProjectPortfolioManager projectId={projectId} defaultPmInitials={defaultPmInitials} />
+        <ProjectPortfolioMembershipCard projectId={projectId} />
       )}
     </div>
   );
