@@ -382,7 +382,7 @@ export async function POST(req: NextRequest) {
       // Fetch quote + line items, falling back gracefully
       let parsed: ParsedQuote = {
         contractAmount: parseFloat(deal.properties.amount ?? "0") || 0,
-        quotes: { fabrication: 0, design: 0, pm: 0, shipping: 0, crating: 0, id_labor: 0, travel: 0, props: 0, equipment: 0, rental: 0, flooring: 0 },
+        quotes: { fabrication: 0, design: 0, pm: 0, shipping: 0, crating: 0, id_labor: 0, travel: 0, storage: 0, props: 0, equipment: 0, rental: 0, flooring: 0 },
         reclassified: [],
       };
 
@@ -440,6 +440,7 @@ export async function POST(req: NextRequest) {
         pct_crating: null,
         pct_id_labor: null,
         pct_travel: null,
+        pct_storage: null,
         pct_props: null,
         pct_equipment: null,
         pct_rental: null,
@@ -455,6 +456,7 @@ export async function POST(req: NextRequest) {
         budget_crating: quoteSyncFields.budget_crating,
         budget_id_labor: quoteSyncFields.budget_id_labor,
         budget_travel: quoteSyncFields.budget_travel,
+        budget_storage: quoteSyncFields.budget_storage,
         budget_props: quoteSyncFields.budget_props,
         budget_equipment: quoteSyncFields.budget_equipment,
         budget_rental: quoteSyncFields.budget_rental,

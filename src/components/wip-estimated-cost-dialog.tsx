@@ -23,6 +23,7 @@ const BUDGET_CATEGORY_TOOLTIPS: Record<string, string> = {
   Crating: "Saved budget if present; otherwise Crating quote × crating %.",
   "I&D Labor": "Saved budget if present; otherwise I&D quote × I&D %.",
   Travel: "Saved budget if present; otherwise Travel quote × travel %.",
+  Storage: "Saved budget if present; otherwise Storage quote × storage %.",
   Props: "Saved budget if present; otherwise Props quote × props %.",
   Equipment: "Saved budget if present; otherwise Equipment quote × equipment %.",
   Rental: "Saved budget if present; otherwise Rental quote × rental %.",
@@ -108,7 +109,7 @@ export function WipEstimatedCostDialog({ row, triggerLabel, triggerClassName = "
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Category breakdown includes Labor Hours, Materials, Design, Project Management, Shipping, Crating, I&D Labor, Travel, Props, Equipment, Rental, and Flooring/Graphics.
+              Category breakdown includes Labor Hours, Materials, Design, Project Management, Shipping, Crating, I&D Labor, Travel, Storage, Props, Equipment, Rental, and Flooring/Graphics.
             </p>
             <p className="text-xs text-muted-foreground">
               Percent uses project override when set; otherwise the default model percentage.

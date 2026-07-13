@@ -77,6 +77,13 @@ const BREAKDOWN_CONFIG: BreakdownConfig[] = [
     basisKey: "quote_travel",
   },
   {
+    category: "Storage",
+    budgetKey: "budget_storage",
+    pctKey: "pct_storage",
+    pctDefaultKey: "storage",
+    basisKey: "quote_storage",
+  },
+  {
     category: "Props",
     budgetKey: "budget_props",
     pctKey: "pct_props",

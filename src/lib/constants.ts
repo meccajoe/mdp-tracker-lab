@@ -9,6 +9,7 @@ export const BUDGET_FIELDS = [
   { key: "budget_crating", label: "Crating", isHours: false },
   { key: "budget_id_labor", label: "I&D Labor", isHours: false },
   { key: "budget_travel", label: "Travel", isHours: false },
+  { key: "budget_storage", label: "Storage", isHours: false },
   { key: "budget_props", label: "Props", isHours: false },
   { key: "budget_equipment", label: "Equipment", isHours: false },
   { key: "budget_rental", label: "Rental", isHours: false },

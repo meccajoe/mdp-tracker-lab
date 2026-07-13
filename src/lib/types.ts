@@ -30,6 +30,7 @@ export interface Project {
   budget_shipping: number | null;
   budget_id_labor: number | null;
   budget_travel: number | null;
+  budget_storage: number | null;
   budget_props: number | null;
   budget_equipment: number | null;
   budget_rental: number | null;
@@ -52,6 +53,7 @@ export interface Project {
   quote_shipping: number | null;
   quote_id_labor: number | null;
   quote_travel: number | null;
+  quote_storage: number | null;
   quote_props: number | null;
   quote_equipment: number | null;
   quote_rental: number | null;
@@ -63,6 +65,7 @@ export interface Project {
   pct_shipping: number | null;
   pct_id_labor: number | null;
   pct_travel: number | null;
+  pct_storage: number | null;
   pct_props: number | null;
   pct_equipment: number | null;
   pct_rental: number | null;

@@ -57,6 +57,10 @@ const SKU_MAP: Record<string, string> = {
   "400907": "travel",
   "400908": "travel",
   "400909": "travel",
+  // Storage
+  "400500": "storage",
+  "400501": "storage",
+  "400502": "storage",
   // Flooring
   "400801": "flooring",
   // Props/Decor
@@ -68,12 +72,9 @@ const SKU_MAP: Record<string, string> = {
   "408003": "equipment",
 };
 
-// SKUs that roll into contractAmount only (graphics, storage)
+// SKUs that roll into contractAmount only (graphics)
 const CONTRACT_AMOUNT_SKUS = new Set([
   "400800", // Graphics
-  "400500", // Storage
-  "400501",
-  "400502",
 ]);
 
 // Description-based overrides for fabrication-coded or unknown SKUs
@@ -94,6 +95,7 @@ export interface ParsedQuote {
     crating: number;
     id_labor: number;
     travel: number;
+    storage: number;
     props: number;
     equipment: number;
     rental: number;
@@ -111,6 +113,7 @@ export interface CalculatedBudgets {
   budget_crating: number | null;
   budget_id_labor: number | null;
   budget_travel: number | null;
+  budget_storage: number | null;
   budget_props: number | null;
   budget_equipment: number | null;
   budget_rental: number | null;
@@ -146,6 +149,7 @@ export function parseLineItems(lineItems: HubSpotLineItem[]): ParsedQuote {
     crating: 0,
     id_labor: 0,
     travel: 0,
+    storage: 0,
     props: 0,
     equipment: 0,
     rental: 0,
@@ -223,6 +227,7 @@ export async function calculateBudgets(parsed: ParsedQuote): Promise<CalculatedB
     budget_crating: q.crating > 0 ? Math.round(q.crating * p("crating") / 100) : null,
     budget_id_labor: q.id_labor > 0 ? Math.round(q.id_labor * p("id_labor") / 100) : null,
     budget_travel: q.travel > 0 ? Math.round(q.travel * p("travel") / 100) : null,
+    budget_storage: q.storage > 0 ? Math.round(q.storage * p("storage") / 100) : null,
     budget_props: q.props > 0 ? Math.round(q.props * p("props") / 100) : null,
     budget_equipment: q.equipment > 0 ? Math.round(q.equipment * p("equipment") / 100) : null,
     budget_rental: q.rental > 0 ? Math.round(q.rental * p("rental") / 100) : null,

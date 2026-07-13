@@ -92,6 +92,8 @@ function labelScope(scopeKey: string) {
       return "I&D labor";
     case "budget_travel":
       return "travel";
+    case "budget_storage":
+      return "storage";
     case "budget_props":
       return "props/decor";
     case "budget_equipment":

@@ -23,6 +23,7 @@ test("buildStoredQuoteSnapshotFromParsedQuote stores fabrication subtotal as the
       crating: 0,
       id_labor: 4145,
       travel: 1850,
+      storage: 1250,
       props: 0,
       equipment: 0,
       rental: 0,
@@ -37,6 +38,7 @@ test("buildStoredQuoteSnapshotFromParsedQuote stores fabrication subtotal as the
   assert.equal(snapshot.quote_shipping, 4850);
   assert.equal(snapshot.quote_id_labor, 4145);
   assert.equal(snapshot.quote_travel, 1850);
+  assert.equal(snapshot.quote_storage, 1250);
   assert.equal(snapshot.quote_flooring, 1930);
 });
 
@@ -59,6 +61,7 @@ test("buildStoredQuoteSnapshotFromParsedQuote can apply the fabrication snapshot
         crating: 0,
         id_labor: 0,
         travel: 0,
+        storage: 0,
         props: 0,
         equipment: 0,
         rental: 0,
@@ -84,6 +87,7 @@ test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budge
       crating: 0,
       id_labor: 4145,
       travel: 1850,
+      storage: 1250,
       props: 0,
       equipment: 0,
       rental: 0,
@@ -95,6 +99,7 @@ test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budge
   assert.equal(fields.quote_materials, 14330);
   assert.equal(fields.budget_materials, 3583);
   assert.equal(fields.budget_hrs, 87);
+  assert.equal(fields.quote_storage, 1250);
   assert.equal(fields.quote_flooring, 1930);
 });
 
@@ -173,6 +178,8 @@ test("buildBudgetPayloadFromProjectQuote derives live rebaseline budgets from qu
     pct_id_labor: 60,
     quote_travel: 1850,
     pct_travel: 75,
+    quote_storage: 1250,
+    pct_storage: 60,
     quote_props: 0,
     pct_props: 50,
     quote_equipment: 0,
@@ -190,6 +197,7 @@ test("buildBudgetPayloadFromProjectQuote derives live rebaseline budgets from qu
   assert.equal(budgets.budget_shipping, 3395);
   assert.equal(budgets.budget_id_labor, 2487);
   assert.equal(budgets.budget_travel, 1388);
+  assert.equal(budgets.budget_storage, 750);
   assert.equal(budgets.budget_flooring, 1255);
 });
 
@@ -219,6 +227,9 @@ test("buildQuoteCompareRows shows zero variance after a fresh rebaseline", () =>
       quote_travel: 1850,
       pct_travel: 75,
       budget_travel: 1388,
+      quote_storage: 1250,
+      pct_storage: 60,
+      budget_storage: 750,
       quote_props: 0,
       pct_props: 50,
       budget_props: 0,
@@ -241,6 +252,7 @@ test("buildQuoteCompareRows shows zero variance after a fresh rebaseline", () =>
       Crating: 0,
       "I&D Labor": 0,
       Travel: 0,
+      Storage: 0,
       "Props/Decor": 0,
       Equipment: 0,
       Rental: 0,
@@ -268,6 +280,7 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
       pct_labor: 25,
       pct_materials: 25,
       pct_shipping: 60,
+      pct_storage: 60,
       pct_design: 50,
     },
     [
@@ -292,6 +305,16 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
         mapped_category: "shipping",
       },
       {
+        source_line_item_id: "2b",
+        sku: "400500",
+        item: "Storage",
+        description: "Warehouse storage",
+        quantity: 1,
+        unit_price: 500,
+        line_total: 500,
+        mapped_category: "storage",
+      },
+      {
         source_line_item_id: "3",
         sku: "400700",
         item: "Design Pass",
@@ -304,7 +327,7 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
     ]
   );
 
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 4);
   assert.deepEqual(rows[0], {
     source_line_item_id: "1",
     sku: "400100",
@@ -323,8 +346,10 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
   assert.equal(rows[1].material_budget, 0);
   assert.equal(rows[1].non_lm_budget, 900);
   assert.equal(rows[1].budget_category_label, "Shipping");
-  assert.equal(rows[2].non_lm_budget, 500);
-  assert.equal(rows[2].budget_category_label, "Design");
+  assert.equal(rows[2].non_lm_budget, 300);
+  assert.equal(rows[2].budget_category_label, "Storage");
+  assert.equal(rows[3].non_lm_budget, 500);
+  assert.equal(rows[3].budget_category_label, "Design");
 });
 
 test("buildBudgetBreakdownTotal exposes quote-basis totals for each budget row", () => {
@@ -336,6 +361,7 @@ test("buildBudgetBreakdownTotal exposes quote-basis totals for each budget row",
     quote_crating: 500,
     quote_id_labor: 4145,
     quote_travel: 1850,
+    quote_storage: 1250,
     quote_props: 325,
     quote_equipment: 700,
     quote_rental: 900,
@@ -350,6 +376,7 @@ test("buildBudgetBreakdownTotal exposes quote-basis totals for each budget row",
   assert.equal(buildBudgetBreakdownTotal(project, "budget_crating"), 500);
   assert.equal(buildBudgetBreakdownTotal(project, "budget_id_labor"), 4145);
   assert.equal(buildBudgetBreakdownTotal(project, "budget_travel"), 1850);
+  assert.equal(buildBudgetBreakdownTotal(project, "budget_storage"), 1250);
   assert.equal(buildBudgetBreakdownTotal(project, "budget_props"), 325);
   assert.equal(buildBudgetBreakdownTotal(project, "budget_equipment"), 700);
   assert.equal(buildBudgetBreakdownTotal(project, "budget_rental"), 900);

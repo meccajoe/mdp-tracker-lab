@@ -40,6 +40,7 @@ function emptyParsedQuote(contractAmount: number): ParsedQuote {
       crating: 0,
       id_labor: 0,
       travel: 0,
+      storage: 0,
       props: 0,
       equipment: 0,
       rental: 0,

@@ -40,6 +40,7 @@ const context = {
     budget_shipping: null,
     budget_id_labor: null,
     budget_travel: null,
+    budget_storage: null,
     budget_props: null,
     budget_equipment: null,
     budget_rental: null,

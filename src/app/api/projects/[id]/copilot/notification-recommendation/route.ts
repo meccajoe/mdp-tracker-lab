@@ -62,6 +62,7 @@ function coerceProjectFacts(row: Record<string, unknown>): RecommendationProject
     budget_shipping: typeof row.budget_shipping === "number" ? row.budget_shipping : Number(row.budget_shipping ?? 0) || null,
     budget_id_labor: typeof row.budget_id_labor === "number" ? row.budget_id_labor : Number(row.budget_id_labor ?? 0) || null,
     budget_travel: typeof row.budget_travel === "number" ? row.budget_travel : Number(row.budget_travel ?? 0) || null,
+    budget_storage: typeof row.budget_storage === "number" ? row.budget_storage : Number(row.budget_storage ?? 0) || null,
     budget_props: typeof row.budget_props === "number" ? row.budget_props : Number(row.budget_props ?? 0) || null,
     budget_equipment: typeof row.budget_equipment === "number" ? row.budget_equipment : Number(row.budget_equipment ?? 0) || null,
     budget_rental: typeof row.budget_rental === "number" ? row.budget_rental : Number(row.budget_rental ?? 0) || null,
@@ -101,7 +102,7 @@ export async function POST(
 
   const { data: projectRow, error: projectError } = await supabase
     .from("project_summary")
-    .select("id, name, budget_hrs, qbo_total_hours, total_budget, total_spent, budget_materials, budget_design, budget_pm, budget_shipping, budget_id_labor, budget_travel, budget_props, budget_equipment, budget_rental, budget_crating, budget_flooring")
+    .select("id, name, budget_hrs, qbo_total_hours, total_budget, total_spent, budget_materials, budget_design, budget_pm, budget_shipping, budget_id_labor, budget_travel, budget_storage, budget_props, budget_equipment, budget_rental, budget_crating, budget_flooring")
     .eq("id", id)
     .maybeSingle();
 

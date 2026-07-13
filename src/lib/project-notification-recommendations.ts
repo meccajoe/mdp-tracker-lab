@@ -11,6 +11,7 @@ export type RecommendationProjectFacts = {
   budget_shipping: number | null;
   budget_id_labor: number | null;
   budget_travel: number | null;
+  budget_storage: number | null;
   budget_props: number | null;
   budget_equipment: number | null;
   budget_rental: number | null;
@@ -84,6 +85,11 @@ export const CATEGORY_SCOPE_CONFIG = {
     label: "Travel",
     aliases: ["travel", "hotel", "airfare", "per diem"],
     expenseCategories: ["Travel", "Travel-Hotels", "Travel-Per Diem", "Travel-Airfare & Baggage Fees", "Production Meals"],
+  },
+  budget_storage: {
+    label: "Storage",
+    aliases: ["storage", "warehouse"],
+    expenseCategories: ["Storage"],
   },
   budget_props: {
     label: "Props/Decor",

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseLineItems, calculateBudgets, mapLineItemToQuoteCategory } from "./hubspot-quote-parser.ts";
 
-test("parseLineItems classifies fabrication and crating explicitly while keeping graphics and storage out of fabrication", () => {
+test("parseLineItems classifies fabrication and crating explicitly while keeping graphics out of fabrication and storage in its own category", () => {
   const parsed = parseLineItems([
     { name: "Main Fabrication", sku: "400100", amount: 40000 },
     { name: "Custom Crating", sku: "400404", amount: 5000 },
@@ -13,6 +13,7 @@ test("parseLineItems classifies fabrication and crating explicitly while keeping
   assert.equal(parsed.contractAmount, 60000);
   assert.equal(parsed.quotes.fabrication, 40000);
   assert.equal(parsed.quotes.crating, 5000);
+  assert.equal(parsed.quotes.storage, 3000);
   assert.equal(parsed.quotes.flooring, 0);
   assert.equal(parsed.quotes.shipping, 0);
 });
@@ -27,6 +28,7 @@ test("calculateBudgets derives labor and materials from fabrication subtotal onl
       shipping: 8000,
       id_labor: 7000,
       travel: 6000,
+      storage: 2000,
       props: 2000,
       equipment: 3000,
       rental: 4000,
@@ -40,6 +42,7 @@ test("calculateBudgets derives labor and materials from fabrication subtotal onl
   assert.equal(budgets.budget_hrs, 244);
   assert.equal(budgets.budget_crating, 3000);
   assert.equal(budgets.budget_shipping, 5600);
+  assert.equal(budgets.budget_storage, 1200);
   assert.equal(budgets.budget_flooring, 7800);
 });
 
@@ -53,6 +56,7 @@ test("calculateBudgets leaves labor and materials null when fabrication subtotal
       shipping: 10000,
       id_labor: 0,
       travel: 0,
+      storage: 2000,
       props: 0,
       equipment: 0,
       rental: 0,
@@ -64,6 +68,7 @@ test("calculateBudgets leaves labor and materials null when fabrication subtotal
 
   assert.equal(budgets.budget_hrs, null);
   assert.equal(budgets.budget_materials, null);
+  assert.equal(budgets.budget_storage, 1200);
 });
 
 test("mapLineItemToQuoteCategory exposes per-line category mapping for allocation tables", () => {
@@ -74,6 +79,10 @@ test("mapLineItemToQuoteCategory exposes per-line category mapping for allocatio
   assert.equal(
     mapLineItemToQuoteCategory({ name: "Shipping/Delivery - 30' Truck (Oklahoma)", sku: "400403", amount: 1500 }),
     "shipping"
+  );
+  assert.equal(
+    mapLineItemToQuoteCategory({ name: "Storage", sku: "400500", amount: 1200 }),
+    "storage"
   );
   assert.equal(
     mapLineItemToQuoteCategory({ name: "Graphics Package", sku: "400800", amount: 1200 }),

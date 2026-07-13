@@ -124,13 +124,16 @@ const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
     "Prep, Pack, Crate or Palletize",    // HubSpot 400610
     "Disposal",                          // HubSpot 400611
   ],
-  // Shipping: freight, trucks, storage
+  // Shipping: freight and trucking
   budget_shipping: [
     "Shipping",                          // HubSpot 400400 / COGS 500400
     "Shipping/Delivery - 53' Truck",     // HubSpot 400402
     "Shipping/Delivery - 30' Truck",     // HubSpot 400403
     "Shipping/Trucking",                 // COGS 500400
     "Fuel Costs",                        // COGS 500450
+  ],
+  // Storage: warehouse and post-show storage
+  budget_storage: [
     "Storage",                           // HubSpot 400500/400501 / COGS 500500
   ],
   // Crating: separate from materials and shipping
