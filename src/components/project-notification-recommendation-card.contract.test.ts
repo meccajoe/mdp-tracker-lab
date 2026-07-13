@@ -12,12 +12,14 @@ test("project detail page uses a bell-triggered modal for synced Slack digests a
 
   assert.match(componentSource, /\/api\/projects\/\$\{projectId\}\/copilot\/notification-recommendation/, "component should post to the notification recommendation API route");
   assert.match(componentSource, /Get recommendation/i, "component should expose a call-to-action button");
+  assert.match(componentSource, /Create alert|Create digest/, "component should expose a direct create-from-prompt action alongside recommendations");
   assert.match(componentSource, /Recommended thresholds|defaultSections|spotlight/i, "component should render recommendation details");
   assert.match(componentSource, /Slack digests and alerts/i, "component should present itself as a Slack digests and alerts manager");
   assert.match(componentSource, /same Slack digests and alerts|same digests and alerts/i, "component should explain that web and Slack manage the same subscriptions");
   assert.doesNotMatch(componentSource, /CardTitle[\s\S]*Slack digests and alerts/i, "component should not repeat the modal title inside the body");
   assert.match(componentSource, /response\.text\(\)|parseApiResponse/, "component should handle non-JSON API failures without surfacing raw JSON parse errors");
   assert.match(componentSource, /space-y-5|space-y-6/, "component should use roomier vertical spacing between inner sections");
+  assert.match(componentSource, /resolveRecommendation|createSubscriptionFromPrompt|promptAction/, "component should support creating a subscription directly from the typed prompt");
 
   assert.match(pageSource, /project-notification-recommendation-card/i, "project detail page should import the recommendation component");
   assert.match(pageSource, /Bell/, "project detail page should import or render a bell icon for the trigger");

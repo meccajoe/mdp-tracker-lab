@@ -83,6 +83,44 @@ test("buildProjectNotificationRecommendation recommends category spend threshold
   );
 });
 
+test("buildProjectNotificationRecommendation honors explicit percent-of-budget thresholds for category alerts", () => {
+  const result = buildProjectNotificationRecommendation({
+    requestText: "notify me when fabrication gets to 90% of budget",
+    project: {
+      id: "26153",
+      name: "Whatnot Shelves",
+      budget_hrs: 120,
+      qbo_total_hours: 95.05,
+      total_budget: 50000,
+      total_spent: 28000,
+      budget_materials: 40000,
+      budget_design: null,
+      budget_pm: null,
+      budget_shipping: null,
+      budget_id_labor: null,
+      budget_travel: null,
+      budget_props: null,
+      budget_equipment: null,
+      budget_rental: null,
+      budget_crating: null,
+      budget_flooring: null,
+    },
+    categoryActuals: {
+      budget_materials: 18000,
+    },
+  });
+
+  assert.equal(result.type, "threshold");
+  if (result.type !== "threshold") return;
+  assert.equal(result.metricKey, "category_actual_spend");
+  assert.equal(result.scopeKey, "budget_materials");
+  assert.equal(result.unit, "currency");
+  assert.equal(result.currentValue, 18000);
+  assert.equal(result.spotlight.threshold, 36000);
+  assert.match(result.spotlight.label, /90%/i);
+  assert.match(result.message, /90%/i);
+});
+
 test("buildProjectNotificationRecommendation defaults vague keep-me-posted requests to a digest bundle", () => {
   const result = buildProjectNotificationRecommendation({
     requestText: "keep me posted on this project",

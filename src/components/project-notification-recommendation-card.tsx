@@ -133,6 +133,7 @@ export function ProjectNotificationRecommendationCard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RecommendationResponse | null>(null);
+  const [lastResolvedPrompt, setLastResolvedPrompt] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<ProjectSubscription[]>([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [subscriptionsError, setSubscriptionsError] = useState<string | null>(null);
@@ -141,6 +142,14 @@ export function ProjectNotificationRecommendationCard({
   const [sendingTestKey, setSendingTestKey] = useState<string | null>(null);
   const [slackStatus, setSlackStatus] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+
+  function getPromptActionLabel() {
+    const promptText = prompt.trim().toLowerCase();
+    if (result?.recommendation.type === "digest" || /keep me posted|keep us posted|updates|update me|daily|weekly|digest/.test(promptText)) {
+      return "Create digest";
+    }
+    return "Create alert";
+  }
 
   async function loadSubscriptions() {
     setSubscriptionsLoading(true);
@@ -164,7 +173,16 @@ export function ProjectNotificationRecommendationCard({
     void loadSubscriptions();
   }, [projectId]);
 
-  async function getRecommendation() {
+  async function resolveRecommendationForPrompt(forceRefresh = false) {
+    const normalizedPrompt = prompt.trim();
+    if (!normalizedPrompt) {
+      return null;
+    }
+
+    if (!forceRefresh && result && lastResolvedPrompt === normalizedPrompt) {
+      return result.recommendation;
+    }
+
     setLoading(true);
     setError(null);
     setSlackStatus(null);
@@ -174,26 +192,30 @@ export function ProjectNotificationRecommendationCard({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: prompt }),
+        body: JSON.stringify({ message: normalizedPrompt }),
       });
       const { data, error } = await parseApiResponse<RecommendationResponse>(response);
       if (error || !data) {
         throw new Error(error ?? "Failed to load recommendation");
       }
       setResult(data);
+      setLastResolvedPrompt(normalizedPrompt);
+      return data.recommendation;
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to load recommendation");
       setResult(null);
+      setLastResolvedPrompt(null);
+      return null;
     } finally {
       setLoading(false);
     }
   }
 
-  async function createSubscription() {
-    if (!result || result.recommendation.type === "clarify") {
-      return;
-    }
+  async function getRecommendation() {
+    await resolveRecommendationForPrompt(true);
+  }
 
+  async function persistSubscription(recommendation: ThresholdRecommendation | DigestRecommendation) {
     setSavingSubscription(true);
     setSubscriptionsError(null);
     setSubscriptionStatus(null);
@@ -203,19 +225,44 @@ export function ProjectNotificationRecommendationCard({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ recommendation: result.recommendation }),
+        body: JSON.stringify({ recommendation }),
       });
       const { data, error } = await parseApiResponse<{ subscription?: ProjectSubscription }>(response);
       if (error || !data?.subscription) {
         throw new Error(error ?? "Failed to create subscription");
       }
       setSubscriptions((current) => [data.subscription!, ...current]);
-      setSubscriptionStatus(result.recommendation.type === "digest" ? "Slack digest created." : "Slack alert created.");
+      setSubscriptionStatus(recommendation.type === "digest" ? "Slack digest created." : "Slack alert created.");
+      return data.subscription;
     } catch (requestError) {
       setSubscriptionsError(requestError instanceof Error ? requestError.message : "Failed to create Slack subscription");
+      return null;
     } finally {
       setSavingSubscription(false);
     }
+  }
+
+  async function createSubscription() {
+    if (!result || result.recommendation.type === "clarify") {
+      return;
+    }
+
+    await persistSubscription(result.recommendation);
+  }
+
+  async function createSubscriptionFromPrompt() {
+    const recommendation = await resolveRecommendationForPrompt(true);
+    if (!recommendation) {
+      return;
+    }
+
+    if (recommendation.type === "clarify") {
+      setSubscriptionStatus(null);
+      setSubscriptionsError(recommendation.message);
+      return;
+    }
+
+    await persistSubscription(recommendation);
   }
 
   async function updateSubscription(subscriptionId: string, action: "pause" | "resume" | "delete") {
@@ -310,6 +357,9 @@ export function ProjectNotificationRecommendationCard({
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" onClick={getRecommendation} disabled={loading || !prompt.trim()}>
             {loading ? "Loading..." : "Get recommendation"}
+          </Button>
+          <Button type="button" variant="outline" onClick={createSubscriptionFromPrompt} disabled={loading || savingSubscription || !prompt.trim()}>
+            {savingSubscription ? "Saving..." : getPromptActionLabel()}
           </Button>
           {project.budget_hrs != null && (
             <span className="text-xs text-muted-foreground">

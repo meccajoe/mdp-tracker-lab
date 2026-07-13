@@ -125,7 +125,16 @@ function normalizeText(value: string) {
 }
 
 function matchesThresholdIntent(requestText: string) {
-  return /(too high|gets too high|getting high|warn|watch|exceeds?|exceeded|above|over|passes?|hits?|reaches?)/.test(requestText);
+  return /(too high|gets too high|getting high|warn|watch|exceeds?|exceeded|above|over|passes?|hits?|reaches?|gets to)/.test(requestText);
+}
+
+function extractExplicitPercentThreshold(requestText: string) {
+  const match = requestText.match(/(\d{1,3}(?:\.\d+)?)\s*(?:%|percent)/);
+  if (!match) return null;
+
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 function roundHours(value: number) {
@@ -162,6 +171,18 @@ function buildVarianceThresholdOptions(): ThresholdOption[] {
   ];
 }
 
+function buildCustomThresholdOption(percent: number, threshold: number): ThresholdOption {
+  return {
+    id: `custom_${String(percent).replace(/\./g, "_")}`,
+    label: `Custom (${percent}%)`,
+    threshold,
+  };
+}
+
+function mergeSpotlightWithOptions(spotlight: ThresholdOption, defaults: ThresholdOption[]) {
+  return [spotlight, ...defaults.filter((option) => option.threshold !== spotlight.threshold)];
+}
+
 function findCategoryScopeKey(requestText: string): CategoryScopeKey | null {
   for (const [scopeKey, config] of Object.entries(CATEGORY_SCOPE_CONFIG) as Array<[CategoryScopeKey, (typeof CATEGORY_SCOPE_CONFIG)[CategoryScopeKey]]>) {
     if (config.aliases.some((alias) => requestText.includes(alias))) {
@@ -195,6 +216,26 @@ function buildLaborRecommendation(project: RecommendationProjectFacts): ProjectN
   };
 }
 
+function buildLaborRecommendationForRequest(project: RecommendationProjectFacts, requestText: string): ProjectNotificationRecommendation {
+  const baseRecommendation = buildLaborRecommendation(project);
+  if (baseRecommendation.type !== "threshold") {
+    return baseRecommendation;
+  }
+
+  const explicitPercent = extractExplicitPercentThreshold(requestText);
+  if (!explicitPercent || !/budget/.test(requestText)) {
+    return baseRecommendation;
+  }
+
+  const spotlight = buildCustomThresholdOption(explicitPercent, roundHours(baseRecommendation.basisValue * (explicitPercent / 100)));
+  return {
+    ...baseRecommendation,
+    spotlight,
+    options: mergeSpotlightWithOptions(spotlight, baseRecommendation.options),
+    message: `Project ${project.id} has a labor budget of ${project.budget_hrs} hours and is currently at ${project.qbo_total_hours} hours. I can create a custom alert at ${spotlight.threshold} hours (${explicitPercent}% of budget).`,
+  };
+}
+
 function buildCategoryRecommendation(
   project: RecommendationProjectFacts,
   requestText: string,
@@ -217,8 +258,13 @@ function buildCategoryRecommendation(
     };
   }
 
-  const options = buildCurrencyThresholdOptions(budgetValue);
-  const spotlight = options.find((option) => option.id === "heads_up") ?? options[0];
+  const defaultOptions = buildCurrencyThresholdOptions(budgetValue);
+  const explicitPercent = extractExplicitPercentThreshold(requestText);
+  const customPercentRequested = !!explicitPercent && /budget/.test(requestText);
+  const spotlight = customPercentRequested
+    ? buildCustomThresholdOption(explicitPercent!, roundCurrency(budgetValue * (explicitPercent! / 100)))
+    : (defaultOptions.find((option) => option.id === "heads_up") ?? defaultOptions[0]);
+
   return {
     type: "threshold",
     metricKey: "category_actual_spend",
@@ -228,8 +274,10 @@ function buildCategoryRecommendation(
     basisValue: budgetValue,
     basisLabel: `${config.label} budget`,
     spotlight,
-    options,
-    message: `${config.label} budget is $${budgetValue.toLocaleString()}. I recommend a heads-up alert at $${spotlight.threshold.toLocaleString()} (${Math.round((spotlight.threshold / budgetValue) * 100)}%).`,
+    options: customPercentRequested ? mergeSpotlightWithOptions(spotlight, defaultOptions) : defaultOptions,
+    message: customPercentRequested
+      ? `${config.label} budget is $${budgetValue.toLocaleString()}. I can create a custom alert at $${spotlight.threshold.toLocaleString()} (${explicitPercent}% of budget).`
+      : `${config.label} budget is $${budgetValue.toLocaleString()}. I recommend a heads-up alert at $${spotlight.threshold.toLocaleString()} (${Math.round((spotlight.threshold / budgetValue) * 100)}%).`,
   };
 }
 
@@ -330,7 +378,7 @@ export function buildProjectNotificationRecommendation(input: BuildRecommendatio
   }
 
   if (/labor|hours/.test(requestText) && matchesThresholdIntent(requestText)) {
-    return buildLaborRecommendation(input.project);
+    return buildLaborRecommendationForRequest(input.project, requestText);
   }
 
   if (/variance|over budget/.test(requestText)) {
