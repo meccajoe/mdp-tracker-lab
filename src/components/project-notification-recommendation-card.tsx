@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import type { ProjectSummary } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +81,47 @@ function formatDateTime(value: string | null) {
   });
 }
 
+async function parseApiResponse<T>(response: Response): Promise<{ data: (T & { error?: string }) | null; error: string | null }> {
+  const raw = await response.text();
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const parsed = JSON.parse(raw) as T & { error?: string };
+      return {
+        data: parsed,
+        error: response.ok ? null : (parsed.error ?? `Request failed with status ${response.status}`),
+      };
+    } catch {
+      return {
+        data: null,
+        error: response.ok
+          ? "Server returned invalid JSON."
+          : `Request failed with invalid JSON (status ${response.status}).`,
+      };
+    }
+  }
+
+  if (!response.ok) {
+    if (/<!DOCTYPE|<html/i.test(raw)) {
+      return {
+        data: null,
+        error: `Server returned an HTML error page instead of JSON (status ${response.status}). Please try again.`,
+      };
+    }
+
+    return {
+      data: null,
+      error: raw.trim() || `Request failed with status ${response.status}`,
+    };
+  }
+
+  return {
+    data: null,
+    error: "Server returned an unexpected non-JSON response.",
+  };
+}
+
 export function ProjectNotificationRecommendationCard({
   projectId,
   project,
@@ -107,11 +147,11 @@ export function ProjectNotificationRecommendationCard({
     setSubscriptionsError(null);
     try {
       const response = await fetch(`/api/projects/${projectId}/subscriptions`);
-      const data = (await response.json()) as { subscriptions?: ProjectSubscription[]; error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to load subscriptions");
+      const { data, error } = await parseApiResponse<{ subscriptions?: ProjectSubscription[] }>(response);
+      if (error) {
+        throw new Error(error);
       }
-      setSubscriptions(data.subscriptions ?? []);
+      setSubscriptions(data?.subscriptions ?? []);
     } catch (requestError) {
       setSubscriptions([]);
       setSubscriptionsError(requestError instanceof Error ? requestError.message : "Failed to load Slack subscriptions");
@@ -136,9 +176,9 @@ export function ProjectNotificationRecommendationCard({
         },
         body: JSON.stringify({ message: prompt }),
       });
-      const data = (await response.json()) as RecommendationResponse & { error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to load recommendation");
+      const { data, error } = await parseApiResponse<RecommendationResponse>(response);
+      if (error || !data) {
+        throw new Error(error ?? "Failed to load recommendation");
       }
       setResult(data);
     } catch (requestError) {
@@ -165,9 +205,9 @@ export function ProjectNotificationRecommendationCard({
         },
         body: JSON.stringify({ recommendation: result.recommendation }),
       });
-      const data = (await response.json()) as { subscription?: ProjectSubscription; error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Failed to create subscription");
+      const { data, error } = await parseApiResponse<{ subscription?: ProjectSubscription }>(response);
+      if (error || !data?.subscription) {
+        throw new Error(error ?? "Failed to create subscription");
       }
       setSubscriptions((current) => [data.subscription!, ...current]);
       setSubscriptionStatus(result.recommendation.type === "digest" ? "Slack digest created." : "Slack alert created.");
@@ -190,15 +230,15 @@ export function ProjectNotificationRecommendationCard({
         },
         body: JSON.stringify({ action }),
       });
-      const data = (await response.json()) as { subscription?: ProjectSubscription; error?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? `Failed to ${action} subscription`);
+      const { data, error } = await parseApiResponse<{ subscription?: ProjectSubscription }>(response);
+      if (error) {
+        throw new Error(error);
       }
       if (action === "delete") {
         setSubscriptions((current) => current.filter((subscription) => subscription.id !== subscriptionId));
       } else {
         setSubscriptions((current) =>
-          current.map((subscription) => (subscription.id === subscriptionId ? data.subscription! : subscription))
+          current.map((subscription) => (subscription.id === subscriptionId ? data?.subscription! : subscription))
         );
       }
       setSubscriptionStatus(action === "delete" ? "Subscription deleted." : action === "pause" ? "Subscription paused." : "Subscription resumed.");
@@ -220,11 +260,11 @@ export function ProjectNotificationRecommendationCard({
         },
         body: JSON.stringify(payload),
       });
-      const data = (await response.json()) as { error?: string; targetEmail?: string };
-      if (!response.ok) {
-        throw new Error(data.error ?? "Slack delivery failed");
+      const { data, error } = await parseApiResponse<{ targetEmail?: string }>(response);
+      if (error) {
+        throw new Error(error);
       }
-      setSlackStatus(`Sent test to Slack for ${data.targetEmail}.`);
+      setSlackStatus(`Sent test to Slack for ${data?.targetEmail ?? "your Slack user"}.`);
     } catch (requestError) {
       setSlackStatus(requestError instanceof Error ? requestError.message : "Slack delivery failed");
     } finally {
@@ -233,18 +273,17 @@ export function ProjectNotificationRecommendationCard({
   }
 
   return (
-    <Card className="border-0 shadow-none">
-      <CardHeader className="px-0 pb-3 pt-0">
-        <CardTitle className="text-base">Slack digests and alerts</CardTitle>
+    <div className="space-y-6 px-1 pb-1 pt-1">
+      <div className="space-y-2">
         <p className="text-sm text-muted-foreground">
           Create and manage the same Slack digests and alerts you can access from Slack. Changes here stay synced with your Slack subscriptions for this project.
         </p>
-      </CardHeader>
-      <CardContent className="space-y-4 px-0 pb-0">
-        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Managing Slack delivery for <span className="font-medium text-foreground">{project.name}</span> ({projectId})
-        </div>
+        </p>
+      </div>
 
+      <div className="space-y-4 rounded-xl border p-5">
         <div className="flex flex-wrap gap-2 text-xs">
           {[
             "notify me when labor gets too high",
@@ -304,7 +343,7 @@ export function ProjectNotificationRecommendationCard({
         {result?.recommendation.type === "threshold" && (() => {
           const recommendation = result.recommendation as ThresholdRecommendation;
           return (
-            <div className="space-y-3 rounded-lg border p-4">
+            <div className="space-y-4 rounded-xl border p-5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{recommendation.metricKey}</Badge>
                 <Badge variant="outline">{recommendation.scopeKey}</Badge>
@@ -343,7 +382,7 @@ export function ProjectNotificationRecommendationCard({
         })()}
 
         {result?.recommendation.type === "digest" && (
-          <div className="space-y-3 rounded-lg border p-4">
+          <div className="space-y-4 rounded-xl border p-5">
             <p className="text-sm text-muted-foreground">{result.recommendation.message}</p>
             <div>
               <p className="text-sm font-medium">Default digest sections</p>
@@ -369,90 +408,90 @@ export function ProjectNotificationRecommendationCard({
             {result.recommendation.message}
           </div>
         )}
+      </div>
 
-        <div className="space-y-3 rounded-lg border p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">Saved Slack subscriptions</p>
-              <p className="text-xs text-muted-foreground">These are your live Slack digests and alerts for this project. Pause, resume, delete, or test the same subscriptions you can manage in Slack.</p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={loadSubscriptions} disabled={subscriptionsLoading}>
-              {subscriptionsLoading ? "Refreshing..." : "Refresh"}
-            </Button>
+      <div className="space-y-4 rounded-xl border p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Saved Slack subscriptions</p>
+            <p className="text-xs text-muted-foreground">These are your live Slack digests and alerts for this project. Pause, resume, delete, or test the same subscriptions you can manage in Slack.</p>
           </div>
+          <Button type="button" variant="outline" size="sm" onClick={loadSubscriptions} disabled={subscriptionsLoading}>
+            {subscriptionsLoading ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
 
-          {subscriptionsError && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {subscriptionsError}
-            </div>
-          )}
+        {subscriptionsError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {subscriptionsError}
+          </div>
+        )}
 
-          {subscriptions.length === 0 ? (
-            <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
-              No Slack digests or alerts saved for this project yet.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {subscriptions.map((subscription) => (
-                <div key={subscription.id} className="rounded-md border px-3 py-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">{subscription.summary_text}</span>
-                        <Badge variant={subscription.status === "active" ? "secondary" : "outline"}>{subscription.status}</Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Last triggered: {formatDateTime(subscription.last_triggered_at)}
-                      </div>
-                    </div>
+        {subscriptions.length === 0 ? (
+          <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
+            No Slack digests or alerts saved for this project yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {subscriptions.map((subscription) => (
+              <div key={subscription.id} className="rounded-lg border px-4 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => sendSlackTest({ subscriptionId: subscription.id }, `subscription-${subscription.id}`)}
-                        disabled={sendingTestKey === `subscription-${subscription.id}`}
-                      >
-                        {sendingTestKey === `subscription-${subscription.id}` ? "Sending..." : "Send test to Slack"}
-                      </Button>
-                      {subscription.status === "active" ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateSubscription(subscription.id, "pause")}
-                          disabled={updatingSubscriptionId === subscription.id}
-                        >
-                          Pause
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateSubscription(subscription.id, "resume")}
-                          disabled={updatingSubscriptionId === subscription.id}
-                        >
-                          Resume
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateSubscription(subscription.id, "delete")}
-                        disabled={updatingSubscriptionId === subscription.id}
-                      >
-                        Delete
-                      </Button>
+                      <span className="text-sm font-medium">{subscription.summary_text}</span>
+                      <Badge variant={subscription.status === "active" ? "secondary" : "outline"}>{subscription.status}</Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Last triggered: {formatDateTime(subscription.last_triggered_at)}
                     </div>
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => sendSlackTest({ subscriptionId: subscription.id }, `subscription-${subscription.id}`)}
+                      disabled={sendingTestKey === `subscription-${subscription.id}`}
+                    >
+                      {sendingTestKey === `subscription-${subscription.id}` ? "Sending..." : "Send test to Slack"}
+                    </Button>
+                    {subscription.status === "active" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateSubscription(subscription.id, "pause")}
+                        disabled={updatingSubscriptionId === subscription.id}
+                      >
+                        Pause
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateSubscription(subscription.id, "resume")}
+                        disabled={updatingSubscriptionId === subscription.id}
+                      >
+                        Resume
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => updateSubscription(subscription.id, "delete")}
+                      disabled={updatingSubscriptionId === subscription.id}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
