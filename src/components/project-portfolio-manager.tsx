@@ -4,6 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPortfolioMonitorConfig, listPortfolioMonitorOptions, type PortfolioMonitorKey } from "@/lib/project-portfolio-monitoring";
 
 type SavedPortfolioProject = {
@@ -36,9 +45,14 @@ type PortfolioSubscription = {
   scope_json?: Record<string, unknown> | null;
 };
 
+type WorkflowScopeType = "my_active_projects" | "all_active_projects" | "pm_active_projects" | "saved_portfolio";
+type WorkflowMode = "digest" | "over_budget" | "labor_risk";
+type DetailTab = "projects" | "automation" | "alerts";
+
 const PM_FILTER_ALL = "ALL_PMS";
 const PM_FILTER_SHARED = "SHARED";
 const PM_FILTER_MANUAL = "MANUAL";
+const PORTFOLIO_PRESET_HINT = "Popular presets: Labor reaches 95% of budget · Fabrication reaches 90% of budget · Travel reaches 100% of budget · Total project over budget.";
 
 async function parseApiResponse<T>(response: Response): Promise<{ data: (T & { error?: string }) | null; error: string | null }> {
   const raw = await response.text();
@@ -99,6 +113,13 @@ function comparePortfolios(a: SavedPortfolio, b: SavedPortfolio) {
   return pmA.localeCompare(pmB) || a.name.localeCompare(b.name) || a.created_by_email.localeCompare(b.created_by_email);
 }
 
+function getSubscriptionPortfolioSlug(subscription: PortfolioSubscription) {
+  const scopeJson = subscription.scope_json;
+  if (!scopeJson || typeof scopeJson !== "object") return null;
+  const value = scopeJson.portfolio_slug;
+  return typeof value === "string" ? value : null;
+}
+
 export function ProjectPortfolioManager({
   initialProjectId = null,
   defaultPmInitials,
@@ -108,12 +129,15 @@ export function ProjectPortfolioManager({
 }) {
   const [portfolioName, setPortfolioName] = useState("");
   const [portfolioProjects, setPortfolioProjects] = useState(initialProjectId ?? "");
-  const [scopeType, setScopeType] = useState<"my_active_projects" | "all_active_projects" | "pm_active_projects" | "saved_portfolio">("all_active_projects");
-  const [mode, setMode] = useState<"digest" | "over_budget" | "labor_risk">("digest");
+  const [scopeType, setScopeType] = useState<WorkflowScopeType>("saved_portfolio");
+  const [mode, setMode] = useState<WorkflowMode>("digest");
   const [pmInitials, setPmInitials] = useState(defaultPmInitials ?? "");
   const [selectedPortfolioSlug, setSelectedPortfolioSlug] = useState("");
   const [selectedPmFilter, setSelectedPmFilter] = useState((defaultPmInitials?.trim().toUpperCase() || PM_FILTER_ALL));
   const [selectedPortfolioKey, setSelectedPortfolioKey] = useState("");
+  const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("projects");
+  const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
+  const [createWorkflowOpen, setCreateWorkflowOpen] = useState(false);
   const [savedPortfolios, setSavedPortfolios] = useState<SavedPortfolio[]>([]);
   const [portfolioSubscriptions, setPortfolioSubscriptions] = useState<PortfolioSubscription[]>([]);
   const [loadingPortfolios, setLoadingPortfolios] = useState(false);
@@ -128,12 +152,15 @@ export function ProjectPortfolioManager({
   const [error, setError] = useState<string | null>(null);
   const [automationRules, setAutomationRules] = useState<Record<string, { ruleType: "manual" | "pm_active_projects" | "all_active_projects"; pmInitials: string }>>({});
 
-  const scopeOptions = useMemo(() => ([
-    { value: "all_active_projects", label: "All active projects" },
-    { value: "my_active_projects", label: "My active projects" },
-    { value: "pm_active_projects", label: "PM active projects" },
-    { value: "saved_portfolio", label: "Saved portfolio" },
-  ]), []);
+  const scopeOptions = useMemo(
+    () => ([
+      { value: "saved_portfolio" as const, label: "Saved portfolio" },
+      { value: "pm_active_projects" as const, label: "PM active projects" },
+      { value: "all_active_projects" as const, label: "All active projects" },
+      { value: "my_active_projects" as const, label: "My active projects" },
+    ]),
+    []
+  );
 
   const monitorOptions = useMemo(() => listPortfolioMonitorOptions(), []);
 
@@ -145,10 +172,17 @@ export function ProjectPortfolioManager({
       if (error) throw new Error(error);
       const portfolios = data?.portfolios ?? [];
       setSavedPortfolios(portfolios);
-      setAutomationRules(Object.fromEntries(portfolios.map((portfolio) => [portfolio.id, {
-        ruleType: portfolio.automation?.rule_type ?? "manual",
-        pmInitials: portfolio.automation?.pm_initials ?? "",
-      }])));
+      setAutomationRules(
+        Object.fromEntries(
+          portfolios.map((portfolio) => [
+            portfolio.id,
+            {
+              ruleType: portfolio.automation?.rule_type ?? "manual",
+              pmInitials: portfolio.automation?.pm_initials ?? "",
+            },
+          ])
+        )
+      );
       if (!selectedPortfolioSlug && portfolios[0]?.slug) {
         setSelectedPortfolioSlug(portfolios[0].slug);
       }
@@ -178,23 +212,32 @@ export function ProjectPortfolioManager({
     void loadPortfolioSubscriptions();
   }, []);
 
-  const pmPortfolios = useMemo(() => savedPortfolios
-    .filter((portfolio) => portfolio.automation.rule_type === "pm_active_projects")
-    .sort(comparePortfolios), [savedPortfolios]);
+  const pmPortfolios = useMemo(
+    () => savedPortfolios.filter((portfolio) => portfolio.automation.rule_type === "pm_active_projects").sort(comparePortfolios),
+    [savedPortfolios]
+  );
 
-  const sharedPortfolios = useMemo(() => savedPortfolios
-    .filter((portfolio) => portfolio.automation.rule_type === "all_active_projects")
-    .sort(comparePortfolios), [savedPortfolios]);
+  const sharedPortfolios = useMemo(
+    () => savedPortfolios.filter((portfolio) => portfolio.automation.rule_type === "all_active_projects").sort(comparePortfolios),
+    [savedPortfolios]
+  );
 
-  const manualPortfolios = useMemo(() => savedPortfolios
-    .filter((portfolio) => portfolio.automation.rule_type === "manual")
-    .sort(comparePortfolios), [savedPortfolios]);
+  const manualPortfolios = useMemo(
+    () => savedPortfolios.filter((portfolio) => portfolio.automation.rule_type === "manual").sort(comparePortfolios),
+    [savedPortfolios]
+  );
 
-  const pmFilters = useMemo(() => Array.from(new Set(
-    pmPortfolios
-      .map((portfolio) => portfolio.automation.pm_initials?.trim().toUpperCase())
-      .filter((value): value is string => !!value)
-  )).sort(), [pmPortfolios]);
+  const pmFilters = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          pmPortfolios
+            .map((portfolio) => portfolio.automation.pm_initials?.trim().toUpperCase())
+            .filter((value): value is string => !!value)
+        )
+      ).sort(),
+    [pmPortfolios]
+  );
 
   const filteredPortfolios = useMemo(() => {
     if (selectedPmFilter === PM_FILTER_SHARED) return sharedPortfolios;
@@ -220,11 +263,20 @@ export function ProjectPortfolioManager({
     }
   }, [filteredPortfolios, selectedPortfolioKey, selectedPortfolioSlug]);
 
-  const selectedPortfolio = useMemo(() => filteredPortfolios.find((portfolio) => getPortfolioKey(portfolio) === selectedPortfolioKey) ?? filteredPortfolios[0] ?? null, [filteredPortfolios, selectedPortfolioKey]);
+  const selectedPortfolio = useMemo(
+    () => filteredPortfolios.find((portfolio) => getPortfolioKey(portfolio) === selectedPortfolioKey) ?? filteredPortfolios[0] ?? null,
+    [filteredPortfolios, selectedPortfolioKey]
+  );
 
-  const selectedPortfolioUniqueMonitorKeys = useMemo(() => Array.from(new Set((selectedPortfolio?.projects ?? []).flatMap((item) => item.monitor_keys))), [selectedPortfolio]);
+  const selectedPortfolioUniqueMonitorKeys = useMemo(
+    () => Array.from(new Set((selectedPortfolio?.projects ?? []).flatMap((item) => item.monitor_keys))),
+    [selectedPortfolio]
+  );
 
-  const filteredProjectCount = useMemo(() => filteredPortfolios.reduce((total, portfolio) => total + getPortfolioProjectCount(portfolio), 0), [filteredPortfolios]);
+  const selectedPortfolioSubscriptions = useMemo(() => {
+    if (!selectedPortfolio) return [];
+    return portfolioSubscriptions.filter((subscription) => getSubscriptionPortfolioSlug(subscription) === selectedPortfolio.slug);
+  }, [portfolioSubscriptions, selectedPortfolio]);
 
   async function savePortfolio() {
     setSavingPortfolio(true);
@@ -245,9 +297,11 @@ export function ProjectPortfolioManager({
       setStatus(`Saved portfolio ${data.portfolio.name}.`);
       setPortfolioName("");
       setPortfolioProjects(initialProjectId ?? "");
+      setCreatePortfolioOpen(false);
       await loadSavedPortfolios();
       setSelectedPortfolioSlug(data.portfolio.slug);
       setSelectedPortfolioKey(getPortfolioKey(data.portfolio));
+      setSelectedPmFilter(data.portfolio.automation.rule_type === "pm_active_projects" ? (data.portfolio.automation.pm_initials?.toUpperCase() ?? PM_FILTER_ALL) : data.portfolio.automation.rule_type === "all_active_projects" ? PM_FILTER_SHARED : PM_FILTER_MANUAL);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to save portfolio");
     } finally {
@@ -305,7 +359,7 @@ export function ProjectPortfolioManager({
     }
   }
 
-  async function createPortfolioSubscription(extra?: { monitorKey?: PortfolioMonitorKey; portfolioSlug?: string; scopeTypeOverride?: typeof scopeType; modeOverride?: typeof mode }) {
+  async function createPortfolioSubscription(extra?: { monitorKey?: PortfolioMonitorKey; portfolioSlug?: string; scopeTypeOverride?: WorkflowScopeType; modeOverride?: WorkflowMode }) {
     setSavingSubscription(true);
     setError(null);
     setStatus(null);
@@ -323,8 +377,9 @@ export function ProjectPortfolioManager({
       });
       const { data, error } = await parseApiResponse<{ subscription?: PortfolioSubscription }>(response);
       if (error || !data?.subscription) throw new Error(error ?? "Failed to create portfolio subscription");
-      const effectiveMode = extra?.monitorKey ? "over_budget" : (extra?.modeOverride ?? mode);
+      const effectiveMode = extra?.monitorKey ? "over_budget" : extra?.modeOverride ?? mode;
       setStatus(extra?.monitorKey ? "Portfolio monitor alert created." : effectiveMode === "digest" ? "Portfolio digest created." : "Portfolio alert created.");
+      setCreateWorkflowOpen(false);
       await loadPortfolioSubscriptions();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to create portfolio subscription");
@@ -335,7 +390,7 @@ export function ProjectPortfolioManager({
 
   async function createMonitorAlert(portfolioSlug: string, monitorKey: PortfolioMonitorKey) {
     setCreatingMonitorKey(`${portfolioSlug}:${monitorKey}`);
-    await createPortfolioSubscription({ portfolioSlug, monitorKey });
+    await createPortfolioSubscription({ portfolioSlug, monitorKey, scopeTypeOverride: "saved_portfolio", modeOverride: "over_budget" });
     setCreatingMonitorKey(null);
   }
 
@@ -360,135 +415,109 @@ export function ProjectPortfolioManager({
     }
   }
 
+  function openWorkflowDialog(next?: Partial<{ scopeType: WorkflowScopeType; mode: WorkflowMode; portfolioSlug: string; pmInitials: string }>) {
+    setScopeType(next?.scopeType ?? "saved_portfolio");
+    setMode(next?.mode ?? "digest");
+    setPmInitials(next?.pmInitials ?? defaultPmInitials ?? "");
+    setSelectedPortfolioSlug(next?.portfolioSlug ?? selectedPortfolio?.slug ?? savedPortfolios[0]?.slug ?? "");
+    setCreateWorkflowOpen(true);
+  }
+
+  const topActions = (
+    <div className="flex flex-wrap gap-2">
+      <Button type="button" variant="outline" size="sm" onClick={() => setCreatePortfolioOpen(true)}>
+        Create portfolio
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => openWorkflowDialog({ mode: "digest", scopeType: selectedPortfolio ? "saved_portfolio" : "all_active_projects" })}>
+        Create digest
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => openWorkflowDialog({ mode: "over_budget", scopeType: selectedPortfolio ? "saved_portfolio" : "all_active_projects" })}>
+        Create alert
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="tracker-shell space-y-6 p-6">
-      <div className="space-y-2">
-        <p className="tracker-section-label">Portfolio digests and alerts</p>
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+    <>
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
-            <p className="text-2xl font-semibold tracking-tight">PM portfolio workspace</p>
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              Browse PM-built portfolios in a calmer workspace, then create subscriptions and monitor-based alerts without digging through stacked cards.
-            </p>
+            <p className="tracker-section-label">Portfolio digests and alerts</p>
+            <p className="text-sm text-muted-foreground">Filter by PM, pick a portfolio, then manage only the piece you need.</p>
           </div>
-          <div className="rounded-full border border-black/8 bg-white/60 px-4 py-2 text-xs text-muted-foreground shadow-[0_8px_24px_rgba(15,15,15,0.04)] backdrop-blur-md">
-            Slack-backed digests and alerts stay available while PM portfolios become easier to scan.
-          </div>
+          {topActions}
         </div>
-      </div>
 
-      <div className="tracker-panel-muted px-4 py-3 text-sm text-muted-foreground">
-          Create Slack-backed portfolio subscriptions here, then use project modals only for adding individual jobs into portfolios with the monitors you care about.
-      </div>
-
-      {status && (
-        <div className="tracker-banner-success">
-          {status}
-        </div>
-      )}
-
-      {error && (
-        <div className="tracker-banner-danger">
-          {error}
-        </div>
-      )}
-
-      <div className="tracker-panel space-y-4 p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="tracker-section-label">PM portfolio workspace</p>
-            <p className="text-xs text-muted-foreground">Filter built PM portfolios by owner/PM first, then inspect one portfolio in a focused detail view instead of scrolling stacked cards.</p>
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
-            {loadingPortfolios ? "Refreshing..." : "Refresh portfolios"}
-          </Button>
-        </div>
+        {status && <div className="tracker-banner-success">{status}</div>}
+        {error && <div className="tracker-banner-danger">{error}</div>}
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_ALL ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_ALL)}>
-            All PMs
+          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_ALL ? "tracker-filter-pill tracker-filter-pill-active" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_ALL)}>
+            All
           </Button>
           {pmFilters.map((filter) => (
-            <Button key={filter} type="button" size="sm" className={selectedPmFilter === filter ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(filter)}>
+            <Button key={filter} type="button" size="sm" className={selectedPmFilter === filter ? "tracker-filter-pill tracker-filter-pill-active" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(filter)}>
               {filter}
             </Button>
           ))}
-          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_SHARED ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_SHARED)}>
+          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_SHARED ? "tracker-filter-pill tracker-filter-pill-active" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_SHARED)}>
             Shared
           </Button>
-          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_MANUAL ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_MANUAL)}>
+          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_MANUAL ? "tracker-filter-pill tracker-filter-pill-active" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_MANUAL)}>
             Manual
           </Button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="tracker-kpi">
-            <div className="tracker-section-label">Visible portfolios</div>
-            <div className="mt-1 text-2xl font-semibold">{filteredPortfolios.length}</div>
-          </div>
-          <div className="tracker-kpi">
-            <div className="tracker-section-label">Projects in view</div>
-            <div className="mt-1 text-2xl font-semibold">{filteredProjectCount}</div>
-          </div>
-          <div className="tracker-kpi">
-            <div className="tracker-section-label">Filter mode</div>
-            <div className="mt-1 text-sm font-medium">
-              {selectedPmFilter === PM_FILTER_ALL ? "All PM portfolios" : selectedPmFilter === PM_FILTER_SHARED ? "Shared automation portfolios" : selectedPmFilter === PM_FILTER_MANUAL ? "Manual portfolios" : `${selectedPmFilter} workspace`}
-            </div>
-          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
+            {loadingPortfolios ? "Refreshing..." : "Refresh"}
+          </Button>
         </div>
 
         {filteredPortfolios.length === 0 ? (
-          <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">No portfolios match this PM filter yet.</div>
+          <div className="border border-dashed rounded-lg px-4 py-6 text-sm text-muted-foreground">No portfolios match this filter yet.</div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="tracker-panel-muted space-y-2 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">Portfolio list</p>
-                <span className="text-xs text-muted-foreground">{filteredPortfolios.length} shown</span>
-              </div>
-              <div className="space-y-2">
-                {filteredPortfolios.map((portfolio) => {
-                  const portfolioKey = getPortfolioKey(portfolio);
-                  const selected = selectedPortfolioKey === portfolioKey;
-                  return (
-                    <button
-                      key={portfolioKey}
-                      type="button"
-                      onClick={() => {
-                        setSelectedPortfolioKey(portfolioKey);
-                        setSelectedPortfolioSlug(portfolio.slug);
-                      }}
-                      className={`tracker-list-item w-full ${selected ? "tracker-list-item-active" : "hover:bg-white/80"}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="text-sm font-medium">{portfolio.name}</div>
-                          <div className="text-xs text-muted-foreground">{portfolio.created_by_email}</div>
-                        </div>
-                        <Badge variant={selected ? "secondary" : "outline"}>{getPortfolioProjectCount(portfolio)} projects</Badge>
+          <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
+            <div className="space-y-1 rounded-lg border p-2">
+              {filteredPortfolios.map((portfolio) => {
+                const portfolioKey = getPortfolioKey(portfolio);
+                const selected = selectedPortfolioKey === portfolioKey;
+                return (
+                  <button
+                    key={portfolioKey}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPortfolioKey(portfolioKey);
+                      setSelectedPortfolioSlug(portfolio.slug);
+                    }}
+                    className={`w-full rounded-lg px-3 py-3 text-left transition ${selected ? "bg-muted text-foreground" : "hover:bg-muted/60"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{portfolio.name}</div>
+                        <div className="truncate text-xs text-muted-foreground">{portfolio.created_by_email}</div>
                       </div>
-                      <div className="mt-2 text-xs text-muted-foreground">{getPortfolioRuleLabel(portfolio)}</div>
-                    </button>
-                  );
-                })}
-              </div>
+                      <span className="text-xs text-muted-foreground">{getPortfolioProjectCount(portfolio)}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{getPortfolioRuleLabel(portfolio)}</div>
+                  </button>
+                );
+              })}
             </div>
 
             {selectedPortfolio ? (
-              <div className="tracker-panel space-y-4 p-5">
+              <div className="space-y-4 rounded-lg border p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-base font-semibold">{selectedPortfolio.name}</h2>
+                      <h2 className="text-lg font-semibold">{selectedPortfolio.name}</h2>
                       <Badge variant="outline">{getPortfolioRuleLabel(selectedPortfolio)}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{selectedPortfolio.created_by_email} · {selectedPortfolio.slug}</p>
-                    <p className="text-xs text-muted-foreground">{getPortfolioProjectCount(selectedPortfolio)} project(s) currently in this portfolio.</p>
+                    <p className="text-sm text-muted-foreground">{selectedPortfolio.created_by_email} · {getPortfolioProjectCount(selectedPortfolio)} projects</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => { setScopeType("saved_portfolio"); setSelectedPortfolioSlug(selectedPortfolio.slug); setMode("digest"); void createPortfolioSubscription({ portfolioSlug: selectedPortfolio.slug, scopeTypeOverride: "saved_portfolio", modeOverride: "digest" }); }} disabled={savingSubscription}>
+                    <Button type="button" variant="outline" size="sm" onClick={() => openWorkflowDialog({ scopeType: "saved_portfolio", portfolioSlug: selectedPortfolio.slug, mode: "digest" })}>
                       Create digest
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => openWorkflowDialog({ scopeType: "saved_portfolio", portfolioSlug: selectedPortfolio.slug, mode: "over_budget" })}>
+                      Create alert
                     </Button>
                     <Button type="button" variant="outline" size="sm" onClick={() => void deletePortfolio(selectedPortfolio.slug)} disabled={deletingPortfolioSlug === selectedPortfolio.slug}>
                       {deletingPortfolioSlug === selectedPortfolio.slug ? "Deleting..." : "Delete"}
@@ -496,259 +525,262 @@ export function ProjectPortfolioManager({
                   </div>
                 </div>
 
-                <div className="tracker-panel-muted space-y-3 p-4">
-                  <div>
-                    <p className="text-sm font-medium">Automation rule</p>
-                    <p className="text-xs text-muted-foreground">Use Portfolio Center to decide whether this portfolio auto-manages PM-active projects, all active projects, or stays manual.</p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <label className="space-y-1 text-sm sm:col-span-2">
-                      <span className="text-muted-foreground">Rule type</span>
-                      <select
-                        value={automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual"}
-                        onChange={(event) => setAutomationRules((prev) => ({
-                          ...prev,
-                          [selectedPortfolio.id]: {
-                            ruleType: event.target.value as "manual" | "pm_active_projects" | "all_active_projects",
-                            pmInitials: prev[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "",
-                          },
-                        }))}
-                        className="w-full rounded-xl border border-black/8 bg-white/70 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
-                      >
-                        <option value="manual">Manual only</option>
-                        <option value="pm_active_projects">PM active projects</option>
-                        <option value="all_active_projects">All active projects</option>
-                      </select>
-                    </label>
-                    {(automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && (
-                      <label className="space-y-1 text-sm">
-                        <span className="text-muted-foreground">PM initials</span>
-                        <input
-                          value={automationRules[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? ""}
-                          onChange={(event) => setAutomationRules((prev) => ({
-                            ...prev,
-                            [selectedPortfolio.id]: {
-                              ruleType: "pm_active_projects",
-                              pmInitials: event.target.value.toUpperCase(),
-                            },
-                          }))}
-                          className="w-full rounded-xl border border-black/8 bg-white/70 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
-                          placeholder="NG"
-                        />
-                      </label>
-                    )}
-                  </div>
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void saveAutomation(selectedPortfolio)}
-                      disabled={savingAutomationSlug === selectedPortfolio.slug || ((automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && !(automationRules[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "").trim())}
-                    >
-                      {savingAutomationSlug === selectedPortfolio.slug ? "Saving..." : "Save automation"}
-                    </Button>
-                  </div>
-                </div>
+                <Tabs value={activeDetailTab} onValueChange={(value) => setActiveDetailTab(value as DetailTab)}>
+                  <TabsList variant="line" className="w-full justify-start gap-4 border-b p-0 text-sm">
+                    <TabsTrigger value="projects" className="rounded-none px-0 pb-3 pt-1">Projects</TabsTrigger>
+                    <TabsTrigger value="automation" className="rounded-none px-0 pb-3 pt-1">Automation</TabsTrigger>
+                    <TabsTrigger value="alerts" className="rounded-none px-0 pb-3 pt-1">Alerts</TabsTrigger>
+                  </TabsList>
 
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                  <div className="space-y-2">
-                    <p className="tracker-section-label">Projects in this portfolio</p>
+                  <TabsContent value="projects" className="pt-2">
                     {(selectedPortfolio.projects ?? []).length === 0 ? (
-                      <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">No projects saved yet.</div>
+                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">No projects saved yet.</div>
                     ) : (
                       <div className="space-y-2">
                         {(selectedPortfolio.projects ?? []).map((project) => (
-                          <div key={`${selectedPortfolio.id}:${project.project_id}`} className="tracker-panel-muted px-4 py-4">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <div className="text-sm font-medium">Project {project.project_id}{project.project_name ? ` · ${project.project_name}` : ""}</div>
-                                {project.client_name && (
-                                  <div className="text-xs text-muted-foreground">Client: {project.client_name}</div>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {project.monitor_keys.length > 0 ? project.monitor_keys.map((monitorKey) => {
+                          <div key={`${selectedPortfolio.id}:${project.project_id}`} className="flex flex-col gap-2 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium">Project {project.project_id}{project.project_name ? ` · ${project.project_name}` : ""}</div>
+                              {project.client_name ? <div className="truncate text-xs text-muted-foreground">{project.client_name}</div> : null}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {project.monitor_keys.length > 0 ? (
+                                project.monitor_keys.map((monitorKey) => {
                                   const config = getPortfolioMonitorConfig(monitorKey);
                                   return (
                                     <Badge key={monitorKey} variant="outline">{config?.label ?? monitorKey}</Badge>
                                   );
-                                }) : <span className="text-xs text-muted-foreground">No monitors saved yet</span>}
-                              </div>
+                                })
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No monitors</span>
+                              )}
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </TabsContent>
 
-                  <div className="space-y-2">
-                    <p className="tracker-section-label">Create alerts from saved monitor coverage</p>
-                    {selectedPortfolioUniqueMonitorKeys.length === 0 ? (
-                      <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">
-                        Add projects to this portfolio from a project modal and choose the budgets/stats you want monitored.
+                  <TabsContent value="automation" className="pt-2">
+                    <div className="space-y-4 rounded-lg border p-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <label className="space-y-1 text-sm sm:col-span-2">
+                          <span className="text-muted-foreground">Rule type</span>
+                          <select
+                            value={automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual"}
+                            onChange={(event) =>
+                              setAutomationRules((prev) => ({
+                                ...prev,
+                                [selectedPortfolio.id]: {
+                                  ruleType: event.target.value as "manual" | "pm_active_projects" | "all_active_projects",
+                                  pmInitials: prev[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "",
+                                },
+                              }))
+                            }
+                            className="w-full rounded-md border bg-background px-3 py-2"
+                          >
+                            <option value="manual">Manual only</option>
+                            <option value="pm_active_projects">PM active projects</option>
+                            <option value="all_active_projects">All active projects</option>
+                          </select>
+                        </label>
+                        {(automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual") === "pm_active_projects" ? (
+                          <label className="space-y-1 text-sm">
+                            <span className="text-muted-foreground">PM initials</span>
+                            <input
+                              value={automationRules[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? ""}
+                              onChange={(event) =>
+                                setAutomationRules((prev) => ({
+                                  ...prev,
+                                  [selectedPortfolio.id]: {
+                                    ruleType: "pm_active_projects",
+                                    pmInitials: event.target.value.toUpperCase(),
+                                  },
+                                }))
+                              }
+                              className="w-full rounded-md border bg-background px-3 py-2"
+                              placeholder="NG"
+                            />
+                          </label>
+                        ) : null}
                       </div>
-                    ) : (
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void saveAutomation(selectedPortfolio)}
+                          disabled={savingAutomationSlug === selectedPortfolio.slug || ((automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && !(automationRules[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "").trim())}
+                        >
+                          {savingAutomationSlug === selectedPortfolio.slug ? "Saving..." : "Save automation"}
+                        </Button>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="alerts" className="pt-2">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => openWorkflowDialog({ scopeType: "saved_portfolio", portfolioSlug: selectedPortfolio.slug, mode: "digest" })}>
+                          Create digest
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => openWorkflowDialog({ scopeType: "saved_portfolio", portfolioSlug: selectedPortfolio.slug, mode: "over_budget" })}>
+                          Create alert
+                        </Button>
+                      </div>
+
+                      {selectedPortfolioUniqueMonitorKeys.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedPortfolioUniqueMonitorKeys.map((monitorKey) => {
+                            const config = getPortfolioMonitorConfig(monitorKey as PortfolioMonitorKey);
+                            const projectCount = (selectedPortfolio.projects ?? []).filter((project) => project.monitor_keys.includes(monitorKey as PortfolioMonitorKey)).length;
+                            return (
+                              <div key={`${selectedPortfolio.slug}:${monitorKey}`} className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                                <div>
+                                  <div className="text-sm font-medium">{config?.label ?? monitorKey}</div>
+                                  <div className="text-xs text-muted-foreground">{projectCount} projects covered</div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void createMonitorAlert(selectedPortfolio.slug, monitorKey as PortfolioMonitorKey)}
+                                  disabled={creatingMonitorKey === `${selectedPortfolio.slug}:${monitorKey}`}
+                                >
+                                  {creatingMonitorKey === `${selectedPortfolio.slug}:${monitorKey}` ? "Saving..." : "Create alert"}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">Add projects from a project modal to unlock monitor-based alerts here.</div>
+                      )}
+
                       <div className="space-y-2">
-                        {selectedPortfolioUniqueMonitorKeys.map((monitorKey) => {
-                          const config = getPortfolioMonitorConfig(monitorKey as PortfolioMonitorKey);
-                          const projectCount = (selectedPortfolio.projects ?? []).filter((project) => project.monitor_keys.includes(monitorKey as PortfolioMonitorKey)).length;
-                          return (
-                            <Button
-                              key={`${selectedPortfolio.slug}:${monitorKey}`}
-                              type="button"
-                              variant="outline"
-                              className="w-full justify-between"
-                              onClick={() => void createMonitorAlert(selectedPortfolio.slug, monitorKey as PortfolioMonitorKey)}
-                              disabled={creatingMonitorKey === `${selectedPortfolio.slug}:${monitorKey}`}
-                            >
-                              <span>{config?.label ?? monitorKey}</span>
-                              <span className="text-xs text-muted-foreground">{creatingMonitorKey === `${selectedPortfolio.slug}:${monitorKey}` ? "Saving..." : `${projectCount} project(s)`}</span>
-                            </Button>
-                          );
-                        })}
+                        <p className="tracker-section-label">Subscriptions for this portfolio</p>
+                        {selectedPortfolioSubscriptions.length === 0 ? (
+                          <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">No saved-portfolio subscriptions yet.</div>
+                        ) : (
+                          selectedPortfolioSubscriptions.map((subscription) => (
+                            <div key={subscription.id} className="flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-medium">{subscription.summary_text}</span>
+                                  <Badge variant={subscription.status === "active" ? "secondary" : "outline"}>{subscription.status}</Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground">Last triggered: {formatDateTime(subscription.last_triggered_at)}</div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {subscription.status === "active" ? (
+                                  <Button type="button" variant="outline" size="sm" onClick={() => void updatePortfolioSubscription(subscription.id, "pause")} disabled={updatingSubscriptionId === subscription.id}>Pause</Button>
+                                ) : (
+                                  <Button type="button" variant="outline" size="sm" onClick={() => void updatePortfolioSubscription(subscription.id, "resume")} disabled={updatingSubscriptionId === subscription.id}>Resume</Button>
+                                )}
+                                <Button type="button" variant="outline" size="sm" onClick={() => void updatePortfolioSubscription(subscription.id, "delete")} disabled={updatingSubscriptionId === subscription.id}>Delete</Button>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+
+                      <p className="text-xs text-muted-foreground">{PORTFOLIO_PRESET_HINT}</p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             ) : null}
           </div>
         )}
       </div>
 
-      <div className="tracker-panel space-y-3 p-5">
-        <div>
-          <p className="tracker-section-label">Save portfolio</p>
-          <p className="text-lg font-medium">Create a manual portfolio</p>
-          <p className="text-xs text-muted-foreground">Create a named project set for future digest and alert subscriptions.</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Portfolio name</span>
-            <input
-              value={portfolioName}
-              onChange={(event) => setPortfolioName(event.target.value)}
-              className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
-              placeholder="paul-priority-jobs"
-            />
-          </label>
-          <label className="space-y-1 text-sm sm:col-span-2">
-            <span className="text-muted-foreground">Project ids</span>
-            <input
-              value={portfolioProjects}
-              onChange={(event) => setPortfolioProjects(event.target.value)}
-              className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
-              placeholder="26153, 26144, 26047"
-            />
-          </label>
-        </div>
-        <div className="flex justify-end">
-          <Button type="button" variant="outline" onClick={savePortfolio} disabled={savingPortfolio || !portfolioName.trim() || !portfolioProjects.trim()}>
-            {savingPortfolio ? "Saving..." : "Save portfolio"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="tracker-panel space-y-3 p-5">
-        <div>
-          <p className="tracker-section-label">Create portfolio subscription</p>
-          <p className="text-lg font-medium">Launch a digest or exception workflow</p>
-          <p className="text-xs text-muted-foreground">Create portfolio digests or broad exception alerts that deliver to Slack and also show up in Slack management flows.</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Portfolio scope</span>
-            <select value={scopeType} onChange={(event) => setScopeType(event.target.value as typeof scopeType)} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-              {scopeOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Subscription type</span>
-            <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-              <option value="digest">Digest</option>
-              <option value="over_budget">Over-budget alert</option>
-              <option value="labor_risk">Labor-risk alert</option>
-            </select>
-          </label>
-          {scopeType === "pm_active_projects" && (
+      <Dialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Save portfolio</DialogTitle>
+            <DialogDescription>Create portfolio groups here instead of keeping the form open on the page.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
             <label className="space-y-1 text-sm">
-              <span className="text-muted-foreground">PM initials</span>
-              <input value={pmInitials} onChange={(event) => setPmInitials(event.target.value.toUpperCase())} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]" placeholder="PM" />
+              <span className="text-muted-foreground">Portfolio name</span>
+              <input
+                value={portfolioName}
+                onChange={(event) => setPortfolioName(event.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2"
+                placeholder="paul-priority-jobs"
+              />
             </label>
-          )}
-          {scopeType === "saved_portfolio" && (
-            <label className="space-y-1 text-sm sm:col-span-2">
-              <span className="text-muted-foreground">Saved portfolio</span>
-              <select value={selectedPortfolioSlug} onChange={(event) => setSelectedPortfolioSlug(event.target.value)} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-                <option value="">Select a saved portfolio</option>
-                {savedPortfolios.map((portfolio) => (
-                  <option key={getPortfolioKey(portfolio)} value={portfolio.slug}>{portfolio.name}</option>
+            <label className="space-y-1 text-sm">
+              <span className="text-muted-foreground">Project ids</span>
+              <input
+                value={portfolioProjects}
+                onChange={(event) => setPortfolioProjects(event.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2"
+                placeholder="26153, 26144, 26047"
+              />
+            </label>
+          </div>
+          <DialogFooter showCloseButton>
+            <Button type="button" onClick={() => void savePortfolio()} disabled={savingPortfolio || !portfolioName.trim() || !portfolioProjects.trim()}>
+              {savingPortfolio ? "Saving..." : "Save portfolio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createWorkflowOpen} onOpenChange={setCreateWorkflowOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{mode === "digest" ? "Create portfolio digest" : "Create portfolio alert"}</DialogTitle>
+            <DialogDescription>
+              Create portfolio digests or alerts from a focused modal instead of a persistent panel. {monitorOptions.length > 0 ? `Available monitor types: ${monitorOptions.map((option) => option.label).join(" · ")}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              <span className="text-muted-foreground">Portfolio scope</span>
+              <select value={scopeType} onChange={(event) => setScopeType(event.target.value as WorkflowScopeType)} className="w-full rounded-md border bg-background px-3 py-2">
+                {scopeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </label>
-          )}
-        </div>
-        {scopeType === "saved_portfolio" && (
-          <div className="tracker-panel-muted px-4 py-4 text-xs text-muted-foreground">
-            For project-specific budget watches, use the saved monitor alerts above. This generic section is for broader digest / over-budget / labor-risk portfolio subscriptions.
+            <label className="space-y-1 text-sm">
+              <span className="text-muted-foreground">Subscription type</span>
+              <select value={mode} onChange={(event) => setMode(event.target.value as WorkflowMode)} className="w-full rounded-md border bg-background px-3 py-2">
+                <option value="digest">Digest</option>
+                <option value="over_budget">Over-budget alert</option>
+                <option value="labor_risk">Labor-risk alert</option>
+              </select>
+            </label>
+            {scopeType === "pm_active_projects" ? (
+              <label className="space-y-1 text-sm">
+                <span className="text-muted-foreground">PM initials</span>
+                <input value={pmInitials} onChange={(event) => setPmInitials(event.target.value.toUpperCase())} className="w-full rounded-md border bg-background px-3 py-2" placeholder="PM" />
+              </label>
+            ) : null}
+            {scopeType === "saved_portfolio" ? (
+              <label className="space-y-1 text-sm sm:col-span-2">
+                <span className="text-muted-foreground">Saved portfolio</span>
+                <select value={selectedPortfolioSlug} onChange={(event) => setSelectedPortfolioSlug(event.target.value)} className="w-full rounded-md border bg-background px-3 py-2">
+                  <option value="">Select a saved portfolio</option>
+                  {savedPortfolios.map((portfolio) => (
+                    <option key={getPortfolioKey(portfolio)} value={portfolio.slug}>{portfolio.name}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </div>
-        )}
-        <div className="flex justify-end">
-          <Button type="button" onClick={() => void createPortfolioSubscription()} disabled={savingSubscription || (scopeType === "pm_active_projects" && !pmInitials.trim()) || (scopeType === "saved_portfolio" && !selectedPortfolioSlug)}>
-            {savingSubscription ? "Saving..." : `Create portfolio ${mode === "digest" ? "digest" : "alert"}`}
-          </Button>
-        </div>
-      </div>
-
-      <div className="tracker-panel space-y-3 p-5">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="tracker-section-label">Portfolio subscriptions</p>
-            <p className="text-lg font-medium">Recent digests and alert workflows</p>
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={() => void loadPortfolioSubscriptions()} disabled={loadingSubscriptions}>
-            {loadingSubscriptions ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
-        {portfolioSubscriptions.length === 0 ? (
-          <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">No portfolio subscriptions yet.</div>
-        ) : (
-          <div className="space-y-2">
-            {portfolioSubscriptions.map((subscription) => (
-              <div key={subscription.id} className="tracker-panel-muted px-4 py-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium">{subscription.summary_text}</span>
-                      <Badge variant={subscription.status === "active" ? "secondary" : "outline"}>{subscription.status}</Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground">Last triggered: {formatDateTime(subscription.last_triggered_at)}</div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {subscription.status === "active" ? (
-                      <Button type="button" variant="outline" size="sm" onClick={() => void updatePortfolioSubscription(subscription.id, "pause")} disabled={updatingSubscriptionId === subscription.id}>Pause</Button>
-                    ) : (
-                      <Button type="button" variant="outline" size="sm" onClick={() => void updatePortfolioSubscription(subscription.id, "resume")} disabled={updatingSubscriptionId === subscription.id}>Resume</Button>
-                    )}
-                    <Button type="button" variant="outline" size="sm" onClick={() => void updatePortfolioSubscription(subscription.id, "delete")} disabled={updatingSubscriptionId === subscription.id}>Delete</Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="tracker-panel-muted px-4 py-4 text-xs text-muted-foreground">
-        Popular presets: Labor reaches 95% of budget · Fabrication reaches 90% of budget · Travel reaches 100% of budget · Total project over budget.
-      </div>
-
-      <div className="tracker-panel-muted px-4 py-4 text-xs text-muted-foreground">
-        Available monitor types: {monitorOptions.map((option) => option.label).join(" · ")}
-      </div>
-    </div>
+          {scopeType === "saved_portfolio" ? (
+            <p className="text-xs text-muted-foreground">For project-specific watches, use the quick monitor rows in the Alerts tab.</p>
+          ) : null}
+          <DialogFooter showCloseButton>
+            <Button type="button" onClick={() => void createPortfolioSubscription()} disabled={savingSubscription || (scopeType === "pm_active_projects" && !pmInitials.trim()) || (scopeType === "saved_portfolio" && !selectedPortfolioSlug)}>
+              {savingSubscription ? "Saving..." : `Create portfolio ${mode === "digest" ? "digest" : "alert"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
