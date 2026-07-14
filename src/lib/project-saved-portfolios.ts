@@ -12,6 +12,13 @@ export type SavedPortfolioProjectMembership = {
   client_name?: string | null;
 };
 
+export type PortfolioAutomationRuleType = "manual" | "pm_active_projects" | "all_active_projects";
+
+export type SavedPortfolioAutomation = {
+  rule_type: PortfolioAutomationRuleType;
+  pm_initials?: string | null;
+};
+
 export type SavedPortfolioRow = {
   id: string;
   created_by_email: string;
@@ -19,9 +26,32 @@ export type SavedPortfolioRow = {
   slug: string;
   created_at: string;
   updated_at: string;
+  automation: SavedPortfolioAutomation;
   project_ids?: string[];
   projects?: SavedPortfolioProjectMembership[];
 };
+
+function normalizePortfolioAutomation(input: Record<string, unknown> | null | undefined): SavedPortfolioAutomation {
+  const ruleType = typeof input?.rule_type === "string" ? input.rule_type : "manual";
+  if (ruleType === "pm_active_projects") {
+    return {
+      rule_type: "pm_active_projects",
+      pm_initials: typeof input?.pm_initials === "string" ? input.pm_initials.trim().toUpperCase() : null,
+    };
+  }
+
+  if (ruleType === "all_active_projects") {
+    return {
+      rule_type: "all_active_projects",
+      pm_initials: null,
+    };
+  }
+
+  return {
+    rule_type: "manual",
+    pm_initials: null,
+  };
+}
 
 function parsePortfolioMemberships(rows: Array<Record<string, unknown>> | null | undefined): SavedPortfolioProjectMembership[] {
   return (rows ?? [])
@@ -63,13 +93,18 @@ async function fetchProjectIdentityMap(args: { supabase: any; projectIds: string
 
 export async function listSavedPortfolios(args: {
   supabase: any;
-  createdByEmail: string;
+  createdByEmail?: string | null;
 }) {
-  const { data, error } = await args.supabase
+  let query = args.supabase
     .from("project_portfolios")
-    .select("id, created_by_email, name, slug, created_at, updated_at, project_portfolio_projects(project_id, ordinal, monitor_json)")
-    .eq("created_by_email", args.createdByEmail.toLowerCase())
+    .select("id, created_by_email, name, slug, created_at, updated_at, automation_json, project_portfolio_projects(project_id, ordinal, monitor_json)")
     .order("updated_at", { ascending: false });
+
+  if (args.createdByEmail) {
+    query = query.eq("created_by_email", args.createdByEmail.toLowerCase());
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return { data: null, error: error.message };
@@ -97,6 +132,7 @@ export async function listSavedPortfolios(args: {
       slug: String(row.slug),
       created_at: String(row.created_at),
       updated_at: String(row.updated_at),
+      automation: normalizePortfolioAutomation((row.automation_json as Record<string, unknown> | null | undefined) ?? {}),
       projects,
       project_ids: projects.map((item) => item.project_id),
     } satisfies SavedPortfolioRow;
@@ -107,15 +143,17 @@ export async function listSavedPortfolios(args: {
 
 export async function getSavedPortfolioBySlug(args: {
   supabase: any;
-  createdByEmail: string;
+  createdByEmail?: string | null;
   slug: string;
+  ownerEmail?: string | null;
 }) {
   const portfolios = await listSavedPortfolios(args);
   if (portfolios.error) {
     return { data: null, error: portfolios.error };
   }
 
-  const row = (portfolios.data ?? []).find((portfolio) => portfolio.slug === args.slug.toLowerCase());
+  const ownerEmail = args.ownerEmail?.toLowerCase() ?? null;
+  const row = (portfolios.data ?? []).find((portfolio) => portfolio.slug === args.slug.toLowerCase() && (!ownerEmail || portfolio.created_by_email === ownerEmail));
   return { data: row ?? null, error: null };
 }
 
@@ -131,6 +169,7 @@ export async function upsertSavedPortfolio(args: {
   createdByEmail: string;
   name: string;
   projectIds: string[];
+  automation?: SavedPortfolioAutomation;
 }) {
   const slug = slugifyPortfolioName(args.name);
   if (!slug) {
@@ -142,11 +181,13 @@ export async function upsertSavedPortfolio(args: {
 
   const normalizedEmail = args.createdByEmail.toLowerCase();
   const normalizedProjectIds = [...new Set(args.projectIds.map((id) => id.trim()).filter(Boolean))];
+  const automation = normalizePortfolioAutomation(args.automation ?? { rule_type: "manual" });
 
   const existing = await getSavedPortfolioBySlug({
     supabase: args.supabase,
     createdByEmail: normalizedEmail,
     slug,
+    ownerEmail: normalizedEmail,
   });
   if (existing.error) {
     return { data: null, error: existing.error };
@@ -156,7 +197,7 @@ export async function upsertSavedPortfolio(args: {
   if (portfolioId) {
     const { error } = await args.supabase
       .from("project_portfolios")
-      .update({ name: args.name.trim(), updated_at: new Date().toISOString() })
+      .update({ name: args.name.trim(), updated_at: new Date().toISOString(), automation_json: automation })
       .eq("id", portfolioId);
     if (error) {
       return { data: null, error: error.message };
@@ -176,6 +217,7 @@ export async function upsertSavedPortfolio(args: {
         created_by_email: normalizedEmail,
         name: args.name.trim(),
         slug,
+        automation_json: automation,
       })
       .select("id")
       .single();
@@ -203,6 +245,7 @@ export async function upsertSavedPortfolio(args: {
     supabase: args.supabase,
     createdByEmail: normalizedEmail,
     slug,
+    ownerEmail: normalizedEmail,
   });
 }
 
@@ -212,11 +255,14 @@ export async function upsertPortfolioProjectMembership(args: {
   slug: string;
   projectId: string;
   monitorKeys: string[];
+  ownerEmail?: string | null;
 }) {
+  const effectiveOwnerEmail = (args.ownerEmail ?? args.createdByEmail).toLowerCase();
   const existing = await getSavedPortfolioBySlug({
     supabase: args.supabase,
-    createdByEmail: args.createdByEmail,
+    createdByEmail: effectiveOwnerEmail,
     slug: args.slug,
+    ownerEmail: effectiveOwnerEmail,
   });
   if (existing.error) {
     return { data: null, error: existing.error };
@@ -250,8 +296,9 @@ export async function upsertPortfolioProjectMembership(args: {
   await touchPortfolio({ supabase: args.supabase, portfolioId: existing.data.id });
   return getSavedPortfolioBySlug({
     supabase: args.supabase,
-    createdByEmail: args.createdByEmail,
+    createdByEmail: effectiveOwnerEmail,
     slug: args.slug,
+    ownerEmail: effectiveOwnerEmail,
   });
 }
 
@@ -260,11 +307,14 @@ export async function removePortfolioProjectMembership(args: {
   createdByEmail: string;
   slug: string;
   projectId: string;
+  ownerEmail?: string | null;
 }) {
+  const effectiveOwnerEmail = (args.ownerEmail ?? args.createdByEmail).toLowerCase();
   const existing = await getSavedPortfolioBySlug({
     supabase: args.supabase,
-    createdByEmail: args.createdByEmail,
+    createdByEmail: effectiveOwnerEmail,
     slug: args.slug,
+    ownerEmail: effectiveOwnerEmail,
   });
   if (existing.error) {
     return { data: null, error: existing.error };
@@ -286,8 +336,49 @@ export async function removePortfolioProjectMembership(args: {
   await touchPortfolio({ supabase: args.supabase, portfolioId: existing.data.id });
   return getSavedPortfolioBySlug({
     supabase: args.supabase,
-    createdByEmail: args.createdByEmail,
+    createdByEmail: effectiveOwnerEmail,
     slug: args.slug,
+    ownerEmail: effectiveOwnerEmail,
+  });
+}
+
+export async function updateSavedPortfolioAutomation(args: {
+  supabase: any;
+  createdByEmail: string;
+  slug: string;
+  ownerEmail?: string | null;
+  automation: SavedPortfolioAutomation;
+}) {
+  const effectiveOwnerEmail = (args.ownerEmail ?? args.createdByEmail).toLowerCase();
+  const existing = await getSavedPortfolioBySlug({
+    supabase: args.supabase,
+    createdByEmail: effectiveOwnerEmail,
+    slug: args.slug,
+    ownerEmail: effectiveOwnerEmail,
+  });
+  if (existing.error) {
+    return { data: null, error: existing.error };
+  }
+  if (!existing.data) {
+    return { data: null, error: "Saved portfolio not found." };
+  }
+
+  const { error } = await args.supabase
+    .from("project_portfolios")
+    .update({
+      automation_json: normalizePortfolioAutomation(args.automation),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.data.id);
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  return getSavedPortfolioBySlug({
+    supabase: args.supabase,
+    createdByEmail: effectiveOwnerEmail,
+    slug: args.slug,
+    ownerEmail: effectiveOwnerEmail,
   });
 }
 
@@ -295,6 +386,7 @@ export async function deleteSavedPortfolio(args: {
   supabase: any;
   createdByEmail: string;
   slug: string;
+  ownerEmail?: string | null;
 }) {
   const existing = await getSavedPortfolioBySlug(args);
   if (existing.error) {
@@ -315,4 +407,4 @@ export async function deleteSavedPortfolio(args: {
   return { data: existing.data, error: null };
 }
 
-export { slugifyPortfolioName };
+export { normalizePortfolioAutomation, slugifyPortfolioName };

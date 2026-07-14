@@ -13,8 +13,9 @@ test("PM starting portfolio automation keeps one active-project portfolio per PM
   assert.match(helperSource, /upsertPortfolioProjectMembership\(/, "helper should add projects to the active PM portfolio");
   assert.match(helperSource, /removePortfolioProjectMembership\(/, "helper should remove projects from PM portfolios when no longer active there");
   assert.match(helperSource, /ACTIVE_PROJECT_STATUSES/, "helper should only keep active-ish statuses enrolled in PM portfolios");
-  assert.match(helperSource, /GLOBAL_ACTIVE_PORTFOLIO_OWNER_EMAILS/, "helper should support additional always-on starting portfolio owners like Paul");
+  assert.match(helperSource, /DEFAULT_ALL_ACTIVE_OWNER_EMAILS/, "helper should support additional always-on starting portfolio owners like Paul");
   assert.match(helperSource, /All Active Projects/, "helper should create or maintain a shared all-active starting portfolio");
+  assert.match(helperSource, /automation/, "helper should work from portfolio automation rules rather than only hardcoded branching");
 });
 
 test("project create and update paths trigger PM starting portfolio automation", () => {

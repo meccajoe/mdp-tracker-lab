@@ -11,5 +11,6 @@ test("portfolio project-membership route supports per-project add/update with mo
   assert.match(source, /requireProjectAdmin\(/, "project-membership route should require admin access");
   assert.match(source, /upsertPortfolioProjectMembership\(/, "project-membership route should upsert a single project's membership");
   assert.match(source, /removePortfolioProjectMembership\(/, "project-membership route should support removing a project from a portfolio");
+  assert.match(source, /ownerEmail/, "project-membership route should support targeting portfolios owned by a different admin");
   assert.match(source, /monitorKeys|monitor_json/, "project-membership route should carry monitor metadata");
 });

@@ -17,6 +17,7 @@ type SavedPortfolioProject = {
 
 type SavedPortfolio = {
   id: string;
+  created_by_email: string;
   name: string;
   slug: string;
   projects?: SavedPortfolioProject[];
@@ -105,10 +106,12 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
   }
 
   async function saveMembershipToPortfolio(slug: string) {
+    const ownerEmail = savedPortfolios.find((portfolio) => portfolio.slug === slug)?.created_by_email;
     const response = await fetch(`/api/project-portfolios/${slug}/projects`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ownerEmail,
         projectId,
         monitorKeys: normalizePortfolioMonitorKeys(selectedMonitorKeys),
       }),
@@ -174,6 +177,7 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
   }
 
   async function removeMembership(slug: string) {
+    const ownerEmail = savedPortfolios.find((portfolio) => portfolio.slug === slug)?.created_by_email;
     setRemovingSlug(slug);
     setError(null);
     setStatus(null);
@@ -181,7 +185,7 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
       const response = await fetch(`/api/project-portfolios/${slug}/projects`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ ownerEmail, projectId }),
       });
       const { error } = await parseApiResponse<{ portfolio?: SavedPortfolio }>(response);
       if (error) throw new Error(error);
@@ -225,7 +229,7 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
             <select value={selectedPortfolioSlug} onChange={(event) => setSelectedPortfolioSlug(event.target.value)} className="w-full rounded-md border px-3 py-2 bg-background">
               <option value="">Select a saved portfolio</option>
               {savedPortfolios.map((portfolio) => (
-                <option key={portfolio.id} value={portfolio.slug}>{portfolio.name}</option>
+                <option key={portfolio.id} value={portfolio.slug}>{portfolio.name} · {portfolio.created_by_email}</option>
               ))}
             </select>
           </label>
@@ -290,7 +294,7 @@ export function ProjectPortfolioMembershipCard({ projectId }: { projectId: strin
                   <div className="space-y-2">
                     <div>
                       <div className="text-sm font-medium">{portfolio.name}</div>
-                      <div className="text-xs text-muted-foreground">{portfolio.slug}</div>
+                      <div className="text-xs text-muted-foreground">{portfolio.slug} · {portfolio.created_by_email}</div>
                     </div>
                     <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">Project {membership?.project_id}</span>

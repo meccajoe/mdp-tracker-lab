@@ -1,6 +1,7 @@
 import {
-  getSavedPortfolioBySlug,
+  listSavedPortfolios,
   removePortfolioProjectMembership,
+  type SavedPortfolioAutomation,
   slugifyPortfolioName,
   upsertPortfolioProjectMembership,
   upsertSavedPortfolio,
@@ -13,16 +14,16 @@ type PmUserRow = {
   full_name?: string | null;
 };
 
-const ACTIVE_PROJECT_STATUSES = new Set(["Active", "Pending", "On Hold"]);
-const MANAGED_PM_ROLES = new Set(["pm", "admin"]);
-const GLOBAL_ACTIVE_PORTFOLIO_OWNER_EMAILS = new Set(["paul@meccadesign.com"]);
-
 type PortfolioOwner = {
   email: string;
   pm_initials: string | null;
   role: string;
   full_name: string | null;
 };
+
+const ACTIVE_PROJECT_STATUSES = new Set(["Active", "Pending", "On Hold"]);
+const MANAGED_PM_ROLES = new Set(["pm", "admin"]);
+const DEFAULT_ALL_ACTIVE_OWNER_EMAILS = new Set(["paul@meccadesign.com"]);
 
 export function buildPmStartingPortfolioName(pmInitials: string) {
   return `${pmInitials.trim().toUpperCase()} Active Projects`;
@@ -37,7 +38,7 @@ function normalizePmInitials(value: string | null | undefined) {
   return normalized || null;
 }
 
-async function listPmPortfolioOwners(supabase: any) {
+async function listPortfolioOwners(supabase: any) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("email, pm_initials, role, full_name")
@@ -60,35 +61,52 @@ async function listPmPortfolioOwners(supabase: any) {
   return { data: rows, error: null };
 }
 
+async function ensureManagedPortfolio(args: {
+  supabase: any;
+  ownerEmail: string;
+  portfolioName: string;
+  automation: SavedPortfolioAutomation;
+  seedProjectId?: string | null;
+}) {
+  const ownerEmail = args.ownerEmail.toLowerCase();
+  const slug = slugifyPortfolioName(args.portfolioName);
+  const existingPortfolios = await listSavedPortfolios({
+    supabase: args.supabase,
+    createdByEmail: ownerEmail,
+  });
+  if (existingPortfolios.error) {
+    return { data: null, error: existingPortfolios.error };
+  }
+
+  const existing = (existingPortfolios.data ?? []).find((portfolio) => portfolio.slug === slug);
+  if (!existing) {
+    if (!args.seedProjectId) {
+      return { data: null, error: null };
+    }
+
+    return upsertSavedPortfolio({
+      supabase: args.supabase,
+      createdByEmail: ownerEmail,
+      name: args.portfolioName,
+      projectIds: [args.seedProjectId],
+      automation: args.automation,
+    });
+  }
+
+  return { data: existing, error: null };
+}
+
 async function ensureManagedPortfolioMembership(args: {
   supabase: any;
   ownerEmail: string;
   portfolioName: string;
   projectId: string;
 }) {
-  const slug = slugifyPortfolioName(args.portfolioName);
-  const existing = await getSavedPortfolioBySlug({
-    supabase: args.supabase,
-    createdByEmail: args.ownerEmail,
-    slug,
-  });
-  if (existing.error) {
-    return { data: null, error: existing.error };
-  }
-
-  if (!existing.data) {
-    return upsertSavedPortfolio({
-      supabase: args.supabase,
-      createdByEmail: args.ownerEmail,
-      name: args.portfolioName,
-      projectIds: [args.projectId],
-    });
-  }
-
   return upsertPortfolioProjectMembership({
     supabase: args.supabase,
     createdByEmail: args.ownerEmail,
-    slug,
+    ownerEmail: args.ownerEmail,
+    slug: slugifyPortfolioName(args.portfolioName),
     projectId: args.projectId,
     monitorKeys: [],
   });
@@ -100,11 +118,11 @@ async function removeManagedPortfolioMembership(args: {
   portfolioName: string;
   projectId: string;
 }) {
-  const slug = slugifyPortfolioName(args.portfolioName);
   const removed = await removePortfolioProjectMembership({
     supabase: args.supabase,
     createdByEmail: args.ownerEmail,
-    slug,
+    ownerEmail: args.ownerEmail,
+    slug: slugifyPortfolioName(args.portfolioName),
     projectId: args.projectId,
   });
   if (removed.error && removed.error !== "Saved portfolio not found.") {
@@ -112,6 +130,74 @@ async function removeManagedPortfolioMembership(args: {
   }
 
   return { data: removed.data, error: null };
+}
+
+async function seedDefaultManagedPortfolios(args: {
+  supabase: any;
+  projectId: string;
+  pmInitials: string | null;
+  shouldBeActive: boolean;
+  owners: PortfolioOwner[];
+}) {
+  if (!args.shouldBeActive) {
+    return { data: null, error: null };
+  }
+
+  const pmOwner = args.pmInitials
+    ? args.owners.find((row) => row.pm_initials === args.pmInitials && MANAGED_PM_ROLES.has(String(row.role ?? "").toLowerCase())) ?? null
+    : null;
+
+  if (args.pmInitials && !pmOwner) {
+    return { data: null, error: `No portfolio owner found for PM initials ${args.pmInitials}.` };
+  }
+
+  if (pmOwner?.pm_initials) {
+    const ensuredPmPortfolio = await ensureManagedPortfolio({
+      supabase: args.supabase,
+      ownerEmail: pmOwner.email,
+      portfolioName: buildPmStartingPortfolioName(pmOwner.pm_initials),
+      automation: { rule_type: "pm_active_projects", pm_initials: pmOwner.pm_initials },
+      seedProjectId: args.projectId,
+    });
+    if (ensuredPmPortfolio.error) {
+      return { data: null, error: ensuredPmPortfolio.error };
+    }
+  }
+
+  for (const owner of args.owners.filter((row) => DEFAULT_ALL_ACTIVE_OWNER_EMAILS.has(row.email))) {
+    const ensuredGlobalPortfolio = await ensureManagedPortfolio({
+      supabase: args.supabase,
+      ownerEmail: owner.email,
+      portfolioName: buildGlobalStartingPortfolioName(),
+      automation: { rule_type: "all_active_projects", pm_initials: null },
+      seedProjectId: args.projectId,
+    });
+    if (ensuredGlobalPortfolio.error) {
+      return { data: null, error: ensuredGlobalPortfolio.error };
+    }
+  }
+
+  return { data: null, error: null };
+}
+
+function portfolioMatchesProject(args: {
+  automation: SavedPortfolioAutomation;
+  projectPmInitials: string | null;
+  shouldBeActive: boolean;
+}) {
+  if (!args.shouldBeActive) {
+    return false;
+  }
+
+  if (args.automation.rule_type === "all_active_projects") {
+    return true;
+  }
+
+  if (args.automation.rule_type === "pm_active_projects") {
+    return !!args.projectPmInitials && args.projectPmInitials === normalizePmInitials(args.automation.pm_initials);
+  }
+
+  return false;
 }
 
 export async function syncPmStartingPortfolioMembership(args: {
@@ -125,7 +211,7 @@ export async function syncPmStartingPortfolioMembership(args: {
     return { data: null, error: "Project id is required." };
   }
 
-  const owners = await listPmPortfolioOwners(args.supabase);
+  const owners = await listPortfolioOwners(args.supabase);
   if (owners.error) {
     return { data: null, error: owners.error };
   }
@@ -133,81 +219,56 @@ export async function syncPmStartingPortfolioMembership(args: {
   const normalizedPm = normalizePmInitials(args.pmInitials);
   const status = args.status?.trim() ?? null;
   const shouldBeActive = !!normalizedPm && !!status && ACTIVE_PROJECT_STATUSES.has(status);
-  const pmOwners = (owners.data ?? []).filter((row) => row.pm_initials && MANAGED_PM_ROLES.has(String(row.role ?? "").toLowerCase()));
-  const globalOwners = (owners.data ?? []).filter((row) => GLOBAL_ACTIVE_PORTFOLIO_OWNER_EMAILS.has(row.email));
-  const desiredPmOwner = shouldBeActive
-    ? pmOwners.find((row) => row.pm_initials === normalizedPm) ?? null
-    : null;
 
-  if (shouldBeActive && !desiredPmOwner) {
-    return { data: null, error: `No portfolio owner found for PM initials ${normalizedPm}.` };
+  const seeded = await seedDefaultManagedPortfolios({
+    supabase: args.supabase,
+    projectId,
+    pmInitials: normalizedPm,
+    shouldBeActive,
+    owners: owners.data ?? [],
+  });
+  if (seeded.error) {
+    return { data: null, error: seeded.error };
   }
 
-  const desiredMemberships = new Map<string, { ownerEmail: string; portfolioName: string }>();
-  if (desiredPmOwner) {
-    const portfolioName = buildPmStartingPortfolioName(desiredPmOwner.pm_initials!);
-    desiredMemberships.set(`${desiredPmOwner.email}:${slugifyPortfolioName(portfolioName)}`, {
-      ownerEmail: desiredPmOwner.email,
-      portfolioName,
-    });
+  const portfolios = await listSavedPortfolios({ supabase: args.supabase });
+  if (portfolios.error) {
+    return { data: null, error: portfolios.error };
   }
-  if (shouldBeActive) {
-    for (const owner of globalOwners) {
-      const portfolioName = buildGlobalStartingPortfolioName();
-      desiredMemberships.set(`${owner.email}:${slugifyPortfolioName(portfolioName)}`, {
-        ownerEmail: owner.email,
-        portfolioName,
-      });
+
+  const matchedPortfolioNames: string[] = [];
+  const matchedOwnerEmails: string[] = [];
+
+  for (const portfolio of portfolios.data ?? []) {
+    if (portfolio.automation.rule_type === "manual") {
+      continue;
     }
-  }
 
-  for (const owner of pmOwners) {
-    const portfolioName = buildPmStartingPortfolioName(owner.pm_initials!);
-    const key = `${owner.email}:${slugifyPortfolioName(portfolioName)}`;
-    if (desiredMemberships.has(key)) {
+    const matches = portfolioMatchesProject({
+      automation: portfolio.automation,
+      projectPmInitials: normalizedPm,
+      shouldBeActive,
+    });
+
+    if (matches) {
       const ensured = await ensureManagedPortfolioMembership({
         supabase: args.supabase,
-        ownerEmail: owner.email,
-        portfolioName,
+        ownerEmail: portfolio.created_by_email,
+        portfolioName: portfolio.name,
         projectId,
       });
       if (ensured.error) {
         return { data: null, error: ensured.error };
       }
+      matchedPortfolioNames.push(portfolio.name);
+      matchedOwnerEmails.push(portfolio.created_by_email);
       continue;
     }
 
     const removed = await removeManagedPortfolioMembership({
       supabase: args.supabase,
-      ownerEmail: owner.email,
-      portfolioName,
-      projectId,
-    });
-    if (removed.error) {
-      return { data: null, error: removed.error };
-    }
-  }
-
-  for (const owner of globalOwners) {
-    const portfolioName = buildGlobalStartingPortfolioName();
-    const key = `${owner.email}:${slugifyPortfolioName(portfolioName)}`;
-    if (desiredMemberships.has(key)) {
-      const ensured = await ensureManagedPortfolioMembership({
-        supabase: args.supabase,
-        ownerEmail: owner.email,
-        portfolioName,
-        projectId,
-      });
-      if (ensured.error) {
-        return { data: null, error: ensured.error };
-      }
-      continue;
-    }
-
-    const removed = await removeManagedPortfolioMembership({
-      supabase: args.supabase,
-      ownerEmail: owner.email,
-      portfolioName,
+      ownerEmail: portfolio.created_by_email,
+      portfolioName: portfolio.name,
       projectId,
     });
     if (removed.error) {
@@ -220,9 +281,10 @@ export async function syncPmStartingPortfolioMembership(args: {
       projectId,
       pmInitials: normalizedPm,
       status,
-      portfolioName: desiredPmOwner ? buildPmStartingPortfolioName(desiredPmOwner.pm_initials!) : null,
-      ownerEmail: desiredPmOwner?.email ?? null,
-      portfolioNames: Array.from(desiredMemberships.values()).map((entry) => entry.portfolioName),
+      portfolioName: matchedPortfolioNames[0] ?? null,
+      ownerEmail: matchedOwnerEmails[0] ?? null,
+      portfolioNames: matchedPortfolioNames,
+      ownerEmails: matchedOwnerEmails,
     },
     error: null,
   };

@@ -13,6 +13,7 @@ test("project portfolio routes require admin access and support listing, saving,
   assert.match(routeSource, /listSavedPortfolios\(/, "portfolio route should list saved portfolios");
   assert.match(routeSource, /upsertSavedPortfolio\(/, "portfolio route should save or update a named portfolio");
 
-  assert.match(childSource, /requireProjectAdmin\(/, "portfolio delete route should require admin access");
+  assert.match(childSource, /requireProjectAdmin\(/, "portfolio child route should require admin access");
   assert.match(childSource, /deleteSavedPortfolio\(/, "portfolio delete route should delete a named portfolio");
+  assert.match(childSource, /updateSavedPortfolioAutomation\(/, "portfolio child route should update automation rules for a named portfolio");
 });

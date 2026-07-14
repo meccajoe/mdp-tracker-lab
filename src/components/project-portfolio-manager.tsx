@@ -16,8 +16,13 @@ type SavedPortfolioProject = {
 
 type SavedPortfolio = {
   id: string;
+  created_by_email: string;
   name: string;
   slug: string;
+  automation: {
+    rule_type: "manual" | "pm_active_projects" | "all_active_projects";
+    pm_initials?: string | null;
+  };
   project_ids?: string[];
   projects?: SavedPortfolioProject[];
 };
@@ -85,11 +90,13 @@ export function ProjectPortfolioManager({
   const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
   const [savingSubscription, setSavingSubscription] = useState(false);
+  const [savingAutomationSlug, setSavingAutomationSlug] = useState<string | null>(null);
   const [updatingSubscriptionId, setUpdatingSubscriptionId] = useState<string | null>(null);
   const [deletingPortfolioSlug, setDeletingPortfolioSlug] = useState<string | null>(null);
   const [creatingMonitorKey, setCreatingMonitorKey] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [automationRules, setAutomationRules] = useState<Record<string, { ruleType: "manual" | "pm_active_projects" | "all_active_projects"; pmInitials: string }>>({});
 
   const scopeOptions = useMemo(() => ([
     { value: "all_active_projects", label: "All active projects" },
@@ -108,6 +115,10 @@ export function ProjectPortfolioManager({
       if (error) throw new Error(error);
       const portfolios = data?.portfolios ?? [];
       setSavedPortfolios(portfolios);
+      setAutomationRules(Object.fromEntries(portfolios.map((portfolio) => [portfolio.id, {
+        ruleType: portfolio.automation?.rule_type ?? "manual",
+        pmInitials: portfolio.automation?.pm_initials ?? "",
+      }])));
       if (!selectedPortfolioSlug && portfolios[0]?.slug) {
         setSelectedPortfolioSlug(portfolios[0].slug);
       }
@@ -166,11 +177,12 @@ export function ProjectPortfolioManager({
   }
 
   async function deletePortfolio(slug: string) {
+    const ownerEmail = savedPortfolios.find((portfolio) => portfolio.slug === slug)?.created_by_email ?? "";
     setDeletingPortfolioSlug(slug);
     setError(null);
     setStatus(null);
     try {
-      const response = await fetch(`/api/project-portfolios/${slug}`, { method: "DELETE" });
+      const response = await fetch(`/api/project-portfolios/${slug}?ownerEmail=${encodeURIComponent(ownerEmail)}`, { method: "DELETE" });
       const { error } = await parseApiResponse<{ portfolio?: SavedPortfolio }>(response);
       if (error) throw new Error(error);
       setStatus(`Deleted portfolio ${slug}.`);
@@ -182,6 +194,35 @@ export function ProjectPortfolioManager({
       setError(requestError instanceof Error ? requestError.message : "Failed to delete portfolio");
     } finally {
       setDeletingPortfolioSlug(null);
+    }
+  }
+
+  async function saveAutomation(portfolio: SavedPortfolio) {
+    const draft = automationRules[portfolio.id] ?? {
+      ruleType: portfolio.automation?.rule_type ?? "manual",
+      pmInitials: portfolio.automation?.pm_initials ?? "",
+    };
+    setSavingAutomationSlug(portfolio.slug);
+    setError(null);
+    setStatus(null);
+    try {
+      const response = await fetch(`/api/project-portfolios/${portfolio.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerEmail: portfolio.created_by_email,
+          ruleType: draft.ruleType,
+          pmInitials: draft.pmInitials,
+        }),
+      });
+      const { data, error } = await parseApiResponse<{ portfolio?: SavedPortfolio }>(response);
+      if (error || !data?.portfolio) throw new Error(error ?? "Failed to save automation rule");
+      setStatus(`Updated automation for ${data.portfolio.name}.`);
+      await loadSavedPortfolios();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to save automation rule");
+    } finally {
+      setSavingAutomationSlug(null);
     }
   }
 
@@ -312,6 +353,7 @@ export function ProjectPortfolioManager({
                     <div>
                       <div className="text-sm font-medium">{portfolio.name}</div>
                       <div className="text-xs text-muted-foreground">{portfolio.slug} · {portfolio.projects?.length ?? portfolio.project_ids?.length ?? 0} project(s)</div>
+                      <div className="text-xs text-muted-foreground">Owner: {portfolio.created_by_email}</div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="outline" size="sm" onClick={() => { setScopeType("saved_portfolio"); setSelectedPortfolioSlug(portfolio.slug); setMode("digest"); void createPortfolioSubscription({ portfolioSlug: portfolio.slug, scopeTypeOverride: "saved_portfolio", modeOverride: "digest" }); }} disabled={savingSubscription}>
@@ -319,6 +361,61 @@ export function ProjectPortfolioManager({
                       </Button>
                       <Button type="button" variant="outline" size="sm" onClick={() => void deletePortfolio(portfolio.slug)} disabled={deletingPortfolioSlug === portfolio.slug}>
                         {deletingPortfolioSlug === portfolio.slug ? "Deleting..." : "Delete"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                    <div>
+                      <p className="text-sm font-medium">Automation rule</p>
+                      <p className="text-xs text-muted-foreground">Use Portfolio Center to decide whether this portfolio auto-manages PM-active projects, all active projects, or stays manual.</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <label className="space-y-1 text-sm sm:col-span-2">
+                        <span className="text-muted-foreground">Rule type</span>
+                        <select
+                          value={automationRules[portfolio.id]?.ruleType ?? portfolio.automation?.rule_type ?? "manual"}
+                          onChange={(event) => setAutomationRules((prev) => ({
+                            ...prev,
+                            [portfolio.id]: {
+                              ruleType: event.target.value as "manual" | "pm_active_projects" | "all_active_projects",
+                              pmInitials: prev[portfolio.id]?.pmInitials ?? portfolio.automation?.pm_initials ?? "",
+                            },
+                          }))}
+                          className="w-full rounded-md border px-3 py-2 bg-background"
+                        >
+                          <option value="manual">Manual only</option>
+                          <option value="pm_active_projects">PM active projects</option>
+                          <option value="all_active_projects">All active projects</option>
+                        </select>
+                      </label>
+                      {(automationRules[portfolio.id]?.ruleType ?? portfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && (
+                        <label className="space-y-1 text-sm">
+                          <span className="text-muted-foreground">PM initials</span>
+                          <input
+                            value={automationRules[portfolio.id]?.pmInitials ?? portfolio.automation?.pm_initials ?? ""}
+                            onChange={(event) => setAutomationRules((prev) => ({
+                              ...prev,
+                              [portfolio.id]: {
+                                ruleType: "pm_active_projects",
+                                pmInitials: event.target.value.toUpperCase(),
+                              },
+                            }))}
+                            className="w-full rounded-md border px-3 py-2"
+                            placeholder="NG"
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void saveAutomation(portfolio)}
+                        disabled={savingAutomationSlug === portfolio.slug || ((automationRules[portfolio.id]?.ruleType ?? portfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && !(automationRules[portfolio.id]?.pmInitials ?? portfolio.automation?.pm_initials ?? "").trim())}
+                      >
+                        {savingAutomationSlug === portfolio.slug ? "Saving..." : "Save automation"}
                       </Button>
                     </div>
                   </div>

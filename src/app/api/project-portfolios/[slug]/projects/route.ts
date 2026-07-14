@@ -14,6 +14,7 @@ export async function POST(
 
   const { slug } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
+    ownerEmail?: string;
     projectId?: string;
     monitorKeys?: string[];
   };
@@ -21,6 +22,7 @@ export async function POST(
   const result = await upsertPortfolioProjectMembership({
     supabase: admin.supabase,
     createdByEmail: admin.actorEmail,
+    ownerEmail: typeof body.ownerEmail === "string" ? body.ownerEmail : admin.actorEmail,
     slug,
     projectId: body.projectId ?? "",
     monitorKeys: Array.isArray(body.monitorKeys) ? body.monitorKeys : [],
@@ -44,12 +46,14 @@ export async function DELETE(
 
   const { slug } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
+    ownerEmail?: string;
     projectId?: string;
   };
 
   const result = await removePortfolioProjectMembership({
     supabase: admin.supabase,
     createdByEmail: admin.actorEmail,
+    ownerEmail: typeof body.ownerEmail === "string" ? body.ownerEmail : admin.actorEmail,
     slug,
     projectId: body.projectId ?? "",
   });

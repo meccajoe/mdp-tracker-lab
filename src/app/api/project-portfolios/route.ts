@@ -11,7 +11,6 @@ export async function GET() {
 
   const result = await listSavedPortfolios({
     supabase: admin.supabase,
-    createdByEmail: admin.actorEmail,
   });
 
   if (result.error) {
