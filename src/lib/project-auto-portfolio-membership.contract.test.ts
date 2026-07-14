@@ -16,6 +16,7 @@ test("PM starting portfolio automation keeps one active-project portfolio per PM
   assert.match(helperSource, /DEFAULT_ALL_ACTIVE_OWNER_EMAILS/, "helper should support additional always-on starting portfolio owners like Paul");
   assert.match(helperSource, /All Active Projects/, "helper should create or maintain a shared all-active starting portfolio");
   assert.match(helperSource, /automation/, "helper should work from portfolio automation rules rather than only hardcoded branching");
+  assert.doesNotMatch(helperSource, /MANAGED_PM_ROLES/, "PM portfolio automation should follow PM initials even when the owner's role is not literally pm/admin");
 });
 
 test("project create and update paths trigger PM starting portfolio automation", () => {

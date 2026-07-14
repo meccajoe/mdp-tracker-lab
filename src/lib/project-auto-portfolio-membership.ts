@@ -22,7 +22,6 @@ type PortfolioOwner = {
 };
 
 const ACTIVE_PROJECT_STATUSES = new Set(["Active", "Pending", "On Hold"]);
-const MANAGED_PM_ROLES = new Set(["pm", "admin"]);
 const DEFAULT_ALL_ACTIVE_OWNER_EMAILS = new Set(["paul@meccadesign.com"]);
 
 export function buildPmStartingPortfolioName(pmInitials: string) {
@@ -144,7 +143,7 @@ async function seedDefaultManagedPortfolios(args: {
   }
 
   const pmOwner = args.pmInitials
-    ? args.owners.find((row) => row.pm_initials === args.pmInitials && MANAGED_PM_ROLES.has(String(row.role ?? "").toLowerCase())) ?? null
+    ? args.owners.find((row) => row.pm_initials === args.pmInitials) ?? null
     : null;
 
   if (args.pmInitials && !pmOwner) {
