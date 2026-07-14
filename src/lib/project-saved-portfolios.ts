@@ -22,11 +22,13 @@ export type SavedPortfolioAutomation = {
 export type SavedPortfolioRow = {
   id: string;
   created_by_email: string;
+  owner_full_name?: string | null;
   name: string;
   slug: string;
   created_at: string;
   updated_at: string;
   automation: SavedPortfolioAutomation;
+  pm_full_name?: string | null;
   project_ids?: string[];
   projects?: SavedPortfolioProjectMembership[];
 };
@@ -91,6 +93,43 @@ async function fetchProjectIdentityMap(args: { supabase: any; projectIds: string
   return { data: map, error: null };
 }
 
+async function fetchUserRoleIdentityMap(args: { supabase: any }) {
+  const { data, error } = await args.supabase
+    .from("user_roles")
+    .select("email, pm_initials, full_name");
+
+  if (error) {
+    return {
+      byEmail: {} as Record<string, { full_name: string | null; pm_initials: string | null }>,
+      byPmInitials: {} as Record<string, { full_name: string | null; email: string | null }>,
+      error: error.message,
+    };
+  }
+
+  const rows = (data ?? []) as Array<Record<string, unknown>>;
+  const byEmail = rows.reduce<Record<string, { full_name: string | null; pm_initials: string | null }>>((acc, row) => {
+    const email = typeof row.email === "string" ? row.email.toLowerCase() : null;
+    if (!email) return acc;
+    acc[email] = {
+      full_name: typeof row.full_name === "string" ? row.full_name : null,
+      pm_initials: typeof row.pm_initials === "string" ? row.pm_initials.trim().toUpperCase() : null,
+    };
+    return acc;
+  }, {});
+
+  const byPmInitials = rows.reduce<Record<string, { full_name: string | null; email: string | null }>>((acc, row) => {
+    const pmInitials = typeof row.pm_initials === "string" ? row.pm_initials.trim().toUpperCase() : null;
+    if (!pmInitials) return acc;
+    acc[pmInitials] = {
+      full_name: typeof row.full_name === "string" ? row.full_name : null,
+      email: typeof row.email === "string" ? row.email.toLowerCase() : null,
+    };
+    return acc;
+  }, {});
+
+  return { byEmail, byPmInitials, error: null };
+}
+
 export async function listSavedPortfolios(args: {
   supabase: any;
   createdByEmail?: string | null;
@@ -118,6 +157,10 @@ export async function listSavedPortfolios(args: {
   if (identities.error) {
     return { data: null, error: identities.error };
   }
+  const userRoles = await fetchUserRoleIdentityMap({ supabase: args.supabase });
+  if (userRoles.error) {
+    return { data: null, error: userRoles.error };
+  }
 
   const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row, index) => {
     const projects = membershipRows[index].map((membership) => ({
@@ -125,14 +168,18 @@ export async function listSavedPortfolios(args: {
       project_name: identities.data[membership.project_id]?.project_name ?? null,
       client_name: identities.data[membership.project_id]?.client_name ?? null,
     }));
+    const createdByEmail = String(row.created_by_email).toLowerCase();
+    const automation = normalizePortfolioAutomation((row.automation_json as Record<string, unknown> | null | undefined) ?? {});
     return {
       id: String(row.id),
-      created_by_email: String(row.created_by_email),
+      created_by_email: createdByEmail,
+      owner_full_name: userRoles.byEmail[createdByEmail]?.full_name ?? null,
       name: String(row.name),
       slug: String(row.slug),
       created_at: String(row.created_at),
       updated_at: String(row.updated_at),
-      automation: normalizePortfolioAutomation((row.automation_json as Record<string, unknown> | null | undefined) ?? {}),
+      automation,
+      pm_full_name: automation.pm_initials ? (userRoles.byPmInitials[automation.pm_initials]?.full_name ?? null) : null,
       projects,
       project_ids: projects.map((item) => item.project_id),
     } satisfies SavedPortfolioRow;
