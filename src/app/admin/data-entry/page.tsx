@@ -8,6 +8,7 @@ import { Project } from "@/lib/types";
 import { useUserRoles, resolvePMName } from "@/hooks/useUserRoles";
 import { formatCurrency } from "@/lib/constants";
 import { BUDGET_CATEGORIES, HARDCODED_DEFAULT_PCTS, calcBudget, calcLaborHrs, calcMaterialsBudget, LABOR_RATE_PER_HR } from "@/lib/budget-formula";
+import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { buildStoredQuoteSnapshotFromParsedQuote, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 import { formatNumber } from "@/lib/constants";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
@@ -612,6 +613,18 @@ export default function DataEntryPage() {
       const { error } = await supabase.from("projects").update(updatePayload).eq("id", projectId);
       if (error) { toast.error("Failed to save: " + error.message); setSaving(false); return; }
       toast.success(`Saved ${projectId}`);
+    }
+
+    const portfolioSync = await syncPmStartingPortfolioMembership({
+      supabase,
+      projectId,
+      pmInitials: payload.pm as string | null,
+      status: payload.status as string | null,
+    });
+    if (portfolioSync.error) {
+      toast.error(`Project saved, but PM portfolio sync failed: ${portfolioSync.error}`);
+      setSaving(false);
+      return;
     }
 
     // Save actuals

@@ -15,6 +15,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createHmac, createHash } from "crypto";
 import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, type HubSpotLineItem } from "@/lib/hubspot";
 import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
+import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
 import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, resolveBillSpendMemberEmail, seedBillBudgetForProject, shouldSeedBillBudget, updateBillBudgetForProject } from "@/lib/billcom-budget";
@@ -577,6 +578,15 @@ export async function POST(req: NextRequest) {
           results.push({ dealId, status: "error" });
           continue;
         }
+        const portfolioSync = await syncPmStartingPortfolioMembership({
+          supabase,
+          projectId: existingProject.id,
+          pmInitials: typeof updatePayload.pm === "string" ? updatePayload.pm : null,
+          status: typeof updatePayload.status === "string" ? updatePayload.status : null,
+        });
+        if (portfolioSync.error) {
+          console.error(`[hubspot webhook] Failed to sync PM portfolio membership for project ${existingProject.id}:`, portfolioSync.error);
+        }
         await maybeSeedBillBudget(existingProject.id, existingProject.bill_budget_uuid ?? null, existingProject.pm ?? null);
         console.log(`[hubspot webhook] Refreshed project ${existingProject.id} for deal ${dealId}`);
         results.push({ dealId, status: "updated" });
@@ -588,6 +598,16 @@ export async function POST(req: NextRequest) {
         console.error(`[hubspot webhook] Failed to insert project for deal ${dealId}:`, insertError);
         results.push({ dealId, status: "error" });
         continue;
+      }
+
+      const portfolioSync = await syncPmStartingPortfolioMembership({
+        supabase,
+        projectId: jobNumber,
+        pmInitials: typeof insertPayload.pm === "string" ? insertPayload.pm : null,
+        status: typeof insertPayload.status === "string" ? insertPayload.status : null,
+      });
+      if (portfolioSync.error) {
+        console.error(`[hubspot webhook] Failed to sync PM portfolio membership for project ${jobNumber}:`, portfolioSync.error);
       }
 
       await maybeSeedBillBudget(jobNumber, null, insertPayload.pm ?? null);

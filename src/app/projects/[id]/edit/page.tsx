@@ -16,6 +16,7 @@ import {
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { canManageProjectActions } from "@/lib/admin-access";
 import { BUDGET_FIELDS } from "@/lib/constants";
+import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 import {
@@ -235,6 +236,17 @@ export default function EditProjectPage() {
 
     if (error) {
       toast.error("Failed to update project: " + error.message);
+      return;
+    }
+
+    const portfolioSync = await syncPmStartingPortfolioMembership({
+      supabase,
+      projectId,
+      pmInitials: pm,
+      status,
+    });
+    if (portfolioSync.error) {
+      toast.error("Project updated, but PM portfolio sync failed: " + portfolioSync.error);
       return;
     }
 

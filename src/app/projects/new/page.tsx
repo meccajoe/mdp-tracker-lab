@@ -10,6 +10,7 @@ import {
 } from "@/lib/project-lookups";
 import { PM_OPTIONS, PROJECT_STATUSES, PROJECT_TYPES, getPMName } from "@/lib/types";
 import { BUDGET_FIELDS } from "@/lib/constants";
+import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
 import {
@@ -137,6 +138,17 @@ export default function NewProjectPage() {
 
     if (error) {
       toast.error("Failed to create project: " + error.message);
+      return;
+    }
+
+    const portfolioSync = await syncPmStartingPortfolioMembership({
+      supabase,
+      projectId: projectId.trim(),
+      pmInitials: pm,
+      status,
+    });
+    if (portfolioSync.error) {
+      toast.error("Project created, but PM portfolio sync failed: " + portfolioSync.error);
       return;
     }
 
