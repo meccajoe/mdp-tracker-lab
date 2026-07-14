@@ -9,6 +9,7 @@ test("project portfolio manager supports saved portfolios plus Slack-backed port
 
   assert.match(source, /\/api\/project-portfolios/, "component should load and save named portfolios through the project-portfolios API");
   assert.match(source, /Save automation|Automation rule|all_active_projects|pm_active_projects/i, "component should let admins configure portfolio automation rules from Portfolio Center");
+  assert.match(source, /PM portfolio workspace|All PMs|Portfolio list/i, "component should present PM-filtered portfolio browsing instead of only stacked cards");
   assert.match(source, /\/api\/project-portfolio-subscriptions/, "component should load and create portfolio subscriptions through the portfolio subscriptions API");
   assert.match(source, /Portfolio digests and alerts/i, "component should render a portfolio manager section title");
   assert.match(source, /Save portfolio/i, "component should support saving named project portfolios");

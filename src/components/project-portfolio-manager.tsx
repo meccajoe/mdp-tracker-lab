@@ -36,6 +36,10 @@ type PortfolioSubscription = {
   scope_json?: Record<string, unknown> | null;
 };
 
+const PM_FILTER_ALL = "ALL_PMS";
+const PM_FILTER_SHARED = "SHARED";
+const PM_FILTER_MANUAL = "MANUAL";
+
 async function parseApiResponse<T>(response: Response): Promise<{ data: (T & { error?: string }) | null; error: string | null }> {
   const raw = await response.text();
   const contentType = response.headers.get("content-type") ?? "";
@@ -71,6 +75,30 @@ function formatDateTime(value: string | null) {
   });
 }
 
+function getPortfolioKey(portfolio: SavedPortfolio) {
+  return `${portfolio.created_by_email}:${portfolio.slug}`;
+}
+
+function getPortfolioProjectCount(portfolio: SavedPortfolio) {
+  return portfolio.projects?.length ?? portfolio.project_ids?.length ?? 0;
+}
+
+function getPortfolioRuleLabel(portfolio: SavedPortfolio) {
+  if (portfolio.automation.rule_type === "pm_active_projects") {
+    return `${portfolio.automation.pm_initials ?? "PM"} active projects`;
+  }
+  if (portfolio.automation.rule_type === "all_active_projects") {
+    return "All active projects";
+  }
+  return "Manual";
+}
+
+function comparePortfolios(a: SavedPortfolio, b: SavedPortfolio) {
+  const pmA = a.automation.pm_initials ?? "";
+  const pmB = b.automation.pm_initials ?? "";
+  return pmA.localeCompare(pmB) || a.name.localeCompare(b.name) || a.created_by_email.localeCompare(b.created_by_email);
+}
+
 export function ProjectPortfolioManager({
   initialProjectId = null,
   defaultPmInitials,
@@ -84,6 +112,8 @@ export function ProjectPortfolioManager({
   const [mode, setMode] = useState<"digest" | "over_budget" | "labor_risk">("digest");
   const [pmInitials, setPmInitials] = useState(defaultPmInitials ?? "");
   const [selectedPortfolioSlug, setSelectedPortfolioSlug] = useState("");
+  const [selectedPmFilter, setSelectedPmFilter] = useState((defaultPmInitials?.trim().toUpperCase() || PM_FILTER_ALL));
+  const [selectedPortfolioKey, setSelectedPortfolioKey] = useState("");
   const [savedPortfolios, setSavedPortfolios] = useState<SavedPortfolio[]>([]);
   const [portfolioSubscriptions, setPortfolioSubscriptions] = useState<PortfolioSubscription[]>([]);
   const [loadingPortfolios, setLoadingPortfolios] = useState(false);
@@ -148,6 +178,54 @@ export function ProjectPortfolioManager({
     void loadPortfolioSubscriptions();
   }, []);
 
+  const pmPortfolios = useMemo(() => savedPortfolios
+    .filter((portfolio) => portfolio.automation.rule_type === "pm_active_projects")
+    .sort(comparePortfolios), [savedPortfolios]);
+
+  const sharedPortfolios = useMemo(() => savedPortfolios
+    .filter((portfolio) => portfolio.automation.rule_type === "all_active_projects")
+    .sort(comparePortfolios), [savedPortfolios]);
+
+  const manualPortfolios = useMemo(() => savedPortfolios
+    .filter((portfolio) => portfolio.automation.rule_type === "manual")
+    .sort(comparePortfolios), [savedPortfolios]);
+
+  const pmFilters = useMemo(() => Array.from(new Set(
+    pmPortfolios
+      .map((portfolio) => portfolio.automation.pm_initials?.trim().toUpperCase())
+      .filter((value): value is string => !!value)
+  )).sort(), [pmPortfolios]);
+
+  const filteredPortfolios = useMemo(() => {
+    if (selectedPmFilter === PM_FILTER_SHARED) return sharedPortfolios;
+    if (selectedPmFilter === PM_FILTER_MANUAL) return manualPortfolios;
+    if (selectedPmFilter === PM_FILTER_ALL) return pmPortfolios;
+    return pmPortfolios.filter((portfolio) => (portfolio.automation.pm_initials ?? "").trim().toUpperCase() === selectedPmFilter);
+  }, [manualPortfolios, pmPortfolios, selectedPmFilter, sharedPortfolios]);
+
+  useEffect(() => {
+    if (filteredPortfolios.length === 0) {
+      if (selectedPortfolioKey) setSelectedPortfolioKey("");
+      return;
+    }
+
+    const existing = filteredPortfolios.find((portfolio) => getPortfolioKey(portfolio) === selectedPortfolioKey);
+    const next = existing ?? filteredPortfolios[0];
+    const nextKey = getPortfolioKey(next);
+    if (nextKey !== selectedPortfolioKey) {
+      setSelectedPortfolioKey(nextKey);
+    }
+    if (selectedPortfolioSlug !== next.slug) {
+      setSelectedPortfolioSlug(next.slug);
+    }
+  }, [filteredPortfolios, selectedPortfolioKey, selectedPortfolioSlug]);
+
+  const selectedPortfolio = useMemo(() => filteredPortfolios.find((portfolio) => getPortfolioKey(portfolio) === selectedPortfolioKey) ?? filteredPortfolios[0] ?? null, [filteredPortfolios, selectedPortfolioKey]);
+
+  const selectedPortfolioUniqueMonitorKeys = useMemo(() => Array.from(new Set((selectedPortfolio?.projects ?? []).flatMap((item) => item.monitor_keys))), [selectedPortfolio]);
+
+  const filteredProjectCount = useMemo(() => filteredPortfolios.reduce((total, portfolio) => total + getPortfolioProjectCount(portfolio), 0), [filteredPortfolios]);
+
   async function savePortfolio() {
     setSavingPortfolio(true);
     setError(null);
@@ -169,6 +247,7 @@ export function ProjectPortfolioManager({
       setPortfolioProjects(initialProjectId ?? "");
       await loadSavedPortfolios();
       setSelectedPortfolioSlug(data.portfolio.slug);
+      setSelectedPortfolioKey(getPortfolioKey(data.portfolio));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to save portfolio");
     } finally {
@@ -302,6 +381,230 @@ export function ProjectPortfolioManager({
         </div>
       )}
 
+      <div className="space-y-4 rounded-xl border p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">PM portfolio workspace</p>
+            <p className="text-xs text-muted-foreground">Filter built PM portfolios by owner/PM first, then inspect one portfolio in a focused detail view instead of scrolling stacked cards.</p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
+            {loadingPortfolios ? "Refreshing..." : "Refresh portfolios"}
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant={selectedPmFilter === PM_FILTER_ALL ? "default" : "outline"} onClick={() => setSelectedPmFilter(PM_FILTER_ALL)}>
+            All PMs
+          </Button>
+          {pmFilters.map((filter) => (
+            <Button key={filter} type="button" size="sm" variant={selectedPmFilter === filter ? "default" : "outline"} onClick={() => setSelectedPmFilter(filter)}>
+              {filter}
+            </Button>
+          ))}
+          <Button type="button" size="sm" variant={selectedPmFilter === PM_FILTER_SHARED ? "default" : "outline"} onClick={() => setSelectedPmFilter(PM_FILTER_SHARED)}>
+            Shared
+          </Button>
+          <Button type="button" size="sm" variant={selectedPmFilter === PM_FILTER_MANUAL ? "default" : "outline"} onClick={() => setSelectedPmFilter(PM_FILTER_MANUAL)}>
+            Manual
+          </Button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border px-3 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Visible portfolios</div>
+            <div className="mt-1 text-2xl font-semibold">{filteredPortfolios.length}</div>
+          </div>
+          <div className="rounded-lg border px-3 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Projects in view</div>
+            <div className="mt-1 text-2xl font-semibold">{filteredProjectCount}</div>
+          </div>
+          <div className="rounded-lg border px-3 py-3">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Filter mode</div>
+            <div className="mt-1 text-sm font-medium">
+              {selectedPmFilter === PM_FILTER_ALL ? "All PM portfolios" : selectedPmFilter === PM_FILTER_SHARED ? "Shared automation portfolios" : selectedPmFilter === PM_FILTER_MANUAL ? "Manual portfolios" : `${selectedPmFilter} workspace`}
+            </div>
+          </div>
+        </div>
+
+        {filteredPortfolios.length === 0 ? (
+          <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No portfolios match this PM filter yet.</div>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">Portfolio list</p>
+                <span className="text-xs text-muted-foreground">{filteredPortfolios.length} shown</span>
+              </div>
+              <div className="space-y-2">
+                {filteredPortfolios.map((portfolio) => {
+                  const portfolioKey = getPortfolioKey(portfolio);
+                  const selected = selectedPortfolioKey === portfolioKey;
+                  return (
+                    <button
+                      key={portfolioKey}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPortfolioKey(portfolioKey);
+                        setSelectedPortfolioSlug(portfolio.slug);
+                      }}
+                      className={`w-full rounded-lg border px-3 py-3 text-left transition ${selected ? "border-foreground bg-muted/40" : "hover:bg-muted/20"}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">{portfolio.name}</div>
+                          <div className="text-xs text-muted-foreground">{portfolio.created_by_email}</div>
+                        </div>
+                        <Badge variant={selected ? "secondary" : "outline"}>{getPortfolioProjectCount(portfolio)} projects</Badge>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">{getPortfolioRuleLabel(portfolio)}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {selectedPortfolio ? (
+              <div className="space-y-4 rounded-lg border p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base font-semibold">{selectedPortfolio.name}</h2>
+                      <Badge variant="outline">{getPortfolioRuleLabel(selectedPortfolio)}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{selectedPortfolio.created_by_email} · {selectedPortfolio.slug}</p>
+                    <p className="text-xs text-muted-foreground">{getPortfolioProjectCount(selectedPortfolio)} project(s) currently in this portfolio.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setScopeType("saved_portfolio"); setSelectedPortfolioSlug(selectedPortfolio.slug); setMode("digest"); void createPortfolioSubscription({ portfolioSlug: selectedPortfolio.slug, scopeTypeOverride: "saved_portfolio", modeOverride: "digest" }); }} disabled={savingSubscription}>
+                      Create digest
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void deletePortfolio(selectedPortfolio.slug)} disabled={deletingPortfolioSlug === selectedPortfolio.slug}>
+                      {deletingPortfolioSlug === selectedPortfolio.slug ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                  <div>
+                    <p className="text-sm font-medium">Automation rule</p>
+                    <p className="text-xs text-muted-foreground">Use Portfolio Center to decide whether this portfolio auto-manages PM-active projects, all active projects, or stays manual.</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="space-y-1 text-sm sm:col-span-2">
+                      <span className="text-muted-foreground">Rule type</span>
+                      <select
+                        value={automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual"}
+                        onChange={(event) => setAutomationRules((prev) => ({
+                          ...prev,
+                          [selectedPortfolio.id]: {
+                            ruleType: event.target.value as "manual" | "pm_active_projects" | "all_active_projects",
+                            pmInitials: prev[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "",
+                          },
+                        }))}
+                        className="w-full rounded-md border px-3 py-2 bg-background"
+                      >
+                        <option value="manual">Manual only</option>
+                        <option value="pm_active_projects">PM active projects</option>
+                        <option value="all_active_projects">All active projects</option>
+                      </select>
+                    </label>
+                    {(automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && (
+                      <label className="space-y-1 text-sm">
+                        <span className="text-muted-foreground">PM initials</span>
+                        <input
+                          value={automationRules[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? ""}
+                          onChange={(event) => setAutomationRules((prev) => ({
+                            ...prev,
+                            [selectedPortfolio.id]: {
+                              ruleType: "pm_active_projects",
+                              pmInitials: event.target.value.toUpperCase(),
+                            },
+                          }))}
+                          className="w-full rounded-md border px-3 py-2"
+                          placeholder="NG"
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void saveAutomation(selectedPortfolio)}
+                      disabled={savingAutomationSlug === selectedPortfolio.slug || ((automationRules[selectedPortfolio.id]?.ruleType ?? selectedPortfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && !(automationRules[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "").trim())}
+                    >
+                      {savingAutomationSlug === selectedPortfolio.slug ? "Saving..." : "Save automation"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projects in this portfolio</p>
+                    {(selectedPortfolio.projects ?? []).length === 0 ? (
+                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No projects saved yet.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {(selectedPortfolio.projects ?? []).map((project) => (
+                          <div key={`${selectedPortfolio.id}:${project.project_id}`} className="rounded-md border px-3 py-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <div className="text-sm font-medium">Project {project.project_id}{project.project_name ? ` · ${project.project_name}` : ""}</div>
+                                {project.client_name && (
+                                  <div className="text-xs text-muted-foreground">Client: {project.client_name}</div>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {project.monitor_keys.length > 0 ? project.monitor_keys.map((monitorKey) => {
+                                  const config = getPortfolioMonitorConfig(monitorKey);
+                                  return (
+                                    <Badge key={monitorKey} variant="outline">{config?.label ?? monitorKey}</Badge>
+                                  );
+                                }) : <span className="text-xs text-muted-foreground">No monitors saved yet</span>}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Create alerts from saved monitor coverage</p>
+                    {selectedPortfolioUniqueMonitorKeys.length === 0 ? (
+                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                        Add projects to this portfolio from a project modal and choose the budgets/stats you want monitored.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedPortfolioUniqueMonitorKeys.map((monitorKey) => {
+                          const config = getPortfolioMonitorConfig(monitorKey as PortfolioMonitorKey);
+                          const projectCount = (selectedPortfolio.projects ?? []).filter((project) => project.monitor_keys.includes(monitorKey as PortfolioMonitorKey)).length;
+                          return (
+                            <Button
+                              key={`${selectedPortfolio.slug}:${monitorKey}`}
+                              type="button"
+                              variant="outline"
+                              className="w-full justify-between"
+                              onClick={() => void createMonitorAlert(selectedPortfolio.slug, monitorKey as PortfolioMonitorKey)}
+                              disabled={creatingMonitorKey === `${selectedPortfolio.slug}:${monitorKey}`}
+                            >
+                              <span>{config?.label ?? monitorKey}</span>
+                              <span className="text-xs text-muted-foreground">{creatingMonitorKey === `${selectedPortfolio.slug}:${monitorKey}` ? "Saving..." : `${projectCount} project(s)`}</span>
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+
       <div className="space-y-3 rounded-xl border p-4">
         <div>
           <p className="text-sm font-medium">Save portfolio</p>
@@ -332,156 +635,6 @@ export function ProjectPortfolioManager({
             {savingPortfolio ? "Saving..." : "Save portfolio"}
           </Button>
         </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium">Saved portfolios</p>
-          <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
-            {loadingPortfolios ? "Refreshing..." : "Refresh"}
-          </Button>
-        </div>
-        {savedPortfolios.length === 0 ? (
-          <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No saved portfolios yet.</div>
-        ) : (
-          <div className="space-y-4">
-            {savedPortfolios.map((portfolio) => {
-              const uniqueMonitorKeys = Array.from(new Set((portfolio.projects ?? []).flatMap((item) => item.monitor_keys)));
-              return (
-                <div key={portfolio.id} className="space-y-4 rounded-xl border p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="text-sm font-medium">{portfolio.name}</div>
-                      <div className="text-xs text-muted-foreground">{portfolio.slug} · {portfolio.projects?.length ?? portfolio.project_ids?.length ?? 0} project(s)</div>
-                      <div className="text-xs text-muted-foreground">Owner: {portfolio.created_by_email}</div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={() => { setScopeType("saved_portfolio"); setSelectedPortfolioSlug(portfolio.slug); setMode("digest"); void createPortfolioSubscription({ portfolioSlug: portfolio.slug, scopeTypeOverride: "saved_portfolio", modeOverride: "digest" }); }} disabled={savingSubscription}>
-                        Create digest
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => void deletePortfolio(portfolio.slug)} disabled={deletingPortfolioSlug === portfolio.slug}>
-                        {deletingPortfolioSlug === portfolio.slug ? "Deleting..." : "Delete"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-                    <div>
-                      <p className="text-sm font-medium">Automation rule</p>
-                      <p className="text-xs text-muted-foreground">Use Portfolio Center to decide whether this portfolio auto-manages PM-active projects, all active projects, or stays manual.</p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <label className="space-y-1 text-sm sm:col-span-2">
-                        <span className="text-muted-foreground">Rule type</span>
-                        <select
-                          value={automationRules[portfolio.id]?.ruleType ?? portfolio.automation?.rule_type ?? "manual"}
-                          onChange={(event) => setAutomationRules((prev) => ({
-                            ...prev,
-                            [portfolio.id]: {
-                              ruleType: event.target.value as "manual" | "pm_active_projects" | "all_active_projects",
-                              pmInitials: prev[portfolio.id]?.pmInitials ?? portfolio.automation?.pm_initials ?? "",
-                            },
-                          }))}
-                          className="w-full rounded-md border px-3 py-2 bg-background"
-                        >
-                          <option value="manual">Manual only</option>
-                          <option value="pm_active_projects">PM active projects</option>
-                          <option value="all_active_projects">All active projects</option>
-                        </select>
-                      </label>
-                      {(automationRules[portfolio.id]?.ruleType ?? portfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && (
-                        <label className="space-y-1 text-sm">
-                          <span className="text-muted-foreground">PM initials</span>
-                          <input
-                            value={automationRules[portfolio.id]?.pmInitials ?? portfolio.automation?.pm_initials ?? ""}
-                            onChange={(event) => setAutomationRules((prev) => ({
-                              ...prev,
-                              [portfolio.id]: {
-                                ruleType: "pm_active_projects",
-                                pmInitials: event.target.value.toUpperCase(),
-                              },
-                            }))}
-                            className="w-full rounded-md border px-3 py-2"
-                            placeholder="NG"
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void saveAutomation(portfolio)}
-                        disabled={savingAutomationSlug === portfolio.slug || ((automationRules[portfolio.id]?.ruleType ?? portfolio.automation?.rule_type ?? "manual") === "pm_active_projects" && !(automationRules[portfolio.id]?.pmInitials ?? portfolio.automation?.pm_initials ?? "").trim())}
-                      >
-                        {savingAutomationSlug === portfolio.slug ? "Saving..." : "Save automation"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projects in this portfolio</p>
-                    {(portfolio.projects ?? []).length === 0 ? (
-                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No projects saved yet.</div>
-                    ) : (
-                      <div className="space-y-2">
-                        {(portfolio.projects ?? []).map((project) => (
-                          <div key={`${portfolio.id}:${project.project_id}`} className="rounded-md border px-3 py-3">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <div className="text-sm font-medium">Project {project.project_id}{project.project_name ? ` · ${project.project_name}` : ""}</div>
-                                {project.client_name && (
-                                  <div className="text-xs text-muted-foreground">Client: {project.client_name}</div>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {project.monitor_keys.length > 0 ? project.monitor_keys.map((monitorKey) => {
-                                  const config = getPortfolioMonitorConfig(monitorKey);
-                                  return (
-                                    <Badge key={monitorKey} variant="outline">{config?.label ?? monitorKey}</Badge>
-                                  );
-                                }) : <span className="text-xs text-muted-foreground">No monitors saved yet</span>}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Create alerts from saved monitor coverage</p>
-                    {uniqueMonitorKeys.length === 0 ? (
-                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
-                        Add projects to this portfolio from a project modal and choose the budgets/stats you want monitored.
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {uniqueMonitorKeys.map((monitorKey) => {
-                          const config = getPortfolioMonitorConfig(monitorKey);
-                          const projectCount = (portfolio.projects ?? []).filter((project) => project.monitor_keys.includes(monitorKey as PortfolioMonitorKey)).length;
-                          return (
-                            <Button
-                              key={`${portfolio.slug}:${monitorKey}`}
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void createMonitorAlert(portfolio.slug, monitorKey as PortfolioMonitorKey)}
-                              disabled={creatingMonitorKey === `${portfolio.slug}:${monitorKey}`}
-                            >
-                              {creatingMonitorKey === `${portfolio.slug}:${monitorKey}` ? "Saving..." : `Create ${config?.label ?? monitorKey} alert (${projectCount})`}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       <div className="space-y-3 rounded-xl border p-4">
@@ -518,7 +671,7 @@ export function ProjectPortfolioManager({
               <select value={selectedPortfolioSlug} onChange={(event) => setSelectedPortfolioSlug(event.target.value)} className="w-full rounded-md border px-3 py-2 bg-background">
                 <option value="">Select a saved portfolio</option>
                 {savedPortfolios.map((portfolio) => (
-                  <option key={portfolio.id} value={portfolio.slug}>{portfolio.name}</option>
+                  <option key={getPortfolioKey(portfolio)} value={portfolio.slug}>{portfolio.name}</option>
                 ))}
               </select>
             </label>
