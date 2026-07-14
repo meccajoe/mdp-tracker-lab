@@ -38,8 +38,18 @@ export default function AdminPortfoliosPage() {
 
   return (
     <div className="space-y-6">
+      <div className="tracker-shell overflow-hidden px-6 py-6">
+        <div className="space-y-2">
+          <p className="tracker-section-label">MDP Tracker</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Portfolio Center</h1>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            Create and manage PM portfolios, automation rules, digests, alerts, and monitor-specific project coverage from one calmer workspace.
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Portfolio Center</h1>
+        <p className="tracker-section-label">Portfolio operations</p>
         <p className="text-sm text-muted-foreground">
           Create and manage portfolio digests, alerts, memberships, and monitor-specific project coverage outside of the individual project modal.
         </p>

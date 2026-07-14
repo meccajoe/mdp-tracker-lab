@@ -361,30 +361,42 @@ export function ProjectPortfolioManager({
   }
 
   return (
-    <div className="space-y-6 rounded-xl border p-5">
-      <div className="space-y-1">
-        <p className="text-lg font-semibold">Portfolio digests and alerts</p>
-        <p className="text-sm text-muted-foreground">
+    <div className="tracker-shell space-y-6 p-6">
+      <div className="space-y-2">
+        <p className="tracker-section-label">Portfolio digests and alerts</p>
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-1">
+            <p className="text-2xl font-semibold tracking-tight">PM portfolio workspace</p>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              Browse PM-built portfolios in a calmer workspace, then create subscriptions and monitor-based alerts without digging through stacked cards.
+            </p>
+          </div>
+          <div className="rounded-full border border-black/8 bg-white/60 px-4 py-2 text-xs text-muted-foreground shadow-[0_8px_24px_rgba(15,15,15,0.04)] backdrop-blur-md">
+            Slack-backed digests and alerts stay available while PM portfolios become easier to scan.
+          </div>
+        </div>
+      </div>
+
+      <div className="tracker-panel-muted px-4 py-3 text-sm text-muted-foreground">
           Create Slack-backed portfolio subscriptions here, then use project modals only for adding individual jobs into portfolios with the monitors you care about.
-        </p>
       </div>
 
       {status && (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <div className="tracker-banner-success">
           {status}
         </div>
       )}
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="tracker-banner-danger">
           {error}
         </div>
       )}
 
-      <div className="space-y-4 rounded-xl border p-4">
+      <div className="tracker-panel space-y-4 p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium">PM portfolio workspace</p>
+            <p className="tracker-section-label">PM portfolio workspace</p>
             <p className="text-xs text-muted-foreground">Filter built PM portfolios by owner/PM first, then inspect one portfolio in a focused detail view instead of scrolling stacked cards.</p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => void loadSavedPortfolios()} disabled={loadingPortfolios}>
@@ -393,33 +405,33 @@ export function ProjectPortfolioManager({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant={selectedPmFilter === PM_FILTER_ALL ? "default" : "outline"} onClick={() => setSelectedPmFilter(PM_FILTER_ALL)}>
+          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_ALL ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_ALL)}>
             All PMs
           </Button>
           {pmFilters.map((filter) => (
-            <Button key={filter} type="button" size="sm" variant={selectedPmFilter === filter ? "default" : "outline"} onClick={() => setSelectedPmFilter(filter)}>
+            <Button key={filter} type="button" size="sm" className={selectedPmFilter === filter ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(filter)}>
               {filter}
             </Button>
           ))}
-          <Button type="button" size="sm" variant={selectedPmFilter === PM_FILTER_SHARED ? "default" : "outline"} onClick={() => setSelectedPmFilter(PM_FILTER_SHARED)}>
+          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_SHARED ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_SHARED)}>
             Shared
           </Button>
-          <Button type="button" size="sm" variant={selectedPmFilter === PM_FILTER_MANUAL ? "default" : "outline"} onClick={() => setSelectedPmFilter(PM_FILTER_MANUAL)}>
+          <Button type="button" size="sm" className={selectedPmFilter === PM_FILTER_MANUAL ? "tracker-filter-pill tracker-filter-pill-active tracker-filter-pill-accent" : "tracker-filter-pill"} variant="outline" onClick={() => setSelectedPmFilter(PM_FILTER_MANUAL)}>
             Manual
           </Button>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border px-3 py-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Visible portfolios</div>
+          <div className="tracker-kpi">
+            <div className="tracker-section-label">Visible portfolios</div>
             <div className="mt-1 text-2xl font-semibold">{filteredPortfolios.length}</div>
           </div>
-          <div className="rounded-lg border px-3 py-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Projects in view</div>
+          <div className="tracker-kpi">
+            <div className="tracker-section-label">Projects in view</div>
             <div className="mt-1 text-2xl font-semibold">{filteredProjectCount}</div>
           </div>
-          <div className="rounded-lg border px-3 py-3">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Filter mode</div>
+          <div className="tracker-kpi">
+            <div className="tracker-section-label">Filter mode</div>
             <div className="mt-1 text-sm font-medium">
               {selectedPmFilter === PM_FILTER_ALL ? "All PM portfolios" : selectedPmFilter === PM_FILTER_SHARED ? "Shared automation portfolios" : selectedPmFilter === PM_FILTER_MANUAL ? "Manual portfolios" : `${selectedPmFilter} workspace`}
             </div>
@@ -427,10 +439,10 @@ export function ProjectPortfolioManager({
         </div>
 
         {filteredPortfolios.length === 0 ? (
-          <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No portfolios match this PM filter yet.</div>
+          <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">No portfolios match this PM filter yet.</div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="space-y-2 rounded-lg border p-3">
+            <div className="tracker-panel-muted space-y-2 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">Portfolio list</p>
                 <span className="text-xs text-muted-foreground">{filteredPortfolios.length} shown</span>
@@ -447,7 +459,7 @@ export function ProjectPortfolioManager({
                         setSelectedPortfolioKey(portfolioKey);
                         setSelectedPortfolioSlug(portfolio.slug);
                       }}
-                      className={`w-full rounded-lg border px-3 py-3 text-left transition ${selected ? "border-foreground bg-muted/40" : "hover:bg-muted/20"}`}
+                      className={`tracker-list-item w-full ${selected ? "tracker-list-item-active" : "hover:bg-white/80"}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
@@ -464,7 +476,7 @@ export function ProjectPortfolioManager({
             </div>
 
             {selectedPortfolio ? (
-              <div className="space-y-4 rounded-lg border p-4">
+              <div className="tracker-panel space-y-4 p-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -484,7 +496,7 @@ export function ProjectPortfolioManager({
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                <div className="tracker-panel-muted space-y-3 p-4">
                   <div>
                     <p className="text-sm font-medium">Automation rule</p>
                     <p className="text-xs text-muted-foreground">Use Portfolio Center to decide whether this portfolio auto-manages PM-active projects, all active projects, or stays manual.</p>
@@ -501,7 +513,7 @@ export function ProjectPortfolioManager({
                             pmInitials: prev[selectedPortfolio.id]?.pmInitials ?? selectedPortfolio.automation?.pm_initials ?? "",
                           },
                         }))}
-                        className="w-full rounded-md border px-3 py-2 bg-background"
+                        className="w-full rounded-xl border border-black/8 bg-white/70 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
                       >
                         <option value="manual">Manual only</option>
                         <option value="pm_active_projects">PM active projects</option>
@@ -520,7 +532,7 @@ export function ProjectPortfolioManager({
                               pmInitials: event.target.value.toUpperCase(),
                             },
                           }))}
-                          className="w-full rounded-md border px-3 py-2"
+                          className="w-full rounded-xl border border-black/8 bg-white/70 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
                           placeholder="NG"
                         />
                       </label>
@@ -541,13 +553,13 @@ export function ProjectPortfolioManager({
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                   <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Projects in this portfolio</p>
+                    <p className="tracker-section-label">Projects in this portfolio</p>
                     {(selectedPortfolio.projects ?? []).length === 0 ? (
-                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No projects saved yet.</div>
+                      <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">No projects saved yet.</div>
                     ) : (
                       <div className="space-y-2">
                         {(selectedPortfolio.projects ?? []).map((project) => (
-                          <div key={`${selectedPortfolio.id}:${project.project_id}`} className="rounded-md border px-3 py-3">
+                          <div key={`${selectedPortfolio.id}:${project.project_id}`} className="tracker-panel-muted px-4 py-4">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div>
                                 <div className="text-sm font-medium">Project {project.project_id}{project.project_name ? ` · ${project.project_name}` : ""}</div>
@@ -571,9 +583,9 @@ export function ProjectPortfolioManager({
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Create alerts from saved monitor coverage</p>
+                    <p className="tracker-section-label">Create alerts from saved monitor coverage</p>
                     {selectedPortfolioUniqueMonitorKeys.length === 0 ? (
-                      <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                      <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">
                         Add projects to this portfolio from a project modal and choose the budgets/stats you want monitored.
                       </div>
                     ) : (
@@ -605,9 +617,10 @@ export function ProjectPortfolioManager({
         )}
       </div>
 
-      <div className="space-y-3 rounded-xl border p-4">
+      <div className="tracker-panel space-y-3 p-5">
         <div>
-          <p className="text-sm font-medium">Save portfolio</p>
+          <p className="tracker-section-label">Save portfolio</p>
+          <p className="text-lg font-medium">Create a manual portfolio</p>
           <p className="text-xs text-muted-foreground">Create a named project set for future digest and alert subscriptions.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -616,7 +629,7 @@ export function ProjectPortfolioManager({
             <input
               value={portfolioName}
               onChange={(event) => setPortfolioName(event.target.value)}
-              className="w-full rounded-md border px-3 py-2"
+              className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
               placeholder="paul-priority-jobs"
             />
           </label>
@@ -625,7 +638,7 @@ export function ProjectPortfolioManager({
             <input
               value={portfolioProjects}
               onChange={(event) => setPortfolioProjects(event.target.value)}
-              className="w-full rounded-md border px-3 py-2"
+              className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
               placeholder="26153, 26144, 26047"
             />
           </label>
@@ -637,15 +650,16 @@ export function ProjectPortfolioManager({
         </div>
       </div>
 
-      <div className="space-y-3 rounded-xl border p-4">
+      <div className="tracker-panel space-y-3 p-5">
         <div>
-          <p className="text-sm font-medium">Create portfolio subscription</p>
+          <p className="tracker-section-label">Create portfolio subscription</p>
+          <p className="text-lg font-medium">Launch a digest or exception workflow</p>
           <p className="text-xs text-muted-foreground">Create portfolio digests or broad exception alerts that deliver to Slack and also show up in Slack management flows.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">Portfolio scope</span>
-            <select value={scopeType} onChange={(event) => setScopeType(event.target.value as typeof scopeType)} className="w-full rounded-md border px-3 py-2 bg-background">
+            <select value={scopeType} onChange={(event) => setScopeType(event.target.value as typeof scopeType)} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
               {scopeOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
@@ -653,7 +667,7 @@ export function ProjectPortfolioManager({
           </label>
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">Subscription type</span>
-            <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)} className="w-full rounded-md border px-3 py-2 bg-background">
+            <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
               <option value="digest">Digest</option>
               <option value="over_budget">Over-budget alert</option>
               <option value="labor_risk">Labor-risk alert</option>
@@ -662,13 +676,13 @@ export function ProjectPortfolioManager({
           {scopeType === "pm_active_projects" && (
             <label className="space-y-1 text-sm">
               <span className="text-muted-foreground">PM initials</span>
-              <input value={pmInitials} onChange={(event) => setPmInitials(event.target.value.toUpperCase())} className="w-full rounded-md border px-3 py-2" placeholder="PM" />
+              <input value={pmInitials} onChange={(event) => setPmInitials(event.target.value.toUpperCase())} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]" placeholder="PM" />
             </label>
           )}
           {scopeType === "saved_portfolio" && (
             <label className="space-y-1 text-sm sm:col-span-2">
               <span className="text-muted-foreground">Saved portfolio</span>
-              <select value={selectedPortfolioSlug} onChange={(event) => setSelectedPortfolioSlug(event.target.value)} className="w-full rounded-md border px-3 py-2 bg-background">
+              <select value={selectedPortfolioSlug} onChange={(event) => setSelectedPortfolioSlug(event.target.value)} className="w-full rounded-xl border border-black/8 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                 <option value="">Select a saved portfolio</option>
                 {savedPortfolios.map((portfolio) => (
                   <option key={getPortfolioKey(portfolio)} value={portfolio.slug}>{portfolio.name}</option>
@@ -678,7 +692,7 @@ export function ProjectPortfolioManager({
           )}
         </div>
         {scopeType === "saved_portfolio" && (
-          <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+          <div className="tracker-panel-muted px-4 py-4 text-xs text-muted-foreground">
             For project-specific budget watches, use the saved monitor alerts above. This generic section is for broader digest / over-budget / labor-risk portfolio subscriptions.
           </div>
         )}
@@ -689,19 +703,22 @@ export function ProjectPortfolioManager({
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="tracker-panel space-y-3 p-5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium">Portfolio subscriptions</p>
+          <div>
+            <p className="tracker-section-label">Portfolio subscriptions</p>
+            <p className="text-lg font-medium">Recent digests and alert workflows</p>
+          </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => void loadPortfolioSubscriptions()} disabled={loadingSubscriptions}>
             {loadingSubscriptions ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
         {portfolioSubscriptions.length === 0 ? (
-          <div className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">No portfolio subscriptions yet.</div>
+          <div className="tracker-panel-muted border-dashed px-4 py-4 text-sm text-muted-foreground">No portfolio subscriptions yet.</div>
         ) : (
           <div className="space-y-2">
             {portfolioSubscriptions.map((subscription) => (
-              <div key={subscription.id} className="rounded-lg border px-4 py-4">
+              <div key={subscription.id} className="tracker-panel-muted px-4 py-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -725,11 +742,11 @@ export function ProjectPortfolioManager({
         )}
       </div>
 
-      <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+      <div className="tracker-panel-muted px-4 py-4 text-xs text-muted-foreground">
         Popular presets: Labor reaches 95% of budget · Fabrication reaches 90% of budget · Travel reaches 100% of budget · Total project over budget.
       </div>
 
-      <div className="rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+      <div className="tracker-panel-muted px-4 py-4 text-xs text-muted-foreground">
         Available monitor types: {monitorOptions.map((option) => option.label).join(" · ")}
       </div>
     </div>
