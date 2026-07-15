@@ -208,6 +208,7 @@ export function buildWipCsv(rows: WipReportRow[]): string {
   const headers = [
     "Customer",
     "Project",
+    "Project Status",
     "Updated Contract Amount",
     "Updated Est Cost",
     "Updated Est Gross Profit",
@@ -228,6 +229,7 @@ export function buildWipCsv(rows: WipReportRow[]): string {
   const body = rows.map((row) => [
     csvValue(row.customer),
     csvValue(buildProjectLabel(row)),
+    csvValue(row.project_status ?? ""),
     row.updated_contract_amount ?? "",
     row.updated_est_cost ?? "",
     row.updated_est_gross_profit ?? "",
@@ -260,6 +262,7 @@ export function buildWipWorkbook(rows: WipReportRow[]): XLSX.WorkBook {
   const data = rows.map((row) => ({
     Customer: row.customer,
     Project: buildProjectLabel(row),
+    "Project Status": row.project_status,
     "Updated Contract Amount": row.updated_contract_amount,
     "Updated Est Cost": row.updated_est_cost,
     "Updated Est Gross Profit": row.updated_est_gross_profit,

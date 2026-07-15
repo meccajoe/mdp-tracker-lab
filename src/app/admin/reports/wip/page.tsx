@@ -779,6 +779,7 @@ export default function WipReportPage() {
                         <SortIndicator active={sortColumn === "project"} direction={sortDirection} />
                       </button>
                     </th>
+                    <th className="px-3 py-2 font-medium">Project Status</th>
                     <th className="px-3 py-2 font-medium text-right">Updated Contract Amount</th>
                     <th className="px-3 py-2 font-medium text-right">Updated Est Cost</th>
                     <th className="px-3 py-2 font-medium text-right">Updated Est Gross Profit</th>
@@ -807,6 +808,11 @@ export default function WipReportPage() {
                           triggerLabel={row.project_name}
                           triggerClassName="text-left font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400"
                         />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className={getStatusChipClassName(row.project_status)}>
+                          {row.project_status ?? "Unknown"}
+                        </Badge>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.updated_contract_amount)}</td>
                       <td className="px-3 py-2 text-right">
