@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { isMissionControlAllowedEmail } from '@/lib/mission-control-access';
+import { PageShell } from '@/components/ui/page-shell';
 
 type MissionControlItem = {
   id: string;
@@ -244,9 +245,9 @@ export default function AdminMissionControlPage() {
   }
 
   return (
-    <div className="min-w-0 max-w-full space-y-6">
+    <PageShell>
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Mission Control</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Mission Control</h1>
         <p className="text-sm text-muted-foreground">Fresh tracker-native view for dev work. No standalone app chrome, no second-brain shell.</p>
       </div>
 
@@ -265,7 +266,7 @@ export default function AdminMissionControlPage() {
         ].map(([label, value]) => (
           <div key={label} className="tracker-kpi">
             <div className="text-sm text-muted-foreground">{label}</div>
-            <div className="mt-2 text-4xl font-semibold tracking-tight">{value}</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{value}</div>
           </div>
         ))}
       </section>
@@ -429,6 +430,6 @@ export default function AdminMissionControlPage() {
           )}
         </aside>
       </section>
-    </div>
+    </PageShell>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
 import { ProjectPortfolioManager } from "@/components/project-portfolio-manager";
+import { PageShell } from "@/components/ui/page-shell";
 
 export default function AdminPortfoliosPage() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -37,14 +38,14 @@ export default function AdminPortfoliosPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageShell>
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Portfolio Center</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Portfolio Center</h1>
         <p className="text-sm text-muted-foreground">
           Browse PM portfolios, tune automation, and launch digests or alerts without the page getting in the way.
         </p>
       </div>
       <ProjectPortfolioManager />
-    </div>
+    </PageShell>
   );
 }
