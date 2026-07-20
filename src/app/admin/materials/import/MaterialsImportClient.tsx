@@ -390,7 +390,7 @@ export default function MaterialsImportClient() {
             <h2 className="font-medium">Summary</h2>
             <p className="text-sm text-muted-foreground">Batch ID: {batchId}</p>
           </div>
-          <div className="grid gap-4 2xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
               <h3 className="mb-2 text-sm font-medium">Commit Counters</h3>
               <div className="space-y-1 text-sm text-muted-foreground">

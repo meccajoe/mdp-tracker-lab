@@ -784,7 +784,7 @@ export default function DataEntryPage() {
                             </div>
 
                             {/* Row 2 — PM / Status / Dates / Contract */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <FormField label="PM">
                                 <select className={selectClass} value={(formData.pm as string) ?? ""} onChange={(e) => updateForm("pm", e.target.value)}>
                                   <option value="">Select PM</option>

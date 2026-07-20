@@ -1076,7 +1076,7 @@ export default function ProjectDetailPage() {
               <CardTitle>P&amp;L to Date</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Contract Value</p>
                   <p className="text-xl font-bold">{formatCurrency(project.contract_amount)}</p>
