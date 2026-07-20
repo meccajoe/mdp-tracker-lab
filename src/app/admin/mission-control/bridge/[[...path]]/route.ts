@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireMissionControlViewer } from '@/lib/mission-control-server';
 
 const TARGET_BASE = 'http://127.0.0.1:3467';
+const BRIDGE_BASE = '/admin/mission-control/bridge/';
 
 async function proxy(request: NextRequest, pathSegments: string[] = []) {
   const access = await requireMissionControlViewer();
@@ -35,8 +36,34 @@ async function proxy(request: NextRequest, pathSegments: string[] = []) {
     return NextResponse.json({ error: 'Mission Control upstream unavailable' }, { status: 502 });
   }
 
-  const responseHeaders = new Headers();
   const upstreamContentType = upstream.headers.get('content-type');
+  if (upstreamContentType?.includes('text/html')) {
+    let html = await upstream.text();
+    const embedMode = request.nextUrl.searchParams.get('embed') === '1';
+
+    if (!html.includes('<base ')) {
+      html = html.replace('<head>', `<head><base href="${BRIDGE_BASE}">`);
+    }
+
+    html = html.replace(
+      '</head>',
+      `<script>window.__MC_BASE__ = ${JSON.stringify(BRIDGE_BASE)};${embedMode ? 'window.__MC_EMBED__ = true;' : ''}</script></head>`,
+    );
+
+    if (embedMode) {
+      html = html.replace('<body>', '<body class="embed-mode">');
+    }
+
+    return new NextResponse(html, {
+      status: upstream.status,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    });
+  }
+
+  const responseHeaders = new Headers();
   if (upstreamContentType) responseHeaders.set('content-type', upstreamContentType);
   responseHeaders.set('cache-control', 'no-store');
 

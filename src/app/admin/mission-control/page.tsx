@@ -22,7 +22,7 @@ export default function AdminMissionControlPage() {
     void load();
   }, []);
 
-  const frameSrc = useMemo(() => '/admin/mission-control/bridge/', []);
+  const frameSrc = useMemo(() => '/admin/mission-control/bridge/?embed=1', []);
 
   if (loading) {
     return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">Loading Mission Control…</div>;
@@ -43,20 +43,20 @@ export default function AdminMissionControlPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Mission Control</h1>
-        <p className="text-sm text-muted-foreground">
-          Joe-only dev-work board embedded through MDP Tracker.
-        </p>
+    <div className="-mx-6 -my-6 flex min-h-[calc(100vh-1.5rem)] flex-col bg-background xl:-mx-8">
+      <div className="border-b border-border px-6 py-4 xl:px-8">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight">Mission Control</h1>
+          <p className="text-sm text-muted-foreground">
+            Joe-only dev-work board inside MDP Tracker.
+          </p>
+        </div>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-        <iframe
-          title="MDP Mission Control"
-          src={frameSrc}
-          className="h-[calc(100vh-12rem)] min-h-[720px] w-full border-0 bg-background"
-        />
-      </div>
+      <iframe
+        title="MDP Mission Control"
+        src={frameSrc}
+        className="min-h-[calc(100vh-7rem)] w-full flex-1 border-0 bg-background"
+      />
     </div>
   );
 }
