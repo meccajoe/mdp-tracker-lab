@@ -135,7 +135,7 @@ export default function MaterialsClient() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}

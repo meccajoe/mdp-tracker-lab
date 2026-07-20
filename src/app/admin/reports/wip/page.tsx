@@ -501,7 +501,7 @@ export default function WipReportPage() {
         {filtersOpen && (
           <CardContent className="space-y-4">
             {mode === "live" && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="liveAsOfDate">As of Date</Label>
                   <Input id="liveAsOfDate" type="date" value={liveAsOfDate} onChange={(e) => setLiveAsOfDate(e.target.value)} />
@@ -527,7 +527,7 @@ export default function WipReportPage() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>Status</Label>
                 <select className={selectClass} value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}>
