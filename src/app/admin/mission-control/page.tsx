@@ -254,7 +254,7 @@ export default function AdminMissionControlPage() {
         <div className="tracker-banner-danger">{loadError}</div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2">
         {[
           ['Active', payload?.summary.activeCount ?? 0],
           ['Blocked', payload?.summary.blockedCount ?? 0],

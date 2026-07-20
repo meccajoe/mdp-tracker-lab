@@ -72,6 +72,13 @@ export default function Sidebar() {
   const [actorEmail, setActorEmail] = useState<string | null>(null);
 
   useEffect(() => {
+    function syncResponsiveCollapse() {
+      setCollapsed(window.innerWidth < 1500);
+    }
+
+    syncResponsiveCollapse();
+    window.addEventListener("resize", syncResponsiveCollapse);
+
     async function loadRole(email: string) {
       const normalizedEmail = email.toLowerCase();
       setActorEmail(normalizedEmail);
@@ -92,7 +99,10 @@ export default function Sidebar() {
       if (session?.user?.email) loadRole(session.user.email);
       else { setActualIsAdmin(false); setPmInitials(null); setActorEmail(null); }
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      window.removeEventListener("resize", syncResponsiveCollapse);
+      subscription.unsubscribe();
+    };
   }, [setActualIsAdmin]);
 
   // Auto-open admin sections if on an admin page
@@ -120,7 +130,7 @@ export default function Sidebar() {
   const canSeeMissionControl = isMissionControlAllowedEmail(actorEmail);
 
   return (
-    <aside className={`flex flex-col h-screen sticky top-0 flex-shrink-0 transition-all duration-200 ease-in-out bg-background border-r border-border ${collapsed ? "w-16" : "w-56"}`}>
+    <aside className={`flex h-screen shrink-0 flex-col sticky top-0 transition-all duration-200 ease-in-out border-r border-border bg-background ${collapsed ? "w-16" : "w-52"}`}>
       {/* Logo */}
       <div className="flex items-center h-14 px-3 border-b border-border gap-2.5 overflow-hidden">
         <div className="w-7 h-7 rounded overflow-hidden flex-shrink-0">
