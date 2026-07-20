@@ -43,8 +43,8 @@ export default function AdminMissionControlPage() {
   }
 
   return (
-    <div className="-mx-6 -my-6 flex min-h-[calc(100vh-1.5rem)] flex-col bg-background xl:-mx-8">
-      <div className="border-b border-border px-6 py-4 xl:px-8">
+    <div className="flex min-h-[calc(100vh-1.5rem)] max-w-full flex-col bg-background">
+      <div className="border-b border-border py-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">Mission Control</h1>
           <p className="text-sm text-muted-foreground">
@@ -55,7 +55,7 @@ export default function AdminMissionControlPage() {
       <iframe
         title="MDP Mission Control"
         src={frameSrc}
-        className="min-h-[calc(100vh-7rem)] w-full flex-1 border-0 bg-background"
+        className="min-h-[calc(100vh-7rem)] max-w-full flex-1 border-0 bg-background"
       />
     </div>
   );
