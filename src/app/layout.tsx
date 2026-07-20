@@ -30,10 +30,10 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthGuard>
             <AdminViewProvider>
-              <div className="flex min-h-screen bg-background">
+              <div className="flex min-h-screen min-w-0 bg-background">
                 <Sidebar />
-                <main className="flex-1 overflow-auto">
-                  <div className="max-w-[1800px] mx-auto px-6 xl:px-8 py-6">
+                <main className="min-w-0 flex-1 overflow-auto">
+                  <div className="mx-auto min-w-0 max-w-[1800px] px-6 py-6 xl:px-8">
                     {children}
                   </div>
                 </main>
