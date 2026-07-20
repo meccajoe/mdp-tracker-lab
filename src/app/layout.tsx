@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AdminViewProvider } from "@/components/admin-view-provider";
 import { Toaster } from "@/components/ui/sonner";
-import Sidebar from "@/components/Sidebar";
+import AppShell from "@/components/AppShell";
 import AuthGuard from "@/components/AuthGuard";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -30,14 +30,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthGuard>
             <AdminViewProvider>
-              <div className="flex min-h-screen min-w-0 bg-background">
-                <Sidebar />
-                <main className="min-w-0 flex-1 overflow-auto">
-                  <div className="mx-auto min-w-0 max-w-[1800px] px-4 py-6 sm:px-6 xl:px-8">
-                    {children}
-                  </div>
-                </main>
-              </div>
+              <AppShell>{children}</AppShell>
             </AdminViewProvider>
           </AuthGuard>
           <Toaster />

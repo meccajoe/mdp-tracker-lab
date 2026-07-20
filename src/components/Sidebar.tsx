@@ -58,7 +58,13 @@ function SectionHeader({ label, open, onToggle, collapsed }: {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({
+  variant = "desktop",
+  onNavigate,
+}: {
+  variant?: "desktop" | "mobile";
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const { actualIsAdmin, effectiveIsAdmin, previewNonAdmin, setActualIsAdmin, togglePreviewNonAdmin } = useAdminView();
   const [collapsed, setCollapsed] = useState(false);
@@ -73,7 +79,11 @@ export default function Sidebar() {
 
   useEffect(() => {
     function syncResponsiveCollapse() {
-      setCollapsed(window.innerWidth < 1500);
+      if (variant === "desktop") {
+        setCollapsed(window.innerWidth < 1500);
+      } else {
+        setCollapsed(false);
+      }
     }
 
     syncResponsiveCollapse();
@@ -103,7 +113,7 @@ export default function Sidebar() {
       window.removeEventListener("resize", syncResponsiveCollapse);
       subscription.unsubscribe();
     };
-  }, [setActualIsAdmin]);
+  }, [setActualIsAdmin, variant]);
 
   // Auto-open admin sections if on an admin page
   useEffect(() => {
@@ -129,8 +139,15 @@ export default function Sidebar() {
 
   const canSeeMissionControl = isMissionControlAllowedEmail(actorEmail);
 
+  const isMobile = variant === "mobile";
+
   return (
-    <aside className={`flex h-screen shrink-0 flex-col sticky top-0 transition-all duration-200 ease-in-out border-r border-border bg-background ${collapsed ? "w-16" : "w-52"}`}>
+    <aside
+      onClickCapture={(event) => {
+        if (onNavigate && (event.target as HTMLElement).closest("a")) onNavigate();
+      }}
+      className={`flex shrink-0 flex-col border-r border-border bg-background ${isMobile ? "h-full w-full" : `sticky top-0 h-screen transition-all duration-200 ease-in-out ${collapsed ? "w-16" : "w-52"}`}`}
+    >
       {/* Logo */}
       <div className="flex items-center h-14 px-3 border-b border-border gap-2.5 overflow-hidden">
         <div className="w-7 h-7 rounded overflow-hidden flex-shrink-0">
@@ -140,16 +157,18 @@ export default function Sidebar() {
       </div>
 
       {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className={`flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border-b border-border ${collapsed ? "justify-center" : "justify-end"}`}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {collapsed
-          ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-          : <><span>Collapse</span><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg></>
-        }
-      </button>
+      {!isMobile ? (
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={`flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors border-b border-border ${collapsed ? "justify-center" : "justify-end"}`}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed
+            ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+            : <><span>Collapse</span><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg></>
+          }
+        </button>
+      ) : null}
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
