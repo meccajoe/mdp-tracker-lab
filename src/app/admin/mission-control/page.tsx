@@ -244,7 +244,7 @@ export default function AdminMissionControlPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold tracking-tight">Mission Control</h1>
         <p className="text-sm text-muted-foreground">Fresh tracker-native view for dev work. No standalone app chrome, no second-brain shell.</p>
@@ -254,7 +254,7 @@ export default function AdminMissionControlPage() {
         <div className="tracker-banner-danger">{loadError}</div>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
         {[
           ['Active', payload?.summary.activeCount ?? 0],
           ['Blocked', payload?.summary.blockedCount ?? 0],
@@ -330,8 +330,8 @@ export default function AdminMissionControlPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
-        <div className="tracker-shell overflow-hidden">
+      <section className="grid min-w-0 max-w-full gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="tracker-shell min-w-0 overflow-hidden">
           <div className="border-b border-border px-4 py-4 sm:px-5">
             <div className="text-xl font-semibold tracking-tight">Active work</div>
             <div className="mt-1 text-sm text-muted-foreground">{filteredItems.length} items in this view</div>
@@ -369,14 +369,14 @@ export default function AdminMissionControlPage() {
           </div>
         </div>
 
-        <aside className="tracker-shell p-4 sm:p-5">
+        <aside className="tracker-shell min-w-0 p-4 sm:p-5">
           {!selectedItem ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Select a work item to inspect its detail.</div>
           ) : (
             <div className="space-y-4">
               <div>
                 <div className="tracker-section-label">{selectedItem.workstreamLabel} · {selectedItem.type}</div>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{selectedItem.title}</h2>
+                <h2 className="mt-2 break-words text-2xl font-semibold tracking-tight">{selectedItem.title}</h2>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${priorityTone(selectedItem.priority)}`}>{selectedItem.priority}</span>
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusTone(selectedItem.status)}`}>{selectedItem.statusLabel}</span>
