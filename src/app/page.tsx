@@ -224,7 +224,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="w-full min-w-0 max-w-full space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
@@ -322,12 +322,12 @@ export default function Dashboard() {
       )}
 
       {/* Active Projects Table */}
-      <Card>
+      <Card className="w-full min-w-0 max-w-full">
         <CardHeader className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Active Projects</CardTitle>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:min-w-[420px] md:flex-row md:items-center md:justify-end">
             <Select value={pmFilter} onValueChange={(v) => { setPmFilter(v ?? "All"); setExpensePage(0); }}>
-              <SelectTrigger className="w-44">
+              <SelectTrigger className="w-full md:w-44">
                 <SelectValue>{pmFilter === "All" ? "All PMs" : resolveName(pmFilter)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -341,17 +341,17 @@ export default function Dashboard() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search projects..."
-              className="w-full sm:w-56"
+              className="w-full md:w-56"
             />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0 max-w-full overflow-x-auto">
           {displayedProjects.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center">
               No active projects found.
             </p>
           ) : (
-            <Table>
+            <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[80px] text-xs px-2">ID</TableHead>
@@ -388,16 +388,16 @@ export default function Dashboard() {
                       <TableCell className="px-2">
                         <Link
                           href={`/projects/${project.id}`}
-                          className="font-medium text-blue-600 hover:underline text-sm"
+                          className="inline-block max-w-[280px] whitespace-normal break-words font-medium text-blue-600 hover:underline text-sm"
                         >
                           {project.name}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-sm px-2">{project.client}</TableCell>
+                      <TableCell className="max-w-[180px] whitespace-normal break-words text-sm px-2">{project.client}</TableCell>
                       <TableCell className="px-2">
                         <Link
                           href={`/pm/${project.pm}`}
-                          className="text-blue-600 hover:underline text-sm"
+                          className="inline-block max-w-[160px] whitespace-normal break-words text-blue-600 hover:underline text-sm"
                         >
                           {resolveName(project.pm)}
                         </Link>
@@ -504,7 +504,7 @@ export default function Dashboard() {
             <Button variant="outline" size="sm">See all →</Button>
           </Link>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="min-w-0 max-w-full overflow-x-auto p-0">
           {filteredExpenses.length === 0 ? (
             <p className="text-muted-foreground py-8 text-center text-sm">No expenses in the last 14 days.</p>
           ) : (() => {
@@ -512,7 +512,7 @@ export default function Dashboard() {
             const pageExpenses = filteredExpenses.slice(expensePage * EXPENSES_PER_PAGE, (expensePage + 1) * EXPENSES_PER_PAGE);
             return (
               <>
-                <Table>
+                <Table className="min-w-[760px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
