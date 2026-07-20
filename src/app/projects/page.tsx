@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateCentral } from "@/lib/date-utils";
+import { PageShell } from "@/components/ui/page-shell";
 
 type SortField =
   | "id"
@@ -131,16 +132,16 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <PageShell>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Projects</h1>
       </div>
 
       <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-2">
           <span className="text-sm font-medium">Status:</span>
           <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-full sm:w-[150px]">
               <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent>
@@ -154,10 +155,10 @@ export default function ProjectsPage() {
           </Select>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-2">
           <span className="text-sm font-medium">PM:</span>
           <Select value={pmFilter} onValueChange={(v) => v !== null && setPmFilter(v)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="All" />
             </SelectTrigger>
             <SelectContent>
@@ -180,8 +181,67 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <Card>
-        <Table>
+      <Card className="w-full min-w-0 max-w-full">
+        <div data-slot="projects-mobile-list" className="divide-y lg:hidden">
+          {loading ? (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">Loading projects...</p>
+          ) : sorted.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">No projects found.</p>
+          ) : (
+            sorted.map((project) => {
+              const pct = project.pct_budget_used;
+              const health = getBudgetHealthClasses(pct);
+              const totalCost = (project.total_spent ?? 0) + (project.qbo_labor_cost ?? 0);
+              const dueDate = (project as unknown as Record<string, string>).due_date;
+
+              return (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}`}
+                  className="block p-4 transition-colors hover:bg-accent"
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{project.name}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        #{project.id} · {project.client || "No client"}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${health.pill}`}>
+                      {pct?.toFixed(0) ?? "0"}%
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    <span className={`rounded-full px-2 py-0.5 font-medium ${statusBadgeClasses(project.status)}`}>{project.status}</span>
+                    <span className="text-muted-foreground">PM: <span className="font-medium text-foreground">{resolveName(project.pm)}</span></span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Contract</p>
+                      <p className="font-medium text-foreground">{formatCurrency(project.contract_amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total cost</p>
+                      <p className="font-medium text-foreground">{formatCurrency(totalCost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Due</p>
+                      <p className="font-medium text-foreground">{dueDate ? formatDateCentral(dueDate + "T00:00:00", { month: "short", day: "numeric" }) : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">P&amp;L</p>
+                      <p className={(project.contract_amount ?? 0) - totalCost >= 0 ? "font-medium text-emerald-600" : "font-medium text-red-600"}>
+                        {project.contract_amount ? formatCurrency((project.contract_amount ?? 0) - totalCost) : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+        <div className="hidden lg:block">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead
@@ -338,7 +398,8 @@ export default function ProjectsPage() {
             )}
           </TableBody>
         </Table>
+        </div>
       </Card>
-    </div>
+    </PageShell>
   );
 }
