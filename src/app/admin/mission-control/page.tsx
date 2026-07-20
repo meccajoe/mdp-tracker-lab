@@ -330,7 +330,7 @@ export default function AdminMissionControlPage() {
         </div>
       </section>
 
-      <section className="grid min-w-0 max-w-full gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="grid min-w-0 max-w-full gap-4">
         <div className="tracker-shell min-w-0 overflow-hidden">
           <div className="border-b border-border px-4 py-4 sm:px-5">
             <div className="text-xl font-semibold tracking-tight">Active work</div>
