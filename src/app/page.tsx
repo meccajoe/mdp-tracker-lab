@@ -44,6 +44,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateCentral } from "@/lib/date-utils";
+import { PageShell } from "@/components/ui/page-shell";
+import { SummaryGrid } from "@/components/ui/summary-grid";
 
 const EMAIL_TO_PM: Record<string, string> = {
   "victoria@meccadesign.com": "VW",
@@ -224,9 +226,9 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-8">
+    <PageShell>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           {filteredProjects.length} active project{filteredProjects.length !== 1 ? "s" : ""}{pmFilter !== "All" ? ` · ${resolveName(pmFilter)}` : ""}
         </p>
@@ -235,43 +237,43 @@ export default function Dashboard() {
 
 
       {/* Portfolio Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+      <SummaryGrid>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Active Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{filteredProjects.length}</p>
+            <p className="text-2xl font-bold sm:text-3xl">{filteredProjects.length}</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Contract Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{formatCurrency(totalContractValue)}</p>
+            <p className="text-2xl font-bold sm:text-3xl">{formatCurrency(totalContractValue)}</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost to Date</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{formatCurrency(totalProjectedCost)}</p>
+            <p className="text-2xl font-bold sm:text-3xl">{formatCurrency(totalProjectedCost)}</p>
             <p className="text-xs text-muted-foreground mt-1">
               {formatCurrency(totalCommittedSpend)} expenses + {formatCurrency(totalLaborCost)} labor
             </p>
           </CardContent>
         </Card>
 
-        <Card className={totalProjectedPnL >= 0 ? "border-emerald-200" : "border-red-200"}>
+        <Card size="sm" className={totalProjectedPnL >= 0 ? "border-emerald-200" : "border-red-200"}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">P&amp;L to Date</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className={`text-3xl font-bold ${totalProjectedPnL >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+            <p className={`text-2xl font-bold sm:text-3xl ${totalProjectedPnL >= 0 ? "text-emerald-600" : "text-red-600"}`}>
               {totalProjectedPnL >= 0 ? "+" : ""}{formatCurrency(totalProjectedPnL)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -279,7 +281,7 @@ export default function Dashboard() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </SummaryGrid>
 
       {/* Over-Budget Alerts */}
       {overBudgetProjects.length > 0 && (
@@ -296,9 +298,9 @@ export default function Dashboard() {
                 return (
                   <div
                     key={p.id}
-                    className="flex items-center justify-between rounded-md border border-red-200 bg-white px-4 py-3"
+                    className="flex min-w-0 flex-col gap-2 rounded-md border border-red-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <Link
                         href={`/projects/${p.id}`}
                         className="font-medium text-red-700 hover:underline"
@@ -310,7 +312,7 @@ export default function Dashboard() {
                         {p.pct_budget_used.toFixed(0)}% used)
                       </p>
                     </div>
-                    <span className="bg-red-100 text-red-700 border border-red-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    <span className="w-fit shrink-0 bg-red-100 text-red-700 border border-red-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
                       Over Budget
                     </span>
                   </div>
@@ -323,11 +325,11 @@ export default function Dashboard() {
 
       {/* Active Projects Table */}
       <Card className="w-full min-w-0 max-w-full">
-        <CardHeader className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle>Active Projects</CardTitle>
-          <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:min-w-[420px] md:flex-row md:items-center md:justify-end">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:justify-end">
             <Select value={pmFilter} onValueChange={(v) => { setPmFilter(v ?? "All"); setExpensePage(0); }}>
-              <SelectTrigger className="w-full md:w-44">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue>{pmFilter === "All" ? "All PMs" : resolveName(pmFilter)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -341,7 +343,7 @@ export default function Dashboard() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search projects..."
-              className="w-full md:w-56"
+              className="w-full sm:w-56"
             />
           </div>
         </CardHeader>
@@ -351,7 +353,57 @@ export default function Dashboard() {
               No active projects found.
             </p>
           ) : (
-            <Table className="min-w-[980px]">
+            <>
+              <div data-slot="dashboard-project-list" className="space-y-2 lg:hidden">
+                {displayedProjects.map((project) => {
+                  const pct = project.pct_budget_used;
+                  const health = getBudgetHealthClasses(pct);
+                  const totalCost = (project.total_spent ?? 0) + (project.qbo_labor_cost ?? 0);
+                  const dueDate = (project as unknown as Record<string, string>).due_date;
+
+                  return (
+                    <Link
+                      key={project.id}
+                      href={`/projects/${project.id}`}
+                      className="block rounded-lg border border-border bg-background p-3 transition-colors hover:bg-accent"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{project.name}</p>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            #{project.id} · {project.client || "No client"}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${health.pill}`}>
+                          {pct.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">PM</p>
+                          <p className="truncate font-medium text-foreground">{resolveName(project.pm)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Total cost</p>
+                          <p className="font-medium text-foreground">{formatCurrency(totalCost)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Contract</p>
+                          <p className="font-medium text-foreground">{formatCurrency(project.contract_amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Due</p>
+                          <p className="font-medium text-foreground">
+                            {dueDate ? formatDateCentral(dueDate + "T00:00:00", { month: "short", day: "numeric" }) : "—"}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="hidden lg:block">
+                <Table className="min-w-[980px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[80px] text-xs px-2">ID</TableHead>
@@ -424,6 +476,8 @@ export default function Dashboard() {
                 })}
               </TableBody>
             </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -512,7 +566,35 @@ export default function Dashboard() {
             const pageExpenses = filteredExpenses.slice(expensePage * EXPENSES_PER_PAGE, (expensePage + 1) * EXPENSES_PER_PAGE);
             return (
               <>
-                <Table className="min-w-[760px]">
+                <div data-slot="dashboard-expense-list" className="divide-y lg:hidden">
+                  {pageExpenses.map((expense) => {
+                    const project = projects.find((p) => p.id === expense.project_id);
+                    return (
+                      <div key={expense.id} className="flex min-w-0 items-start justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          {project ? (
+                            <Link href={`/projects/${project.id}`} className="block truncate text-sm font-medium text-blue-600 hover:underline">
+                              {project.name}
+                            </Link>
+                          ) : (
+                            <p className="text-sm font-medium text-foreground">Project #{expense.project_id}</p>
+                          )}
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {expense.vendor ?? "No vendor"} · {expense.category}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="font-mono text-sm font-medium text-foreground">{formatCurrency(expense.amount)}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatDateCentral(expense.date + "T00:00:00", { month: "short", day: "numeric" })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="hidden lg:block">
+                  <Table className="min-w-[760px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
@@ -547,6 +629,7 @@ export default function Dashboard() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-center gap-4 py-4 border-t">
@@ -578,6 +661,6 @@ export default function Dashboard() {
           })()}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
