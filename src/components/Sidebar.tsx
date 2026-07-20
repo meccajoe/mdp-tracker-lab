@@ -93,7 +93,7 @@ export default function Sidebar() {
 
   // Auto-open admin sections if on an admin page
   useEffect(() => {
-    if (pathname.startsWith("/admin/reports")) setReportsOpen(true);
+    if (pathname.startsWith("/admin/reports") || pathname.startsWith("/admin/operations") || pathname.startsWith("/admin/portfolios")) setReportsOpen(true);
     if (pathname.startsWith("/admin")) setSettingsOpen(true);
   }, [pathname]);
 
@@ -107,6 +107,7 @@ export default function Sidebar() {
   const dataEntryIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 18h18M3 6h18M7 3v18" /></svg>;
   const expensesIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>;
   const reportIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6m3 6V7m3 10v-3m3 7H6a2 2 0 01-2-2V5a2 2 0 012-2h7.586a1 1 0 01.707.293l3.414 3.414A1 1 0 0118 7.414V19a2 2 0 01-2 2z" /></svg>;
+  const operationsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6M9 8h6m-9 9h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-.414-.414A1 1 0 0014.586 4H9.414a1 1 0 00-.707.293l-.414.414A1 1 0 017.586 5H6a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>;
   const portfolioIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>;
   const lineItemIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
   const reconcileIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
@@ -181,9 +182,10 @@ export default function Sidebar() {
           <>
             <SectionHeader label="Reports" open={reportsOpen} onToggle={() => setReportsOpen(!reportsOpen)} collapsed={collapsed} />
             {collapsed ? (
-              <NavLink href="/admin/reports/wip" label="WIP" icon={reportIcon} collapsed={true} exact={false} />
+              <NavLink href="/admin/operations" label="Operations" icon={operationsIcon} collapsed={true} exact={false} />
             ) : reportsOpen && (
               <>
+                <NavLink href="/admin/operations" label="Operations Board" icon={operationsIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/reports/wip" label="WIP" icon={reportIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/portfolios" label="Portfolio Center" icon={portfolioIcon} collapsed={false} exact={false} />
               </>
