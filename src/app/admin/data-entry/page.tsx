@@ -664,10 +664,10 @@ export default function DataEntryPage() {
   }
 
   if (!isAdmin && !loading) {
-    return <div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Admin access required</p></div>;
+    return <div className="flex items-center justify-center min-h-dvh"><p className="text-muted-foreground">Admin access required</p></div>;
   }
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Loading projects...</p></div>;
+    return <div className="flex items-center justify-center min-h-dvh"><p className="text-muted-foreground">Loading projects...</p></div>;
   }
 
   return (
@@ -819,7 +819,7 @@ export default function DataEntryPage() {
 
                             {/* Budget Formula Section */}
                             <div className="border-t border-border pt-5">
-                              <div className="flex items-center justify-between mb-4">
+                              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <h3 className="text-sm font-semibold">Budget Setup</h3>
                                 <a href="/admin/settings" className="text-xs text-blue-600 hover:underline">Edit global % defaults →</a>
                               </div>
@@ -863,7 +863,7 @@ export default function DataEntryPage() {
                             </FormField>
 
                             {/* Actions */}
-                            <div className="flex items-center justify-between pt-2">
+                            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                               <div>
                                 {!formData._isNew && (
                                   deleting === currentProject.id ? (

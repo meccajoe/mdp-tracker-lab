@@ -589,7 +589,7 @@ export function ProjectPortfolioManager({
                       <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">No projects saved yet.</div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-sm text-muted-foreground">Projects are the main working view for PM portfolios.</p>
                           <span className="text-xs text-muted-foreground">{(selectedPortfolio.projects ?? []).length} projects</span>
                         </div>

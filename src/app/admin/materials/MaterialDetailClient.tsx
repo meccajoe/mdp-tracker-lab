@@ -600,7 +600,7 @@ export default function MaterialDetailClient({
       </div>
 
       <div className="rounded-lg border border-border p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-medium">Material Aliases</h2>
             <p className="text-xs text-muted-foreground">Add alternate names so search can still find the right canonical record.</p>
@@ -636,7 +636,7 @@ export default function MaterialDetailClient({
       </div>
 
       <div className="rounded-lg border border-border p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-medium">Current Vendor Prices</h2>
             <p className="text-xs text-muted-foreground">Manage vendor-specific pricing rows and optionally set one as the default catalog price.</p>

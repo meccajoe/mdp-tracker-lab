@@ -120,7 +120,7 @@ export default function VendorManagementPage() {
     await fetchPurchasers();
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Loading...</p></div>;
+  if (loading) return <div className="flex items-center justify-center min-h-dvh"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
     <PageShell>
@@ -129,7 +129,7 @@ export default function VendorManagementPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Vendors */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Vendors <span className="text-muted-foreground font-normal text-sm ml-1">({vendors.length})</span></CardTitle>
             <Button size="sm" onClick={() => setShowVendorForm(!showVendorForm)}>+ Add Vendor</Button>
           </CardHeader>
@@ -190,7 +190,7 @@ export default function VendorManagementPage() {
 
         {/* Purchasers */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Purchasers <span className="text-muted-foreground font-normal text-sm ml-1">({purchasers.length})</span></CardTitle>
             <Button size="sm" onClick={() => setShowPurchaserForm(!showPurchaserForm)}>+ Add Purchaser</Button>
           </CardHeader>

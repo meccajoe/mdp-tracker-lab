@@ -46,7 +46,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // On protected pages, wait until auth check passes
   if (!checked) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="flex min-h-dvh items-center justify-center bg-gray-50">
       <p className="text-gray-400 text-sm">Loading...</p>
     </div>
   );

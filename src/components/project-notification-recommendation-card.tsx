@@ -466,7 +466,7 @@ export function ProjectNotificationRecommendationCard({
       </div>
 
       <div className="space-y-4 rounded-xl border p-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Saved Slack subscriptions</p>
             <p className="text-xs text-muted-foreground">These are your live Slack digests and alerts for this project. Pause, resume, delete, or test the same subscriptions you can manage in Slack.</p>

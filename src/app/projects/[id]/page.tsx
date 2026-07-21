@@ -785,7 +785,7 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <p className="text-muted-foreground">Loading project...</p>
       </div>
     );
@@ -793,7 +793,7 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <div className="flex flex-col items-center justify-center min-h-dvh gap-4">
         <p className="text-muted-foreground">Project not found</p>
         <Link href="/projects">
           <Button variant="outline">Back to Projects</Button>

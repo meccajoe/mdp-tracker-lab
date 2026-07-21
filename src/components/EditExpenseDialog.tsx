@@ -131,7 +131,7 @@ export function EditExpenseDialog({
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Date *</Label>
               <Input
@@ -203,7 +203,7 @@ export function EditExpenseDialog({
               placeholder="Optional notes…"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={submitting}>
               {submitting ? "Saving…" : "Save Changes"}

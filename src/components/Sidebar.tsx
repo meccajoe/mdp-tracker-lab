@@ -146,7 +146,7 @@ export default function Sidebar({
       onClickCapture={(event) => {
         if (onNavigate && (event.target as HTMLElement).closest("a")) onNavigate();
       }}
-      className={`flex shrink-0 flex-col border-r border-border bg-background ${isMobile ? "h-full w-full" : `sticky top-0 h-screen transition-all duration-200 ease-in-out ${collapsed ? "w-16" : "w-52"}`}`}
+      className={`flex shrink-0 flex-col border-r border-border bg-background ${isMobile ? "h-full w-full" : `sticky top-0 h-dvh transition-all duration-200 ease-in-out ${collapsed ? "w-16" : "w-52"}`}`}
     >
       {/* Logo */}
       <div className="flex items-center h-14 px-3 border-b border-border gap-2.5 overflow-hidden">

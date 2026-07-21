@@ -134,7 +134,7 @@ export default function UsersPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-dvh">
       <p className="text-muted-foreground">Loading...</p>
     </div>
   );

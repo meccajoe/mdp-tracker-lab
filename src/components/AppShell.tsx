@@ -35,11 +35,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   if (pathname === "/login") {
-    return <main className="min-h-screen w-full bg-background">{children}</main>;
+    return <main className="min-h-dvh w-full bg-background">{children}</main>;
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background">
+    <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-background">
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur xl:hidden">
         <button
           type="button"
@@ -72,7 +72,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <div className="flex min-h-screen min-w-0 w-full max-w-full">
+      <div className="flex min-h-dvh min-w-0 w-full max-w-full">
         <div className="hidden xl:block">
           <Sidebar />
         </div>

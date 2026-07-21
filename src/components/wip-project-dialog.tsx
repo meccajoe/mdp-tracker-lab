@@ -105,7 +105,7 @@ export function WipProjectDialog({ row, triggerLabel, triggerClassName = "" }: W
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-medium">Current Live Project</h3>
                 <p className="text-sm text-muted-foreground">

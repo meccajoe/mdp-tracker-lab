@@ -525,7 +525,7 @@ export function ProjectOperationsBoard() {
                 {selectedRow ? (
                   <>
                     <section className="space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Operations state</h3>
                         <Button size="sm" onClick={() => void handleSaveState()} disabled={savingState}>{savingState ? "Saving…" : "Save state"}</Button>
                       </div>
@@ -562,7 +562,7 @@ export function ProjectOperationsBoard() {
                     </section>
 
                     <section className="space-y-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Open tasks</h3>
                         <Link href={`/projects/${selectedRow.project.id}`} className="text-sm text-primary hover:underline">Open project</Link>
                       </div>

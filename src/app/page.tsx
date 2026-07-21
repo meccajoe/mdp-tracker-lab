@@ -549,7 +549,7 @@ export default function Dashboard() {
 
       {/* Recent Expenses — last 14 days, paginated */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">
             Recent Expenses
             <span className="text-muted-foreground font-normal text-sm ml-2">(last 14 days)</span>
