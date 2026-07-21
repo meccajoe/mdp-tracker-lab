@@ -47,6 +47,7 @@ import {
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
 import { Pencil, Trash2, Flag, ChevronDown, ChevronRight } from "lucide-react";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
+import { PageShell } from "@/components/ui/page-shell";
 
 interface Expense {
   id: string;
@@ -368,15 +369,15 @@ export default function ExpensesClient({
   const hasFilters = search || pmFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo;
 
   return (
-    <div className="space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <PageShell>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">All Expenses</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             {filtered.length} expense{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalAmount)} total
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Single expense */}
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger>
@@ -394,7 +395,7 @@ export default function ExpensesClient({
                     placeholder="Search project…"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Date *</Label>
                     <Input type="date" value={addForm.date} onChange={(e) => setAddForm((f) => ({ ...f, date: e.target.value }))} />
@@ -523,20 +524,20 @@ export default function ExpensesClient({
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-3">
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex flex-col gap-1">
+          <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end">
+            <div className="flex min-w-0 flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search</label>
               <Input
                 placeholder="Project, vendor, notes…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                className="w-64"
+                className="w-full sm:max-w-xs"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PM</label>
               <Select value={pmFilter} onValueChange={(v) => { setPmFilter(v ?? "all"); setPage(0); }}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger className="w-full sm:w-36">
                   <SelectValue>{pmFilter === "all" ? "All PMs" : (PM_NAMES[pmFilter] ?? pmFilter)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -547,10 +548,10 @@ export default function ExpensesClient({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category</label>
               <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v ?? "all"); setPage(0); }}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-full sm:w-44">
                   <SelectValue>{categoryFilter === "all" ? "All categories" : (categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1).toLowerCase())}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -561,21 +562,21 @@ export default function ExpensesClient({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date Range</label>
-              <div className="flex items-center gap-1">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                 <Input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-                  className="w-36"
+                  className="w-full sm:w-36"
                 />
                 <span className="text-muted-foreground text-sm">to</span>
                 <Input
                   type="date"
                   value={dateTo}
                   onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-                  className="w-36"
+                  className="w-full sm:w-36"
                 />
               </div>
             </div>
@@ -598,6 +599,61 @@ export default function ExpensesClient({
             <p className="text-muted-foreground py-12 text-center text-sm">No expenses match your filters.</p>
           ) : (
             <>
+              <div data-slot="expenses-mobile-list" className="divide-y lg:hidden">
+                {pageRows.map((expense) => {
+                  const project = projectMap.get(expense.project_id);
+                  const billcomDetails = getBillcomExpenseDisplayDetails(expense);
+                  const billcomDetailsOpen = expandedBillcomRows.has(expense.id);
+                  return (
+                    <article key={expense.id} className="space-y-3 p-4">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          {project ? (
+                            <Link href={`/projects/${project.id}`} className="block break-words font-medium text-blue-600 hover:underline dark:text-blue-400">
+                              {project.job_number ? `${project.job_number} · ` : ""}{project.name}
+                            </Link>
+                          ) : (
+                            <p className="break-all font-medium">{expense.project_id}</p>
+                          )}
+                          <p className="mt-1 break-words text-sm text-muted-foreground">
+                            {expense.vendor || "No vendor"} · {expense.category || "No category"}
+                          </p>
+                        </div>
+                        <p className="shrink-0 font-mono text-sm font-semibold">{formatCurrency(expense.amount)}</p>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div><dt className="text-muted-foreground">Date</dt><dd>{expense.date}</dd></div>
+                        <div><dt className="text-muted-foreground">PM</dt><dd>{project?.pm ?? "—"}</dd></div>
+                        <div><dt className="text-muted-foreground">Purchaser</dt><dd className="break-words">{expense.purchaser || "—"}</dd></div>
+                        <div><dt className="text-muted-foreground">Source</dt><dd>{expense.source === "billcom" ? "BILL" : "Manual"}</dd></div>
+                      </dl>
+                      {expense.notes && <p className="break-words text-sm text-muted-foreground">{expense.notes}</p>}
+                      {billcomDetails.isBillcom && billcomDetailsOpen && (
+                        <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                          <p className="font-medium text-foreground">BILL details</p>
+                          <p className="mt-1 break-words">Cardholder: {billcomDetails.cardholder ?? "—"}</p>
+                          <p className="break-all">Transaction: {billcomDetails.transactionId ?? "—"}</p>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {billcomDetails.isBillcom && billcomDetails.hasDiscreetDetails && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => toggleBillcomDetails(expense.id)}>
+                            {billcomDetailsOpen ? "Hide BILL details" : "BILL details"}
+                          </Button>
+                        )}
+                        {expense.source !== "billcom" && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => setEditingExpense(expense as unknown as LibExpense)}>Edit</Button>
+                        )}
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}>
+                          {expense.flagged ? "Flagged" : "Flag"}
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setDeletingExpenseId(expense.id)}>Delete</Button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="hidden lg:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -728,6 +784,7 @@ export default function ExpensesClient({
                   })}
                 </TableBody>
               </Table>
+              </div>
               {editingExpense && (
                 <EditExpenseDialog
                   expense={editingExpense}
@@ -802,7 +859,7 @@ export default function ExpensesClient({
               </Dialog>
 
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
+                <div className="flex flex-col gap-2 border-t px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                   <span>
                     Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
                   </span>
@@ -820,6 +877,6 @@ export default function ExpensesClient({
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
