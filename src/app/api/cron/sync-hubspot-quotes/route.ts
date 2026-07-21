@@ -20,6 +20,7 @@ function getSupabaseAdmin() {
 type HubspotLinkedProjectRow = {
   id: string;
   hubspot_deal_id: string | null;
+  hubspot_quote_id: string | null;
   client: string | null;
 };
 
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("projects")
-    .select("id, hubspot_deal_id, client")
+    .select("id, hubspot_deal_id, hubspot_quote_id, client")
     .not("hubspot_deal_id", "is", null)
     .order("id", { ascending: true });
 
@@ -124,7 +125,7 @@ export async function GET(request: NextRequest) {
       const quoteId = await getDealQuote(
         dealId,
         deal.properties.dealname ?? undefined,
-        Number.parseFloat(deal.properties.amount ?? "") || undefined,
+        project.hubspot_quote_id,
       );
 
       if (!quoteId) {

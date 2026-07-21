@@ -119,14 +119,13 @@ export type HubSpotQuoteCandidate = {
   amount: number | null;
 };
 
-export function selectDealQuote(candidates: HubSpotQuoteCandidate[], dealName?: string, expectedAmount?: number): HubSpotQuoteCandidate | null {
+export function selectDealQuote(candidates: HubSpotQuoteCandidate[], dealName?: string, preferredQuoteId?: string | null): HubSpotQuoteCandidate | null {
   if (candidates.length === 0) return null;
 
-  if (expectedAmount && expectedAmount > 0) {
-    const amountMatched = candidates.filter((candidate) => candidate.amount != null && Math.abs(candidate.amount - expectedAmount) < 0.01);
-    if (amountMatched.length > 0) {
-      return [...amountMatched].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    }
+  if (preferredQuoteId) {
+    const preferred = candidates.find((candidate) => candidate.id === preferredQuoteId);
+    if (preferred) return preferred;
+    console.warn(`[hubspot] Preferred quote ${preferredQuoteId} is not associated with deal; falling back to title-version selection.`);
   }
 
   if (candidates.length === 1 || !dealName) return candidates[0];
@@ -139,7 +138,7 @@ export function selectDealQuote(candidates: HubSpotQuoteCandidate[], dealName?: 
   return versioned.sort((a, b) => b.version - a.version || b.createdAt.localeCompare(a.createdAt))[0];
 }
 
-export async function getDealQuote(dealId: string, dealName?: string, expectedAmount?: number): Promise<string | null> {
+export async function getDealQuote(dealId: string, dealName?: string, preferredQuoteId?: string | null): Promise<string | null> {
   const assocData = await hubspotFetch(
     `/crm/v3/objects/deals/${dealId}/associations/quotes`
   ) as { results?: Array<{ id: string }> };
@@ -147,8 +146,8 @@ export async function getDealQuote(dealId: string, dealName?: string, expectedAm
   const refs = assocData.results ?? [];
   if (refs.length === 0) return null;
 
-  // Fetch the quote total as well as title/date. When the deal amount matches an
-  // associated quote, it is the commercial source of truth over a title-version heuristic.
+  // Fetch quote titles and dates for the established version heuristic; a project may
+  // explicitly pin one associated quote when HubSpot contains a known split-scope exception.
   const quotes: HubSpotQuoteCandidate[] = await Promise.all(
     refs.map((r) =>
       hubspotFetch(`/crm/v3/objects/quotes/${r.id}?properties=hs_title,hs_createdate,hs_quote_amount`)
@@ -165,9 +164,9 @@ export async function getDealQuote(dealId: string, dealName?: string, expectedAm
     )
   );
 
-  const winner = selectDealQuote(quotes, dealName, expectedAmount);
+  const winner = selectDealQuote(quotes, dealName, preferredQuoteId);
   if (!winner) return null;
-  console.log(`[hubspot] Selected quote "${winner.title}" (id: ${winner.id}) for "${dealName ?? dealId}"${expectedAmount ? ` matching deal amount ${expectedAmount}` : ""}`);
+  console.log(`[hubspot] Selected quote "${winner.title}" (id: ${winner.id}) for "${dealName ?? dealId}"${preferredQuoteId ? " using the project quote override" : ""}`);
   return winner.id;
 }
 

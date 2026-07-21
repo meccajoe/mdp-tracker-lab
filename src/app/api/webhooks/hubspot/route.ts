@@ -366,7 +366,7 @@ export async function POST(req: NextRequest) {
       // Upsert path: existing HubSpot-linked project should be refreshed, not skipped.
       const { data: existing } = await supabase
         .from("projects")
-        .select("id, bill_budget_uuid, pm")
+        .select("id, bill_budget_uuid, pm, hubspot_quote_id")
         .eq("hubspot_deal_id", String(dealId))
         .maybeSingle();
 
@@ -392,7 +392,7 @@ export async function POST(req: NextRequest) {
         const quoteId = await getDealQuote(
           String(dealId),
           deal.properties.dealname ?? undefined,
-          Number.parseFloat(deal.properties.amount ?? "") || undefined,
+          existing?.hubspot_quote_id,
         );
         if (quoteId) {
           const lineItems = await getQuoteLineItems(quoteId);

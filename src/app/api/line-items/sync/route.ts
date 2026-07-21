@@ -194,7 +194,7 @@ async function upsertLineItems(
 async function syncHubSpotDeal(
   supabase: SupabaseClient,
   deal: HsDeal,
-  projectLookup: Map<string, { id: string; name: string }>
+  projectLookup: Map<string, { id: string; name: string; hubspotQuoteId: string | null }>
 ): Promise<number> {
   const dealId = deal.id;
   const dealName = deal.properties.dealname ?? "";
@@ -205,7 +205,7 @@ async function syncHubSpotDeal(
     quoteId = await getDealQuote(
       dealId,
       dealName,
-      Number.parseFloat(deal.properties.amount ?? "") || undefined,
+      projectLookup.get(dealId)?.hubspotQuoteId,
     );
   } catch (e) {
     console.warn(`[hs-sync] Could not get quote for deal ${dealId}: ${e}`);
@@ -334,13 +334,13 @@ export async function POST(req: NextRequest) {
       // Build project lookup: dealId -> { id, name }
       const { data: projects } = await supabase
         .from("projects")
-        .select("id, name, hubspot_deal_id")
+        .select("id, name, hubspot_deal_id, hubspot_quote_id")
         .not("hubspot_deal_id", "is", null);
 
-      const projectLookup = new Map<string, { id: string; name: string }>();
+      const projectLookup = new Map<string, { id: string; name: string; hubspotQuoteId: string | null }>();
       for (const p of projects ?? []) {
         if (p.hubspot_deal_id) {
-          projectLookup.set(p.hubspot_deal_id, { id: p.id, name: p.name });
+          projectLookup.set(p.hubspot_deal_id, { id: p.id, name: p.name, hubspotQuoteId: p.hubspot_quote_id });
         }
       }
 
@@ -399,12 +399,12 @@ export async function GET(req: NextRequest) {
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, name")
+    .select("id, name, hubspot_quote_id")
     .eq("hubspot_deal_id", dealId)
     .single();
 
-  const projectLookup = new Map<string, { id: string; name: string }>();
-  if (project) projectLookup.set(dealId, { id: project.id, name: project.name });
+  const projectLookup = new Map<string, { id: string; name: string; hubspotQuoteId: string | null }>();
+  if (project) projectLookup.set(dealId, { id: project.id, name: project.name, hubspotQuoteId: project.hubspot_quote_id });
 
   try {
     const deal = (await hsFetch(
