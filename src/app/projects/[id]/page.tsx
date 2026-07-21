@@ -77,6 +77,7 @@ import { ProjectNotificationRecommendationCard } from "@/components/project-noti
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -850,12 +851,12 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 xl:px-6 max-w-[1800px] space-y-6">
+    <PageShell>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{project.name}</h1>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="min-w-0 break-words text-2xl font-bold">{project.name}</h1>
             <Badge variant={getStatusVariant(project.status)}>
               {project.status}
             </Badge>
@@ -883,7 +884,7 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Dialog>
             <DialogTrigger
               render={
@@ -1134,9 +1135,9 @@ export default function ProjectDetailPage() {
 
       {/* Budget Breakdown Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Budget Breakdown</CardTitle>
-          <div className="flex gap-2">
+        <CardHeader data-slot="project-budget-header" className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="min-w-0">Budget Breakdown</CardTitle>
+          <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowCharts(!showCharts)}>
             {showCharts ? "Hide Charts" : "Charts"}
           </Button>
@@ -1168,7 +1169,7 @@ export default function ProjectDetailPage() {
           )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent data-slot="project-budget-table" className="min-w-0 max-w-full overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1332,7 +1333,7 @@ export default function ProjectDetailPage() {
                     {isExpanded && (
                       <TableRow key={`${field.key}-detail`}>
                         <TableCell colSpan={(effectiveIsAdmin ? 5 : 4) + (editingBudget ? 1 : 0)} className="p-0">
-                          <div className="bg-muted/30 border-t border-b px-4 py-2">
+                          <div data-slot="project-budget-detail-table" className="max-w-full overflow-x-auto bg-muted/30 border-t border-b px-4 py-2">
                             {field.isHours ? (
                               drillLaborEntries.length === 0 ? (
                                 <p className="text-xs text-muted-foreground py-1">No labor entries recorded.</p>
@@ -1543,7 +1544,7 @@ export default function ProjectDetailPage() {
 
       {/* Budget Allocation by Quote Line */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Budget Allocation by Quote Line</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
@@ -1563,7 +1564,7 @@ export default function ProjectDetailPage() {
           </div>
         </CardHeader>
         {showQuoteAllocation && (
-          <CardContent>
+          <CardContent data-slot="project-quote-allocation-table" className="min-w-0 max-w-full overflow-x-auto">
             {quoteAllocationError ? (
               <p className="text-sm text-muted-foreground">{quoteAllocationError}</p>
             ) : quoteAllocationRows.length === 0 ? (
@@ -1625,7 +1626,7 @@ export default function ProjectDetailPage() {
 
       {/* Expenses & Labor Card */}
       <Card>
-          <CardHeader className="flex flex-row items-center justify-between border-b pb-0">
+          <CardHeader className="flex flex-col items-stretch gap-2 border-b pb-0 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-0 -mb-px">
               <button
                 onClick={() => setActiveExpenseTab("expenses")}
@@ -1789,7 +1790,7 @@ export default function ProjectDetailPage() {
               )}
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent data-slot="project-expenses-table" className="min-w-0 max-w-full overflow-x-auto p-0">
             {activeExpenseTab === "expenses" ? (
               expenses.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
@@ -2030,17 +2031,19 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
 
-                  <QboLaborTable
-                    entries={filtered}
-                    view={laborView}
-                    expandedRows={expandedLaborRows}
-                    onToggleRow={toggleLaborRow}
-                  />
+                  <div data-slot="project-labor-table" className="min-w-0 max-w-full overflow-x-auto">
+                    <QboLaborTable
+                      entries={filtered}
+                      view={laborView}
+                      expandedRows={expandedLaborRows}
+                      onToggleRow={toggleLaborRow}
+                    />
+                  </div>
                 </div>
               );
             })()}
           </CardContent>
         </Card>
-    </div>
+    </PageShell>
   );
 }

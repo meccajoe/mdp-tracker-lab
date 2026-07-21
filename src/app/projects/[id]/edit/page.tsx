@@ -281,7 +281,7 @@ export default function EditProjectPage() {
             <CardTitle>Project Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Project ID</Label>
                 <Input value={projectId} disabled />
@@ -320,7 +320,7 @@ export default function EditProjectPage() {
               <p className="text-xs text-muted-foreground">Open the project in QBO and copy the URL from your browser</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="client">Client *</Label>
                 <Input
@@ -347,7 +347,7 @@ export default function EditProjectPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={status} onValueChange={(v) => v !== null && setStatus(v)}>
@@ -385,7 +385,7 @@ export default function EditProjectPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="contractAmount">Contract Amount</Label>
                 <Input
@@ -414,7 +414,7 @@ export default function EditProjectPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="wipClass">WIP Class</Label>
                 <Input
@@ -463,7 +463,7 @@ export default function EditProjectPage() {
             <CardTitle>Budget</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {BUDGET_FIELDS.map((field) => (
                 <div key={field.key} className="space-y-2">
                   <Label htmlFor={field.key}>

@@ -166,7 +166,7 @@ export default function NewProjectPage() {
             <CardTitle>Project Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="projectId">Project ID *</Label>
                 <Input
@@ -212,7 +212,7 @@ export default function NewProjectPage() {
               <p className="text-xs text-muted-foreground">Open the project in QBO and copy the URL from your browser</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="client">Client *</Label>
                 <Input
@@ -239,7 +239,7 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={status} onValueChange={(v) => v !== null && setStatus(v)}>
@@ -266,7 +266,7 @@ export default function NewProjectPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="contractAmount">Contract Amount</Label>
                 <Input
@@ -312,7 +312,7 @@ export default function NewProjectPage() {
             <CardTitle>Budget</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {BUDGET_FIELDS.map((field) => (
                 <div key={field.key} className="space-y-2">
                   <Label htmlFor={field.key}>
