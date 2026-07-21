@@ -132,6 +132,7 @@ export default function Sidebar({
   const dataEntryIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 18h18M3 6h18M7 3v18" /></svg>;
   const expensesIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>;
   const reportIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6m3 6V7m3 10v-3m3 7H6a2 2 0 01-2-2V5a2 2 0 012-2h7.586a1 1 0 01.707.293l3.414 3.414A1 1 0 0118 7.414V19a2 2 0 01-2 2z" /></svg>;
+  const flagIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v18m0-10h12l-2 3 2 3H5" /></svg>;
   const missionControlIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h10" /></svg>;
   const portfolioIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>;
   const lineItemIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -224,6 +225,7 @@ export default function Sidebar({
             ) : reportsOpen && (
               <>
                 <NavLink href="/admin/reports/wip" label="WIP" icon={reportIcon} collapsed={false} exact={false} />
+                <NavLink href="/admin/issues" label="Production Issues" icon={flagIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/pricing-intelligence" label="Pricing Intelligence" icon={lineItemIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/portfolios" label="Portfolio Center" icon={portfolioIcon} collapsed={false} exact={false} />
                 {canSeeMissionControl && <NavLink href="/admin/mission-control" label="Mission Control" icon={missionControlIcon} collapsed={false} exact={false} />}

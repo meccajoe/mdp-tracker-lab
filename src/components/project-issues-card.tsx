@@ -3,18 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { IssueQuickLogDialog } from "@/components/issue-quick-log-dialog";
+import { IssueEditDialog, type EditableIssue } from "@/components/issue-edit-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 
-type ProjectIssue = {
-  id: string;
-  title: string;
-  category: string;
-  severity: string;
-  status: string;
-  owner_label: string | null;
-  reported_date: string;
+type ProjectIssue = EditableIssue & {
   schedule_impact_days: number | null;
   cost_impact: number | null;
 };
@@ -32,7 +26,7 @@ export function ProjectIssuesCard({ project }: ProjectIssuesCardProps) {
     setLoading(true);
     const { data } = await supabase
       .from("production_issues")
-      .select("id, title, category, severity, status, owner_label, reported_date, schedule_impact_days, cost_impact")
+      .select("*")
       .eq("project_id", project.id)
       .order("reported_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -69,7 +63,7 @@ export function ProjectIssuesCard({ project }: ProjectIssuesCardProps) {
               <div className="flex flex-wrap items-center gap-2"><p className="font-medium">{issue.title}</p><Badge variant="outline">{issue.category}</Badge><SeverityBadge severity={issue.severity} /><StatusBadge status={issue.status} /></div>
               <p className="mt-1 text-xs text-muted-foreground">Logged {issue.reported_date}{issue.owner_label ? ` · Owner: ${issue.owner_label}` : ""}</p>
             </div>
-            {(issue.schedule_impact_days || issue.cost_impact) && <p className="shrink-0 text-xs text-muted-foreground">{issue.schedule_impact_days ? `${issue.schedule_impact_days} day impact` : ""}{issue.schedule_impact_days && issue.cost_impact ? " · " : ""}{issue.cost_impact ? `$${issue.cost_impact.toLocaleString()} impact` : ""}</p>}
+            <div className="flex shrink-0 items-center gap-2">{(issue.schedule_impact_days || issue.cost_impact) && <p className="text-xs text-muted-foreground">{issue.schedule_impact_days ? `${issue.schedule_impact_days} day impact` : ""}{issue.schedule_impact_days && issue.cost_impact ? " · " : ""}{issue.cost_impact ? `$${issue.cost_impact.toLocaleString()} impact` : ""}</p>}{canLogIssues && <IssueEditDialog issue={issue} onChanged={() => void loadIssues()} />}</div>
           </div>
         ))}
       </CardContent>

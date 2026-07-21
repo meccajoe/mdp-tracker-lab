@@ -921,8 +921,6 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <ProjectIssuesCard project={{ id: project.id, name: project.name, pm: project.pm }} />
-
       {project.notes && (
         <details className="mt-1 group">
           <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
@@ -2047,6 +2045,8 @@ export default function ProjectDetailPage() {
             })()}
           </CardContent>
         </Card>
+
+      <ProjectIssuesCard project={{ id: project.id, name: project.name, pm: project.pm }} />
     </PageShell>
   );
 }
