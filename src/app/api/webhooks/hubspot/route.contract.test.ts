@@ -15,3 +15,11 @@ test("hubspot webhook line-item sync persists hubspot_deal_id on quote_line_item
   assert.match(rowsBlock, /hubspot_deal_id:\s*String\(dealId\)|hubspot_deal_id:\s*dealId/, "webhook upsert rows should persist the HubSpot deal id");
   assert.match(source, /upsert\(rows,\s*\{ onConflict: "source,source_id,line_key" \}\)/, "webhook route should still upsert line items on the existing conflict key");
 });
+
+test("hubspot project-create notifications can use Ada's dedicated delivery token", () => {
+  const routePath = join(process.cwd(), "src/app/api/webhooks/hubspot/route.ts");
+  const source = readFileSync(routePath, "utf8");
+
+  assert.match(source, /PROJECT_NOTIFICATION_SLACK_BOT_TOKEN/);
+  assert.match(source, /Bearer.*PROJECT_NOTIFICATION_SLACK_BOT_TOKEN/);
+});

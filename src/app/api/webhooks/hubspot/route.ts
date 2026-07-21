@@ -30,6 +30,7 @@ const HUBSPOT_WEBHOOK_SECRET = process.env.HUBSPOT_WEBHOOK_SECRET;
 const HUBSPOT_PORTAL_ID = process.env.HUBSPOT_PORTAL_ID ?? "";
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 const SLACK_BOT_TOKEN = process.env.MDP_SLACK_BOT_TOKEN;
+const PROJECT_NOTIFICATION_SLACK_BOT_TOKEN = process.env.PROJECT_NOTIFICATION_SLACK_BOT_TOKEN ?? SLACK_BOT_TOKEN;
 const SLACK_NOTIFY_CHANNEL = process.env.SLACK_NOTIFY_CHANNEL;
 
 const MAX_TIMESTAMP_AGE_MS = 5 * 60 * 1000; // 5 minutes
@@ -189,12 +190,12 @@ async function postSlackNotification(
     },
   ];
 
-  // Prefer bot token + channel (supports DMs), fall back to incoming webhook
-  if (SLACK_BOT_TOKEN && SLACK_NOTIFY_CHANNEL) {
+  // Dedicated notification token preserves delivery to the established Ada group DM.
+  if (PROJECT_NOTIFICATION_SLACK_BOT_TOKEN && SLACK_NOTIFY_CHANNEL) {
     try {
       const res = await fetch("https://slack.com/api/chat.postMessage", {
         method: "POST",
-        headers: { "Authorization": `Bearer ${SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
+        headers: { "Authorization": `Bearer ${PROJECT_NOTIFICATION_SLACK_BOT_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({ channel: SLACK_NOTIFY_CHANNEL, text, blocks }),
 
       });
