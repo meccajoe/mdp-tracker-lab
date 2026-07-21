@@ -15,5 +15,6 @@ test("central issue report supports requested filters and record management", ()
   assert.match(source, /projectId/);
   assert.match(source, /category/);
   assert.match(source, /severity/);
+  assert.match(source, /const \[statusFilter, setStatusFilter\]/);
   assert.match(source, /IssueEditDialog/);
 });
