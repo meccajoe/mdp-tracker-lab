@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { WipProjectDialog } from "@/components/wip-project-dialog";
 import { WipEstimatedCostDialog } from "@/components/wip-estimated-cost-dialog";
 import { WipReportSnapshot, WipReportSnapshotRow } from "@/lib/types";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   EMPTY_WIP_FILTERS,
   WipFilters,
@@ -470,7 +471,7 @@ export default function WipReportPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 xl:px-6 max-w-[1800px] space-y-6">
+    <PageShell>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">WIP Report</h1>
@@ -757,7 +758,31 @@ export default function WipReportPage() {
           ) : displayedRows.length === 0 ? (
             <p className="text-sm text-muted-foreground">No WIP rows match the current filters.</p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border shadow-xs">
+            <>
+            <div data-slot="wip-mobile-list" className="divide-y rounded-lg border border-border lg:hidden">
+              {displayedRows.map((row) => (
+                <article key={`mobile-${mode}-${selectedSnapshotId || "live"}-${row.project_id ?? row.project_number ?? row.project_name}`} className="space-y-3 p-4">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <WipProjectDialog row={row} triggerLabel={row.project_name} triggerClassName="break-words text-left font-medium text-blue-600 underline-offset-4 hover:underline dark:text-blue-400" />
+                      <p className="mt-1 break-words text-xs text-muted-foreground">{row.customer} · {row.project_number ?? "No job number"}</p>
+                    </div>
+                    <Badge variant="outline" className={getStatusChipClassName(row.project_status)}>{row.project_status ?? "Unknown"}</Badge>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div><dt className="text-muted-foreground">Contract</dt><dd className="font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.updated_contract_amount)}</dd></div>
+                    <div><dt className="text-muted-foreground">Estimated cost</dt><dd><WipEstimatedCostDialog row={row} triggerLabel={formatCurrency(row.updated_est_cost)} triggerClassName="font-semibold text-rose-700 underline-offset-4 hover:underline dark:text-rose-400" /></dd></div>
+                    <div><dt className="text-muted-foreground">Estimated GP</dt><dd>{formatCurrency(row.updated_est_gross_profit)}</dd></div>
+                    <div><dt className="text-muted-foreground">Estimated GPM</dt><dd>{formatPercent(row.est_gpm_pct)}</dd></div>
+                    <div><dt className="text-muted-foreground">Billed to date</dt><dd>{formatCurrency(row.total_billed_to_date)}</dd></div>
+                    <div><dt className="text-muted-foreground">Cost to date</dt><dd>{formatCurrency(row.total_cost_to_date)}</dd></div>
+                    <div><dt className="text-muted-foreground">Cost complete</dt><dd>{formatPercent(row.cost_pct_complete)}</dd></div>
+                    <div><dt className="text-muted-foreground">Revenue earned</dt><dd>{formatCurrency(row.revenue_earned)}</dd></div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+            <div className="hidden lg:block overflow-x-auto rounded-lg border border-border shadow-xs">
               <table className="min-w-full text-sm">
                 <thead className="bg-muted/45 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <tr>
@@ -840,10 +865,11 @@ export default function WipReportPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
 
