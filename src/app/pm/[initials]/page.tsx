@@ -9,6 +9,7 @@ import { canSeeTeamBonuses } from "@/lib/bonus-access";
 import { buildPmBonusRows, type BonusRow } from "@/lib/pm-bonus";
 import { formatCurrency } from "@/lib/constants";
 import { nowCentral, formatDateCentral } from "@/lib/date-utils";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   Card,
   CardContent,
@@ -260,7 +261,7 @@ export default function PMBonusPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <PageShell>
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-bold flex-shrink-0">
@@ -280,7 +281,7 @@ export default function PMBonusPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-4xl font-bold text-green-600 dark:text-green-400">
+          <p className="break-words text-3xl font-bold text-green-600 dark:text-green-400 sm:text-4xl">
             {formatCurrency(allTimeBonus)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
@@ -314,7 +315,7 @@ export default function PMBonusPage() {
                 </p>
 
                 {/* Summary stats for this period */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <div className="rounded-lg border p-3">
                     <p className="text-xs font-medium text-muted-foreground">Total Projects</p>
                     <p className="text-2xl font-bold mt-1">{bonusRows.length}</p>
@@ -349,6 +350,33 @@ export default function PMBonusPage() {
                     No completed projects in this period.
                   </p>
                 ) : (
+                  <>
+                  <div data-slot="pm-bonus-mobile" className="divide-y lg:hidden">
+                    {bonusRows.map((row) => (
+                      <article key={row.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <Link href={`/projects/${row.id}`} className="block break-words font-medium text-blue-600 hover:underline dark:text-blue-400">
+                              {row.name}
+                            </Link>
+                            <p className="mt-1 break-words text-xs text-muted-foreground">{row.id} · {row.client || "No client"}</p>
+                          </div>
+                          <p className={`shrink-0 font-semibold ${row.bonus > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+                            {formatCurrency(row.bonus)}
+                          </p>
+                        </div>
+                        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                          <div><dt className="text-muted-foreground">Close date</dt><dd>{row.close_date ? formatDateCentral(row.close_date + "T00:00:00") : "N/A"}</dd></div>
+                          <div><dt className="text-muted-foreground">Margin</dt><dd>{formatPercent(row.profit_margin)}</dd></div>
+                          <div><dt className="text-muted-foreground">QBO income</dt><dd>{row.qbo_income != null ? formatCurrency(row.qbo_income) : "—"}</dd></div>
+                          <div><dt className="text-muted-foreground">QBO expenses</dt><dd>{row.qbo_expenses != null ? formatCurrency(row.qbo_expenses) : "—"}</dd></div>
+                          <div><dt className="text-muted-foreground">Gross profit</dt><dd>{row.gross_profit != null ? formatCurrency(row.gross_profit) : "Awaiting sync"}</dd></div>
+                          <div><dt className="text-muted-foreground">Bonus rate</dt><dd>{formatBonusRate(row.bonus_rate)}</dd></div>
+                        </dl>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="hidden lg:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -452,12 +480,14 @@ export default function PMBonusPage() {
                       </TableRow>
                     </TableFooter>
                   </Table>
+                  </div>
+                  </>
                 )}
               </TabsContent>
             ))}
           </CardContent>
         </Card>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }

@@ -8,6 +8,7 @@ import { canSeeTeamBonuses } from "@/lib/bonus-access";
 import { buildPmBonusRows } from "@/lib/pm-bonus";
 import { buildPmBonusMonthlyRollup } from "@/lib/pm-bonus-rollup";
 import { formatCurrency } from "@/lib/constants";
+import { PageShell } from "@/components/ui/page-shell";
 import {
   Card,
   CardContent,
@@ -170,16 +171,16 @@ export default function PMBonusSummaryPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <PageShell>
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Team Bonus Summary</h1>
         <p className="text-muted-foreground">Admin-only rolled-up PM bonuses by month with YTD totals.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">YTD Total</CardTitle></CardHeader>
-          <CardContent><p className="text-3xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.rollup.ytdTotal)}</p></CardContent>
+          <CardContent><p className="break-words text-2xl font-bold text-green-600 dark:text-green-400 sm:text-3xl">{formatCurrency(summary.rollup.ytdTotal)}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">PMs Included</CardTitle></CardHeader>
@@ -216,6 +217,27 @@ export default function PMBonusSummaryPage() {
           <CardTitle className="text-base">Monthly Bonus Rollup</CardTitle>
         </CardHeader>
         <CardContent>
+          <div data-slot="pm-rollup-mobile" className="divide-y lg:hidden">
+            {summary.rollup.pmRows.map((row) => (
+              <article key={row.pmInitials} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <p className="min-w-0 break-words font-medium">
+                    {bonusPMs.find((pm) => pm.initials === row.pmInitials)?.fullName ?? PM_NAMES[row.pmInitials] ?? row.pmInitials}
+                  </p>
+                  <p className="shrink-0 font-semibold text-green-600 dark:text-green-400">{formatCurrency(row.ytdBonus)}</p>
+                </div>
+                <dl className="grid grid-cols-2 gap-2 text-xs">
+                  {summary.rollup.monthKeys.map((monthKey) => (
+                    <div key={monthKey} className="rounded-md border p-2">
+                      <dt className="text-muted-foreground">{monthLabel(monthKey)}</dt>
+                      <dd className="mt-1 font-medium">{formatCurrency(row.monthBonuses[monthKey] ?? 0)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </article>
+            ))}
+          </div>
+          <div className="hidden lg:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -245,8 +267,9 @@ export default function PMBonusSummaryPage() {
               </TableRow>
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
