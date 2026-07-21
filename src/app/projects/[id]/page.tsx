@@ -74,6 +74,7 @@ import { CountdownClock } from "@/components/countdown-clock";
 import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { ProjectNotificationRecommendationCard } from "@/components/project-notification-recommendation-card";
+import { ProjectIssuesCard } from "@/components/project-issues-card";
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
@@ -919,6 +920,8 @@ export default function ProjectDetailPage() {
           )}
         </div>
       </div>
+
+      <ProjectIssuesCard project={{ id: project.id, name: project.name, pm: project.pm }} />
 
       {project.notes && (
         <details className="mt-1 group">

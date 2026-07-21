@@ -35,11 +35,20 @@ const CATEGORIES = [
 
 const SEVERITIES = ["low", "medium", "high", "critical"] as const;
 
-export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean }) {
+type IssueQuickLogProject = { id: string; name?: string | null; pm?: string | null };
+
+type IssueQuickLogDialogProps = {
+  collapsed?: boolean;
+  project?: IssueQuickLogProject;
+  onLogged?: () => void;
+  compact?: boolean;
+};
+
+export function IssueQuickLogDialog({ collapsed = false, project: presetProject, onLogged, compact = false }: IssueQuickLogDialogProps) {
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [projectSearch, setProjectSearch] = useState("");
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState(presetProject?.id ?? "");
   const [category, setCategory] = useState("defect");
   const [severity, setSeverity] = useState("medium");
   const [title, setTitle] = useState("");
@@ -51,7 +60,7 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open || projects.length > 0) return;
+    if (!open || presetProject || projects.length > 0) return;
     supabase
       .from("project_summary")
       .select("id, name, client, pm, status")
@@ -61,7 +70,13 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
         if (error) toast.error("Could not load projects for issue logging.");
         else setProjects((data ?? []) as ProjectOption[]);
       });
-  }, [open, projects.length]);
+  }, [open, presetProject, projects.length]);
+
+  useEffect(() => {
+    if (!presetProject) return;
+    setProjectId(presetProject.id);
+    if (presetProject.pm) setOwnerLabel(presetProject.pm);
+  }, [presetProject]);
 
   const selectedProject = projects.find((project) => String(project.id) === projectId);
   const visibleProjects = useMemo(() => {
@@ -82,7 +97,7 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
 
   function resetForm() {
     setProjectSearch("");
-    setProjectId("");
+    setProjectId(presetProject?.id ?? "");
     setCategory("defect");
     setSeverity("medium");
     setTitle("");
@@ -123,8 +138,9 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error ?? "Issue could not be logged.");
-      toast.success(`Issue logged for ${selectedProject?.name ?? "project"}.`);
+      toast.success(`Issue logged for ${presetProject?.name ?? selectedProject?.name ?? "project"}.`);
       resetForm();
+      onLogged?.();
       if (!keepOpen) setOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Issue could not be logged.");
@@ -137,7 +153,7 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         title={collapsed ? "Log issue" : undefined}
-        className={`flex w-full items-center gap-3 rounded-lg bg-amber-500 px-2.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600 ${collapsed ? "justify-center" : ""}`}
+        className={`flex items-center gap-3 rounded-lg bg-amber-500 px-2.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600 ${compact ? "" : "w-full"} ${collapsed ? "justify-center" : ""}`}
       >
         <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" /></svg>
         {!collapsed && <span>Log issue</span>}
@@ -149,14 +165,21 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
         </DialogHeader>
 
         <div className="space-y-4">
-          <label className="block text-sm font-medium">
-            Project <span className="text-destructive">*</span>
-            <input value={projectSearch} onChange={(event) => setProjectSearch(event.target.value)} placeholder="Search active projects" className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            <select value={projectId} onChange={(event) => selectProject(event.target.value)} className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" required>
-              <option value="">Choose project</option>
-              {visibleProjects.map((project) => <option key={project.id} value={project.id}>{project.id} — {project.name || "Untitled"}{project.client ? ` (${project.client})` : ""}</option>)}
-            </select>
-          </label>
+          {presetProject ? (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Project</p>
+              <p className="mt-1 font-medium">{presetProject.id} — {presetProject.name ?? "Current project"}</p>
+            </div>
+          ) : (
+            <label className="block text-sm font-medium">
+              Project <span className="text-destructive">*</span>
+              <input value={projectSearch} onChange={(event) => setProjectSearch(event.target.value)} placeholder="Search active projects" className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+              <select value={projectId} onChange={(event) => selectProject(event.target.value)} className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" required>
+                <option value="">Choose project</option>
+                {visibleProjects.map((project) => <option key={project.id} value={project.id}>{project.id} — {project.name || "Untitled"}{project.client ? ` (${project.client})` : ""}</option>)}
+              </select>
+            </label>
+          )}
 
           <label className="block text-sm font-medium">
             What happened? <span className="text-destructive">*</span>
