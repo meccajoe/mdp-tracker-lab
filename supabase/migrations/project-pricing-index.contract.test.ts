@@ -10,6 +10,7 @@ test("pricing intelligence index exposes HubSpot-backed project quote signals", 
   const sql = readFileSync(migrationPath, "utf8");
 
   assert.match(sql, /CREATE OR REPLACE VIEW public\.project_pricing_index/i);
+  assert.match(sql, /FROM public\.project_summary p/i);
   assert.match(sql, /p\.hubspot_deal_id IS NOT NULL/i);
   assert.match(sql, /p\.quote_materials/i);
   assert.match(sql, /p\.project_type/i);

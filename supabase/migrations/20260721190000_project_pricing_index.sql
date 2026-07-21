@@ -53,6 +53,6 @@ SELECT
       THEN ROUND((p.total_spent / p.contract_amount) * 100, 1)
     ELSE NULL
   END AS actual_spend_pct_of_contract
-FROM public.projects p
+FROM public.project_summary p
 WHERE p.hubspot_deal_id IS NOT NULL
   AND p.quote_materials IS NOT NULL;
