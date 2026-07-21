@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { formatDateCentral } from "@/lib/date-utils";
 import { formatCurrency } from "@/lib/constants";
+import { PageShell } from "@/components/ui/page-shell";
 
 interface FlaggedExpense {
   id: string;
@@ -62,7 +63,7 @@ export default function FlagsPage() {
   const grandTotal = flaggedExpenses.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <div className="p-6 xl:px-8 max-w-[1800px] mx-auto">
+    <PageShell>
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">🚩 Flagged Expenses</h1>
         <p className="text-muted-foreground text-sm mt-1">Expenses flagged for review across all projects. Admin only.</p>
@@ -79,11 +80,30 @@ export default function FlagsPage() {
           {Object.entries(flagGroups).map(([person, expenses]) => {
             const personTotal = expenses.reduce((s, e) => s + e.amount, 0);
             return (
-              <div key={person} className="border rounded-lg overflow-hidden">
-                <div className="bg-muted/50 px-4 py-3 flex items-center justify-between">
+              <div key={person} className="overflow-hidden rounded-lg border">
+                <div className="flex flex-col gap-1 bg-muted/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-semibold">{person}</span>
                   <span className="text-sm font-medium text-red-600">{formatCurrency(personTotal)} total flagged</span>
                 </div>
+                <div data-slot="flags-mobile-list" className="divide-y md:hidden">
+                  {expenses.map((exp) => (
+                    <article key={exp.id} className="space-y-3 p-4">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="break-words font-medium">{exp.projects?.name ?? "No project"}</p>
+                          <p className="mt-1 break-words text-sm text-muted-foreground">{exp.vendor ?? exp.category}</p>
+                        </div>
+                        <p className="shrink-0 font-medium text-red-600">{formatCurrency(exp.amount)}</p>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-2 text-xs">
+                        <div><dt className="text-muted-foreground">Flagged</dt><dd>{exp.flagged_at ? formatDateCentral(exp.flagged_at) : "—"}</dd></div>
+                        <div><dt className="text-muted-foreground">Expense date</dt><dd>{exp.date}</dd></div>
+                      </dl>
+                      <p className="break-words text-sm italic text-muted-foreground">{exp.flag_note ?? "No note"}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="border-b bg-muted/20">
                     <tr>
@@ -110,6 +130,7 @@ export default function FlagsPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             );
           })}
@@ -121,6 +142,6 @@ export default function FlagsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

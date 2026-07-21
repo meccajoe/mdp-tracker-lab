@@ -13,6 +13,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { formatDateTimeCentral } from "@/lib/date-utils";
+import { PageShell } from "@/components/ui/page-shell";
 
 // Variance thresholds
 const VARIANCE_PCT_THRESHOLD = 5;   // flag if >5% apart
@@ -155,7 +156,7 @@ export default function ReconciliationPage() {
   const unsyncedCount = rows.filter((r) => !r.qbo_synced_at).length;
 
   return (
-    <div className="space-y-6">
+    <PageShell>
       <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-800 px-4 py-3 flex items-start gap-3">
         <span className="text-xl mt-0.5">🚧</span>
         <div>
@@ -163,7 +164,7 @@ export default function ReconciliationPage() {
           <p className="text-sm text-yellow-700 dark:text-yellow-400">This page is a work in progress and has not been reviewed yet. Data may be incomplete or inaccurate.</p>
         </div>
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">QBO Reconciliation</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
@@ -199,7 +200,7 @@ export default function ReconciliationPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex rounded-md border overflow-hidden">
           {(["flagged", "all"] as const).map((f) => (
             <button
@@ -234,6 +235,29 @@ export default function ReconciliationPage() {
               {statusFilter === "flagged" ? "No flagged variances 🎉" : "No projects with QBO links found."}
             </p>
           ) : (
+            <>
+            <div data-slot="reconciliation-mobile-list" className="divide-y lg:hidden">
+              {filtered.map((row) => (
+                <article key={row.project_id} className={`space-y-3 p-4 ${row.flagged ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""}`}>
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={`/projects/${row.project_id}`} className="block break-words font-medium text-blue-600 hover:underline">{row.name}</Link>
+                      <p className="mt-1 text-xs text-muted-foreground">{row.contract_amount != null ? formatCurrency(row.contract_amount) : "No contract amount"}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2"><Badge variant={row.status === "Active" ? "default" : "secondary"}>{row.status}</Badge>{row.flagged && <span title="Variance exceeds threshold">⚠️</span>}</div>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div><dt className="text-muted-foreground">Tracker GP</dt><dd>{row.tracker_gp != null ? formatCurrency(row.tracker_gp) : "—"}</dd></div>
+                    <div><dt className="text-muted-foreground">QBO net income</dt><dd>{row.qbo_net_income != null ? formatCurrency(row.qbo_net_income) : "Not synced"}</dd></div>
+                    <div><dt className="text-muted-foreground">Delta</dt><dd>{row.delta != null ? `${row.delta >= 0 ? "+" : ""}${formatCurrency(row.delta)}` : "—"}</dd></div>
+                    <div><dt className="text-muted-foreground">Delta %</dt><dd>{row.delta_pct != null ? `${row.delta_pct.toFixed(1)}%` : "—"}</dd></div>
+                    <div className="col-span-2"><dt className="text-muted-foreground">Last synced</dt><dd>{row.qbo_synced_at ? formatDateTimeCentral(row.qbo_synced_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never"}</dd></div>
+                  </dl>
+                  <Button size="sm" variant="outline" disabled={syncing !== null} onClick={() => syncProject(row.project_id)}>{syncing === row.project_id ? "Syncing…" : "Sync project"}</Button>
+                </article>
+              ))}
+            </div>
+            <div className="hidden lg:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -326,6 +350,8 @@ export default function ReconciliationPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -333,6 +359,6 @@ export default function ReconciliationPage() {
       <p className="text-xs text-muted-foreground">
         Flags when delta exceeds {VARIANCE_PCT_THRESHOLD}% or ${VARIANCE_ABS_THRESHOLD}. Tracker GP = contract − (expenses + labor). QBO Net Income = income − all expenses per job in QuickBooks.
       </p>
-    </div>
+    </PageShell>
   );
 }

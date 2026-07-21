@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageShell } from "@/components/ui/page-shell";
 
 const ROLES = ["admin", "pm", "production", "viewer"] as const;
 type Role = typeof ROLES[number];
@@ -139,7 +140,7 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl space-y-6">
+    <PageShell>
       <div>
         <h1 className="text-2xl font-bold">User Management</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage who can access the tracker and what they can see.</p>
@@ -158,7 +159,7 @@ export default function UsersPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>
             Users
             <span className="text-muted-foreground font-normal text-sm ml-1">({users.length})</span>
@@ -237,6 +238,39 @@ export default function UsersPage() {
           )}
 
           {/* Users table */}
+          <div data-slot="users-mobile-list" className="divide-y md:hidden">
+            {users.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">No users found.</p>
+            ) : users.map((user) => (
+              <article key={user.email} className="space-y-3 p-4">
+                {editingEmail === user.email ? (
+                  <>
+                    <div className="space-y-1"><label className="text-xs text-muted-foreground">Full name</label><Input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} /></div>
+                    <div className="space-y-1"><label className="text-xs text-muted-foreground">BILL member email</label><Input type="email" value={editBillSpendEmail} onChange={(e) => setEditBillSpendEmail(e.target.value)} /></div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-1"><label className="text-xs text-muted-foreground">Role</label><Select value={editRole} onValueChange={(v) => setEditRole((v as Role) ?? "pm")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div>
+                      <div className="space-y-1"><label className="text-xs text-muted-foreground">Initials</label><Input value={editInitials} onChange={(e) => setEditInitials(e.target.value.toUpperCase().slice(0, 3))} className="uppercase" /></div>
+                    </div>
+                    <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => handleSave(user.email)} disabled={saving}>Save</Button><Button variant="outline" size="sm" onClick={() => setEditingEmail(null)}>Cancel</Button></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0"><p className="break-words font-medium">{user.full_name || "Unnamed user"}</p><p className="break-all text-sm text-muted-foreground">{user.email}</p></div>
+                      <Badge variant={user.role === "admin" ? "default" : user.role === "pm" ? "secondary" : "outline"}>{user.role}</Badge>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="col-span-2"><dt className="text-muted-foreground">BILL email</dt><dd className="break-all">{user.bill_spend_email || "Uses login email"}</dd></div>
+                      <div><dt className="text-muted-foreground">Initials</dt><dd>{user.pm_initials || "—"}</dd></div>
+                      <div><dt className="text-muted-foreground">PM filters</dt><dd>{user.show_in_filters ? "Visible" : "Hidden"}</dd></div>
+                    </dl>
+                    <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => startEdit(user)}>Edit</Button><Button variant="outline" size="sm" onClick={() => handleToggleFilter(user.email, user.show_in_filters ?? false)}>{user.show_in_filters ? "Hide from filters" : "Show in filters"}</Button><Button variant="outline" size="sm" className="text-red-500" onClick={() => handleDelete(user.email, user.full_name ?? "")}>Remove</Button></div>
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -346,8 +380,9 @@ export default function UsersPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }
