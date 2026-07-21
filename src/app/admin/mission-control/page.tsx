@@ -129,6 +129,7 @@ export default function AdminMissionControlPage() {
   const [status, setStatus] = useState('all');
   const [owner, setOwner] = useState('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
   useEffect(() => {
     async function loadSession() {
@@ -331,8 +332,8 @@ export default function AdminMissionControlPage() {
         </div>
       </section>
 
-      <section className="grid min-w-0 max-w-full gap-4">
-        <div className="tracker-shell min-w-0 overflow-hidden">
+      <section className="grid min-w-0 max-w-full gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+        <div className={`tracker-shell min-w-0 overflow-hidden ${mobileDetailOpen ? 'hidden lg:block' : 'block'}`}>
           <div className="border-b border-border px-4 py-4 sm:px-5">
             <div className="text-xl font-semibold tracking-tight">Active work</div>
             <div className="mt-1 text-sm text-muted-foreground">{filteredItems.length} items in this view</div>
@@ -348,7 +349,7 @@ export default function AdminMissionControlPage() {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setSelectedId(item.id)}
+                    onClick={() => { setSelectedId(item.id); setMobileDetailOpen(true); }}
                     className={`block w-full px-4 py-4 text-left transition sm:px-5 ${selected ? 'bg-black/[0.03]' : 'hover:bg-black/[0.02]'}`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
@@ -370,11 +371,14 @@ export default function AdminMissionControlPage() {
           </div>
         </div>
 
-        <aside className="tracker-shell min-w-0 p-4 sm:p-5">
+        <aside className={`tracker-shell min-w-0 p-4 sm:p-5 ${mobileDetailOpen ? 'block' : 'hidden lg:block'}`}>
           {!selectedItem ? (
             <div className="py-12 text-center text-sm text-muted-foreground">Select a work item to inspect its detail.</div>
           ) : (
             <div className="space-y-4">
+              <button type="button" onClick={() => setMobileDetailOpen(false)} className="text-sm font-medium text-blue-700 underline underline-offset-2 lg:hidden">
+                ← Back to list
+              </button>
               <div>
                 <div className="tracker-section-label">{selectedItem.workstreamLabel} · {selectedItem.type}</div>
                 <h2 className="mt-2 break-words text-2xl font-semibold tracking-tight">{selectedItem.title}</h2>

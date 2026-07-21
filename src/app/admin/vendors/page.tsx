@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { PageShell } from "@/components/ui/page-shell";
 
 interface Vendor { id: string; name: string; active: boolean; }
 interface Purchaser { id: string; initials: string; full_name: string; active: boolean; }
@@ -122,7 +123,7 @@ export default function VendorManagementPage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
-    <div className="container mx-auto py-8 px-4 xl:px-6 max-w-[1800px] space-y-6">
+    <PageShell>
       <h1 className="text-2xl font-bold">Vendor Management</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -134,7 +135,7 @@ export default function VendorManagementPage() {
           </CardHeader>
           <CardContent className="space-y-4 p-0">
             {showVendorForm && (
-              <div className="flex gap-2 px-4 pb-2 pt-4">
+              <div className="flex flex-col gap-2 px-4 pb-2 pt-4 sm:flex-row">
                 <Input value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} placeholder="Vendor name" onKeyDown={(e) => e.key === "Enter" && handleAddVendor()} autoFocus />
                 <Button onClick={handleAddVendor} disabled={addingVendor || !newVendorName.trim()} size="sm">{addingVendor ? "Adding..." : "Add"}</Button>
                 <Button variant="outline" size="sm" onClick={() => { setShowVendorForm(false); setNewVendorName(""); }}>Cancel</Button>
@@ -195,8 +196,8 @@ export default function VendorManagementPage() {
           </CardHeader>
           <CardContent className="space-y-4 p-0">
             {showPurchaserForm && (
-              <div className="flex gap-2 px-4 pb-2 pt-4">
-                <Input value={newPurchaserInitials} onChange={(e) => setNewPurchaserInitials(e.target.value)} placeholder="Initials" className="w-24" />
+              <div className="flex flex-col gap-2 px-4 pb-2 pt-4 sm:flex-row">
+                <Input value={newPurchaserInitials} onChange={(e) => setNewPurchaserInitials(e.target.value)} placeholder="Initials" className="w-full sm:w-24" />
                 <Input value={newPurchaserName} onChange={(e) => setNewPurchaserName(e.target.value)} placeholder="Full name" onKeyDown={(e) => e.key === "Enter" && handleAddPurchaser()} />
                 <Button onClick={handleAddPurchaser} disabled={addingPurchaser || !newPurchaserInitials.trim() || !newPurchaserName.trim()} size="sm">{addingPurchaser ? "Adding..." : "Add"}</Button>
                 <Button variant="outline" size="sm" onClick={() => { setShowPurchaserForm(false); setNewPurchaserInitials(""); setNewPurchaserName(""); }}>Cancel</Button>
@@ -257,6 +258,6 @@ export default function VendorManagementPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }

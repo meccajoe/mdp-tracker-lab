@@ -507,14 +507,14 @@ export default function MaterialDetailClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{mode === "create" ? "Create Material" : form.canonical_name || "Material Detail"}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold">{mode === "create" ? "Create Material" : form.canonical_name || "Material Detail"}</h1>
           <p className="text-sm text-muted-foreground">
             Maintain the canonical catalog record used by the materials database.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/admin/materials" className={buttonVariants({ variant: "outline" })}>Back to Materials</Link>
           {mode === "edit" && (
             <Button variant="outline" onClick={handleArchiveToggle} disabled={saving}>

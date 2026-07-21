@@ -473,7 +473,7 @@ export default function MaterialsImportClient() {
                   <div className="flex items-center gap-2">
                     <Badge variant={row.status === "needs_review" ? "outline" : "default"}>{row.status}</Badge>
                     {row.normalized_candidate.match.label && (
-                      <Badge variant="secondary">
+                      <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left">
                         {row.normalized_candidate.match.matched_by}: {row.normalized_candidate.match.label} ({row.normalized_candidate.match.confidence})
                       </Badge>
                     )}

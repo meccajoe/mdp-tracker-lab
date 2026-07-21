@@ -92,7 +92,7 @@ function OverrideRow({
   const isBudgetOverridden = budgetOverrides[catKey] !== undefined && budgetOverrides[catKey] !== "";
 
   return (
-    <div className="grid grid-cols-[160px_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
+    <div className="grid grid-cols-1 md:grid-cols-[160px_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
       <span className="text-sm font-medium">{label}</span>
 
       {/* % input */}
@@ -179,7 +179,7 @@ function BudgetFormulaSection({
           Labor &amp; Materials <span className="normal-case font-normal">(% of fabrication subtotal)</span>
         </h4>
         <div className="rounded-lg border border-border overflow-hidden">
-          <div className="grid grid-cols-[160px_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
+          <div className="hidden md:grid md:grid-cols-[160px_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
             <span>Category</span>
             <span>% of Fabrication</span>
             <span />
@@ -219,7 +219,7 @@ function BudgetFormulaSection({
           Non-Labor &amp; Materials Budget
         </h4>
         <div className="rounded-lg border border-border overflow-hidden">
-          <div className="grid grid-cols-[160px_1fr_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
+          <div className="hidden md:grid md:grid-cols-[160px_1fr_80px_24px_1fr] gap-3 px-4 py-2 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground">
             <span>Category</span>
             <span>Quote Amount</span>
             <span>% Rate</span>
@@ -236,7 +236,7 @@ function BudgetFormulaSection({
             const isBudgetOverridden = budgetOverrides[cat.key] !== undefined && budgetOverrides[cat.key] !== "";
 
             return (
-              <div key={cat.key} className="grid grid-cols-[160px_1fr_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
+              <div key={cat.key} className="grid grid-cols-1 md:grid-cols-[160px_1fr_80px_24px_1fr] gap-3 items-center px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                 <span className="text-sm font-medium">{cat.label}</span>
                 <input
                   type="number" step="1" min="0"
@@ -671,10 +671,10 @@ export default function DataEntryPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex h-dvh flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-background">
-        <div className="flex items-center justify-between">
+      <div className="flex-shrink-0 border-b border-border bg-background px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold">Data Entry Hub</h1>
             <p className="text-sm text-muted-foreground">Manage projects, budgets, and details</p>

@@ -238,7 +238,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-border -mb-6">
+      <div className="grid grid-cols-3 border-b border-border -mb-6">
         <button
           onClick={() => setActiveTab("settings")}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === "settings" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
@@ -392,6 +392,7 @@ export default function SettingsPage() {
           ) : (
             <Card>
               <CardContent className="p-0">
+                <div data-slot="settings-flags-table" className="max-w-full overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-muted/40">
@@ -439,6 +440,7 @@ export default function SettingsPage() {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
           )}

@@ -225,9 +225,9 @@ export default function LineItemSearchClient() {
   const hasFilters = filters.q || filters.jobNumber || filters.year || filters.projectName;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden">
       {/* ── Header ── */}
-      <div className="border-b border-border px-6 py-4 flex items-center gap-4 bg-background flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center gap-3 border-b border-border bg-background px-4 py-4 sm:px-6">
         <div className="flex-1">
           <h1 className="text-lg font-semibold text-foreground leading-none mb-0.5">Search Items</h1>
           <p className="text-xs text-muted-foreground">Search across all HubSpot quotes and QBO invoices</p>
@@ -244,7 +244,7 @@ export default function LineItemSearchClient() {
       </div>
 
       {/* ── Search bar row ── */}
-      <div className="px-6 py-3 border-b border-border bg-background flex-shrink-0">
+      <div className="flex-shrink-0 border-b border-border bg-background px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2 max-w-3xl">
           <Input
             placeholder="Search SKU, description, project..."
@@ -271,7 +271,7 @@ export default function LineItemSearchClient() {
 
             {/* Dropdown panel */}
             {filterOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-64 bg-background border border-border rounded-lg shadow-lg z-50 p-4 space-y-4">
+              <div className="absolute right-0 top-full z-50 mt-1.5 w-[min(16rem,calc(100vw-2rem))] space-y-4 rounded-lg border border-border bg-background p-4 shadow-lg">
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1">Job Number</label>
                   <Input
