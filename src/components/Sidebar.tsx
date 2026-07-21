@@ -224,6 +224,7 @@ export default function Sidebar({
             ) : reportsOpen && (
               <>
                 <NavLink href="/admin/reports/wip" label="WIP" icon={reportIcon} collapsed={false} exact={false} />
+                <NavLink href="/admin/pricing-intelligence" label="Pricing Intelligence" icon={lineItemIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/portfolios" label="Portfolio Center" icon={portfolioIcon} collapsed={false} exact={false} />
                 {canSeeMissionControl && <NavLink href="/admin/mission-control" label="Mission Control" icon={missionControlIcon} collapsed={false} exact={false} />}
               </>
