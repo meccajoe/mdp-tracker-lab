@@ -7,7 +7,7 @@ const ISSUE_SEVERITIES = new Set(["low", "medium", "high", "critical"]);
 const ISSUE_STATUSES = new Set(["open", "in_progress", "resolved", "closed"]);
 
 export async function GET(request: NextRequest) {
-  const actor = await requireIssueActor();
+  const actor = await requireIssueActor(request);
   if (!actor.ok) return actor.response;
 
   const params = request.nextUrl.searchParams;
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const actor = await requireIssueActor();
+  const actor = await requireIssueActor(request);
   if (!actor.ok) return actor.response;
 
   const body = (await request.json().catch(() => ({}))) as {

@@ -15,6 +15,8 @@ test("quick issue logging is available from the persistent navigation", () => {
   assert.match(dialog, /Project/);
   assert.match(dialog, /Category/);
   assert.match(dialog, /\/api\/production-issues/);
+  assert.match(dialog, /access_token/);
+  assert.match(dialog, /Authorization/);
   assert.match(dialog, /ownerLabel/);
   assert.match(sidebar, /IssueQuickLogDialog/);
 });

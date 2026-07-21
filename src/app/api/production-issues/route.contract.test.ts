@@ -9,7 +9,7 @@ test("production issues API exposes authenticated list and create paths", () => 
   assert.ok(existsSync(routePath), "production issue collection route should exist");
   const source = readFileSync(routePath, "utf8");
 
-  assert.match(source, /requireIssueActor/);
+  assert.match(source, /requireIssueActor\(request\)/);
   assert.match(source, /export async function GET/);
   assert.match(source, /export async function POST/);
   assert.match(source, /from\("production_issues"\)/);

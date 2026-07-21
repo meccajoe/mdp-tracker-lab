@@ -177,9 +177,9 @@ export default function Sidebar({
         {/* Core nav */}
         <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
-        {canLogIssues && <IssueQuickLogDialog collapsed={collapsed} />}
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
+        {canLogIssues && <IssueQuickLogDialog collapsed={collapsed} />}
 
         {/* Team Bonuses — admin only for now */}
         {canSeeTeamBonuses(role) && (

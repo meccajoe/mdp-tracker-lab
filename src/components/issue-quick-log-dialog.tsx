@@ -100,9 +100,15 @@ export function IssueQuickLogDialog({ collapsed = false }: { collapsed?: boolean
     }
     setSaving(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Authentication required");
       const response = await fetch("/api/production-issues", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + session.access_token,
+        },
         body: JSON.stringify({
           projectId,
           category,
