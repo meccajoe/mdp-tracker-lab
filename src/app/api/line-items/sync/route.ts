@@ -45,6 +45,7 @@ interface HsDeal {
   id: string;
   properties: {
     dealname?: string;
+    amount?: string;
     closedate?: string;
     job_number?: string;
     dealstage?: string;
@@ -67,7 +68,7 @@ async function getAllHubSpotDeals(): Promise<HsDeal[]> {
           ],
         },
       ],
-      properties: ["dealname", "closedate", "job_number", "dealstage"],
+      properties: ["dealname", "amount", "closedate", "job_number", "dealstage"],
       limit: 100,
     };
     if (after) body.after = after;
@@ -201,7 +202,11 @@ async function syncHubSpotDeal(
 
   let quoteId: string | null;
   try {
-    quoteId = await getDealQuote(dealId, dealName);
+    quoteId = await getDealQuote(
+      dealId,
+      dealName,
+      Number.parseFloat(deal.properties.amount ?? "") || undefined,
+    );
   } catch (e) {
     console.warn(`[hs-sync] Could not get quote for deal ${dealId}: ${e}`);
     return 0;

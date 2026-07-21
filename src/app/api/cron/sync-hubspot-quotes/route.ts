@@ -121,7 +121,11 @@ export async function GET(request: NextRequest) {
       }
 
       let parsed = emptyParsedQuote(parseFloat(deal.properties.amount ?? "0") || 0);
-      const quoteId = await getDealQuote(dealId, deal.properties.dealname ?? undefined);
+      const quoteId = await getDealQuote(
+        dealId,
+        deal.properties.dealname ?? undefined,
+        Number.parseFloat(deal.properties.amount ?? "") || undefined,
+      );
 
       if (!quoteId) {
         skipped += 1;

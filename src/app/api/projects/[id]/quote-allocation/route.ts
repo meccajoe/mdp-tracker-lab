@@ -26,6 +26,7 @@ export async function GET(
     .select(`
       id,
       name,
+      contract_amount,
       hubspot_deal_id,
       pct_labor,
       pct_materials,
@@ -51,7 +52,11 @@ export async function GET(
   }
 
   try {
-    const quoteId = await getDealQuote(String(project.hubspot_deal_id), project.name ?? undefined);
+    const quoteId = await getDealQuote(
+      String(project.hubspot_deal_id),
+      project.name ?? undefined,
+      project.contract_amount ?? undefined,
+    );
     if (!quoteId) {
       return NextResponse.json({ error: "No HubSpot quote found for this project" }, { status: 404 });
     }

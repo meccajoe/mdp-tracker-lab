@@ -112,44 +112,62 @@ function getQuoteVersion(quoteName: string, dealName: string): number {
   return 0;
 }
 
-export async function getDealQuote(dealId: string, dealName?: string): Promise<string | null> {
+export type HubSpotQuoteCandidate = {
+  id: string;
+  title: string;
+  createdAt: string;
+  amount: number | null;
+};
+
+export function selectDealQuote(candidates: HubSpotQuoteCandidate[], dealName?: string, expectedAmount?: number): HubSpotQuoteCandidate | null {
+  if (candidates.length === 0) return null;
+
+  if (expectedAmount && expectedAmount > 0) {
+    const amountMatched = candidates.filter((candidate) => candidate.amount != null && Math.abs(candidate.amount - expectedAmount) < 0.01);
+    if (amountMatched.length > 0) {
+      return [...amountMatched].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    }
+  }
+
+  if (candidates.length === 1 || !dealName) return candidates[0];
+  const versioned = candidates
+    .map((candidate) => ({ ...candidate, version: getQuoteVersion(candidate.title, dealName) }))
+    .filter((candidate) => candidate.version > 0);
+  if (versioned.length === 0) {
+    return [...candidates].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  }
+  return versioned.sort((a, b) => b.version - a.version || b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+export async function getDealQuote(dealId: string, dealName?: string, expectedAmount?: number): Promise<string | null> {
   const assocData = await hubspotFetch(
     `/crm/v3/objects/deals/${dealId}/associations/quotes`
   ) as { results?: Array<{ id: string }> };
 
   const refs = assocData.results ?? [];
   if (refs.length === 0) return null;
-  if (refs.length === 1 || !dealName) return refs[0].id;
 
-  // Fetch hs_title + hs_createdate for each quote so we can pick the highest version
-  // (hs_createdate used as tiebreaker when two quotes share a version number)
-  const quotes = await Promise.all(
+  // Fetch the quote total as well as title/date. When the deal amount matches an
+  // associated quote, it is the commercial source of truth over a title-version heuristic.
+  const quotes: HubSpotQuoteCandidate[] = await Promise.all(
     refs.map((r) =>
-      hubspotFetch(`/crm/v3/objects/quotes/${r.id}?properties=hs_title,hs_createdate`)
-        .then((q) => ({
-          id: r.id,
-          title: ((q as { properties?: { hs_title?: string; hs_createdate?: string } }).properties?.hs_title ?? ""),
-          createdAt: ((q as { properties?: { hs_createdate?: string } }).properties?.hs_createdate ?? ""),
-        }))
-        .catch(() => ({ id: r.id, title: "", createdAt: "" }))
+      hubspotFetch(`/crm/v3/objects/quotes/${r.id}?properties=hs_title,hs_createdate,hs_quote_amount`)
+        .then((q) => {
+          const properties = (q as { properties?: { hs_title?: string; hs_createdate?: string; hs_quote_amount?: string } }).properties;
+          return {
+            id: r.id,
+            title: properties?.hs_title ?? "",
+            createdAt: properties?.hs_createdate ?? "",
+            amount: Number.parseFloat(properties?.hs_quote_amount ?? "") || null,
+          };
+        })
+        .catch(() => ({ id: r.id, title: "", createdAt: "", amount: null }))
     )
   );
 
-  const versioned = quotes
-    .map((q) => ({ id: q.id, version: getQuoteVersion(q.title, dealName), createdAt: q.createdAt, title: q.title }))
-    .filter((v) => v.version > 0);
-
-  if (versioned.length === 0) {
-    // Naming didn’t match — fall back to most recently created
-    console.warn(`[hubspot] No version-matched quotes for "${dealName}" — falling back to most recent of ${quotes.length}`);
-    const sorted = [...quotes].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return sorted[0].id;
-  }
-
-  // Sort by version desc, then by createdAt desc as tiebreaker
-  versioned.sort((a, b) => b.version - a.version || b.createdAt.localeCompare(a.createdAt));
-  const winner = versioned[0];
-  console.log(`[hubspot] Selected quote v${winner.version} "${winner.title}" (id: ${winner.id}) for "${dealName}"`);
+  const winner = selectDealQuote(quotes, dealName, expectedAmount);
+  if (!winner) return null;
+  console.log(`[hubspot] Selected quote "${winner.title}" (id: ${winner.id}) for "${dealName ?? dealId}"${expectedAmount ? ` matching deal amount ${expectedAmount}` : ""}`);
   return winner.id;
 }
 

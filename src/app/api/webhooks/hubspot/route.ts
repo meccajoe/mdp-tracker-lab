@@ -389,7 +389,11 @@ export async function POST(req: NextRequest) {
       };
 
       try {
-        const quoteId = await getDealQuote(String(dealId), deal.properties.dealname ?? undefined);
+        const quoteId = await getDealQuote(
+          String(dealId),
+          deal.properties.dealname ?? undefined,
+          Number.parseFloat(deal.properties.amount ?? "") || undefined,
+        );
         if (quoteId) {
           const lineItems = await getQuoteLineItems(quoteId);
           if (lineItems.length > 0) {
