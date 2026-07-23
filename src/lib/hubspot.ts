@@ -109,7 +109,12 @@ function getQuoteVersion(quoteName: string, dealName: string): number {
     new RegExp(`^${escaped}\\s+(?:\\(v(\\d+)\\)|v(\\d+))(?:\\s|$)`, 'i')
   );
   if (match) return parseInt(match[1] ?? match[2], 10);
-  return 0;
+
+  // Associated quotes can use a shortened title (for example `LIFEWTR (v3)`
+  // for a deal called `LIFEWTR Tunnel`). Once the association scopes the
+  // candidates to one deal, a generic version label remains authoritative.
+  const genericVersion = quoteName.match(/\bv(\d+)\b/i);
+  return genericVersion ? parseInt(genericVersion[1], 10) : 0;
 }
 
 export type HubSpotQuoteCandidate = {
