@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { selectDealQuote } from "./hubspot";
+import { getDeal, selectDealQuote } from "./hubspot";
 
 test("quote selection uses an explicit associated quote override for a split-scope project", () => {
   const selected = selectDealQuote([
@@ -21,4 +21,35 @@ test("quote selection recognizes abbreviated associated quote titles with generi
   ], "LIFEWTR Tunnel");
 
   assert.equal(selected?.id, "v3");
+});
+
+test("HubSpot reads retry a rate-limited request before failing", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    if (calls === 1) {
+      return new Response("rate limited", { status: 429, headers: { "Retry-After": "0" } });
+    }
+    return new Response(JSON.stringify({
+      id: "deal-1",
+      properties: {
+        dealname: "Retry fixture",
+        closedate: "2026-07-01T00:00:00.000Z",
+        due_date: "2026-08-01T00:00:00.000Z",
+        amount: "100",
+        hs_object_id: "deal-1",
+        job_number: "26199",
+        hs_is_closed_won: "true",
+      },
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+
+  try {
+    const deal = await getDeal("deal-1");
+    assert.equal(deal.id, "deal-1");
+    assert.equal(calls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

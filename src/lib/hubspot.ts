@@ -1,18 +1,56 @@
 const HUBSPOT_API_KEY = process.env.HUBSPOT_API_KEY!;
 const BASE_URL = "https://api.hubapi.com";
+const HUBSPOT_MIN_REQUEST_INTERVAL_MS = 150;
+const HUBSPOT_MAX_RATE_LIMIT_RETRIES = 4;
+let nextHubSpotRequestAt = 0;
+let hubSpotPacingQueue: Promise<void> = Promise.resolve();
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function paceHubSpotRequest(): Promise<void> {
+  let releaseQueue!: () => void;
+  const previous = hubSpotPacingQueue;
+  hubSpotPacingQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+  await previous;
+
+  const waitMs = Math.max(0, nextHubSpotRequestAt - Date.now());
+  nextHubSpotRequestAt = Math.max(Date.now(), nextHubSpotRequestAt) + HUBSPOT_MIN_REQUEST_INTERVAL_MS;
+  releaseQueue();
+  if (waitMs > 0) await sleep(waitMs);
+}
+
+function retryAfterMs(value: string | null, attempt: number): number {
+  const seconds = Number.parseFloat(value ?? "");
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  return Math.min(1000 * 2 ** attempt, 15000);
+}
 
 async function hubspotFetch(path: string): Promise<unknown> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      Authorization: `Bearer ${HUBSPOT_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HubSpot API error ${res.status} for ${path}: ${text}`);
+  for (let attempt = 0; attempt <= HUBSPOT_MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    await paceHubSpotRequest();
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers: {
+        Authorization: `Bearer ${HUBSPOT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (res.status === 429 && attempt < HUBSPOT_MAX_RATE_LIMIT_RETRIES) {
+      await sleep(retryAfterMs(res.headers.get("Retry-After"), attempt));
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HubSpot API error ${res.status} for ${path}: ${text}`);
+    }
+    return res.json();
   }
-  return res.json();
+
+  throw new Error(`HubSpot API rate limit retries exhausted for ${path}`);
 }
 
 export function normalizeHubspotDate(value: string | null | undefined): string | null {

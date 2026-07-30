@@ -185,11 +185,11 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    ok: true,
+    ok: failed === 0,
     scanned: projects.length,
     updated,
     skipped,
     failed,
     results,
-  });
+  }, { status: failed > 0 ? 502 : 200 });
 }
