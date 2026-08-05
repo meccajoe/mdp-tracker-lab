@@ -55,7 +55,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EditExpenseDialog } from "@/components/EditExpenseDialog";
-import { Pencil, Trash2, Flag, ChevronDown, ChevronRight, Loader2, Bell } from "lucide-react";
+import { Pencil, Trash2, Flag, ChevronDown, ChevronRight, Loader2, Bell, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -75,6 +75,7 @@ import { MondayButton } from "@/components/monday-button";
 import { QboLaborTable } from "@/components/qbo-labor-table";
 import { ProjectNotificationRecommendationCard } from "@/components/project-notification-recommendation-card";
 import { ProjectIssuesCard } from "@/components/project-issues-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
@@ -272,6 +273,8 @@ function getReadableBillBudgetNote(project: ProjectSummary): string | null {
   return raw;
 }
 
+type ProjectWorkspaceView = "allocation" | "overview" | "budget" | "activity" | "issues";
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
@@ -293,6 +296,7 @@ export default function ProjectDetailPage() {
   const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
   const [showBudgetBreakdown, setShowBudgetBreakdown] = useState(false);
   const [showQuoteAllocation, setShowQuoteAllocation] = useState(true);
+  const [workspaceView, setWorkspaceView] = useState<ProjectWorkspaceView>("allocation");
   const [rebaselineSaving, setRebaselineSaving] = useState(false);
   const [billBudgetCreating, setBillBudgetCreating] = useState(false);
   const [billBudgetViewUrl, setBillBudgetViewUrl] = useState<string | null>(null);
@@ -877,6 +881,17 @@ export default function ProjectDetailPage() {
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {project.job_number && <span className="font-medium text-foreground">Job #{project.job_number}</span>}
             {project.client && <span>Client: {project.client}</span>}
+            {project.notes && (
+              <Dialog>
+                <DialogTrigger render={<button type="button" className="inline-flex items-center gap-1 font-medium text-foreground hover:underline" aria-label="Open project notes" title="Open project notes" />}>
+                  <FileText className="h-3.5 w-3.5" /> Notes
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader><DialogTitle>Project notes</DialogTitle></DialogHeader>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{project.notes}</p>
+                </DialogContent>
+              </Dialog>
+            )}
             {project.pm && <span>PM: {getPMName(project.pm)}</span>}
             {project.contract_amount != null && (
               <span>Contract: {formatCurrency(project.contract_amount)}</span>
@@ -922,21 +937,26 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {project.notes && (
-        <details className="mt-1 group">
-          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-1 select-none">
-            <svg className="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-medium">Notes</span>
-          </summary>
-          <div className="mt-1.5 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground border border-border">
-            {project.notes}
-          </div>
-        </details>
-      )}
+      <Tabs
+        value={workspaceView}
+        onValueChange={(value) => {
+          const nextView = value as ProjectWorkspaceView;
+          setWorkspaceView(nextView);
+          if (nextView === "budget") setShowBudgetBreakdown(true);
+        }}
+      >
+        <div className="overflow-x-auto border-b">
+          <TabsList variant="line" className="w-max min-w-full justify-start gap-5 px-1">
+            <TabsTrigger value="allocation">Quote Allocation</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="budget">Budget Detail</TabsTrigger>
+            <TabsTrigger value="activity">Expenses &amp; Labor</TabsTrigger>
+            <TabsTrigger value="issues">Production Issues</TabsTrigger>
+          </TabsList>
+        </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch">
+        <TabsContent value="overview" className="pt-5 space-y-6">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch">
         <Card className="h-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Timeline</CardTitle>
@@ -1135,6 +1155,9 @@ export default function ProjectDetailPage() {
         );
       })()}
 
+      </TabsContent>
+
+      <TabsContent value="budget" className="pt-5 space-y-6">
       {/* Budget Breakdown Table */}
       <Card>
         <CardHeader data-slot="project-budget-header" className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1549,6 +1572,9 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="allocation" className="pt-5 space-y-6">
       {/* Budget Allocation by Quote Line */}
       <Card>
         <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1631,6 +1657,9 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="activity" className="pt-5 space-y-6">
       {/* Expenses & Labor Card */}
       <Card>
           <CardHeader className="flex flex-col items-stretch gap-2 border-b pb-0 sm:flex-row sm:items-center sm:justify-between">
@@ -2051,8 +2080,12 @@ export default function ProjectDetailPage() {
             })()}
           </CardContent>
         </Card>
+      </TabsContent>
 
-      <ProjectIssuesCard project={{ id: project.id, name: project.name, pm: project.pm }} />
+      <TabsContent value="issues" className="pt-5">
+        <ProjectIssuesCard project={{ id: project.id, name: project.name, pm: project.pm }} />
+      </TabsContent>
+      </Tabs>
     </PageShell>
   );
 }
