@@ -9,6 +9,10 @@ test("project pages use quote allocation as the default workspace view", () => {
   assert.match(source, /type ProjectWorkspaceView = "allocation" \| "overview" \| "budget" \| "activity" \| "issues"/);
   assert.match(source, /useState<ProjectWorkspaceView>\("allocation"\)/);
   assert.match(source, /TabsTrigger value="allocation">Quote Allocation<\/TabsTrigger>/);
+  assert.ok(
+    source.indexOf('TabsTrigger value="overview">Overview') < source.indexOf('TabsTrigger value="allocation">Quote Allocation'),
+    "Overview should be first in the visible tab rail while Quote Allocation stays the default state"
+  );
   assert.match(source, /TabsContent value="overview"/);
   assert.match(source, /TabsContent value="budget"/);
   assert.match(source, /TabsContent value="activity"/);

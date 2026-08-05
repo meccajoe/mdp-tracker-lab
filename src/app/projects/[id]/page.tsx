@@ -947,8 +947,8 @@ export default function ProjectDetailPage() {
       >
         <div className="overflow-x-auto border-b">
           <TabsList variant="line" className="w-max min-w-full justify-start gap-5 px-1">
-            <TabsTrigger value="allocation">Quote Allocation</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="allocation">Quote Allocation</TabsTrigger>
             <TabsTrigger value="budget">Budget Detail</TabsTrigger>
             <TabsTrigger value="activity">Expenses &amp; Labor</TabsTrigger>
             <TabsTrigger value="issues">Production Issues</TabsTrigger>
