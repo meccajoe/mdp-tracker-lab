@@ -13,7 +13,10 @@ export const HARDCODED_DEFAULT_PCTS: Record<string, number> = {
   flooring: 65,
 };
 
-export const LABOR_RATE_PER_HR = 41;
+// Client-facing sell rate: converts quoted labor dollars into hours sold.
+export const QUOTED_LABOR_RATE_PER_HR = 105;
+// Backward-compatible alias for quote/budget modules. Do not use for actual labor cost.
+export const LABOR_RATE_PER_HR = QUOTED_LABOR_RATE_PER_HR;
 
 export const BUDGET_CATEGORIES = [
   { key: "design",    label: "Design",            quoteKey: "quote_design",    budgetKey: "budget_design",    pctKey: "pct_design" },

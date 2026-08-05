@@ -80,6 +80,7 @@ import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
 import { PageShell } from "@/components/ui/page-shell";
+import { QUOTED_LABOR_RATE_PER_HR } from "@/lib/budget-formula";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -1228,7 +1229,7 @@ export default function ProjectDetailPage() {
                   if (storedVal != null) return storedVal;
                   if (!project.contract_amount) return 0;
                   if (field.key === "budget_materials") return Math.round(project.contract_amount * 0.25);
-                  if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / LABOR_RATE);
+                  if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / QUOTED_LABOR_RATE_PER_HR);
                   return 0;
                 })();
                 const budgeted = editingBudget && budgetEdits[field.key] !== undefined

@@ -98,7 +98,7 @@ test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budge
 
   assert.equal(fields.quote_materials, 14330);
   assert.equal(fields.budget_materials, 3583);
-  assert.equal(fields.budget_hrs, 87);
+  assert.equal(fields.budget_hrs, 34);
   assert.equal(fields.quote_storage, 1250);
   assert.equal(fields.quote_flooring, 1930);
 });
@@ -191,7 +191,7 @@ test("buildBudgetPayloadFromProjectQuote derives live rebaseline budgets from qu
   });
 
   assert.equal(budgets.budget_materials, 3583);
-  assert.equal(budgets.budget_hrs, 87);
+  assert.equal(budgets.budget_hrs, 34);
   assert.equal(budgets.budget_design, 500);
   assert.equal(budgets.budget_pm, 713);
   assert.equal(budgets.budget_shipping, 3395);
@@ -264,8 +264,8 @@ test("buildQuoteCompareRows shows zero variance after a fresh rebaseline", () =>
   const designRow = rows.find((row) => row.category === "Design");
 
   assert.ok(lmRow);
-  assert.equal(lmRow?.quote_basis_total, 7150);
-  assert.equal(lmRow?.budget_total, 7150);
+  assert.equal(lmRow?.quote_basis_total, 7153);
+  assert.equal(lmRow?.budget_total, 7153);
   assert.equal(lmRow?.variance_quote_to_budget, 0);
 
   assert.ok(designRow);
