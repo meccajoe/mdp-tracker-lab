@@ -291,7 +291,8 @@ export default function ProjectDetailPage() {
   const [activeExpenseTab, setActiveExpenseTab] = useState<"expenses" | "labor">("expenses");
   const [showCharts, setShowCharts] = useState(false);
   const [expandedBudgetRow, setExpandedBudgetRow] = useState<string | null>(null);
-  const [showQuoteAllocation, setShowQuoteAllocation] = useState(false);
+  const [showBudgetBreakdown, setShowBudgetBreakdown] = useState(false);
+  const [showQuoteAllocation, setShowQuoteAllocation] = useState(true);
   const [rebaselineSaving, setRebaselineSaving] = useState(false);
   const [billBudgetCreating, setBillBudgetCreating] = useState(false);
   const [billBudgetViewUrl, setBillBudgetViewUrl] = useState<string | null>(null);
@@ -1139,6 +1140,9 @@ export default function ProjectDetailPage() {
         <CardHeader data-slot="project-budget-header" className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="min-w-0">Budget Breakdown</CardTitle>
           <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowBudgetBreakdown((state) => !state)}>
+            {showBudgetBreakdown ? "Hide Breakdown" : "Show Breakdown"}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowCharts(!showCharts)}>
             {showCharts ? "Hide Charts" : "Charts"}
           </Button>
@@ -1170,7 +1174,8 @@ export default function ProjectDetailPage() {
           )}
           </div>
         </CardHeader>
-        <CardContent data-slot="project-budget-table" className="min-w-0 max-w-full overflow-x-auto">
+        {showBudgetBreakdown && (
+          <CardContent data-slot="project-budget-table" className="min-w-0 max-w-full overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1541,6 +1546,7 @@ export default function ProjectDetailPage() {
             );
           })()}
         </CardContent>
+        )}
       </Card>
 
       {/* Budget Allocation by Quote Line */}
