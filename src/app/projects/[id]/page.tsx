@@ -880,7 +880,6 @@ export default function ProjectDetailPage() {
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {project.job_number && <span className="font-medium text-foreground">Job #{project.job_number}</span>}
-            {project.client && <span>Client: {project.client}</span>}
             {project.notes && (
               <Dialog>
                 <DialogTrigger render={<button type="button" className="inline-flex items-center gap-1 font-medium text-foreground hover:underline" aria-label="Open project notes" title="Open project notes" />}>
@@ -892,6 +891,7 @@ export default function ProjectDetailPage() {
                 </DialogContent>
               </Dialog>
             )}
+            {project.client && <span>Client: {project.client}</span>}
             {project.pm && <span>PM: {getPMName(project.pm)}</span>}
             {project.contract_amount != null && (
               <span>Contract: {formatCurrency(project.contract_amount)}</span>
