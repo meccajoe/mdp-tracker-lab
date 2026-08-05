@@ -946,7 +946,7 @@ export default function ProjectDetailPage() {
         }}
       >
         <div className="overflow-x-auto border-b">
-          <TabsList variant="line" className="w-max min-w-full justify-start gap-5 px-1">
+          <TabsList variant="line" className="w-max justify-start gap-2 px-1 [&_[data-slot=tabs-trigger]]:min-h-11">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="allocation">Quote Allocation</TabsTrigger>
             <TabsTrigger value="budget">Budget Detail</TabsTrigger>
@@ -955,7 +955,7 @@ export default function ProjectDetailPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="overview" className="pt-5 space-y-6">
+        <TabsContent value="overview" className="min-w-0 pt-5 space-y-6">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch">
         <Card className="h-full">
           <CardHeader className="pb-2">
@@ -1157,7 +1157,7 @@ export default function ProjectDetailPage() {
 
       </TabsContent>
 
-      <TabsContent value="budget" className="pt-5 space-y-6">
+      <TabsContent value="budget" className="min-w-0 pt-5 space-y-6">
       {/* Budget Breakdown Table */}
       <Card>
         <CardHeader data-slot="project-budget-header" className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1574,7 +1574,7 @@ export default function ProjectDetailPage() {
 
       </TabsContent>
 
-      <TabsContent value="allocation" className="pt-5 space-y-6">
+      <TabsContent value="allocation" className="min-w-0 pt-5 space-y-6">
       {/* Budget Allocation by Quote Line */}
       <Card>
         <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1603,6 +1603,23 @@ export default function ProjectDetailPage() {
             ) : quoteAllocationRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">No quote line items available for allocation yet.</p>
             ) : (
+              <>
+                <div data-slot="project-quote-allocation-mobile" className="space-y-3 lg:hidden">
+                  {quoteAllocationRows.map((row) => (
+                    <div key={row.source_line_item_id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2"><Badge variant="outline" className={getSkuChipClassName(row.sku)}>{row.sku || "—"}</Badge><span className="truncate font-medium">{row.item || "—"}</span></div>
+                          <p className="mt-1 text-xs text-muted-foreground">{row.budget_category_label}</p>
+                        </div>
+                        {effectiveIsAdmin && <span className="shrink-0 font-mono text-sm">{formatCurrency(row.line_total)}</span>}
+                      </div>
+                      {row.description && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{row.description}</p>}
+                      <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-2 text-xs"><div><span className="block text-muted-foreground">Labor</span>{formatCurrency(row.labor_budget)}</div><div><span className="block text-muted-foreground">Materials</span>{formatCurrency(row.material_budget)}</div><div><span className="block text-muted-foreground">Non L&amp;M</span>{formatCurrency(row.non_lm_budget)}</div></div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden lg:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1652,6 +1669,8 @@ export default function ProjectDetailPage() {
                   </TableRow>
                 </TableFooter>
               </Table>
+                </div>
+              </>
             )}
           </CardContent>
         )}
@@ -1659,7 +1678,7 @@ export default function ProjectDetailPage() {
 
       </TabsContent>
 
-      <TabsContent value="activity" className="pt-5 space-y-6">
+      <TabsContent value="activity" className="min-w-0 pt-5 space-y-6">
       {/* Expenses & Labor Card */}
       <Card>
           <CardHeader className="flex flex-col items-stretch gap-2 border-b pb-0 sm:flex-row sm:items-center sm:justify-between">
