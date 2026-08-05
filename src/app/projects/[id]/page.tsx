@@ -945,7 +945,7 @@ export default function ProjectDetailPage() {
           if (nextView === "budget") setShowBudgetBreakdown(true);
         }}
       >
-        <div className="overflow-x-auto border-b">
+        <div className="overflow-x-auto overflow-y-hidden border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabsList variant="line" className="w-max justify-start gap-2 px-1 [&_[data-slot=tabs-trigger]]:min-h-11">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="allocation">Quote Allocation</TabsTrigger>
@@ -1199,6 +1199,16 @@ export default function ProjectDetailPage() {
         </CardHeader>
         {showBudgetBreakdown && (
           <CardContent data-slot="project-budget-table" className="min-w-0 max-w-full overflow-x-auto">
+          <div data-slot="project-budget-mobile" className="space-y-3 lg:hidden">
+            {BUDGET_FIELDS.map((field) => {
+              const storedVal = project[field.key as keyof ProjectSummary] as number | null;
+              const fallback = storedVal ?? (field.key === "budget_materials" ? Math.round((project.contract_amount ?? 0) * 0.25) : field.key === "budget_hrs" ? Math.round((project.contract_amount ?? 0) * 0.25 / LABOR_RATE) : 0);
+              const actual = ["budget_design", "budget_pm"].includes(field.key) && savedActuals[field.label] == null ? fallback : getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0);
+              const variance = fallback - actual;
+              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div className="font-medium">{field.label}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? `${formatNumber(fallback)} hrs` : formatCurrency(fallback)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? `${formatNumber(actual)} hrs` : formatCurrency(actual)}</div></div></div>;
+            })}
+          </div>
+          <div className="hidden lg:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1568,6 +1578,7 @@ export default function ProjectDetailPage() {
               </div>
             );
           })()}
+          </div>
         </CardContent>
         )}
       </Card>
@@ -1854,6 +1865,12 @@ export default function ProjectDetailPage() {
                 </div>
               ) : (
                 <>
+                <div data-slot="project-expenses-mobile" className="space-y-3 p-3 lg:hidden">
+                  {expenses.map((expense) => (
+                    <div key={expense.id} className="rounded-lg border p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="font-medium">{expense.vendor ?? expense.category}</div><div className="mt-1 text-xs text-muted-foreground">{formatDateCentral(expense.date + "T00:00:00")} · {expense.category}</div></div><div className="shrink-0 text-right"><div className="font-mono">{formatCurrency(expense.amount)}</div>{expense.amount_pending ? <Badge variant="outline">Pending</Badge> : <Badge variant="secondary">Confirmed</Badge>}</div></div>{expense.notes && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{expense.notes}</p>}<div className="mt-3 flex justify-end gap-2">{expense.source !== "billcom" && <Button size="sm" variant="ghost" onClick={() => setEditingExpense(expense)}>Edit</Button>}<Button size="sm" variant="ghost" onClick={() => setDeletingExpenseId(expense.id)}>Delete</Button><Button size="sm" variant="ghost" onClick={() => { setFlaggingExpense(expense); setFlagNote(expense.flag_note ?? ""); }}>{expense.flagged ? "Unflag" : "Flag"}</Button></div></div>
+                  ))}
+                </div>
+                <div className="hidden lg:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2026,6 +2043,7 @@ export default function ProjectDetailPage() {
                     )}
                   </DialogContent>
                 </Dialog>
+                </div>
                 </>
               )
             ) : (() => {

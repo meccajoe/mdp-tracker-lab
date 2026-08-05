@@ -6,7 +6,7 @@ import { join } from "node:path";
 const source = readFileSync(join(process.cwd(), "src/app/projects/[id]/page.tsx"), "utf8");
 
 test("project workspace navigation is touch-safe and its panels can shrink on mobile", () => {
-  assert.match(source, /overflow-x-auto border-b/);
+  assert.match(source, /overflow-x-auto overflow-y-hidden border-b/);
   assert.match(source, /min-h-11/);
   assert.match(source, /TabsContent value="allocation" className="min-w-0 pt-5/);
   assert.match(source, /TabsContent value="overview" className="min-w-0 pt-5/);
