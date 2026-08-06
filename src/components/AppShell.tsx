@@ -12,6 +12,7 @@ function pageLabel(pathname: string) {
   if (pathname.startsWith("/admin/mission-control")) return "Mission Control";
   if (pathname.startsWith("/admin/portfolios")) return "Portfolio Center";
   if (pathname.startsWith("/admin/reports/wip")) return "WIP";
+  if (pathname.startsWith("/admin/labor-reconciliation")) return "Labor Reconciliation";
   if (pathname.startsWith("/admin/materials")) return "Materials";
   if (pathname.startsWith("/admin")) return "Administration";
   return "Project Tracker";
