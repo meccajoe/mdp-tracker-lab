@@ -28,6 +28,14 @@ type MaterialsAdminError = {
   response: NextResponse;
 };
 
+export async function requireMaterialsReader(): Promise<MaterialsAdminContext | MaterialsAdminError> {
+  const cookieStore = await cookies();
+  const supabaseAuth = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, { cookies: { getAll: () => cookieStore.getAll(), setAll: (items) => items.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } });
+  const { data: { user }, error } = await supabaseAuth.auth.getUser();
+  if (error || !user?.email) return { ok: false, response: NextResponse.json({ error: "Authentication required. Please sign out and sign back in." }, { status: 401 }) };
+  return { ok: true, supabase: getSupabaseAdmin(), actorEmail: user.email.toLowerCase() };
+}
+
 export async function requireMaterialsAdmin(): Promise<MaterialsAdminContext | MaterialsAdminError> {
   const cookieStore = await cookies();
   const supabaseAuth = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

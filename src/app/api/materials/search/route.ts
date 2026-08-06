@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { normalizeAliasText, requireMaterialsAdmin } from "@/lib/materials/server";
+import { normalizeAliasText, requireMaterialsReader } from "@/lib/materials/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ const allowedSorts = ["canonical_name", "category", "updated_at", "default_price
 
 // GET /api/materials/search
 export async function GET(req: NextRequest) {
-  const auth = await requireMaterialsAdmin();
+  const auth = await requireMaterialsReader();
   if (!auth.ok) return auth.response;
 
   const { supabase } = auth;

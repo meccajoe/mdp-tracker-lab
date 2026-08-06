@@ -31,6 +31,7 @@ import { PageShell } from "@/components/ui/page-shell";
 
 type SortField =
   | "id"
+  | "name"
   | "status"
   | "pm"
   | "close_date"
@@ -50,8 +51,8 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("Active");
   const [pmFilter, setPmFilter] = useState<string>(urlPm ?? "All");
-  const [sortField, setSortField] = useState<SortField>("id");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState("");
 
   useEffect(() => {

@@ -35,17 +35,7 @@ export async function GET(req: NextRequest) {
       { count: "exact" }
     );
 
-  if (q) {
-    const tsQuery = q
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) => word.replace(/[^a-zA-Z0-9]/g, "") + ":*")
-      .join(" & ");
-    if (tsQuery) {
-      query = query.textSearch("raw_text", tsQuery, { type: "websearch", config: "english" });
-    }
-  }
+  if (q) query = query.ilike("description", `%${q}%`);
 
   if (jobNumber) query = query.ilike("source_ref", `${jobNumber}%`);
 
