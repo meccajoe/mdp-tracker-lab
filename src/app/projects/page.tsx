@@ -251,7 +251,12 @@ export default function ProjectsPage() {
               >
                 Job #{sortIndicator("id")}
               </TableHead>
-              <TableHead>Name</TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => handleSort("name")}
+              >
+                Name{sortIndicator("name")}
+              </TableHead>
               <TableHead>Client</TableHead>
               <TableHead
                 className="cursor-pointer select-none"

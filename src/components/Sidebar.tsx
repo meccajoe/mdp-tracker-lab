@@ -136,6 +136,7 @@ export default function Sidebar({
   const missionControlIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h10" /></svg>;
   const portfolioIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>;
   const lineItemIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
+  const materialsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15l12-12 6 6-12 12H3v-6zM13 5l6 6M9 9l2 2m-5 1l2 2m-1 3l2 2" /></svg>;
   const reconcileIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
   const settingsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
@@ -180,7 +181,7 @@ export default function Sidebar({
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
-        <NavLink href="/admin/materials" label="Materials" icon={purchasingIcon} collapsed={collapsed} exact={false} />
+        <NavLink href="/admin/materials" label="Materials" icon={materialsIcon} collapsed={collapsed} exact={false} />
         {canLogIssues && <IssueQuickLogDialog collapsed={collapsed} />}
 
         {/* Team Bonuses — admin only for now */}
@@ -245,7 +246,6 @@ export default function Sidebar({
               <>
                 <NavLink href="/admin/data-entry" label="Data Entry" icon={dataEntryIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/vendors" label="Purchasing" icon={purchasingIcon} collapsed={false} exact={false} />
-                <NavLink href="/admin/materials" label="Materials" icon={purchasingIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/users" label="Users" icon={usersIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/settings" label="Budgets" icon={settingsIcon} collapsed={false} exact={false} />
                 <NavLink href="/admin/reconciliation" label="Reconciliation" icon={reconcileIcon} collapsed={false} exact={false} />
