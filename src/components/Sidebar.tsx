@@ -180,6 +180,7 @@ export default function Sidebar({
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
+        <NavLink href="/admin/materials" label="Materials" icon={purchasingIcon} collapsed={collapsed} exact={false} />
         {canLogIssues && <IssueQuickLogDialog collapsed={collapsed} />}
 
         {/* Team Bonuses — admin only for now */}
