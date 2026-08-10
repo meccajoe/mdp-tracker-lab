@@ -81,6 +81,7 @@ import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/da
 import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
 import { PageShell } from "@/components/ui/page-shell";
 import { QUOTED_LABOR_RATE_PER_HR } from "@/lib/budget-formula";
+import { canonicalLaborCostQueryFilter } from "@/lib/labor-rate-source";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -494,10 +495,12 @@ export default function ProjectDetailPage() {
   }, [projectId]);
 
   const fetchQboLabor = useCallback(async () => {
+    const rateSourceFilter = canonicalLaborCostQueryFilter();
     const { data, error } = await supabase
       .from("qbo_labor_entries")
       .select("*")
       .eq("project_id", projectId)
+      .like(rateSourceFilter.column, rateSourceFilter.value)
       .order("date", { ascending: false });
 
     if (error) {
@@ -740,7 +743,7 @@ export default function ProjectDetailPage() {
   async function handleSyncLabor() {
     setLaborSyncing(true);
     try {
-      const response = await fetch("/api/qbo/sync-labor", {
+      const response = await fetch("/api/tsheets/sync-labor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
@@ -749,7 +752,7 @@ export default function ProjectDetailPage() {
       if (!response.ok) {
         toast.error("Sync failed: " + (result.error ?? "Unknown error"));
       } else {
-        toast.success(`Synced ${result.synced} time entries from QBO`);
+        toast.success(`Synced ${result.synced} time entries and current pay rates from QBO Time`);
         await Promise.all([fetchQboLabor(), fetchProject()]);
       }
     } catch {

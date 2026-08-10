@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
+import { canonicalLaborCostQueryFilter } from "@/lib/labor-rate-source";
 
 export async function GET(request: NextRequest) {
   const actor = await requireProjectAdmin();
   if (!actor.ok) return actor.response;
   const start = request.nextUrl.searchParams.get("start") ?? "2000-01-01";
   const end = request.nextUrl.searchParams.get("end") ?? "2100-01-01";
+  const rateSourceFilter = canonicalLaborCostQueryFilter();
   const [labor, projects, drafts] = await Promise.all([
-    actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,project_id,employee_name,date,reg_hours,ot_hours,hourly_rate").gte("date", start).lte("date", end).order("date", { ascending: false }),
+    actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,project_id,employee_name,date,reg_hours,ot_hours,hourly_rate").like(rateSourceFilter.column, rateSourceFilter.value).gte("date", start).lte("date", end).order("date", { ascending: false }),
     actor.supabase.from("projects").select("id,name,job_number,status").order("id"),
     actor.supabase.from("labor_reclass_drafts").select("*").order("created_at", { ascending: false }),
   ]);

@@ -12,9 +12,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Call the sync-labor route internally (sync all active projects)
+    // QBO TimeActivity exposes zero hourly rates. Use QBO Time's TSheets data
+    // for both approved time and current employee pay rates.
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3004";
-    const response = await fetch(`${baseUrl}/api/qbo/sync-labor`, {
+    const response = await fetch(`${baseUrl}/api/tsheets/sync-labor`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
