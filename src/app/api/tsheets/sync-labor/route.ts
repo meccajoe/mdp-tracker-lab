@@ -8,6 +8,7 @@ export const maxDuration = 120;
 
 const TSHEETS_BASE = "https://rest.tsheets.com/api/v1";
 const PAGE_SIZE = 200;
+const SERVICE_ITEM_CUSTOMFIELD_ID = "957306";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ interface TsTimesheet {
   duration: number; // seconds
   type: "regular" | "overtime" | "pto" | string;
   state: string;
+  customfields?: Record<string, string | null | undefined>;
 }
 
 interface TsSupplemental {
@@ -279,6 +281,7 @@ export async function POST(request: NextRequest) {
           reg_hours: s.type === "regular" ? totalHours : 0,
           ot_hours: s.type === "overtime" ? totalHours : 0,
           hourly_rate: userRates.get(String(s.user_id))?.pay_rate || 30, // uses TSheets pay_rate; falls back to $30
+          service_item: s.customfields?.[SERVICE_ITEM_CUSTOMFIELD_ID] ?? null,
           qbo_entry_id: `ts_${s.id}`, // prefix to distinguish from QBO TimeActivity IDs
           synced_at: new Date().toISOString(),
         };
@@ -290,6 +293,7 @@ export async function POST(request: NextRequest) {
         reg_hours: number;
         ot_hours: number;
         hourly_rate: number;
+        service_item: string | null;
         qbo_entry_id: string;
         synced_at: string;
       }>;
