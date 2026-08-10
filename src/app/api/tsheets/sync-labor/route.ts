@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeLaborServiceItem } from "@/lib/labor-service-item";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -281,7 +282,7 @@ export async function POST(request: NextRequest) {
           reg_hours: s.type === "regular" ? totalHours : 0,
           ot_hours: s.type === "overtime" ? totalHours : 0,
           hourly_rate: userRates.get(String(s.user_id))?.pay_rate || 30, // uses TSheets pay_rate; falls back to $30
-          service_item: s.customfields?.[SERVICE_ITEM_CUSTOMFIELD_ID] ?? null,
+          service_item: normalizeLaborServiceItem(s.customfields?.[SERVICE_ITEM_CUSTOMFIELD_ID]),
           qbo_entry_id: `ts_${s.id}`, // prefix to distinguish from QBO TimeActivity IDs
           synced_at: new Date().toISOString(),
         };
