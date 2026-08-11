@@ -1630,7 +1630,12 @@ export default function ProjectDetailPage() {
                         {effectiveIsAdmin && <span className="shrink-0 font-mono text-sm">{formatCurrency(row.line_total)}</span>}
                       </div>
                       {row.description && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{row.description}</p>}
-                      <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-2 text-xs"><div><span className="block text-muted-foreground">Labor</span>{formatCurrency(row.labor_budget)}</div><div><span className="block text-muted-foreground">Materials</span>{formatCurrency(row.material_budget)}</div><div><span className="block text-muted-foreground">Non L&amp;M</span>{formatCurrency(row.non_lm_budget)}</div></div>
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t pt-2 text-xs">
+                        <span className="font-medium text-foreground">{row.budget_category_label}</span>
+                        {row.labor_budget > 0 && <div><span className="mr-1 text-muted-foreground">Labor budget</span>{formatCurrency(row.labor_budget)}</div>}
+                        {row.material_budget > 0 && <div><span className="mr-1 text-muted-foreground">Materials budget</span>{formatCurrency(row.material_budget)}</div>}
+                        {row.non_lm_budget > 0 && <div><span className="mr-1 text-muted-foreground">Purchase / other budget</span>{formatCurrency(row.non_lm_budget)}</div>}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1644,7 +1649,7 @@ export default function ProjectDetailPage() {
                     {effectiveIsAdmin && <TableHead className="text-right">Total</TableHead>}
                     <TableHead className="text-right">Labor Budget</TableHead>
                     <TableHead className="text-right">Material Budget</TableHead>
-                    <TableHead className="text-right">Non L&amp;M</TableHead>
+                    <TableHead className="text-right">Purchase / Other</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
