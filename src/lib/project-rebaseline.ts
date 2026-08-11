@@ -37,10 +37,24 @@ export type QuoteLineBudgetAllocationSource = {
 
 export type QuoteLineBudgetAllocationRow = QuoteLineBudgetAllocationSource & {
   budget_category_label: string;
+  formula_type: "fabrication" | "graphics" | "bematrix" | "standard";
+  formula_status: "ready" | "needs_sqft";
+  labor_hours: number;
   labor_budget: number;
   material_budget: number;
   non_lm_budget: number;
 };
+
+const INTERNAL_LABOR_COST_PER_HOUR = 41;
+const BEMATRIX_SKU = "408004";
+const GRAPHICS_SKU = "400800";
+
+function parseSquareFeet(description: string): number | null {
+  const match = description.match(/(?:sq\.?\s*ft\.?|sqft|square\s*feet|sf)\s*[:=]?\s*(\d+(?:\.\d+)?)/i)
+    ?? description.match(/(\d+(?:\.\d+)?)\s*(?:sq\.?\s*ft\.?|sqft|square\s*feet|sf)\b/i);
+  const squareFeet = match ? Number(match[1]) : NaN;
+  return Number.isFinite(squareFeet) && squareFeet > 0 ? squareFeet : null;
+}
 
 function num(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -201,28 +215,26 @@ export function buildQuoteLineBudgetAllocationRows(
   lineItems: QuoteLineBudgetAllocationSource[]
 ): QuoteLineBudgetAllocationRow[] {
   return lineItems.map((lineItem) => {
+    if (lineItem.sku === BEMATRIX_SKU) {
+      const laborHours = lineItem.quantity / 2.4;
+      return { ...lineItem, budget_category_label: "BeMatrix frames", formula_type: "bematrix", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: 0, non_lm_budget: 0 };
+    }
+
+    if (lineItem.sku === GRAPHICS_SKU) {
+      const squareFeet = parseSquareFeet(lineItem.description);
+      if (!squareFeet) return { ...lineItem, budget_category_label: "Graphics — needs SQFT", formula_type: "graphics", formula_status: "needs_sqft", labor_hours: 0, labor_budget: 0, material_budget: 0, non_lm_budget: 0 };
+      const laborHours = Math.max(0, (lineItem.line_total - squareFeet * 25) / 105);
+      return { ...lineItem, budget_category_label: `Graphics · ${squareFeet} SQFT`, formula_type: "graphics", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(squareFeet * 6.5), non_lm_budget: 0 };
+    }
+
     if (lineItem.mapped_category === "fabrication") {
-      return {
-        ...lineItem,
-        budget_category_label: "L&M",
-        labor_budget: Math.round((lineItem.line_total * pct(project, "pct_labor")) / 100),
-        material_budget: Math.round((lineItem.line_total * pct(project, "pct_materials")) / 100),
-        non_lm_budget: 0,
-      };
+      const laborHours = lineItem.line_total / 210;
+      return { ...lineItem, budget_category_label: "Fabrication", formula_type: "fabrication", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(lineItem.line_total / 4), non_lm_budget: 0 };
     }
 
     const normalizedCategory = lineItem.mapped_category as SupportedCategoryKey | null;
     const category = normalizedCategory ? CATEGORY_BY_KEY.get(normalizedCategory) : null;
-    const nonLmBudget = category
-      ? Math.round((lineItem.line_total * pct(project, category.pctKey)) / 100)
-      : 0;
-
-    return {
-      ...lineItem,
-      budget_category_label: category?.label ?? "Unmapped",
-      labor_budget: 0,
-      material_budget: 0,
-      non_lm_budget: nonLmBudget,
-    };
+    const nonLmBudget = category ? Math.round((lineItem.line_total * pct(project, category.pctKey)) / 100) : 0;
+    return { ...lineItem, budget_category_label: category?.label ?? "Unmapped", formula_type: "standard", formula_status: "ready", labor_hours: 0, labor_budget: 0, material_budget: 0, non_lm_budget: nonLmBudget };
   });
 }

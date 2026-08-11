@@ -80,12 +80,13 @@ export async function GET(
     const totals = allocationRows.reduce(
       (acc, row) => {
         acc.line_total += row.line_total;
+        acc.labor_hours += row.labor_hours;
         acc.labor_budget += row.labor_budget;
         acc.material_budget += row.material_budget;
         acc.non_lm_budget += row.non_lm_budget;
         return acc;
       },
-      { line_total: 0, labor_budget: 0, material_budget: 0, non_lm_budget: 0 }
+      { line_total: 0, labor_hours: 0, labor_budget: 0, material_budget: 0, non_lm_budget: 0 }
     );
 
     return NextResponse.json({
