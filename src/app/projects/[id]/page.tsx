@@ -1632,7 +1632,7 @@ export default function ProjectDetailPage() {
                       {row.description && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{row.description}</p>}
                       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t pt-2 text-xs">
                         <span className="font-medium text-foreground">{row.budget_category_label}</span>
-                        {row.labor_budget > 0 && <div><span className="mr-1 text-muted-foreground">Labor budget</span>{formatNumber(row.labor_budget / LABOR_RATE)} hrs · {formatCurrency(row.labor_budget)}</div>}
+                        {row.labor_budget > 0 && <div><span className="mr-1 text-muted-foreground">Labor budget</span>{formatNumber(Math.round(row.labor_budget / LABOR_RATE))} hrs · {formatCurrency(row.labor_budget)}</div>}
                         {row.material_budget > 0 && <div><span className="mr-1 text-muted-foreground">Materials budget</span>{formatCurrency(row.material_budget)}</div>}
                         {row.non_lm_budget > 0 && <div><span className="mr-1 text-muted-foreground">Purchase / other budget</span>{formatCurrency(row.non_lm_budget)}</div>}
                       </div>
@@ -1673,7 +1673,7 @@ export default function ProjectDetailPage() {
                         {row.description || "—"}
                       </TableCell>
                       {effectiveIsAdmin && <TableCell className="text-right">{formatCurrency(row.line_total)}</TableCell>}
-                      <TableCell className="text-right">{row.labor_budget > 0 ? <><span className="font-medium">{formatNumber(row.labor_budget / LABOR_RATE)} hrs</span><span className="ml-1 text-muted-foreground">· {formatCurrency(row.labor_budget)}</span></> : "—"}</TableCell>
+                      <TableCell className="text-right">{row.labor_budget > 0 ? <><span className="font-medium">{formatNumber(Math.round(row.labor_budget / LABOR_RATE))} hrs</span><span className="ml-1 text-muted-foreground">· {formatCurrency(row.labor_budget)}</span></> : "—"}</TableCell>
                       <TableCell className="text-right">{formatCurrency(row.material_budget)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(row.non_lm_budget)}</TableCell>
                     </TableRow>
@@ -1683,7 +1683,7 @@ export default function ProjectDetailPage() {
                   <TableRow>
                     <TableCell colSpan={3} className="font-semibold">Totals</TableCell>
                     {effectiveIsAdmin && <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.line_total)}</TableCell>}
-                    <TableCell className="text-right font-semibold">{formatNumber(quoteAllocationTotals.labor_budget / LABOR_RATE)} hrs · {formatCurrency(quoteAllocationTotals.labor_budget)}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatNumber(Math.round(quoteAllocationTotals.labor_budget / LABOR_RATE))} hrs · {formatCurrency(quoteAllocationTotals.labor_budget)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.material_budget)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatCurrency(quoteAllocationTotals.non_lm_budget)}</TableCell>
                   </TableRow>
