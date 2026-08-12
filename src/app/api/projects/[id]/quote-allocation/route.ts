@@ -63,13 +63,18 @@ export async function GET(
     }
 
     const lineItems = await getQuoteLineItems(quoteId);
+    const { data: localLines } = await supabase.from("quote_line_items").select("id,source_id").eq("project_id", id).eq("source", "hubspot");
+    const localBySource = new Map((localLines ?? []).map((line: any) => [line.source_id, line.id]));
+    const localIds = (localLines ?? []).map((line: any) => line.id);
+    const { data: overrides } = localIds.length ? await supabase.from("quote_line_formula_overrides").select("quote_line_item_id,square_feet").in("quote_line_item_id", localIds) : { data: [] };
+    const overrideByLocalId = new Map((overrides ?? []).map((override: any) => [override.quote_line_item_id, override]));
     const allocationRows = buildQuoteLineBudgetAllocationRows(
       project as QuoteBackedProject,
       lineItems.map((item) => ({
         source_line_item_id: item.id ?? `${item.sku}-${item.name}`,
         sku: item.sku,
         item: item.name,
-        description: item.description ?? "",
+        description: `${item.description ?? ""}${overrideByLocalId.get(localBySource.get(item.id ?? ""))?.square_feet ? ` SQFT: ${overrideByLocalId.get(localBySource.get(item.id ?? ""))?.square_feet}` : ""}`,
         quantity: item.quantity ?? 0,
         unit_price: item.unit_price ?? 0,
         line_total: item.amount,
