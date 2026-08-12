@@ -48,6 +48,9 @@ export type QuoteLineBudgetAllocationRow = QuoteLineBudgetAllocationSource & {
 const INTERNAL_LABOR_COST_PER_HOUR = 41;
 const BEMATRIX_SKU = "408004";
 const GRAPHICS_SKU = "400800";
+const MARLEY_SKU = "400801";
+const GRAPHICS_MATERIAL_RATE_PER_SQFT = 6.5;
+const MARLEY_MATERIAL_RATE_PER_SQFT = 22;
 
 function parseSquareFeet(description: string): number | null {
   const match = description.match(/(?:sq\.?\s*ft\.?|sqft|square\s*feet|sf)\s*[:=]?\s*(\d+(?:\.\d+)?)/i)
@@ -220,11 +223,14 @@ export function buildQuoteLineBudgetAllocationRows(
       return { ...lineItem, budget_category_label: "BeMatrix frames", formula_type: "bematrix", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: 0, non_lm_budget: 0 };
     }
 
-    if (lineItem.sku === GRAPHICS_SKU) {
+    if (lineItem.sku === GRAPHICS_SKU || lineItem.sku === MARLEY_SKU) {
+      const isMarley = lineItem.sku === MARLEY_SKU;
       const squareFeet = parseSquareFeet(lineItem.description);
-      if (!squareFeet) return { ...lineItem, budget_category_label: "Graphics — needs SQFT", formula_type: "graphics", formula_status: "needs_sqft", labor_hours: 0, labor_budget: 0, material_budget: 0, non_lm_budget: 0 };
+      const label = isMarley ? "Marley flooring" : "Graphics";
+      if (!squareFeet) return { ...lineItem, budget_category_label: `${label} — needs SQFT`, formula_type: "graphics", formula_status: "needs_sqft", labor_hours: 0, labor_budget: 0, material_budget: 0, non_lm_budget: 0 };
       const laborHours = Math.max(0, (lineItem.line_total - squareFeet * 25) / 105);
-      return { ...lineItem, budget_category_label: `Graphics · ${squareFeet} SQFT`, formula_type: "graphics", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(squareFeet * 6.5), non_lm_budget: 0 };
+      const materialRate = isMarley ? MARLEY_MATERIAL_RATE_PER_SQFT : GRAPHICS_MATERIAL_RATE_PER_SQFT;
+      return { ...lineItem, budget_category_label: `${label} · ${squareFeet} SQFT`, formula_type: "graphics", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(squareFeet * materialRate), non_lm_budget: 0 };
     }
 
     if (lineItem.mapped_category === "fabrication") {

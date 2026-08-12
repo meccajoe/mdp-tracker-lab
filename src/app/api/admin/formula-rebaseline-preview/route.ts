@@ -6,7 +6,7 @@ function sqft(text = "") { const m = text.match(/(?:sq\.?\s*ft\.?|sqft|square\s*
 function formula(line: any) {
   const sell = Number(line.line_total ?? 0), qty = Number(line.quantity ?? 0), description = line.description ?? "";
   if (line.sku === "408004") { const frames = Number(line.override?.frame_count ?? qty); const hours = frames / 2.4; return { type: "BeMatrix", status: frames > 0 ? "Ready" : "Needs frame quantity", hours, labor: hours * RATE, materials: 0 }; }
-  if (line.sku === "400800") { const area = Number(line.override?.square_feet ?? sqft(description)); if (!area) return { type: "Graphics", status: "Needs SQFT", hours: 0, labor: 0, materials: 0 }; const hours = Math.max(0, (sell - area * 25) / 105); return { type: `Graphics · ${area} SQFT`, status: "Ready", hours, labor: hours * RATE, materials: area * 6.5 }; }
+  if (line.sku === "400800" || line.sku === "400801") { const isMarley = line.sku === "400801"; const area = Number(line.override?.square_feet ?? sqft(description)); const label = isMarley ? "Marley flooring" : "Graphics"; if (!area) return { type: label, status: "Needs SQFT", hours: 0, labor: 0, materials: 0 }; const hours = Math.max(0, (sell - area * 25) / 105); return { type: `${label} · ${area} SQFT`, status: "Ready", hours, labor: hours * RATE, materials: area * (isMarley ? 22 : 6.5) }; }
   if (line.sku === "400100") { const hours = sell / 210; return { type: "Fabrication", status: sell > 0 ? "Ready" : "Needs sell amount", hours, labor: hours * RATE, materials: sell / 4 }; }
   if (/\bbe\s*matrix\b|\bbematrix\b/i.test(description)) return { type: "Legacy BeMatrix", status: "Review required", hours: 0, labor: 0, materials: 0 };
   return { type: "Other", status: "Unchanged", hours: 0, labor: 0, materials: 0 };

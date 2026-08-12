@@ -21,11 +21,12 @@ function allocation(line) {
     const hours = quantity / 2.4;
     return { kind: "bematrix", status: quantity > 0 ? "ready" : "needs_frames", hours, labor: hours * INTERNAL_LABOR_RATE, materials: 0 };
   }
-  if (line.sku === "400800") {
+  if (line.sku === "400800" || line.sku === "400801") {
+    const isMarley = line.sku === "400801";
     const area = sqft(line.description);
-    if (!area) return { kind: "graphics", status: "needs_sqft", hours: 0, labor: 0, materials: 0 };
+    if (!area) return { kind: isMarley ? "marley" : "graphics", status: "needs_sqft", hours: 0, labor: 0, materials: 0 };
     const hours = Math.max(0, (sell - area * 25) / 105);
-    return { kind: "graphics", status: "ready", hours, labor: hours * INTERNAL_LABOR_RATE, materials: area * 6.5 };
+    return { kind: isMarley ? "marley" : "graphics", status: "ready", hours, labor: hours * INTERNAL_LABOR_RATE, materials: area * (isMarley ? 22 : 6.5) };
   }
   if (line.sku === "400100") {
     const hours = sell / 210;
