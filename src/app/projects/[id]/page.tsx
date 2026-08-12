@@ -1622,6 +1622,12 @@ export default function ProjectDetailPage() {
               <p className="text-sm text-muted-foreground">No quote line items available for allocation yet.</p>
             ) : (
               <>
+                {quoteAllocationRows.some((row) => row.formula_status !== "ready") && (
+                  <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <span className="font-medium">Formula input needed.</span>{" "}
+                    {quoteAllocationRows.filter((row) => row.formula_status !== "ready").length} line{quoteAllocationRows.filter((row) => row.formula_status !== "ready").length === 1 ? "" : "s"} need review in <a className="underline" href="/admin/formula-rebaseline-preview">Formula Review</a> before these targets are final.
+                  </div>
+                )}
                 <div data-slot="project-quote-allocation-mobile" className="space-y-3 lg:hidden">
                   {quoteAllocationRows.map((row) => (
                     <div key={row.source_line_item_id} className="rounded-lg border p-3">
