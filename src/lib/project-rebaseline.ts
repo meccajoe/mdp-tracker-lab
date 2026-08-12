@@ -220,7 +220,7 @@ export function buildQuoteLineBudgetAllocationRows(
   return lineItems.map((lineItem) => {
     if (lineItem.sku === BEMATRIX_SKU) {
       const laborHours = lineItem.quantity / 2.4;
-      return { ...lineItem, budget_category_label: "BeMatrix frames", formula_type: "bematrix", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: 0, non_lm_budget: 0 };
+      return { ...lineItem, budget_category_label: `BeMatrix · ${lineItem.quantity} frames`, formula_type: "bematrix", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: 0, non_lm_budget: 0 };
     }
 
     if (lineItem.sku === GRAPHICS_SKU || lineItem.sku === MARLEY_SKU) {
@@ -235,7 +235,7 @@ export function buildQuoteLineBudgetAllocationRows(
 
     if (lineItem.mapped_category === "fabrication") {
       const laborHours = lineItem.line_total / 210;
-      return { ...lineItem, budget_category_label: "Fabrication", formula_type: "fabrication", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(lineItem.line_total / 4), non_lm_budget: 0 };
+      return { ...lineItem, budget_category_label: "Fabrication · Sell ÷ 210", formula_type: "fabrication", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(lineItem.line_total / 4), non_lm_budget: 0 };
     }
 
     const normalizedCategory = lineItem.mapped_category as SupportedCategoryKey | null;
