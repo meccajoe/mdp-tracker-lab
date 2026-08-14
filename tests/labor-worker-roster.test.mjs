@@ -14,4 +14,5 @@ test("builds a dated roster snapshot with approved aliases and Rogelio employee 
     { normalized_name: "daniel gutierrez", display_name: "Daniel Guiterrez", classification: "employee", roster_snapshot_date: "2026-08-14", source: "maribel_payroll_roster", notes: "" },
     { normalized_name: "rogelio cervantes", display_name: "Rogelio Cervantes", classification: "employee", roster_snapshot_date: "2026-08-14", source: "maribel_payroll_roster", notes: "Visible E roster row is authoritative; hidden C row ignored." },
   ]);
+  assert.equal(roster.normalizeLaborWorkerName("Henry Ledezma (Mireles)"), "henry ledezma mireles");
 });
