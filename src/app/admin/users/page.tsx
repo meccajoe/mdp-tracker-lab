@@ -118,6 +118,13 @@ export default function UsersPage() {
     toast.success(!current ? "Shown in PM filters" : "Hidden from PM filters");
   }
 
+  async function handleToggleAdaAccess(email: string, current: boolean) {
+    const { error } = await supabase.from("user_roles").update({ ada_access: !current }).eq("email", email);
+    if (error) { toast.error("Failed to update Ada access"); return; }
+    setUsers((prev) => prev.map((user) => user.email === email ? { ...user, ada_access: !current } : user));
+    toast.success(!current ? "Ada access enabled" : "Ada access disabled");
+  }
+
   async function handleDelete(email: string, name: string) {
     if (!confirm(`Remove ${name || email} from user roles?`)) return;
     await supabase.from("user_roles").delete().eq("email", email);
@@ -262,9 +269,9 @@ export default function UsersPage() {
                     <dl className="grid grid-cols-2 gap-2 text-xs">
                       <div className="col-span-2"><dt className="text-muted-foreground">BILL email</dt><dd className="break-all">{user.bill_spend_email || "Uses login email"}</dd></div>
                       <div><dt className="text-muted-foreground">Initials</dt><dd>{user.pm_initials || "—"}</dd></div>
-                      <div><dt className="text-muted-foreground">PM filters</dt><dd>{user.show_in_filters ? "Visible" : "Hidden"}</dd></div>
+                      <div><dt className="text-muted-foreground">Ada Access</dt><dd>{user.ada_access ? "Enabled" : "Disabled"}</dd></div>
                     </dl>
-                    <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => startEdit(user)}>Edit</Button><Button variant="outline" size="sm" onClick={() => handleToggleFilter(user.email, user.show_in_filters ?? false)}>{user.show_in_filters ? "Hide from filters" : "Show in filters"}</Button><Button variant="outline" size="sm" className="text-red-500" onClick={() => handleDelete(user.email, user.full_name ?? "")}>Remove</Button></div>
+                    <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => startEdit(user)}>Edit</Button><Button variant="outline" size="sm" onClick={() => handleToggleAdaAccess(user.email, user.ada_access ?? false)}>{user.ada_access ? "Disable Ada access" : "Enable Ada access"}</Button><Button variant="outline" size="sm" className="text-red-500" onClick={() => handleDelete(user.email, user.full_name ?? "")}>Remove</Button></div>
                   </>
                 )}
               </article>
@@ -371,6 +378,7 @@ export default function UsersPage() {
                       ) : (
                         <>
                           <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => startEdit(user)}>Edit</Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => handleToggleAdaAccess(user.email, user.ada_access ?? false)}>{user.ada_access ? "Disable Ada" : "Enable Ada"}</Button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-red-500 hover:text-red-600" onClick={() => handleDelete(user.email, user.full_name ?? "")}>Remove</Button>
                         </>
                       )}

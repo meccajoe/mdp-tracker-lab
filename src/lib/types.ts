@@ -224,6 +224,7 @@ export interface UserRoleRow {
   pm_initials: string | null;
   full_name: string | null;
   show_in_filters: boolean;
+  ada_access: boolean;
 }
 
 export const PROJECT_STATUSES = ["Active", "Completed", "On Hold", "Pending"] as const;
