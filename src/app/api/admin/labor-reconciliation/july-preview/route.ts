@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildJulyLaborAllocationGrid } from "@/lib/july-labor-allocation-grid";
+import { buildJulyLaborJeDraft } from "@/lib/july-labor-je-draft";
 
 export async function GET() {
   const actor = await requireProjectAdmin();
@@ -22,5 +23,6 @@ export async function GET() {
   const workerClasses = new Map<string, "employee" | "contractor">(((classifications.data ?? []) as Array<{ normalized_name: string; classification: "employee" | "contractor" }>).map((row) => [row.normalized_name, row.classification]));
   const preview = buildJulyLaborAllocationGrid(entries.map((entry) => ({ projectId: entry.project_id, projectName: projectNames.get(entry.project_id) ?? entry.project_id, employeeName: entry.employee_name, serviceItem: entry.service_item, hours: Number(entry.reg_hours) + Number(entry.ot_hours), hourlyRate: Number(entry.hourly_rate) })), workerClasses);
   const totals = preview.rows.reduce((result, row) => ({ hours: result.hours + row.hours, wageCost: result.wageCost + row.wageCost, employeeWages: result.employeeWages + (row.workerClassification === "employee" ? row.wageCost : 0), contractorWages: result.contractorWages + (row.workerClassification === "contractor" ? row.wageCost : 0) }), { hours: 0, wageCost: 0, employeeWages: 0, contractorWages: 0 });
-  return NextResponse.json({ ...preview, totals });
+  const journalEntry = buildJulyLaborJeDraft(preview.rows);
+  return NextResponse.json({ ...preview, totals, journalEntry });
 }
