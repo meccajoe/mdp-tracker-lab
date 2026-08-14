@@ -7,6 +7,7 @@ const aliases: Record<string, string> = {
   "cruz eduardo deleon": "eduardo c deleon",
   "eliezar william sosa": "eliezer william salinas sosa",
   "greg maslyk": "gregory maslyk",
+  "henry ledezma": "henry ledezma mireles",
   "henry ledezma mireles": "henry ledezma mireles",
   "john chitwood": "john chittwood",
   "jorge reyes": "jorge rodriguez reyes",
