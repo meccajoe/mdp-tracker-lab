@@ -20,4 +20,12 @@ test("Labor Reconciliation exposes the July 2026 review-only pilot preview", () 
   assert.match(source, /Employee wages/);
   assert.match(source, /Contractor wages/);
   assert.match(source, /july-preview/);
+  assert.match(source, /Selected project/);
+  assert.doesNotMatch(source, /Allocation mapping/);
+  assert.doesNotMatch(source, /Save mapping/);
+});
+
+test("both labor APIs accept the selected project filter", () => {
+  assert.match(readFileSync(resolve("src/app/api/admin/labor-reconciliation/route.ts"), "utf8"), /projectId/);
+  assert.match(readFileSync(route, "utf8"), /projectId/);
 });

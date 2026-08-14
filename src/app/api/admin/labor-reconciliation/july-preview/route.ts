@@ -1,14 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildJulyLaborAllocationGrid } from "@/lib/july-labor-allocation-grid";
 import { buildJulyLaborJeDraft } from "@/lib/july-labor-je-draft";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const actor = await requireProjectAdmin();
   if (!actor.ok) return actor.response;
+  const projectId = request.nextUrl.searchParams.get("projectId");
   const entries: Array<{ project_id: string; employee_name: string; service_item: string | null; reg_hours: number; ot_hours: number; hourly_rate: number }> = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await actor.supabase.from("qbo_labor_entries").select("project_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate").like("qbo_entry_id", "ts_%").gte("date", "2026-07-01").lte("date", "2026-07-31").range(from, from + 999);
+    let query = actor.supabase.from("qbo_labor_entries").select("project_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate").like("qbo_entry_id", "ts_%").gte("date", "2026-07-01").lte("date", "2026-07-31").range(from, from + 999);
+    if (projectId) query = query.eq("project_id", projectId);
+    const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     entries.push(...(data ?? []));
     if (!data || data.length < 1000) break;

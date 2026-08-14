@@ -7,9 +7,12 @@ export async function GET(request: NextRequest) {
   if (!actor.ok) return actor.response;
   const start = request.nextUrl.searchParams.get("start") ?? "2000-01-01";
   const end = request.nextUrl.searchParams.get("end") ?? "2100-01-01";
+  const projectId = request.nextUrl.searchParams.get("projectId");
   const rateSourceFilter = canonicalLaborCostQueryFilter();
+  let laborQuery = actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,project_id,employee_name,date,reg_hours,ot_hours,hourly_rate,service_item").like(rateSourceFilter.column, rateSourceFilter.value).gte("date", start).lte("date", end).order("date", { ascending: false });
+  if (projectId) laborQuery = laborQuery.eq("project_id", projectId);
   const [labor, projects, drafts, mappings] = await Promise.all([
-    actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,project_id,employee_name,date,reg_hours,ot_hours,hourly_rate,service_item").like(rateSourceFilter.column, rateSourceFilter.value).gte("date", start).lte("date", end).order("date", { ascending: false }),
+    laborQuery,
     actor.supabase.from("projects").select("id,name,job_number,status").order("id"),
     actor.supabase.from("labor_reclass_drafts").select("*").order("created_at", { ascending: false }),
     actor.supabase.from("labor_allocation_mappings").select("*").order("service_item"),
