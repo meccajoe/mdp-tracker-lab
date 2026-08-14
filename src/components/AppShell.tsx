@@ -20,6 +20,7 @@ function pageLabel(pathname: string) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isAdaWorkspace = pathname.startsWith("/ada");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
@@ -37,6 +38,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   if (pathname === "/login") {
     return <main className="min-h-dvh w-full bg-background">{children}</main>;
+  }
+
+  if (isAdaWorkspace) {
+    return <main data-slot="ada-workspace-shell" className="h-dvh w-full overflow-hidden bg-background">{children}</main>;
   }
 
   return (

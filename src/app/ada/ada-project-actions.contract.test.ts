@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const surface = join(root, "src/components/ada-workspace-surface.tsx");
+const projectRoute = join(root, "src/app/api/ada/projects/[projectId]/route.ts");
+test("Ada projects are collapsible and expose edit/delete controls", () => {
+  assert.ok(existsSync(projectRoute));
+  const source = readFileSync(surface, "utf8");
+  const route = readFileSync(projectRoute, "utf8");
+  assert.match(source, /<details/);
+  assert.match(source, /Edit project/);
+  assert.match(source, /Delete project/);
+  assert.match(source, /onEditProject/);
+  assert.match(source, /onDeleteProject/);
+  assert.match(route, /export async function PATCH/);
+  assert.match(route, /export async function DELETE/);
+  assert.match(route, /requireAdaAccess\(/);
+});
