@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 export async function POST(
   _request: Request,
   context: { params: Promise<{ workspaceId: string; assetId: string }> },
 ) {
-  const access = await requireAdaAccess();
-  if (!access.ok) return access.response;
-
   const { workspaceId, assetId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId);
+  if (!access.ok) return access.response;
   const { data: asset, error: assetError } = await access.supabase
     .from("ada_quote_assets")
     .select("id, workspace_id, concept_id")

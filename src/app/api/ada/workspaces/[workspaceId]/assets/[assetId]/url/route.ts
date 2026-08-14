@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 const ASSET_BUCKET = "ada-quote-assets";
 
@@ -8,10 +8,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ workspaceId: string; assetId: string }> },
 ) {
-  const access = await requireAdaAccess();
-  if (!access.ok) return access.response;
-
   const { workspaceId, assetId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId);
+  if (!access.ok) return access.response;
   const { data: asset, error: assetError } = await access.supabase
     .from("ada_quote_assets")
     .select("id, storage_path, analysis_status")

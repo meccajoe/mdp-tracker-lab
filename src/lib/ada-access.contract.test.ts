@@ -11,7 +11,7 @@ const routePath = join(root, "src/app/api/ada/workspaces/route.ts");
 const pagePath = join(root, "src/app/ada/page.tsx");
 const sidebarPath = join(root, "src/components/Sidebar.tsx");
 
-test("Ada has a Joe-only access boundary on direct routes and API calls", () => {
+test("Ada has an explicit permission boundary on direct routes and API calls", () => {
   for (const path of [accessPath, serverPath, gatePath, routePath, pagePath]) {
     assert.ok(existsSync(path), `${path.replace(`${root}/`, "")} should exist`);
   }
@@ -23,13 +23,11 @@ test("Ada has a Joe-only access boundary on direct routes and API calls", () => 
   const pageSource = readFileSync(pagePath, "utf8");
   const sidebarSource = readFileSync(sidebarPath, "utf8");
 
-  assert.match(accessSource, /joe@meccadesign\.com/);
-  assert.match(accessSource, /mecca\.joe@gmail\.com/);
-  assert.match(accessSource, /isAdaAllowedEmail/);
-  assert.match(serverSource, /isAdaAllowedEmail/);
-  assert.match(serverSource, /Ada is visible to Joe only/);
+  assert.match(serverSource, /ada_access/);
+  assert.match(serverSource, /requireAdaWorkspaceAccess/);
+  assert.match(serverSource, /created_by_email/);
   assert.match(routeSource, /requireAdaAccess\(/);
-  assert.match(gateSource, /isAdaAllowedEmail/);
+  assert.match(gateSource, /AdaAccessGate/);
   assert.match(pageSource, /AdaAccessGate/);
-  assert.match(sidebarSource, /isAdaAllowedEmail/);
+  assert.match(sidebarSource, /Ada/);
 });

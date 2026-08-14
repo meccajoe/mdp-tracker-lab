@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ workspaceId: string }> },
 ) {
-  const access = await requireAdaAccess();
-  if (!access.ok) return access.response;
-
   const { workspaceId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId);
+  if (!access.ok) return access.response;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const content = typeof body.content === "string" ? body.content.trim() : "";
   const conceptId = typeof body.conceptId === "string" ? body.conceptId.trim() : "";

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 const ASSET_BUCKET = "ada-quote-assets";
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -17,10 +17,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ workspaceId: string }> },
 ) {
-  const access = await requireAdaAccess();
-  if (!access.ok) return access.response;
-
   const { workspaceId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId);
+  if (!access.ok) return access.response;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const originalName = typeof body.originalName === "string" ? body.originalName.trim() : "";
   const mimeType = typeof body.mimeType === "string" ? body.mimeType : "";

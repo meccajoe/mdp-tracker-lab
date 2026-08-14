@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 function normalizeLabel(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -10,15 +10,15 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ workspaceId: string }> },
 ) {
-  const access = await requireAdaAccess();
-  if (!access.ok) return access.response;
-
   const { workspaceId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId);
+  if (!access.ok) return access.response;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const { data: workspace, error: workspaceError } = await access.supabase
     .from("ada_quote_workspaces")
     .select("id")
     .eq("id", workspaceId)
+    .eq("created_by_email", access.actorEmail)
     .maybeSingle();
 
   if (workspaceError) return NextResponse.json({ error: workspaceError.message }, { status: 500 });
