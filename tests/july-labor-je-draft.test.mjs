@@ -14,7 +14,7 @@ test("builds a balanced review-only July wage JE", () => {
   assert.deepEqual(result.lines, [
     { accountId: "231", projectId: "26153", projectName: "Whatnot", memo: "July 2026 wage allocation — SHOP LABOR", debit: 150, credit: 0 },
     { accountId: "105", projectId: "26144", projectName: "Netflix", memo: "July 2026 wage allocation — GRAPHICS LABOR", debit: 90, credit: 0 },
-    { accountId: "600100", projectId: null, projectName: null, memo: "July 2026 employee wage allocation", debit: 0, credit: 150 },
-    { accountId: "600150", projectId: null, projectName: null, memo: "July 2026 contractor wage allocation", debit: 0, credit: 90 },
+    { accountId: "427", projectId: null, projectName: null, memo: "July 2026 employee wage allocation", debit: 0, credit: 150 },
+    { accountId: "392", projectId: null, projectName: null, memo: "July 2026 contractor wage allocation", debit: 0, credit: 90 },
   ]);
 });

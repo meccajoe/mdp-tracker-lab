@@ -6,7 +6,7 @@ export function buildJulyLaborJeDraft(rows: AllocationRow[]) {
   for (const workerClassification of ["employee", "contractor"] as const) {
     const amount = round(rows.filter((row) => row.workerClassification === workerClassification).reduce((sum, row) => sum + row.wageCost, 0));
     if (!amount) continue;
-    lines.push({ accountId: workerClassification === "employee" ? "600100" : "600150", projectId: null, projectName: null, memo: `July 2026 ${workerClassification} wage allocation`, debit: 0, credit: amount });
+    lines.push({ accountId: workerClassification === "employee" ? "427" : "392", projectId: null, projectName: null, memo: `July 2026 ${workerClassification} wage allocation`, debit: 0, credit: amount });
   }
   const debitTotal = round(lines.reduce((sum, line) => sum + line.debit, 0));
   const creditTotal = round(lines.reduce((sum, line) => sum + line.credit, 0));
