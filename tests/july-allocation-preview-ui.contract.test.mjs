@@ -12,6 +12,8 @@ test("July allocation preview route uses roster classification and the allocatio
   assert.match(source, /buildJulyLaborAllocationGrid/);
   assert.match(source, /labor_worker_classifications/);
   assert.match(source, /2026-07-01/);
+  assert.match(source, /buildLaborTieOut/);
+  assert.match(source, /tieOut/);
 });
 
 test("Labor Reconciliation exposes the July 2026 review-only pilot preview", () => {
@@ -19,6 +21,8 @@ test("Labor Reconciliation exposes the July 2026 review-only pilot preview", () 
   assert.match(source, /July 2026 allocation preview/);
   assert.match(source, /Employee wages/);
   assert.match(source, /Contractor wages/);
+  assert.match(source, /Tie-out controls/);
+  assert.match(source, /Exception rows/);
   assert.match(source, /july-preview/);
   assert.match(source, /Selected project/);
   assert.doesNotMatch(source, /Allocation mapping/);
