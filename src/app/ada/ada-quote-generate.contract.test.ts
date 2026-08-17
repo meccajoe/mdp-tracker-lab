@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const generator = join(root, "src/lib/ada-quote-generation.ts");
+const route = join(root, "src/app/api/ada/workspaces/[workspaceId]/generate/route.ts");
+test("Ada quote generation uses Opus, grounded context, and creates a revision", () => {
+  assert.ok(existsSync(generator)); assert.ok(existsSync(route));
+  const source = readFileSync(generator, "utf8"); const routeSource = readFileSync(route, "utf8");
+  assert.match(source, /selectAdaModel/);
+  assert.match(source, /purpose: "quote"/);
+  assert.match(source, /project_pricing_index/);
+  assert.match(source, /quote_line_items/);
+  assert.match(source, /lineItems/);
+  assert.match(source, /internalCost/);
+  assert.match(source, /clientPrice/);
+  assert.match(routeSource, /requireAdaAccess/);
+  assert.match(routeSource, /ada_quote_revisions/);
+  assert.match(routeSource, /created_by_email/);
+});
