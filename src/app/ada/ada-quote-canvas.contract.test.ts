@@ -1,0 +1,26 @@
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const migrations = join(root, "supabase/migrations");
+const route = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/route.ts");
+const canvas = join(root, "src/components/ada-quote-canvas.tsx");
+test("Ada quote revisions are immutable and render a reviewable quote canvas", () => {
+  const migrationName = readdirSync(migrations).find((name) => name.endsWith("_ada_quote_revisions.sql"));
+  assert.ok(migrationName);
+  const sql = readFileSync(join(migrations, migrationName!), "utf8");
+  assert.match(sql, /create table if not exists public\.ada_quote_revisions/i);
+  assert.match(sql, /revision_number integer not null/i);
+  assert.match(sql, /quote_json jsonb not null/i);
+  assert.match(sql, /unique \(workspace_id, revision_number\)/i);
+  assert.ok(require("node:fs").existsSync(route));
+  assert.ok(require("node:fs").existsSync(canvas));
+  assert.match(readFileSync(route, "utf8"), /requireAdaAccess/);
+  assert.match(readFileSync(route, "utf8"), /created_by_email/);
+  const canvasSource = readFileSync(canvas, "utf8");
+  assert.match(canvasSource, /Internal cost/);
+  assert.match(canvasSource, /Sell price/);
+  assert.match(canvasSource, /Margin/);
+  assert.match(canvasSource, /Assumptions/);
+});
