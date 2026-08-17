@@ -16,6 +16,7 @@ test("Ada intelligence is owner-scoped, bounded, and exposes cited Tracker evide
   assert.match(source, /project_pricing_index/);
   assert.match(source, /project_summary/);
   assert.match(source, /quote_line_items/);
+  assert.match(source, /expenses/);
   assert.match(source, /MAX_EVIDENCE_PER_RESOURCE/);
   assert.match(source, /fewer than two meaningful comparables/i);
   assert.match(routeSource, /requireAdaAccess/);
