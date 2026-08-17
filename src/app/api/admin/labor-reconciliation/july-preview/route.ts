@@ -1,33 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
-import { APPROVED_LABOR_SERVICE_ITEM_GL, buildJulyLaborAllocationGrid } from "@/lib/july-labor-allocation-grid";
-import { buildJulyLaborJeDraft } from "@/lib/july-labor-je-draft";
-import { buildLaborTieOut } from "@/lib/labor-tie-out";
+import { buildJulyLaborReview } from "@/lib/july-labor-review";
 
 export async function GET(request: NextRequest) {
   const actor = await requireProjectAdmin();
   if (!actor.ok) return actor.response;
-  const projectId = request.nextUrl.searchParams.get("projectId");
-  const entries: Array<{ qbo_entry_id: string; project_id: string | null; employee_name: string; service_item: string | null; reg_hours: number; ot_hours: number; hourly_rate: number }> = [];
-  for (let from = 0; ; from += 1000) {
-    let query = actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,project_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate").like("qbo_entry_id", "ts_%").gte("date", "2026-07-01").lte("date", "2026-07-31").range(from, from + 999);
-    if (projectId) query = query.eq("project_id", projectId);
-    const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    entries.push(...(data ?? []));
-    if (!data || data.length < 1000) break;
-  }
-  const [projects, classifications] = await Promise.all([
-    actor.supabase.from("projects").select("id,name"),
-    actor.supabase.from("labor_worker_classifications").select("normalized_name,classification").eq("roster_snapshot_date", "2026-08-14"),
-  ]);
-  const error = projects.error ?? classifications.error;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const projectNames = new Map<string, string>(((projects.data ?? []) as Array<{ id: string; name: string }>).map((project) => [project.id, project.name]));
-  const workerClasses = new Map<string, "employee" | "contractor">(((classifications.data ?? []) as Array<{ normalized_name: string; classification: "employee" | "contractor" }>).map((row) => [row.normalized_name, row.classification]));
-  const tieOut = buildLaborTieOut(entries.map((entry) => ({ id: entry.qbo_entry_id, projectId: entry.project_id, serviceItem: entry.service_item, employeeName: entry.employee_name, hours: Number(entry.reg_hours) + Number(entry.ot_hours), hourlyRate: Number(entry.hourly_rate) })), workerClasses, new Set(Object.keys(APPROVED_LABOR_SERVICE_ITEM_GL)));
-  const preview = buildJulyLaborAllocationGrid(tieOut.included.map((entry) => ({ projectId: entry.projectId!, projectName: projectNames.get(entry.projectId!) ?? entry.projectId!, employeeName: entry.employeeName, serviceItem: entry.serviceItem, hours: entry.hours, hourlyRate: entry.hourlyRate })), workerClasses);
-  const totals = preview.rows.reduce((result, row) => ({ hours: result.hours + row.hours, wageCost: result.wageCost + row.wageCost, employeeWages: result.employeeWages + (row.workerClassification === "employee" ? row.wageCost : 0), contractorWages: result.contractorWages + (row.workerClassification === "contractor" ? row.wageCost : 0) }), { hours: 0, wageCost: 0, employeeWages: 0, contractorWages: 0 });
-  const journalEntry = buildJulyLaborJeDraft(preview.rows);
-  return NextResponse.json({ ...preview, totals, journalEntry, tieOut });
+  try { return NextResponse.json(await buildJulyLaborReview(actor.supabase, request.nextUrl.searchParams.get("projectId"))); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Could not build July labor review." }, { status: 500 }); }
 }
