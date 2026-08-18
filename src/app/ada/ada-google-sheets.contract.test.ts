@@ -9,8 +9,8 @@ test("Ada Google Sheets adapter uses a dedicated service account and shared Driv
   const source = readFileSync(adapter, "utf8");
   assert.match(source, /ADA_GOOGLE_SERVICE_ACCOUNT_JSON/);
   assert.match(source, /ADA_GOOGLE_DRIVE_FOLDER_ID/);
-  assert.match(source, /spreadsheets\.create/);
-  assert.match(source, /files\.update/);
+  assert.match(source, /files\.create/);
+  assert.match(source, /application\/vnd\.google-apps\.spreadsheet/);
   assert.match(source, /private/i);
   assert.doesNotMatch(source, /gog/);
 });
