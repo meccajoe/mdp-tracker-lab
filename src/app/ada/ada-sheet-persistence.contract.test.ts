@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const migrations = join(root, "supabase/migrations");
+const route = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/sheet/route.ts");
+test("Ada persists one private working sheet per immutable revision and reuses it", () => {
+  const name = readdirSync(migrations).find((file) => file.endsWith("_ada_quote_sheets.sql"));
+  assert.ok(name);
+  const sql = readFileSync(join(migrations, name!), "utf8");
+  assert.match(sql, /create table if not exists public\.ada_quote_sheets/i);
+  assert.match(sql, /revision_id uuid not null/i);
+  assert.match(sql, /unique \(revision_id\)/i);
+  assert.match(sql, /sync_status text not null/i);
+  const source = readFileSync(route, "utf8");
+  assert.match(source, /ada_quote_sheets/);
+  assert.match(source, /maybeSingle/);
+  assert.match(source, /reused/);
+});
