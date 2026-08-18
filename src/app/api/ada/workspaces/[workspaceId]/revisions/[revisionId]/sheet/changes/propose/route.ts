@@ -15,8 +15,8 @@ export async function POST(request: Request, context: { params: Promise<{ worksp
   ]);
   if (revisionError) return NextResponse.json({ error: revisionError.message }, { status: 500 });
   if (!sheet || !revision) return NextResponse.json({ error: "Working sheet or quote revision not found." }, { status: 404 });
-  const lineItems = ((revision.quote_json as { lineItems?: unknown[] }).lineItems ?? []);
-  const draft = inferAdaSheetDraft(instruction, lineItems.length);
+  const lineItems = ((revision.quote_json as { lineItems?: Array<{ itemName: string; clientPrice: number }> }).lineItems ?? []);
+  const draft = inferAdaSheetDraft(instruction, lineItems);
   if (!draft) return NextResponse.json({ error: "Ada needs a specific A1 range/value or margin-factor instruction before it can stage a sheet change." }, { status: 400 });
   const { data, error } = await access.supabase.from("ada_quote_sheet_changes").insert({ sheet_id: sheet.id, workspace_id: workspaceId, revision_id: revisionId, range_a1: draft.rangeA1, values_json: draft.values, status: "draft", created_by_email: access.actorEmail }).select("id, range_a1, values_json, status, created_at").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

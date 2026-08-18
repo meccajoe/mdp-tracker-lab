@@ -13,3 +13,11 @@ test("Ada maps margin factor instruction to the canonical workbook row", () => {
 test("Ada refuses ambiguous sheet instructions", () => {
   assert.equal(inferAdaSheetDraft("make the quote cheaper", 2), null);
 });
+
+test("Ada stages a percentage increase for a named quote line", () => {
+  assert.deepEqual(inferAdaSheetDraft("raise install labor by 10%", [{ itemName: "Install labor", clientPrice: 1000 }]), { rangeA1: "Sheet1!F5", values: [[1100]] });
+});
+
+test("Ada stages a dollar add for a named quote line", () => {
+  assert.deepEqual(inferAdaSheetDraft("add $500 to freight", [{ itemName: "Freight", clientPrice: 250 }]), { rangeA1: "Sheet1!F5", values: [[750]] });
+});
