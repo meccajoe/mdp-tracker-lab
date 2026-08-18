@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const migrations = join(root, "supabase/migrations");
+const route = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/sheet/changes/route.ts");
+test("Ada stages sheet range changes for review before any Google write", () => {
+  const name = readdirSync(migrations).find((file) => file.endsWith("_ada_quote_sheet_changes.sql"));
+  assert.ok(name);
+  const sql = readFileSync(join(migrations, name!), "utf8");
+  assert.match(sql, /create table if not exists public\.ada_quote_sheet_changes/i);
+  assert.match(sql, /status text not null/i);
+  assert.match(sql, /check \(status in \('draft', 'applied', 'rejected', 'failed'\)\)/i);
+  assert.ok(require("node:fs").existsSync(route));
+  const source = readFileSync(route, "utf8");
+  assert.match(source, /rangeA1/);
+  assert.match(source, /values/);
+  assert.match(source, /status: "draft"/);
+  assert.match(source, /requireAdaAccess/);
+});

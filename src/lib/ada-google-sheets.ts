@@ -23,3 +23,9 @@ export async function createPrivateAdaGoogleSheet(input: SheetInput) {
   // Private by default: no permissions are added. The shared Drive folder controls deliberate team visibility.
   return { spreadsheetId, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` };
 }
+
+export async function applyAdaGoogleSheetRangeChange(input: { spreadsheetId: string; rangeA1: string; values: unknown[][] }) {
+  const auth = new google.auth.GoogleAuth({ credentials: serviceAccountCredentials(), scopes: SCOPES });
+  const sheets = google.sheets({ version: "v4", auth });
+  await sheets.spreadsheets.values.update({ spreadsheetId: input.spreadsheetId, range: input.rangeA1, valueInputOption: "USER_ENTERED", requestBody: { values: input.values } });
+}
