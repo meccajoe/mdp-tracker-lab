@@ -50,6 +50,7 @@ test("Ada follows reader intent and exposes a navigable conversation rail", () =
   const railSource = readFileSync(rail, "utf8");
   assert.match(scrollerSource, /selectionchange/);
   assert.match(scrollerSource, /ResizeObserver/);
+  assert.match(scrollerSource, /!programmaticRef\.current && !followState\.following/);
   assert.match(scrollerSource, /Jump to latest/);
   assert.match(scrollerSource, /content-visibility/);
   assert.match(scrollerSource, /localStorage/);

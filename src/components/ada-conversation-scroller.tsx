@@ -55,6 +55,7 @@ export function AdaConversationScroller({ workspaceId, items, anchorTurnId, stre
     if (!viewport || !element) return;
     if (!resume) dispatch({ type: "scroll_away" });
     programmaticRef.current = true;
+    anchorTopRef.current = null;
     viewport.scrollTo({ top: Math.max(0, element.offsetTop - 96), behavior });
     setActiveId(id);
     window.setTimeout(() => { programmaticRef.current = false; savePosition(id); }, behavior === "smooth" ? 350 : 0);
@@ -122,7 +123,7 @@ export function AdaConversationScroller({ workspaceId, items, anchorTurnId, stre
       const anchor = activeId ? elementFor(activeId) : null;
       if (!viewport || !anchor) return;
       const currentTop = anchor.getBoundingClientRect().top;
-      if (!followState.following && anchorTopRef.current !== null) viewport.scrollTop += currentTop - anchorTopRef.current;
+      if (!programmaticRef.current && !followState.following && anchorTopRef.current !== null) viewport.scrollTop += currentTop - anchorTopRef.current;
       anchorTopRef.current = anchor.getBoundingClientRect().top;
     });
     observer.observe(content);
