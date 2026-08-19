@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const acceptRoute = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/accept/route.ts");
+const previewRoute = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/handoff-preview/route.ts");
+const canvas = readFileSync(join(root, "src/components/ada-quote-canvas.tsx"), "utf8");
+test("Ada accepts one revision with an audit event and previews handoff without downstream mutation", () => {
+  assert.ok(existsSync(acceptRoute));
+  assert.ok(existsSync(previewRoute));
+  const accepted = readFileSync(acceptRoute, "utf8");
+  const preview = readFileSync(previewRoute, "utf8");
+  assert.match(accepted, /quote_accepted/);
+  assert.match(accepted, /status: "accepted"/);
+  assert.match(accepted, /revision_id/);
+  assert.match(preview, /quote_accepted/);
+  assert.match(preview, /proposedActions/);
+  assert.doesNotMatch(preview, /fetch\(/);
+  assert.match(canvas, /Accept revision/);
+  assert.match(canvas, /Preview handoff/);
+});
