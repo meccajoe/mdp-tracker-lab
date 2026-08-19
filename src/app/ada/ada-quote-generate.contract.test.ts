@@ -16,6 +16,6 @@ test("Ada quote generation uses Opus, grounded context, and creates a revision",
   assert.match(source, /internalCost/);
   assert.match(source, /clientPrice/);
   assert.match(routeSource, /requireAdaAccess/);
-  assert.match(routeSource, /ada_quote_revisions/);
-  assert.match(routeSource, /created_by_email/);
+  assert.match(routeSource, /createAdaQuoteRevision/);
+  assert.match(routeSource, /actorEmail: access\.actorEmail/);
 });

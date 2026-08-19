@@ -95,7 +95,7 @@ export async function POST(
     const completedAt = new Date().toISOString();
     await Promise.all([
       access.supabase.from("ada_quote_events").insert({ workspace_id: workspaceId, concept_id: compatibilityThreadId, event_type: "chat_turn_completed", actor_email: access.actorEmail, payload_json: { user_message_id: userMessage.id, assistant_message_id: assistantMessage.id, citations: generated.response.citations, quote_action: generated.response.quoteAction, model: generated.model } }),
-      access.supabase.from("ada_quote_workspaces").update({ last_activity_at: completedAt, status: revisionAction ? "in_review" : generated.response.needsInput.length ? "gathering_inputs" : workspaceResult.data.status }).eq("id", workspaceId).eq("created_by_email", access.actorEmail),
+      access.supabase.from("ada_quote_workspaces").update({ last_activity_at: completedAt, status: revisionAction ? "in_review" : workspaceResult.data.status === "accepted" ? "accepted" : generated.response.needsInput.length ? "gathering_inputs" : workspaceResult.data.status }).eq("id", workspaceId).eq("created_by_email", access.actorEmail),
     ]);
     return NextResponse.json({ userMessage, assistantMessage, revision: revisionAction?.revision ?? null, revisionDelta: revisionAction?.revisionDelta ?? null }, { status: 201 });
   } catch (reason) {

@@ -1,6 +1,7 @@
-import { generateAdaQuote, type GeneratedQuote } from "@/lib/ada-quote-generation";
+import { generateAdaQuote } from "@/lib/ada-quote-generation";
+import { validateAdaQuoteSnapshot, type AdaQuoteLine } from "@/lib/ada-quote-validation";
 
-export type AdaQuoteLine = GeneratedQuote["lineItems"][number];
+export type { AdaQuoteLine } from "@/lib/ada-quote-validation";
 
 type RevisionLike = {
   id?: string;
@@ -13,10 +14,7 @@ function lineKey(line: AdaQuoteLine) {
 }
 
 function validatedLines(lines: AdaQuoteLine[]) {
-  if (!Array.isArray(lines) || lines.some((line) => !line.itemName?.trim() || !line.buildItem?.trim() || !["material", "labor"].includes(line.lineType) || !Number.isFinite(line.internalCost) || !Number.isFinite(line.clientPrice) || line.internalCost < 0 || line.clientPrice < 0)) {
-    throw new Error("Ada returned invalid quote lines for this revision.");
-  }
-  return lines;
+  return validateAdaQuoteSnapshot({ lineItems: lines }).quoteJson.lineItems;
 }
 
 export function calculateAdaRevisionTotals(lines: AdaQuoteLine[]) {
@@ -41,6 +39,31 @@ export function buildAdaRevisionDelta(previousLines: AdaQuoteLine[], nextLines: 
   return { added, removed, changed, internalCostDelta: nextTotals.internalCost - previousTotals.internalCost, sellPriceDelta: nextTotals.sellPrice - previousTotals.sellPrice };
 }
 
+export async function createAdaQuoteRevision(args: {
+  supabase: any;
+  workspaceId: string;
+  actorEmail: string;
+  quoteValue: unknown;
+  assumptions?: unknown;
+  evidence?: unknown;
+}) {
+  const snapshot = validateAdaQuoteSnapshot(args.quoteValue, args.assumptions, args.evidence);
+  const { data, error } = await args.supabase.rpc("create_ada_quote_revision", {
+    p_workspace_id: args.workspaceId,
+    p_actor_email: args.actorEmail,
+    p_quote_json: snapshot.quoteJson,
+    p_internal_cost: snapshot.totals.internalCost,
+    p_sell_price: snapshot.totals.sellPrice,
+    p_margin_pct: snapshot.totals.marginPct,
+    p_assumptions_json: snapshot.assumptions,
+    p_evidence_json: snapshot.evidence,
+  });
+  if (error) throw new Error(error.message);
+  const revision = Array.isArray(data) ? data[0] : data;
+  if (!revision) throw new Error("Ada could not persist the quote revision.");
+  return { revision, snapshot };
+}
+
 export async function createAdaRevisionFromInstruction(args: {
   supabase: any;
   workspaceId: string;
@@ -59,21 +82,8 @@ export async function createAdaRevisionFromInstruction(args: {
     existingQuote: args.currentRevision?.quote_json ?? undefined,
     instruction: args.instruction,
   });
-  const lines = validatedLines(quote.lineItems);
-  const totals = calculateAdaRevisionTotals(lines);
-  const revisionNumber = (args.currentRevision?.revision_number ?? 0) + 1;
-  const { data: revision, error } = await args.supabase.from("ada_quote_revisions").insert({
-    workspace_id: args.workspaceId,
-    revision_number: revisionNumber,
-    quote_json: { lineItems: lines },
-    internal_cost: totals.internalCost,
-    sell_price: totals.sellPrice,
-    margin_pct: totals.marginPct,
-    assumptions_json: quote.assumptions,
-    evidence_json: quote.evidence,
-    created_by_email: args.actorEmail,
-  }).select("id, revision_number, quote_json, internal_cost, sell_price, margin_pct, assumptions_json, evidence_json, created_at").single();
-  if (error) throw new Error(error.message);
+  const { revision, snapshot } = await createAdaQuoteRevision({ supabase: args.supabase, workspaceId: args.workspaceId, actorEmail: args.actorEmail, quoteValue: { lineItems: quote.lineItems }, assumptions: quote.assumptions, evidence: quote.evidence });
+  const lines = snapshot.quoteJson.lineItems;
   const revisionDelta = buildAdaRevisionDelta(previousLines, lines);
   return { revision, revisionDelta, sourceRevisionId: args.currentRevision?.id ?? null };
 }
