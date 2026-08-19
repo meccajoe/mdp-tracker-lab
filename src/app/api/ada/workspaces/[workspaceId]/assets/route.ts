@@ -24,7 +24,7 @@ export async function POST(
   const originalName = typeof body.originalName === "string" ? body.originalName.trim() : "";
   const mimeType = typeof body.mimeType === "string" ? body.mimeType : "";
   const byteSize = typeof body.byteSize === "number" ? body.byteSize : Number(body.byteSize);
-  const conceptId = typeof body.conceptId === "string" && body.conceptId.trim() ? body.conceptId.trim() : null;
+
 
   if (!originalName || !ALLOWED_MIME_TYPES.has(mimeType)) return NextResponse.json({ error: "Upload a PDF, PNG, JPEG, or WEBP drawing." }, { status: 400 });
   if (!Number.isFinite(byteSize) || byteSize <= 0 || byteSize > MAX_FILE_SIZE) return NextResponse.json({ error: "Files must be between 1 byte and 50 MB." }, { status: 400 });
@@ -33,17 +33,12 @@ export async function POST(
   if (workspaceError) return NextResponse.json({ error: workspaceError.message }, { status: 500 });
   if (!workspace) return NextResponse.json({ error: "Ada quote not found." }, { status: 404 });
 
-  if (conceptId) {
-    const { data: concept, error: conceptError } = await access.supabase.from("ada_quote_concepts").select("id").eq("id", conceptId).eq("workspace_id", workspaceId).maybeSingle();
-    if (conceptError) return NextResponse.json({ error: conceptError.message }, { status: 500 });
-    if (!concept) return NextResponse.json({ error: "Ada concept not found for this quote." }, { status: 404 });
-  }
 
   const assetId = randomUUID();
   const storagePath = `${workspaceId}/${assetId}-${safeFileName(originalName)}`;
   const { data: asset, error: insertError } = await access.supabase
     .from("ada_quote_assets")
-    .insert({ id: assetId, workspace_id: workspaceId, concept_id: conceptId, storage_path: storagePath, original_name: originalName, mime_type: mimeType, byte_size: byteSize, analysis_status: "uploading", created_by_email: access.actorEmail })
+    .insert({ id: assetId, workspace_id: workspaceId, concept_id: null, storage_path: storagePath, original_name: originalName, mime_type: mimeType, byte_size: byteSize, analysis_status: "uploading", created_by_email: access.actorEmail })
     .select("id, workspace_id, concept_id, storage_path, original_name, mime_type, byte_size, analysis_status, created_at")
     .single();
 

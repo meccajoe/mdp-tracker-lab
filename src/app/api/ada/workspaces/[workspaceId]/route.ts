@@ -16,9 +16,8 @@ export async function GET(
   if (!access.ok) return access.response;
 
   const { workspaceId } = await context.params;
-  const [workspaceResult, conceptsResult, messagesResult, eventsResult, assetsResult] = await Promise.all([
+  const [workspaceResult, messagesResult, eventsResult, assetsResult] = await Promise.all([
     access.supabase.from("ada_quote_workspaces").select("id, ada_project_id, title, client_name, contact_name, hubspot_deal_id, tracker_project_id, status, last_activity_at, pinned_at, archived_at, created_by_email, created_at, updated_at").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle(),
-    access.supabase.from("ada_quote_concepts").select("id, workspace_id, label, mode, status, created_by_email, created_at, updated_at").eq("workspace_id", workspaceId).order("created_at"),
     access.supabase.from("ada_quote_messages").select("id, workspace_id, concept_id, role, content, structured_payload_json, created_by_email, created_at").eq("workspace_id", workspaceId).order("created_at"),
     access.supabase.from("ada_quote_events").select("id, workspace_id, concept_id, event_type, payload_json, actor_email, created_at").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(50),
     access.supabase.from("ada_quote_assets").select("id, workspace_id, concept_id, original_name, mime_type, byte_size, analysis_status, analysis_json, created_at").eq("workspace_id", workspaceId).order("created_at"),
@@ -26,9 +25,9 @@ export async function GET(
 
   if (workspaceResult.error) return NextResponse.json({ error: workspaceResult.error.message }, { status: 500 });
   if (!workspaceResult.data) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
-  if (conceptsResult.error || messagesResult.error || eventsResult.error || assetsResult.error) return NextResponse.json({ error: conceptsResult.error?.message ?? messagesResult.error?.message ?? eventsResult.error?.message ?? assetsResult.error?.message ?? "Ada chat could not load." }, { status: 500 });
+  if (messagesResult.error || eventsResult.error || assetsResult.error) return NextResponse.json({ error: messagesResult.error?.message ?? eventsResult.error?.message ?? assetsResult.error?.message ?? "Ada chat could not load." }, { status: 500 });
 
-  return NextResponse.json({ workspace: workspaceResult.data, concepts: conceptsResult.data ?? [], messages: messagesResult.data ?? [], events: eventsResult.data ?? [], assets: assetsResult.data ?? [] });
+  return NextResponse.json({ workspace: workspaceResult.data, messages: messagesResult.data ?? [], events: eventsResult.data ?? [], assets: assetsResult.data ?? [] });
 }
 
 export async function PATCH(

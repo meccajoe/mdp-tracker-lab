@@ -6,6 +6,6 @@ const source = readFileSync(join(process.cwd(), "src/components/ada-quote-canvas
 test("Ada quote canvas downloads its selected revision as XLSX", () => {
   assert.match(source, /Download XLSX/);
   assert.match(source, /\/xlsx/);
-  assert.match(source, /quoteRevision\.id/);
+  assert.match(source, /revision\.id/);
   assert.match(source, /workspaceId/);
 });

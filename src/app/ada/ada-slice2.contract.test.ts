@@ -42,15 +42,19 @@ test("Ada chats retain an internal default message thread and private persistent
   const shellSource = readFileSync(shell, "utf8");
 
   assert.match(createSource, /from\("ada_quote_concepts"\)/);
-  assert.match(createSource, /Concept 1/);
+  assert.match(createSource, /label: "Workspace"/);
+  assert.match(createSource, /compatibility/i);
   assert.match(workspaceDetailSource, /requireAdaAccess\(/);
   assert.match(workspaceDetailSource, /ada_quote_messages/);
-  assert.match(conceptsSource, /requireAdaAccess\(/);
-  assert.match(conceptsSource, /ada_quote_concepts/);
-  assert.match(messagesSource, /requireAdaAccess\(/);
+  assert.match(conceptsSource, /requireAdaWorkspaceAccess\(/);
+  assert.match(conceptsSource, /Concepts are deferred/);
+  assert.match(conceptsSource, /status: 410/);
+  assert.doesNotMatch(conceptsSource, /\.insert\(/);
+  assert.match(messagesSource, /requireAdaWorkspaceAccess\(/);
+  assert.match(messagesSource, /resolveAdaCompatibilityThread/);
   assert.match(messagesSource, /ada_quote_messages/);
   assert.match(shellSource, /AdaWorkspaceDetail/);
-  assert.match(detailSource, /let's quote something/);
+  assert.match(detailSource, /Let’s quote something/);
   assert.doesNotMatch(detailSource, /New concept/);
   assert.match(detailSource, /Persistent conversation/);
 });

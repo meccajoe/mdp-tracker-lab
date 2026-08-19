@@ -42,9 +42,9 @@ test("Ada evidence viewer uses Joe-only signed uploads and signed previews", () 
   const detailSource = readFileSync(detail, "utf8");
   const uploaderSource = readFileSync(uploader, "utf8");
 
-  assert.match(assetsSource, /requireAdaAccess\(/);
+  assert.match(assetsSource, /requireAdaWorkspaceAccess\(/);
   assert.match(assetsSource, /createSignedUploadUrl/);
-  assert.match(completeSource, /requireAdaAccess\(/);
+  assert.match(completeSource, /requireAdaWorkspaceAccess\(/);
   assert.match(previewSource, /createSignedUrl/);
   assert.match(uploaderSource, /uploadToSignedUrl/);
   assert.match(viewerSource, /PDF preview/);

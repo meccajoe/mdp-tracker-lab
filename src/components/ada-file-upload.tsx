@@ -8,13 +8,12 @@ const ASSET_BUCKET = "ada-quote-assets";
 
 type AdaFileUploadProps = {
   workspaceId: string;
-  conceptId: string;
   onUploaded: () => Promise<void>;
   onUploadStart?: () => void;
   compact?: boolean;
 };
 
-export function AdaFileUpload({ workspaceId, conceptId, onUploaded, onUploadStart, compact = false }: AdaFileUploadProps) {
+export function AdaFileUpload({ workspaceId, onUploaded, onUploadStart, compact = false }: AdaFileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +30,7 @@ export function AdaFileUpload({ workspaceId, conceptId, onUploaded, onUploadStar
       const createResponse = await fetch(`/api/ada/workspaces/${workspaceId}/assets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conceptId, originalName: file.name, mimeType: file.type, byteSize: file.size }),
+        body: JSON.stringify({ originalName: file.name, mimeType: file.type, byteSize: file.size }),
       });
       const created = await createResponse.json().catch(() => ({}));
       if (!createResponse.ok) throw new Error(created.error ?? "Could not prepare secure upload.");
