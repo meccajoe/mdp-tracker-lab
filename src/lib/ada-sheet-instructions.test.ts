@@ -21,3 +21,11 @@ test("Ada stages a percentage increase for a named quote line", () => {
 test("Ada stages a dollar add for a named quote line", () => {
   assert.deepEqual(inferAdaSheetDraft("add $500 to freight", [{ itemName: "Freight", clientPrice: 250 }]), { rangeA1: "Sheet1!F5", values: [[750]] });
 });
+
+test("Ada stages a fully priced Additional Item without guessing cost", () => {
+  assert.deepEqual(inferAdaSheetDraft("add additional item Rush freight cost 250 sell 500", 2), { rangeA1: "Sheet1!A14:G14", values: [["Rush freight", "other", 1, "ea", 250, 500, 0.5]] });
+});
+
+test("Ada refuses an Additional Item without both cost and sell price", () => {
+  assert.equal(inferAdaSheetDraft("add additional item Rush freight for 500", 2), null);
+});

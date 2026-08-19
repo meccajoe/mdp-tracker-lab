@@ -19,6 +19,11 @@ export function inferAdaSheetDraft(instruction: string, context: number | QuoteL
   }
   const marginFactor = instruction.match(/(?:change|set)\s+margin\s+factor\s+(?:to|=)\s+([0-9.,]+)/i);
   if (marginFactor) return { rangeA1: `Sheet1!B${9 + lineItemCount}`, values: [[parseValue(marginFactor[1])]] };
+  const additional = instruction.match(/add\s+additional\s+item\s+(.+?)\s+cost\s+\$?([0-9,.]+)\s+sell\s+\$?([0-9,.]+)/i);
+  if (additional) {
+    const internalCost = Number(additional[2].replace(/,/g, "")); const sellPrice = Number(additional[3].replace(/,/g, ""));
+    if (internalCost >= 0 && sellPrice > 0) return { rangeA1: `Sheet1!A${12 + lineItemCount}:G${12 + lineItemCount}`, values: [[additional[1].trim(), "other", 1, "ea", internalCost, sellPrice, Math.round(((sellPrice - internalCost) / sellPrice) * 10000) / 10000]] };
+  }
   const percent = instruction.match(/(?:raise|increase)\s+(.+?)\s+by\s+([0-9.]+)%/i);
   if (percent) {
     const index = lines.findIndex((line) => normalise(line.itemName) === normalise(percent[1]));
