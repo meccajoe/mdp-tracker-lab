@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import { UserRoleRow } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -79,16 +80,10 @@ export default function UsersPage() {
     if (!newEmail.trim()) { toast.error("Email is required"); return; }
     if (!newFullName.trim()) { toast.error("Full name is required"); return; }
     setSaving(true);
-    const { error } = await supabase.from("user_roles").insert({
-      email: newEmail.trim().toLowerCase(),
-      bill_spend_email: newBillSpendEmail.trim().toLowerCase() || null,
-      full_name: newFullName.trim(),
-      role: newRole,
-      pm_initials: newInitials.trim().toUpperCase() || null,
-      show_in_filters: newRole === "pm",
-    });
+    const response = await authenticatedFetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newEmail, billSpendEmail: newBillSpendEmail, fullName: newFullName, role: newRole, pmInitials: newInitials }) });
+    const result = await response.json().catch(() => ({}));
     setSaving(false);
-    if (error) { toast.error("Failed: " + error.message); return; }
+    if (!response.ok) { toast.error("Failed: " + (result.error ?? "User could not be added.")); return; }
     toast.success(`${newFullName} added`);
     resetAddForm();
     setShowAddForm(false);
@@ -98,36 +93,33 @@ export default function UsersPage() {
   async function handleSave(email: string) {
     if (!editFullName.trim()) { toast.error("Full name is required"); return; }
     setSaving(true);
-    const { error } = await supabase.from("user_roles").update({
-      bill_spend_email: editBillSpendEmail.trim().toLowerCase() || null,
-      full_name: editFullName.trim(),
-      role: editRole,
-      pm_initials: editInitials.trim().toUpperCase() || null,
-    }).eq("email", email);
+    const response = await authenticatedFetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ billSpendEmail: editBillSpendEmail, fullName: editFullName, role: editRole, pmInitials: editInitials }) });
+    const result = await response.json().catch(() => ({}));
     setSaving(false);
-    if (error) { toast.error("Failed: " + error.message); return; }
+    if (!response.ok) { toast.error("Failed: " + (result.error ?? "User could not be updated.")); return; }
     toast.success("User updated");
     setEditingEmail(null);
     await fetchUsers();
   }
 
   async function handleToggleFilter(email: string, current: boolean) {
-    const { error } = await supabase.from("user_roles").update({ show_in_filters: !current }).eq("email", email);
-    if (error) { toast.error("Failed to update"); return; }
+    const response = await authenticatedFetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ showInFilters: !current }) });
+    if (!response.ok) { const result = await response.json().catch(() => ({})); toast.error(result.error ?? "Failed to update"); return; }
     setUsers((prev) => prev.map((u) => u.email === email ? { ...u, show_in_filters: !current } : u));
     toast.success(!current ? "Shown in PM filters" : "Hidden from PM filters");
   }
 
   async function handleToggleAdaAccess(email: string, current: boolean) {
-    const { error } = await supabase.from("user_roles").update({ ada_access: !current }).eq("email", email);
-    if (error) { toast.error("Failed to update Ada access"); return; }
+    const response = await authenticatedFetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ adaAccess: !current }) });
+    if (!response.ok) { const result = await response.json().catch(() => ({})); toast.error(result.error ?? "Failed to update Ada access"); return; }
     setUsers((prev) => prev.map((user) => user.email === email ? { ...user, ada_access: !current } : user));
     toast.success(!current ? "Ada access enabled" : "Ada access disabled");
   }
 
   async function handleDelete(email: string, name: string) {
     if (!confirm(`Remove ${name || email} from user roles?`)) return;
-    await supabase.from("user_roles").delete().eq("email", email);
+    const response = await authenticatedFetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: "DELETE" });
+    if (!response.ok) { const result = await response.json().catch(() => ({})); toast.error(result.error ?? "User could not be removed."); return; }
     toast.success("User removed");
     await fetchUsers();
   }
