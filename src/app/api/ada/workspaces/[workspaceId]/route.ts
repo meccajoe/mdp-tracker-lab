@@ -44,7 +44,7 @@ export async function PATCH(
   if (!title) return NextResponse.json({ error: "Chat title is required." }, { status: 400 });
 
   if (adaProjectId) {
-    const { data: project, error: projectError } = await access.supabase.from("ada_quote_projects").select("id").eq("id", adaProjectId).maybeSingle();
+    const { data: project, error: projectError } = await access.supabase.from("ada_quote_projects").select("id").eq("id", adaProjectId).eq("created_by_email", access.actorEmail).maybeSingle();
     if (projectError) return NextResponse.json({ error: projectError.message }, { status: 500 });
     if (!project) return NextResponse.json({ error: "Ada project not found." }, { status: 404 });
   }

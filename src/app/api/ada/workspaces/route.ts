@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   if (!title) return NextResponse.json({ error: "Quote title is required." }, { status: 400 });
 
   if (adaProjectId) {
-    const { data: project, error: projectError } = await admin.supabase.from("ada_quote_projects").select("id").eq("id", adaProjectId).maybeSingle();
+    const { data: project, error: projectError } = await admin.supabase.from("ada_quote_projects").select("id").eq("id", adaProjectId).eq("created_by_email", admin.actorEmail).maybeSingle();
     if (projectError) return NextResponse.json({ error: projectError.message }, { status: 500 });
     if (!project) return NextResponse.json({ error: "Ada project not found." }, { status: 404 });
   }

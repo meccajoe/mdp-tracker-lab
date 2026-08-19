@@ -13,5 +13,5 @@ test("Ada applies a reviewed draft exactly once through the Google Sheets adapte
   assert.match(source, /status.*draft/);
   assert.match(source, /applyAdaGoogleSheetRangeChange/);
   assert.match(source, /status: "applied"/);
-  assert.match(source, /requireAdaAccess/);
+  assert.match(source, /requireAdaWorkspaceAccess/);
 });
