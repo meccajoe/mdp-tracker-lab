@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { generateAdaConversation } from "@/lib/ada-conversation";
 import { retrieveAdaIntelligence } from "@/lib/ada-intelligence/gateway";
+import { buildAdaIntelligenceQuery } from "@/lib/ada-intelligence/planner";
 import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 type EvidenceContextInput = { assetId?: unknown; page?: unknown };
@@ -33,18 +34,30 @@ export async function POST(
     .single();
   if (messageError) return NextResponse.json({ error: messageError.message }, { status: 500 });
 
-  const [workspaceResult, messagesResult, assetsResult, revisionResult, intelligence] = await Promise.all([
-    access.supabase.from("ada_quote_workspaces").select("title, client_name, contact_name, status").eq("id", workspaceId).eq("created_by_email", access.actorEmail).single(),
+  const workspaceResult = await access.supabase.from("ada_quote_workspaces").select("title, client_name, contact_name, tracker_project_id, status").eq("id", workspaceId).eq("created_by_email", access.actorEmail).single();
+  if (workspaceResult.error) {
+    await access.supabase.from("ada_quote_events").insert({ workspace_id: workspaceId, concept_id: conceptId, event_type: "chat_turn_failed", actor_email: access.actorEmail, payload_json: { user_message_id: userMessage.id, stage: "workspace_context" } });
+    return NextResponse.json({ error: workspaceResult.error.message }, { status: 500 });
+  }
+
+  const [messagesResult, assetsResult, revisionResult] = await Promise.all([
     access.supabase.from("ada_quote_messages").select("role, content, created_at").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(30),
     access.supabase.from("ada_quote_assets").select("id, original_name, mime_type, analysis_json").eq("workspace_id", workspaceId).eq("analysis_status", "ready").order("created_at", { ascending: false }).limit(20),
     access.supabase.from("ada_quote_revisions").select("id, revision_number, quote_json, internal_cost, sell_price, margin_pct, assumptions_json, evidence_json, created_at").eq("workspace_id", workspaceId).order("revision_number", { ascending: false }).limit(1).maybeSingle(),
-    retrieveAdaIntelligence(access.supabase, content),
   ]);
-  if (workspaceResult.error || messagesResult.error || assetsResult.error || revisionResult.error) {
-    const detail = workspaceResult.error?.message ?? messagesResult.error?.message ?? assetsResult.error?.message ?? revisionResult.error?.message ?? "Ada context could not load.";
+  if (messagesResult.error || assetsResult.error || revisionResult.error) {
+    const detail = messagesResult.error?.message ?? assetsResult.error?.message ?? revisionResult.error?.message ?? "Ada context could not load.";
     await access.supabase.from("ada_quote_events").insert({ workspace_id: workspaceId, concept_id: conceptId, event_type: "chat_turn_failed", actor_email: access.actorEmail, payload_json: { user_message_id: userMessage.id, stage: "context" } });
     return NextResponse.json({ error: detail }, { status: 500 });
   }
+
+  const intelligenceQuery = buildAdaIntelligenceQuery({
+    message: content,
+    workspaceTitle: workspaceResult.data.title,
+    clientName: workspaceResult.data.client_name,
+    recentMessages: (messagesResult.data ?? []).slice(0, 6).reverse().map((message) => message.content),
+  });
+  const intelligence = await retrieveAdaIntelligence(access.supabase, intelligenceQuery, { actorRole: access.actorRole, pmInitials: access.pmInitials, currentTrackerProjectId: workspaceResult.data.tracker_project_id });
 
   const assets = (assetsResult.data ?? []).map((asset) => ({ sourceId: `asset:${asset.id}`, label: asset.original_name, mimeType: asset.mime_type, analysis: asset.analysis_json }));
   const trackerEvidence = intelligence.evidence.map((item) => ({ sourceId: `${item.resource}:${item.sourceId}`, label: item.title, resource: item.resource, rationale: item.rationale, freshness: item.freshness, confidence: item.confidence, data: item.data }));

@@ -8,11 +8,11 @@ export async function POST(request: Request, context: { params: Promise<{ worksp
   const { workspaceId } = await context.params; const body = await request.json().catch(() => ({})) as { instruction?: unknown };
   const instruction = typeof body.instruction === "string" ? body.instruction.trim() : "";
   if (!instruction) return NextResponse.json({ error: "Tell Ada what to revise." }, { status: 400 });
-  const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
+  const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id, tracker_project_id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
   if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
   const { data: current } = await access.supabase.from("ada_quote_revisions").select("revision_number, quote_json, assumptions_json, evidence_json").eq("workspace_id", workspaceId).order("revision_number", { ascending: false }).limit(1).maybeSingle();
   if (!current) return NextResponse.json({ error: "Generate an initial quote before revising it." }, { status: 400 });
-  const intelligence = await retrieveAdaIntelligence(access.supabase, instruction);
+  const intelligence = await retrieveAdaIntelligence(access.supabase, instruction, { actorRole: access.actorRole, pmInitials: access.pmInitials, currentTrackerProjectId: workspace.tracker_project_id });
   try {
     const quote = await generateAdaQuote({ messages: [{ content: instruction }], assets: [], intelligence: intelligence.evidence, existingQuote: current.quote_json, instruction });
     const internalCost = quote.lineItems.reduce((sum, line) => sum + line.internalCost, 0); const sellPrice = quote.lineItems.reduce((sum, line) => sum + line.clientPrice, 0); const marginPct = sellPrice ? ((sellPrice - internalCost) / sellPrice) * 100 : 0;

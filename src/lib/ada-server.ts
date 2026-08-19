@@ -14,10 +14,10 @@ export async function requireAdaAccess() {
   if (authError || !user?.email) return { ok: false as const, response: NextResponse.json({ error: "Authentication required" }, { status: 401 }) };
   const actorEmail = user.email.toLowerCase();
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: roleRow, error } = await supabase.from("user_roles").select("ada_access").eq("email", actorEmail).maybeSingle();
+  const { data: roleRow, error } = await supabase.from("user_roles").select("ada_access, role, pm_initials").eq("email", actorEmail).maybeSingle();
   if (error) return { ok: false as const, response: NextResponse.json({ error: error.message }, { status: 500 }) };
   if (!roleRow?.ada_access) return { ok: false as const, response: NextResponse.json({ error: "Ada access is not enabled for this user." }, { status: 403 }) };
-  return { ok: true as const, supabase, actorEmail };
+  return { ok: true as const, supabase, actorEmail, actorRole: roleRow.role ?? null, pmInitials: roleRow.pm_initials ?? null };
 }
 
 export async function requireAdaWorkspaceAccess(workspaceId: string) {

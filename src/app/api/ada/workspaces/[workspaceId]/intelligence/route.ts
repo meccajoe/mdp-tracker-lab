@@ -9,5 +9,5 @@ export async function GET(request: NextRequest, context: { params: Promise<{ wor
   const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
   if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
   const query = request.nextUrl.searchParams.get("query") ?? "";
-  return NextResponse.json(await retrieveAdaIntelligence(access.supabase, query));
+  return NextResponse.json(await retrieveAdaIntelligence(access.supabase, query, { actorRole: access.actorRole, pmInitials: access.pmInitials, currentTrackerProjectId: null }));
 }

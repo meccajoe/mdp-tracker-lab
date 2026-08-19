@@ -6,7 +6,7 @@ import { requireAdaAccess } from "@/lib/ada-server";
 export async function POST(_request: Request, context: { params: Promise<{ workspaceId: string }> }) {
   const access = await requireAdaAccess(); if (!access.ok) return access.response;
   const { workspaceId } = await context.params;
-  const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
+  const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id, tracker_project_id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
   if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
   const [messagesResult, assetsResult] = await Promise.all([
     access.supabase.from("ada_quote_messages").select("content").eq("workspace_id", workspaceId).order("created_at"),
@@ -14,7 +14,7 @@ export async function POST(_request: Request, context: { params: Promise<{ works
   ]);
   if (messagesResult.error || assetsResult.error) return NextResponse.json({ error: messagesResult.error?.message ?? assetsResult.error?.message }, { status: 500 });
   const query = (messagesResult.data ?? []).map((message) => message.content).join(" ").slice(-500);
-  const intelligence = await retrieveAdaIntelligence(access.supabase, query);
+  const intelligence = await retrieveAdaIntelligence(access.supabase, query, { actorRole: access.actorRole, pmInitials: access.pmInitials, currentTrackerProjectId: workspace.tracker_project_id });
   try {
     const quote = await generateAdaQuote({ messages: messagesResult.data ?? [], assets: assetsResult.data ?? [], intelligence: intelligence.evidence });
     const internalCost = quote.lineItems.reduce((sum, line) => sum + line.internalCost, 0);
