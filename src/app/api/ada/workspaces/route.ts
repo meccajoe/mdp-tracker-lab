@@ -69,10 +69,11 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const { error: conceptError } = await admin.supabase
+  // Compatibility row for the legacy non-null message foreign key; not a user-facing Concept.
+  const { error: compatibilityError } = await admin.supabase
     .from("ada_quote_concepts")
-    .insert({ workspace_id: data.id, label: "Concept 1", mode: "standard", status: "draft", created_by_email: admin.actorEmail });
+    .insert({ workspace_id: data.id, label: "Workspace", mode: "standard", status: "draft", created_by_email: admin.actorEmail });
 
-  if (conceptError) return NextResponse.json({ error: conceptError.message }, { status: 500 });
+  if (compatibilityError) return NextResponse.json({ error: compatibilityError.message }, { status: 500 });
   return NextResponse.json({ workspace: data }, { status: 201 });
 }

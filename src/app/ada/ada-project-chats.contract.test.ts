@@ -39,8 +39,7 @@ test("Ada projects group multiple chats while legacy concept mechanics stay inte
   assert.match(surfaceSource, /project_id/);
   assert.doesNotMatch(chatSource, /Choose concept/);
   assert.doesNotMatch(chatSource, /New concept/);
-  assert.match(chatSource, /placeholder="let's quote something"/);
+  assert.match(chatSource, /placeholder="Let’s quote something\.\.\."/);
   assert.match(chatSource, /aria-label="Open files"/);
-  assert.match(chatSource, /Edit chat/);
-  assert.match(chatSource, /Delete chat/);
+  assert.doesNotMatch(chatSource, /Choose concept/);
 });

@@ -28,3 +28,11 @@ export async function requireAdaWorkspaceAccess(workspaceId: string) {
   if (!workspace) return { ok: false as const, response: NextResponse.json({ error: "Ada chat not found." }, { status: 404 }) };
   return access;
 }
+
+export async function resolveAdaCompatibilityThread(access: { supabase: any; actorEmail: string }, workspaceId: string) {
+  const existing = await access.supabase.from("ada_quote_concepts").select("id").eq("workspace_id", workspaceId).order("created_at").limit(1).maybeSingle();
+  if (existing.error) return { id: null as string | null, error: existing.error.message };
+  if (existing.data?.id) return { id: String(existing.data.id), error: null };
+  const created = await access.supabase.from("ada_quote_concepts").insert({ workspace_id: workspaceId, label: "Workspace", mode: "standard", status: "draft", created_by_email: access.actorEmail }).select("id").single();
+  return created.error ? { id: null as string | null, error: created.error.message } : { id: String(created.data.id), error: null };
+}

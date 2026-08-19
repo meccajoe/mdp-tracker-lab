@@ -21,7 +21,7 @@ test("Ada vision is server-only, policy-routed, and persists auditable output", 
   assert.match(visionSource, /ADA_LLM_API_KEY/);
   assert.match(visionSource, /selectAdaModel/);
   assert.match(visionSource, /lowConfidence/);
-  assert.match(routeSource, /requireAdaAccess\(/);
+  assert.match(routeSource, /requireAdaWorkspaceAccess\(/);
   assert.match(routeSource, /analysis_status: "analyzing"/);
   assert.match(routeSource, /analysis_json/);
   assert.match(routeSource, /analysis_status: "ready"/);

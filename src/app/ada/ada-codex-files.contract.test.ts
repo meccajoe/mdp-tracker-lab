@@ -26,7 +26,7 @@ test("Ada follows Codex composition: attachment from composer and a controlled f
   assert.match(uploadSource, /uploadToSignedUrl/);
   assert.match(uploadSource, /onUploaded/);
   assert.match(routeSource, /export async function DELETE/);
-  assert.match(routeSource, /requireAdaAccess\(/);
+  assert.match(routeSource, /requireAdaWorkspaceAccess\(/);
   assert.match(routeSource, /storage\.from\(ASSET_BUCKET\)\.remove/);
   assert.match(routeSource, /asset_deleted/);
 });
