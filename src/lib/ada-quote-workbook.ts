@@ -18,6 +18,8 @@ export function buildAdaQuoteWorkbook(revision: QuoteRevision, title: string) {
 
 export function quoteRevisionToSheetValues(revision: QuoteRevision, title: string): Array<Array<string | number>> {
   const lines = revision.quote_json.lineItems ?? [];
+  const internalCostRow = 6 + lines.length;
+  const sellPriceRow = internalCostRow + 1;
   return [
     ["Ada Quote", title],
     ["Revision", revision.revision_number],
@@ -27,7 +29,7 @@ export function quoteRevisionToSheetValues(revision: QuoteRevision, title: strin
     [],
     ["Internal Cost", "", "", "", "", `=SUM(E5:E${4 + lines.length})`],
     ["Sell Price", "", "", "", "", `=SUM(F5:F${4 + lines.length})`],
-    ["Margin", "", "", "", "", `=IF(F${6 + lines.length}=0,0,(F${6 + lines.length}-F${5 + lines.length})/F${6 + lines.length})`],
+    ["Margin", "", "", "", "", `=IF(F${sellPriceRow}=0,0,(F${sellPriceRow}-F${internalCostRow})/F${sellPriceRow})`],
     ["Margin Factor", 1],
     [],
     ["Additional Items", "Type", "Qty", "Unit", "Internal Cost", "Sell Price", "Margin"],
