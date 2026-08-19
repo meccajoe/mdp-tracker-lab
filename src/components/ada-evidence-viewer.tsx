@@ -14,7 +14,7 @@ type AdaAsset = {
   created_at: string;
 };
 
-export function AdaEvidenceViewer({ workspaceId, conceptId, assets, onChanged, onClose }: { workspaceId: string; conceptId: string; assets: AdaAsset[]; onChanged: () => Promise<void>; onClose: () => void }) {
+export function AdaEvidenceViewer({ workspaceId, conceptId, assets, initialAssetId, onChanged, onClose }: { workspaceId: string; conceptId: string; assets: AdaAsset[]; initialAssetId?: string | null; onChanged: () => Promise<void>; onClose: () => void }) {
   const [selectedId, setSelectedId] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
@@ -23,6 +23,8 @@ export function AdaEvidenceViewer({ workspaceId, conceptId, assets, onChanged, o
 
   const visibleAssets = assets.filter((asset) => asset.concept_id === conceptId || asset.concept_id === null);
   const selected = visibleAssets.find((asset) => asset.id === selectedId) ?? visibleAssets[0] ?? null;
+
+  useEffect(() => { if (initialAssetId && visibleAssets.some((asset) => asset.id === initialAssetId)) setSelectedId(initialAssetId); }, [initialAssetId, visibleAssets]);
 
   useEffect(() => {
     if (!selected) {
