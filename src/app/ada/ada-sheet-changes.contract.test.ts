@@ -17,5 +17,5 @@ test("Ada stages sheet range changes for review before any Google write", () => 
   assert.match(source, /rangeA1/);
   assert.match(source, /values/);
   assert.match(source, /status: "draft"/);
-  assert.match(source, /requireAdaAccess/);
+  assert.match(source, /requireAdaWorkspaceAccess/);
 });
