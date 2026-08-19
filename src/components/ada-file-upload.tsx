@@ -3,6 +3,7 @@
 import { ChangeEvent, useRef, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { adaFetch } from "@/lib/ada-client";
 
 const ASSET_BUCKET = "ada-quote-assets";
 
@@ -27,7 +28,7 @@ export function AdaFileUpload({ workspaceId, onUploaded, onUploadStart, compact 
     setError(null);
     onUploadStart?.();
     try {
-      const createResponse = await fetch(`/api/ada/workspaces/${workspaceId}/assets`, {
+      const createResponse = await adaFetch(`/api/ada/workspaces/${workspaceId}/assets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ originalName: file.name, mimeType: file.type, byteSize: file.size }),
@@ -38,7 +39,7 @@ export function AdaFileUpload({ workspaceId, onUploaded, onUploadStart, compact 
       const { error: uploadError } = await supabase.storage.from(ASSET_BUCKET).uploadToSignedUrl(created.signedUpload.path, created.signedUpload.token, file, { contentType: file.type });
       if (uploadError) throw uploadError;
 
-      const completeResponse = await fetch(`/api/ada/workspaces/${workspaceId}/assets/${created.asset.id}/complete`, { method: "POST" });
+      const completeResponse = await adaFetch(`/api/ada/workspaces/${workspaceId}/assets/${created.asset.id}/complete`, { method: "POST" });
       const completed = await completeResponse.json().catch(() => ({}));
       if (!completeResponse.ok) throw new Error(completed.error ?? "Could not complete file upload.");
       await onUploaded();

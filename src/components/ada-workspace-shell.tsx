@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { AdaWorkspaceDetail } from "@/components/ada-workspace-detail";
 import { AdaCreateDialog, AdaWorkspaceSurface } from "@/components/ada-workspace-surface";
+import { adaFetch } from "@/lib/ada-client";
 
 type AdaWorkspace = { id: string; ada_project_id: string | null; title: string; client_name: string | null; status: "draft" | "gathering_inputs" | "estimating" | "in_review" | "accepted" | "handed_off" | "archived"; last_activity_at: string };
 type AdaProject = { id: string; title: string; client_name: string | null };
@@ -31,7 +32,7 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
     const params = new URLSearchParams();
     if (filter !== "recent") params.set("status", filter);
     if (query.trim()) params.set("search", query.trim());
-    const [chatsResponse, projectsResponse] = await Promise.all([fetch(`/api/ada/workspaces?${params.toString()}`), fetch("/api/ada/projects")]);
+    const [chatsResponse, projectsResponse] = await Promise.all([adaFetch(`/api/ada/workspaces?${params.toString()}`), adaFetch("/api/ada/projects")]);
     const chatsResult = await chatsResponse.json().catch(() => ({}));
     const projectsResult = await projectsResponse.json().catch(() => ({}));
     if (!chatsResponse.ok || !projectsResponse.ok) { setError(chatsResult.error ?? projectsResult.error ?? "Ada library could not load."); setWorkspaces([]); setProjects([]); } else { setWorkspaces(chatsResult.workspaces ?? []); setProjects(projectsResult.projects ?? []); }
@@ -51,14 +52,14 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
   }
 
   async function patchChat(chat: AdaWorkspace, changes: { title?: string; clientName?: string | null; adaProjectId?: string }) {
-    const response = await fetch(`/api/ada/workspaces/${chat.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: changes.title ?? chat.title, clientName: changes.clientName ?? chat.client_name, adaProjectId: changes.adaProjectId }) }); const result = await response.json().catch(() => ({}));
+    const response = await adaFetch(`/api/ada/workspaces/${chat.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: changes.title ?? chat.title, clientName: changes.clientName ?? chat.client_name, adaProjectId: changes.adaProjectId }) }); const result = await response.json().catch(() => ({}));
     if (!response.ok) { setError(result.error ?? "Chat could not be updated."); return; }
     await load();
   }
 
   async function deleteChat(chat: AdaWorkspace) {
     if (!window.confirm(`Delete ${chat.title}? This removes its messages and uploaded files.`)) return;
-    const response = await fetch(`/api/ada/workspaces/${chat.id}`, { method: "DELETE" }); const result = await response.json().catch(() => ({}));
+    const response = await adaFetch(`/api/ada/workspaces/${chat.id}`, { method: "DELETE" }); const result = await response.json().catch(() => ({}));
     if (!response.ok) { setError(result.error ?? "Chat could not be deleted."); return; }
     if (workspaceId === chat.id) router.push("/ada"); await load();
   }
@@ -66,7 +67,7 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
   async function updateProject(project: AdaProject) {
     const title = window.prompt("Project name", project.title);
     if (!title?.trim()) return;
-    const response = await fetch(`/api/ada/projects/${project.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, clientName: project.client_name }) });
+    const response = await adaFetch(`/api/ada/projects/${project.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, clientName: project.client_name }) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) { setError(result.error ?? "Project could not be updated."); return; }
     await load();
@@ -74,7 +75,7 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
 
   async function deleteProject(project: AdaProject) {
     if (!window.confirm(`Delete ${project.title}? Its chats will remain standalone.`)) return;
-    const response = await fetch(`/api/ada/projects/${project.id}`, { method: "DELETE" });
+    const response = await adaFetch(`/api/ada/projects/${project.id}`, { method: "DELETE" });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) { setError(result.error ?? "Project could not be deleted."); return; }
     await load();

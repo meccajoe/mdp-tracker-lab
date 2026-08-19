@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -10,8 +10,18 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export async function requireAdaAccess() {
   const cookieStore = await cookies();
   const auth = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, { cookies: { getAll: () => cookieStore.getAll(), setAll: (values) => values.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } });
-  const { data: { user }, error: authError } = await auth.auth.getUser();
-  if (authError || !user?.email) return { ok: false as const, response: NextResponse.json({ error: "Authentication required" }, { status: 401 }) };
+  const { data: { user: cookieUser } } = await auth.auth.getUser();
+  let user = cookieUser;
+  if (!user) {
+    const authorization = (await headers()).get("authorization") ?? "";
+    const bearerToken = authorization.replace(/^Bearer\s+/i, "").trim();
+    if (bearerToken) {
+      const bearerAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { data: { user: bearerUser } } = await bearerAuth.auth.getUser(bearerToken);
+      user = bearerUser;
+    }
+  }
+  if (!user?.email) return { ok: false as const, response: NextResponse.json({ error: "Authentication required" }, { status: 401 }) };
   const actorEmail = user.email.toLowerCase();
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   const { data: roleRow, error } = await supabase.from("user_roles").select("ada_access, role, pm_initials").eq("email", actorEmail).maybeSingle();
