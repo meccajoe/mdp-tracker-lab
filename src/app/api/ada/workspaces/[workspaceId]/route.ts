@@ -21,7 +21,7 @@ export async function GET(
     access.supabase.from("ada_quote_concepts").select("id, workspace_id, label, mode, status, created_by_email, created_at, updated_at").eq("workspace_id", workspaceId).order("created_at"),
     access.supabase.from("ada_quote_messages").select("id, workspace_id, concept_id, role, content, structured_payload_json, created_by_email, created_at").eq("workspace_id", workspaceId).order("created_at"),
     access.supabase.from("ada_quote_events").select("id, workspace_id, concept_id, event_type, payload_json, actor_email, created_at").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(50),
-    access.supabase.from("ada_quote_assets").select("id, workspace_id, concept_id, original_name, mime_type, byte_size, analysis_status, created_at").eq("workspace_id", workspaceId).order("created_at"),
+    access.supabase.from("ada_quote_assets").select("id, workspace_id, concept_id, original_name, mime_type, byte_size, analysis_status, analysis_json, created_at").eq("workspace_id", workspaceId).order("created_at"),
   ]);
 
   if (workspaceResult.error) return NextResponse.json({ error: workspaceResult.error.message }, { status: 500 });
