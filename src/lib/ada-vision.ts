@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import { selectAdaModel } from "@/lib/ada-model-policy";
+import { ADA_SOUL } from "@/lib/ada-soul";
 
 type DrawingAnalysis = {
   summary: string;
@@ -13,7 +14,7 @@ type DrawingAnalysis = {
   confidence: "high" | "medium" | "low";
 };
 
-const ANALYSIS_INSTRUCTIONS = `You are Ada, the Mecca Design & Production estimating assistant. Inspect the supplied drawing or reference file. Return only valid JSON with this shape: {"summary":"...","components":[{"name":"...","description":"...","dimensions":"...","confidence":"high|medium|low"}],"materials":["..."],"dimensions":["..."],"risks":["..."],"questions":["..."],"complexity":"simple|standard|complex","confidence":"high|medium|low"}. Never invent dimensions or materials. Put ambiguity and missing information into questions and risks.`;
+const ANALYSIS_INSTRUCTIONS = `${ADA_SOUL}\n\nInspect the supplied drawing or reference file. Return only valid JSON with this shape: {"summary":"...","components":[{"name":"...","description":"...","dimensions":"...","confidence":"high|medium|low"}],"materials":["..."],"dimensions":["..."],"risks":["..."],"questions":["..."],"complexity":"simple|standard|complex","confidence":"high|medium|low"}. Never invent dimensions or materials. Put ambiguity and missing information into questions and risks.`;
 
 function getClient() {
   const apiKey = process.env.ADA_LLM_API_KEY;
