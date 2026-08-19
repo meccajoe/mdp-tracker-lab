@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdaEvidenceViewer } from "@/components/ada-evidence-viewer";
 import { AdaFileUpload } from "@/components/ada-file-upload";
 import { AdaIntelligenceDrawer } from "@/components/ada-intelligence-drawer";
@@ -29,6 +29,7 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const [previousRevision, setPreviousRevision] = useState<any>(null);
   const [workingSheet, setWorkingSheet] = useState<{ url: string; syncStatus: string; conflicts?: Array<{ cell: string; expected: string; actual: string }> } | null>(null);
   const [sheetChanges, setSheetChanges] = useState<Array<{ id: string; range_a1: string; values_json: unknown[][]; status: string }>>([]);
+  const retryRequestRef = useRef<{ content: string; clientRequestId: string } | null>(null);
 
   const selectedEvidenceAsset = detail?.assets.find((asset) => asset.id === selectedEvidenceAssetId) ?? null;
   const draftKey = `ada:draft:${workspaceId}`;
@@ -46,18 +47,21 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
     event.preventDefault();
     const submittedMessage = draft.trim();
     if (!submittedMessage) return;
+    const clientRequestId = retryRequestRef.current?.content === submittedMessage ? retryRequestRef.current.clientRequestId : crypto.randomUUID();
     setError(null);
     setDraft("");
     setOptimisticMessage(submittedMessage);
     setSaving(true);
     try {
-      const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: submittedMessage, evidenceContext: selectedEvidenceAssetId ? { assetId: selectedEvidenceAssetId, page: selectedEvidencePage } : null }) });
+      const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: submittedMessage, clientRequestId, evidenceContext: selectedEvidenceAssetId ? { assetId: selectedEvidenceAssetId, page: selectedEvidencePage } : null }) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Ada could not complete this chat turn.");
       setDetail((current) => current ? { ...current, messages: [...current.messages, result.userMessage, result.assistantMessage].filter(Boolean) } : current);
       if (result.revision) { setPreviousRevision(revision); setRevision(result.revision); }
+      retryRequestRef.current = null;
       setOptimisticMessage(null);
     } catch (reason) {
+      retryRequestRef.current = { content: submittedMessage, clientRequestId };
       setOptimisticMessage(null);
       setDraft(submittedMessage);
       setError(reason instanceof Error ? reason.message : "Ada could not complete this chat turn.");
