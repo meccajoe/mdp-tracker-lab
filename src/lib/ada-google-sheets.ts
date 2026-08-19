@@ -29,3 +29,10 @@ export async function applyAdaGoogleSheetRangeChange(input: { spreadsheetId: str
   const sheets = google.sheets({ version: "v4", auth });
   await sheets.spreadsheets.values.update({ spreadsheetId: input.spreadsheetId, range: input.rangeA1, valueInputOption: "USER_ENTERED", requestBody: { values: input.values } });
 }
+
+export async function readAdaGoogleSheetRange(input: { spreadsheetId: string; rangeA1: string }) {
+  const auth = new google.auth.GoogleAuth({ credentials: serviceAccountCredentials(), scopes: SCOPES });
+  const sheets = google.sheets({ version: "v4", auth });
+  const response = await sheets.spreadsheets.values.get({ spreadsheetId: input.spreadsheetId, range: input.rangeA1, valueRenderOption: "FORMULA" });
+  return (response.data.values ?? []) as Array<Array<string | number>>;
+}

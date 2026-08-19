@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import test from "node:test";
+const root = process.cwd();
+const migrations = join(root, "supabase/migrations");
+const adapter = join(root, "src/lib/ada-google-sheets.ts");
+const route = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/sheet/sync/route.ts");
+test("Ada reads linked Sheets and persists direct-edit sync status without overwriting", () => {
+  const name = readdirSync(migrations).find((file) => file.endsWith("_ada_quote_sheet_sync_state.sql"));
+  assert.ok(name);
+  const sql = readFileSync(join(migrations, name!), "utf8");
+  assert.match(sql, /add column if not exists last_sync_at/i);
+  assert.match(sql, /add column if not exists sync_conflicts_json/i);
+  assert.match(readFileSync(adapter, "utf8"), /readAdaGoogleSheetRange/);
+  assert.ok(require("node:fs").existsSync(route));
+  const source = readFileSync(route, "utf8");
+  assert.match(source, /needs_review/);
+  assert.match(source, /last_sync_at/);
+  assert.match(source, /sync_conflicts_json/);
+  assert.match(source, /requireAdaAccess/);
+});
