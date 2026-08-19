@@ -7,8 +7,9 @@ const source = readFileSync(join(process.cwd(), "src/components/ada-workspace-de
 
 test("Ada immediately shows the submitted user message while she works", () => {
   assert.match(source, /optimisticMessage/);
-  assert.match(source, /setOptimisticMessage\(submittedMessage\)/);
-  assert.match(source, /Ada is thinking/);
+  assert.match(source, /setOptimisticMessage\(\{ id: clientRequestId, content: submittedMessage \}\)/);
+  assert.match(source, /Gathering Tracker context/);
+  assert.match(source, /AdaConversationScroller/);
   assert.match(source, /setDraft\(""\)/);
   assert.match(source, /setOptimisticMessage\(null\)/);
 });

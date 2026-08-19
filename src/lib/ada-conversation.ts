@@ -60,21 +60,51 @@ export function parseAdaConversationResponse(text: string, allowedCitationIds: S
 }
 
 export async function generateAdaConversation(context: AdaConversationContext) {
+  return streamAdaConversation(context);
+}
+
+export async function streamAdaConversation(
+  context: AdaConversationContext,
+  options: { onTextDelta?: (delta: string) => void | Promise<void> } = {},
+) {
   const apiKey = process.env.ADA_LLM_API_KEY;
   if (!apiKey) throw new Error("Ada model credentials are not configured.");
   const allowedCitationIds = new Set([
     ...context.assets.map((asset) => asset.sourceId),
     ...context.trackerEvidence.map((evidence) => evidence.sourceId),
   ]);
-  const system = `${ADA_SOUL}\n\nYou are having a live conversation inside one private Ada quote workspace. Respond naturally first. Be concise but expert-level. Use the supplied Tracker evidence and drawing analysis only when relevant; cite every factual recommendation that depends on those sources. Never invent a citation, price, dimension, material, or certainty. Ask at most one highest-leverage question. Discussion does not change the quote. If the user clearly requests a material quote change, set quoteAction to propose_revision and provide a precise revisionInstruction, but do not claim the revision has already been applied. Return only JSON with: {"message":"...","citations":[{"sourceId":"authorized-id","label":"...","page":1}],"needsInput":["..."],"quoteAction":"none|propose_revision","revisionInstruction":"optional","limitations":["..."]}.`;
+  const system = `${ADA_SOUL}\n\nYou are having a live conversation inside one private Ada quote workspace. First write the natural, concise, expert-level answer as Markdown text for the user. Do not wrap it in JSON and do not claim a quote revision has already been applied. Use supplied Tracker evidence and drawing analysis only when relevant. Never invent a citation, price, dimension, material, or certainty. Ask at most one highest-leverage question. Discussion does not change the quote. After the user-facing text, call finalize_ada_turn exactly once with citations, needsInput, limitations, and any requested quote action. A material quote change must use quoteAction=propose_revision with a precise revisionInstruction; otherwise use none.`;
   const client = new Anthropic({ apiKey });
   const model = selectAdaModel({ purpose: "conversation", complexity: "standard", lowConfidence: false });
-  const response = await client.messages.create({
+  const stream = client.messages.stream({
     model,
     max_tokens: 2500,
     system,
     messages: [{ role: "user", content: `Authorized workspace context:\n${JSON.stringify(context)}` }],
+    tools: [{
+      name: "finalize_ada_turn",
+      description: "Finalize the hidden control metadata for the user-facing Ada response.",
+      input_schema: {
+        type: "object",
+        properties: {
+          citations: { type: "array", items: { type: "object", properties: { sourceId: { type: "string" }, label: { type: "string" }, page: { type: "integer", minimum: 1 } }, required: ["sourceId", "label"], additionalProperties: false } },
+          needsInput: { type: "array", maxItems: 1, items: { type: "string" } },
+          quoteAction: { type: "string", enum: ["none", "propose_revision"] },
+          revisionInstruction: { type: "string" },
+          limitations: { type: "array", items: { type: "string" } },
+        },
+        required: ["citations", "needsInput", "quoteAction", "limitations"],
+        additionalProperties: false,
+      },
+    }],
   });
-  const text = response.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("\n");
-  return { response: parseAdaConversationResponse(text, allowedCitationIds), model };
+  stream.on("text", (delta) => { void options.onTextDelta?.(delta); });
+  const finalMessage = await stream.finalMessage();
+  const message = finalMessage.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("\n").trim();
+  if (!message) throw new Error("Ada returned an empty conversation response.");
+  const control = finalMessage.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === "finalize_ada_turn");
+  const input = control?.input && typeof control.input === "object" ? control.input as Record<string, unknown> : {
+    citations: [], needsInput: [], quoteAction: "none", limitations: ["Ada's structured turn metadata was unavailable."],
+  };
+  return { response: parseAdaConversationResponse(JSON.stringify({ ...input, message }), allowedCitationIds), model };
 }

@@ -6,7 +6,8 @@ import test from "node:test";
 const source = readFileSync(join(process.cwd(), "src/app/api/ada/workspaces/[workspaceId]/messages/route.ts"), "utf8");
 
 test("Ada message route completes and persists a grounded assistant turn", () => {
-  assert.match(source, /generateAdaConversation/);
+  assert.match(source, /streamAdaConversation/);
+  assert.match(source, /type: "delta"/);
   assert.match(source, /role: "assistant"/);
   assert.match(source, /structured_payload_json/);
   assert.match(source, /retrieveAdaIntelligence/);
