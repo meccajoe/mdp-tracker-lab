@@ -8,9 +8,9 @@ export async function GET(_request: Request, context: { params: Promise<{ worksp
   const { workspaceId, revisionId } = await context.params;
   const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
   if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
-  const { data: sheet, error } = await access.supabase.from("ada_quote_sheets").select("spreadsheet_id, spreadsheet_url, sync_status, updated_at").eq("workspace_id", workspaceId).eq("revision_id", revisionId).maybeSingle();
+  const { data: sheet, error } = await access.supabase.from("ada_quote_sheets").select("spreadsheet_id, spreadsheet_url, sync_status, updated_at, last_sync_at, sync_conflicts_json").eq("workspace_id", workspaceId).eq("revision_id", revisionId).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ sheet: sheet ? { spreadsheetId: sheet.spreadsheet_id, url: sheet.spreadsheet_url, syncStatus: sheet.sync_status, updatedAt: sheet.updated_at } : null });
+  return NextResponse.json({ sheet: sheet ? { spreadsheetId: sheet.spreadsheet_id, url: sheet.spreadsheet_url, syncStatus: sheet.sync_status, updatedAt: sheet.updated_at, lastSyncAt: sheet.last_sync_at, conflicts: sheet.sync_conflicts_json } : null });
 }
 
 export async function POST(_request: Request, context: { params: Promise<{ workspaceId: string; revisionId: string }> }) {
