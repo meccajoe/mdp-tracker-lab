@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { AdaFileUpload } from "@/components/ada-file-upload";
+import { adaFetch } from "@/lib/ada-client";
 
 type AdaAsset = {
   id: string;
@@ -36,7 +37,7 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
     }
     setSelectedId(selected.id);
     setPreviewUrl(null);
-    fetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}/url`).then(async (response) => {
+    adaFetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}/url`).then(async (response) => {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Could not load secure file preview.");
       return result.signedUrl as string;
@@ -48,7 +49,7 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
     setAnalyzingId(selected.id);
     setError(null);
     try {
-      const response = await fetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}/analyze`, { method: "POST" });
+      const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}/analyze`, { method: "POST" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Ada could not analyze this file.");
       await onChanged();
@@ -64,7 +65,7 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
     setDeletingId(selected.id);
     setError(null);
     try {
-      const response = await fetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}`, { method: "DELETE" });
+      const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}`, { method: "DELETE" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error ?? "Could not delete this file.");
       setSelectedId("");

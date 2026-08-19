@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { adaFetch } from "@/lib/ada-client";
 
 type Evidence = { resource: string; sourceId: string; title: string; rationale: string; freshness?: string | null; confidence: string };
 
@@ -12,7 +13,7 @@ export function AdaIntelligenceDrawer({ workspaceId, onClose }: { workspaceId: s
   async function search() {
     if (!query.trim()) return;
     setLoading(true);
-    const response = await fetch(`/api/ada/workspaces/${workspaceId}/intelligence?query=${encodeURIComponent(query)}`);
+    const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/intelligence?query=${encodeURIComponent(query)}`);
     const result = await response.json().catch(() => ({}));
     setEvidence(result.evidence ?? []); setLimitations(result.limitations ?? []); setLoading(false);
   }
