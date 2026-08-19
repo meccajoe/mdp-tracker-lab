@@ -46,7 +46,7 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget); const title = String(form.get("title") ?? "").trim(); if (!title || !createMode) return;
     const selectedProjectId = newChatProjectId ?? (String(form.get("adaProjectId") ?? "") || undefined); const isProject = createMode === "project";
-    setCreating(true); const response = await fetch(isProject ? "/api/ada/projects" : "/api/ada/workspaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, clientName: String(form.get("clientName") ?? ""), adaProjectId: isProject ? undefined : selectedProjectId }) }); const result = await response.json().catch(() => ({})); setCreating(false);
+    setCreating(true); const response = await adaFetch(isProject ? "/api/ada/projects" : "/api/ada/workspaces", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, clientName: String(form.get("clientName") ?? ""), adaProjectId: isProject ? undefined : selectedProjectId }) }); const result = await response.json().catch(() => ({})); setCreating(false);
     if (!response.ok) { setError(result.error ?? "Ada item could not be created."); return; }
     setCreateMode(null); setNewChatProjectId(null); if (isProject) await load(); else router.push(`/ada/${result.workspace.id}`);
   }

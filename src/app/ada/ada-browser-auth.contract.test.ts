@@ -40,3 +40,9 @@ test("Every Ada browser API caller uses the shared authenticated fetch helper", 
     assert.doesNotMatch(source, /\bfetch\((?:`|"|')\/api\/ada/);
   }
 });
+
+test("Ada project and chat creation use the authenticated browser helper", () => {
+  const shell = readFileSync(join(root, "src/components/ada-workspace-shell.tsx"), "utf8");
+  assert.match(shell, /const response = await adaFetch\(isProject \? "\/api\/ada\/projects" : "\/api\/ada\/workspaces"/);
+  assert.doesNotMatch(shell, /const response = await fetch\(isProject \? "\/api\/ada\/projects" : "\/api\/ada\/workspaces"/);
+});
