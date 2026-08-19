@@ -39,6 +39,8 @@ test("the client renders incremental Markdown and completes from the canonical f
   assert.match(source, /streamEvent\.type === "delta"/);
   assert.match(source, /streamEvent\.type === "final"/);
   assert.match(source, /AdaMessageMarkdown content=\{streamedText\}/);
+  assert.match(source, /setTimeout\(flushText, 32\)/);
+  assert.doesNotMatch(source, /requestAnimationFrame\(flushText\)/);
 });
 
 test("Ada follows reader intent and exposes a navigable conversation rail", () => {

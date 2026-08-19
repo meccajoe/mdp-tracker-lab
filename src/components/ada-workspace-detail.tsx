@@ -73,11 +73,11 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
         const decoder = new TextDecoder();
         const events = new AdaNdjsonDecoder();
         let pendingText = "";
-        let textFrame = 0;
-        const flushText = () => { if (pendingText) { const next = pendingText; pendingText = ""; setStreamedText((current) => current + next); } textFrame = 0; };
+        let textTimer = 0;
+        const flushText = () => { if (pendingText) { const next = pendingText; pendingText = ""; setStreamedText((current) => current + next); } textTimer = 0; };
         const applyEvent = (streamEvent: AdaStreamEvent) => {
           if (streamEvent.type === "status") setStreamStatus(streamEvent.label);
-          if (streamEvent.type === "delta") { pendingText += streamEvent.text; if (!textFrame) textFrame = requestAnimationFrame(flushText); }
+          if (streamEvent.type === "delta") { pendingText += streamEvent.text; if (!textTimer) textTimer = window.setTimeout(flushText, 32); }
           if (streamEvent.type === "final") result = streamEvent.response as TurnResult;
           if (streamEvent.type === "error") throw new Error(streamEvent.message);
         };
@@ -88,7 +88,7 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
         }
         events.push(decoder.decode()).forEach(applyEvent);
         events.finish().forEach(applyEvent);
-        if (textFrame) cancelAnimationFrame(textFrame);
+        if (textTimer) window.clearTimeout(textTimer);
         flushText();
       } else {
         result = await response.json().catch(() => null) as TurnResult | null;
