@@ -10,7 +10,7 @@ export async function POST(_request: Request, context: { params: Promise<{ works
   if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
   const [messagesResult, assetsResult] = await Promise.all([
     access.supabase.from("ada_quote_messages").select("content").eq("workspace_id", workspaceId).order("created_at"),
-    access.supabase.from("ada_quote_assets").select("original_name, analysis_json, analysis_status").eq("workspace_id", workspaceId).eq("analysis_status", "ready"),
+    access.supabase.from("ada_quote_assets").select("id, original_name, analysis_json, analysis_status").eq("workspace_id", workspaceId).eq("analysis_status", "ready"),
   ]);
   if (messagesResult.error || assetsResult.error) return NextResponse.json({ error: messagesResult.error?.message ?? assetsResult.error?.message }, { status: 500 });
   const query = (messagesResult.data ?? []).map((message) => message.content).join(" ").slice(-500);
