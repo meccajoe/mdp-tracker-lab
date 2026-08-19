@@ -11,10 +11,12 @@ test("Ada accepts one revision with an audit event and previews handoff without 
   assert.ok(existsSync(previewRoute));
   const accepted = readFileSync(acceptRoute, "utf8");
   const preview = readFileSync(previewRoute, "utf8");
-  assert.match(accepted, /quote_accepted/);
+  assert.match(accepted, /accept_ada_quote_revision/);
   assert.match(accepted, /status: "accepted"/);
-  assert.match(accepted, /revision_id/);
-  assert.match(preview, /quote_accepted/);
+  assert.match(accepted, /accepted_revision_id/);
+  assert.match(preview, /accepted_revision_id/);
+  assert.match(preview, /accepted_at/);
+  assert.doesNotMatch(preview, /ada_quote_events/);
   assert.match(preview, /proposedActions/);
   assert.doesNotMatch(preview, /fetch\(/);
   assert.match(canvas, /Accept revision/);
