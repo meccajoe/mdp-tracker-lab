@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Line = { itemName: string; buildItem?: string; lineType: string; internalCost: number; clientPrice: number; confidence?: "high" | "medium" | "low"; evidenceRefs?: string[]; pricingBasis?: "user_input" | "tracker_evidence" | "expert_estimate" | "blended"; assumption?: string };
 type QuoteRevision = { id: string; revision_number: number; internal_cost: number; sell_price: number; margin_pct: number; assumptions_json: string[]; evidence_json?: unknown[]; quote_json: { lineItems?: Line[] } };
@@ -28,6 +28,10 @@ export function AdaQuoteCanvas({ workspaceId, revision, previousRevision, workin
   const [creatingSheet, setCreatingSheet] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [handoffPreview, setHandoffPreview] = useState<string[] | null>(null);
+  useEffect(() => {
+    setLines(revision?.quote_json?.lineItems ?? []);
+    setEditing(false);
+  }, [revision?.id]);
   if (!revision) return <aside aria-label="Quote canvas" className="flex h-full min-w-[22rem] flex-1 flex-col border-l border-border bg-background"><header className="flex h-14 items-center justify-between border-b border-border px-4"><p className="text-sm font-semibold">Quote canvas</p><button type="button" onClick={onClose}>×</button></header><div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">Generate an estimate from grounded Ada evidence to start a reviewable quote.</div></aside>;
   const quoteRevision = revision;
   const groupedLines = lines.reduce<Record<string, Line[]>>((groups, line) => { const key = line.buildItem || "General"; (groups[key] ??= []).push(line); return groups; }, {});

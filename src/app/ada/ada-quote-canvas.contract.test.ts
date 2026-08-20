@@ -23,4 +23,7 @@ test("Ada quote revisions are immutable and render a reviewable quote canvas", (
   assert.match(canvasSource, /Sell price/);
   assert.match(canvasSource, /Margin/);
   assert.match(canvasSource, /Assumptions/);
+  assert.match(canvasSource, /useEffect\(\(\) => \{/);
+  assert.match(canvasSource, /setLines\(revision\?\.quote_json\?\.lineItems \?\? \[\]\)/);
+  assert.match(canvasSource, /\[revision\?\.id\]/, "the canvas must refresh line state when an asynchronously loaded revision changes");
 });
