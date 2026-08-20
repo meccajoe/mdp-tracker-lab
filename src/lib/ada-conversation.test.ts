@@ -35,3 +35,10 @@ test("Ada requires a revision instruction when proposing a quote revision", () =
     message: "I’ll revise it.", citations: [], needsInput: [], quoteAction: "propose_revision", limitations: [],
   }), allowed), /revision instruction/i);
 });
+
+test("Ada safely falls back to the user's quote request when tool metadata omits the instruction", () => {
+  const response = parseAdaConversationResponse(JSON.stringify({
+    message: "I prepared the requested point estimate.", citations: [], needsInput: [], quoteAction: "propose_revision", revisionInstruction: "", limitations: [],
+  }), allowed, "Create the complete quote using expert industry pricing where Tracker is sparse.");
+  assert.equal(response.revisionInstruction, "Create the complete quote using expert industry pricing where Tracker is sparse.");
+});

@@ -32,7 +32,7 @@ function stringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.trim()) : [];
 }
 
-export function parseAdaConversationResponse(text: string, allowedCitationIds: Set<string>): AdaConversationResponse {
+export function parseAdaConversationResponse(text: string, allowedCitationIds: Set<string>, fallbackRevisionInstruction?: string): AdaConversationResponse {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("Ada returned no structured conversation response.");
   const parsed = JSON.parse(match[0]) as Record<string, unknown>;
@@ -47,7 +47,11 @@ export function parseAdaConversationResponse(text: string, allowedCitationIds: S
     return { sourceId, label, ...(Number.isInteger(page) && page > 0 ? { page } : {}) };
   }) : [];
   const quoteAction = parsed.quoteAction === "propose_revision" ? "propose_revision" : "none";
-  const revisionInstruction = typeof parsed.revisionInstruction === "string" && parsed.revisionInstruction.trim() ? parsed.revisionInstruction.trim() : undefined;
+  const revisionInstruction = typeof parsed.revisionInstruction === "string" && parsed.revisionInstruction.trim()
+    ? parsed.revisionInstruction.trim()
+    : typeof fallbackRevisionInstruction === "string" && fallbackRevisionInstruction.trim()
+      ? fallbackRevisionInstruction.trim()
+      : undefined;
   if (quoteAction === "propose_revision" && !revisionInstruction) throw new Error("Ada proposed a revision without a revision instruction.");
   return {
     message,
@@ -106,5 +110,6 @@ export async function streamAdaConversation(
   const input = control?.input && typeof control.input === "object" ? control.input as Record<string, unknown> : {
     citations: [], needsInput: [], quoteAction: "none", revisionInstruction: "", limitations: ["Ada's structured turn metadata was unavailable."],
   };
-  return { response: parseAdaConversationResponse(JSON.stringify({ ...input, message }), allowedCitationIds), model };
+  const fallbackRevisionInstruction = [...context.messages].reverse().find((entry) => entry.role === "user")?.content;
+  return { response: parseAdaConversationResponse(JSON.stringify({ ...input, message }), allowedCitationIds, fallbackRevisionInstruction), model };
 }
