@@ -93,7 +93,7 @@ export async function streamAdaConversation(
           revisionInstruction: { type: "string" },
           limitations: { type: "array", items: { type: "string" } },
         },
-        required: ["citations", "needsInput", "quoteAction", "limitations"],
+        required: ["citations", "needsInput", "quoteAction", "revisionInstruction", "limitations"],
         additionalProperties: false,
       },
     }],
@@ -104,7 +104,7 @@ export async function streamAdaConversation(
   if (!message) throw new Error("Ada returned an empty conversation response.");
   const control = finalMessage.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === "finalize_ada_turn");
   const input = control?.input && typeof control.input === "object" ? control.input as Record<string, unknown> : {
-    citations: [], needsInput: [], quoteAction: "none", limitations: ["Ada's structured turn metadata was unavailable."],
+    citations: [], needsInput: [], quoteAction: "none", revisionInstruction: "", limitations: ["Ada's structured turn metadata was unavailable."],
   };
   return { response: parseAdaConversationResponse(JSON.stringify({ ...input, message }), allowedCitationIds), model };
 }

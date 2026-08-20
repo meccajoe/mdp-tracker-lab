@@ -16,3 +16,8 @@ test("Ada message route completes and persists a grounded assistant turn", () =>
   assert.match(source, /analysis_json/);
   assert.match(source, /quote_json/);
 });
+
+test("Ada quote actions always carry a revision instruction", () => {
+  const conversation = readFileSync(join(process.cwd(), "src/lib/ada-conversation.ts"), "utf8");
+  assert.match(conversation, /required: \["citations", "needsInput", "quoteAction", "revisionInstruction", "limitations"\]/);
+});
