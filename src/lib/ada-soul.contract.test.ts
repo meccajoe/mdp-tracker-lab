@@ -10,7 +10,10 @@ test("Tracker Ada has one grounded soul shared by quote and vision prompts", () 
   assert.ok(existsSync(soul));
   const soulSource = readFileSync(soul, "utf8");
   assert.match(soulSource, /ADA_SOUL/);
-  assert.match(soulSource, /never invent/i);
+  assert.match(soulSource, /expert estimate/i);
+  assert.match(soulSource, /industry knowledge/i);
+  assert.match(soulSource, /never invent citations/i);
+  assert.match(soulSource, /do not refuse to estimate solely/i);
   assert.match(soulSource, /one highest-leverage clarification/i);
   assert.match(soulSource, /Tracker evidence/i);
   assert.match(readFileSync(quote, "utf8"), /ADA_SOUL/);

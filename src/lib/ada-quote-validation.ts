@@ -6,6 +6,7 @@ export type AdaQuoteLine = {
   clientPrice: number;
   confidence: "high" | "medium" | "low";
   evidenceRefs: string[];
+  pricingBasis?: "user_input" | "tracker_evidence" | "expert_estimate" | "blended";
   assumption?: string;
 };
 
@@ -22,6 +23,7 @@ function validateLine(value: unknown): AdaQuoteLine {
     && typeof line.internalCost === "number" && Number.isFinite(line.internalCost) && line.internalCost >= 0
     && typeof line.clientPrice === "number" && Number.isFinite(line.clientPrice) && line.clientPrice >= 0
     && (line.confidence === "high" || line.confidence === "medium" || line.confidence === "low")
+    && (line.pricingBasis === undefined || line.pricingBasis === "user_input" || line.pricingBasis === "tracker_evidence" || line.pricingBasis === "expert_estimate" || line.pricingBasis === "blended")
     && Array.isArray(line.evidenceRefs) && line.evidenceRefs.every((reference) => typeof reference === "string");
   if (!valid) throw new Error("Ada received an invalid quote line.");
   return {
@@ -32,6 +34,7 @@ function validateLine(value: unknown): AdaQuoteLine {
     clientPrice: line.clientPrice!,
     confidence: line.confidence!,
     evidenceRefs: line.evidenceRefs!.map((reference) => reference.trim()).filter(Boolean),
+    ...(line.pricingBasis ? { pricingBasis: line.pricingBasis } : {}),
     ...(typeof line.assumption === "string" && line.assumption.trim() ? { assumption: line.assumption.trim() } : {}),
   };
 }

@@ -24,3 +24,9 @@ test("Ada normalizes assumptions and evidence without trusting client totals", (
   assert.deepEqual(result.evidence, [{ sourceId: "x" }]);
   assert.equal(result.totals.sellPrice, 900);
 });
+
+test("Ada preserves a truthful expert-estimate pricing basis", () => {
+  const result = validateAdaQuoteSnapshot({ lineItems: [{ ...validLine, evidenceRefs: [], pricingBasis: "expert_estimate", assumption: "Industry-informed Dallas fabrication allowance; confirm against vendor quote during review." }] });
+  assert.equal(result.quoteJson.lineItems[0].pricingBasis, "expert_estimate");
+  assert.match(result.quoteJson.lineItems[0].assumption ?? "", /industry-informed/i);
+});

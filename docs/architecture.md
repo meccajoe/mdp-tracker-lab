@@ -31,4 +31,6 @@ The client decodes the stream in `src/lib/ada-stream-protocol.ts`, renders incre
 
 `src/lib/ada-intelligence/` plans bounded, role-aware retrieval across authorized materials, vendor prices, comparables, quote lines, expenses, labor summaries, and formulas. Evidence carries source identity, rationale, freshness, confidence, and limitations. Historical financial anchors require enough meaningful authorized comparables.
 
+Tracker evidence calibrates pricing but is not a prerequisite for an estimate. Ada's pricing hierarchy is explicit user guidance, authorized Tracker evidence, Opus expert industry judgment, or a labeled blend. When source rates are sparse, Ada must still produce a single best point estimate using reasonable market-aware material rates, labor productivity, logistics, margin, and risk allowances. Model-derived lines are labeled `expert_estimate`, include an assumption and confidence, and never pretend to be Tracker citations. Unknowns become working assumptions, contingencies, or review items rather than blocking quote delivery.
+
 All quote creation paths use canonical server validation and the atomic `create_ada_quote_revision` database function. Acceptance is latest-revision-only, revision-specific, audited, and idempotent. Creating a newer revision invalidates prior acceptance.

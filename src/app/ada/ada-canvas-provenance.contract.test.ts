@@ -9,7 +9,9 @@ test("Ada quote lines carry build-item grouping, confidence, and evidence proven
   assert.match(generation, /buildItem/);
   assert.match(generation, /confidence/);
   assert.match(generation, /evidenceRefs/);
+  assert.match(generation, /pricingBasis/);
   assert.match(canvas, /Build item/);
   assert.match(canvas, /Confidence/);
   assert.match(canvas, /Evidence/);
+  assert.match(canvas, /Pricing basis/);
 });
