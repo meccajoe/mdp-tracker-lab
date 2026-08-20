@@ -9,7 +9,7 @@ const ASSET_BUCKET = "ada-quote-assets";
 
 type AdaFileUploadProps = {
   workspaceId: string;
-  onUploaded: () => Promise<void>;
+  onUploaded: (asset: { id: string; original_name: string; analysis_status: string }) => Promise<void>;
   onUploadStart?: () => void;
   compact?: boolean;
 };
@@ -42,7 +42,7 @@ export function AdaFileUpload({ workspaceId, onUploaded, onUploadStart, compact 
       const completeResponse = await adaFetch(`/api/ada/workspaces/${workspaceId}/assets/${created.asset.id}/complete`, { method: "POST" });
       const completed = await completeResponse.json().catch(() => ({}));
       if (!completeResponse.ok) throw new Error(completed.error ?? "Could not complete file upload.");
-      await onUploaded();
+      await onUploaded(completed.asset);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not upload file.");
     } finally {
