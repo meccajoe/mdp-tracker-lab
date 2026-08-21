@@ -596,6 +596,19 @@ export default function ProjectDetailPage() {
       .reduce((sum, exp) => sum + exp.amount, 0);
   }
 
+  // Allocation is the production source of truth for allowed hours. Actuals
+  // remain project-level until labor/expense entries can be assigned to quote lines.
+  const allocationLaborBudgetHours = quoteAllocationRows.length > 0 ? quoteAllocationTotals.labor_hours : null;
+  const allocationLaborActualHours = getActualForBudgetField("budget_hrs") + (savedActuals["Labor Hours"] ?? 0);
+  const allocationLaborActualCost = qboLaborEntries.reduce(
+    (sum, entry) => sum + (entry.reg_hours + entry.ot_hours) * entry.hourly_rate,
+    0,
+  ) + laborEntries.reduce((sum, entry) => sum + entry.hours * LABOR_RATE, 0) + (savedActuals["Labor Hours"] ?? 0) * LABOR_RATE;
+  const allocationMaterialsActual = getActualForBudgetField("budget_materials") + (savedActuals.Materials ?? 0);
+  const allocationNonLmActual = BUDGET_FIELDS
+    .filter((field) => !field.isHours && field.key !== "budget_materials")
+    .reduce((sum, field) => sum + getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0), 0);
+
   async function handleRebaselineFromQuote() {
     if (!project) return;
     if (!isAdmin) {
@@ -1210,9 +1223,12 @@ export default function ProjectDetailPage() {
             {BUDGET_FIELDS.map((field) => {
               const storedVal = project[field.key as keyof ProjectSummary] as number | null;
               const fallback = storedVal ?? (field.key === "budget_materials" ? Math.round((project.contract_amount ?? 0) * 0.25) : field.key === "budget_hrs" ? Math.round((project.contract_amount ?? 0) * 0.25 / LABOR_RATE) : 0);
-              const actual = ["budget_design", "budget_pm"].includes(field.key) && savedActuals[field.label] == null ? fallback : getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0);
-              const variance = fallback - actual;
-              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div className="font-medium">{field.label}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? `${formatNumber(fallback)} hrs` : formatCurrency(fallback)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? `${formatNumber(actual)} hrs` : formatCurrency(actual)}</div></div></div>;
+              const budgeted = field.key === "budget_hrs" && allocationLaborBudgetHours != null
+                ? allocationLaborBudgetHours
+                : fallback;
+              const actual = ["budget_design", "budget_pm"].includes(field.key) && savedActuals[field.label] == null ? budgeted : getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0);
+              const variance = budgeted - actual;
+              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div className="font-medium">{field.label}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? `${formatNumber(budgeted)} hrs` : formatCurrency(budgeted)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? `${formatNumber(actual)} hrs` : formatCurrency(actual)}</div></div></div>;
             })}
           </div>
           <div className="hidden lg:block">
@@ -1238,9 +1254,12 @@ export default function ProjectDetailPage() {
                   if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / QUOTED_LABOR_RATE_PER_HR);
                   return 0;
                 })();
+                const calculatedBudgeted = field.key === "budget_hrs" && allocationLaborBudgetHours != null
+                  ? allocationLaborBudgetHours
+                  : fallbackVal;
                 const budgeted = editingBudget && budgetEdits[field.key] !== undefined
                   ? (budgetEdits[field.key] === "" ? 0 : Number(budgetEdits[field.key]))
-                  : fallbackVal;
+                  : calculatedBudgeted;
                 const expenseActual = getActualForBudgetField(field.key);
                 const manualOverride = savedActuals[field.label] ?? 0;
                 // Design and PM always default to 100% of budget unless manually overridden
@@ -1628,6 +1647,21 @@ export default function ProjectDetailPage() {
                     {quoteAllocationRows.filter((row) => row.formula_status !== "ready").length} line{quoteAllocationRows.filter((row) => row.formula_status !== "ready").length === 1 ? "" : "s"} need review in <a className="underline" href="/admin/formula-rebaseline-preview">Formula Review</a> before these targets are final.
                   </div>
                 )}
+                <div data-slot="project-quote-allocation-actuals" className="mb-4 grid gap-3 border-y py-3 text-sm sm:grid-cols-3">
+                  <div>
+                    <span className="block text-xs uppercase tracking-wide text-muted-foreground">Labor actual</span>
+                    <span className="font-medium">{formatNumber(allocationLaborActualHours)} hrs · {formatCurrency(allocationLaborActualCost)}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs uppercase tracking-wide text-muted-foreground">Materials actual</span>
+                    <span className="font-medium">{formatCurrency(allocationMaterialsActual)}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs uppercase tracking-wide text-muted-foreground">Purchase / other actual</span>
+                    <span className="font-medium">{formatCurrency(allocationNonLmActual)}</span>
+                  </div>
+                  <p className="sm:col-span-3 text-xs text-muted-foreground">Actuals to date are project-level totals; line-level actual allocation will follow once source entries carry quote-line attribution.</p>
+                </div>
                 <div data-slot="project-quote-allocation-mobile" className="space-y-3 lg:hidden">
                   {quoteAllocationRows.map((row) => (
                     <div key={row.source_line_item_id} className="rounded-lg border p-3">

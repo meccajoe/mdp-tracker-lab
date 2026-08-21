@@ -98,7 +98,7 @@ test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budge
 
   assert.equal(fields.quote_materials, 14330);
   assert.equal(fields.budget_materials, 3583);
-  assert.equal(fields.budget_hrs, 34);
+  assert.equal(fields.budget_hrs, 68);
   assert.equal(fields.quote_storage, 1250);
   assert.equal(fields.quote_flooring, 1930);
 });
@@ -191,7 +191,7 @@ test("buildBudgetPayloadFromProjectQuote derives live rebaseline budgets from qu
   });
 
   assert.equal(budgets.budget_materials, 3583);
-  assert.equal(budgets.budget_hrs, 34);
+  assert.equal(budgets.budget_hrs, 68);
   assert.equal(budgets.budget_design, 500);
   assert.equal(budgets.budget_pm, 713);
   assert.equal(budgets.budget_shipping, 3395);
@@ -264,8 +264,8 @@ test("buildQuoteCompareRows shows zero variance after a fresh rebaseline", () =>
   const designRow = rows.find((row) => row.category === "Design");
 
   assert.ok(lmRow);
-  assert.equal(lmRow?.quote_basis_total, 7153);
-  assert.equal(lmRow?.budget_total, 7153);
+  assert.equal(lmRow?.quote_basis_total, 10723);
+  assert.equal(lmRow?.budget_total, 10723);
   assert.equal(lmRow?.variance_quote_to_budget, 0);
 
   assert.ok(designRow);
@@ -337,8 +337,11 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
     unit_price: 9965,
     line_total: 9965,
     mapped_category: "fabrication",
-    budget_category_label: "L&M",
-    labor_budget: 2491,
+    budget_category_label: "Fabrication · Sell ÷ 210",
+    formula_type: "fabrication",
+    formula_status: "ready",
+    labor_hours: 9965 / 210,
+    labor_budget: 1946,
     material_budget: 2491,
     non_lm_budget: 0,
   });

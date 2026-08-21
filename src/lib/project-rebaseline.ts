@@ -142,12 +142,11 @@ export function buildStoredQuoteSnapshotFromParsedQuote(parsed: {
 
 export function buildBudgetPayloadFromProjectQuote(project: QuoteBackedProject) {
   const fabricationBasis = num(project.quote_materials);
-  const laborPct = pct(project, "pct_labor");
   const materialsPct = pct(project, "pct_materials");
 
   const payload: Record<string, number | null> = {
     budget_hrs: fabricationBasis && fabricationBasis > 0
-      ? Math.round(((fabricationBasis * laborPct) / 100) / LABOR_RATE_PER_HR)
+      ? Math.round(fabricationBasis / 210)
       : null,
     budget_materials: fabricationBasis && fabricationBasis > 0
       ? Math.round((fabricationBasis * materialsPct) / 100)
