@@ -21,12 +21,29 @@ function clamp(val: number, min: number, max: number) {
   return Math.min(max, Math.max(min, val));
 }
 
+export type ProjectTimelineStatus = "Active" | "Completed" | "On Hold" | "Pending";
+
+export function getTimelinePresentation(status: ProjectTimelineStatus) {
+  switch (status) {
+    case "Completed":
+      return { label: "Completed", detail: "Schedule tracking closed", tracksSchedule: false };
+    case "On Hold":
+      return { label: "On hold", detail: "Schedule tracking paused", tracksSchedule: false };
+    case "Pending":
+      return { label: "Pending", detail: "Schedule tracking begins when active", tracksSchedule: false };
+    default:
+      return { label: "Active", detail: "Schedule tracking active", tracksSchedule: true };
+  }
+}
+
 interface Props {
   dueDate: string; // ISO date string
   closeDate?: string; // project start date
+  status: ProjectTimelineStatus;
 }
 
-export function CountdownClock({ dueDate, closeDate }: Props) {
+export function CountdownClock({ dueDate, closeDate, status }: Props) {
+  const presentation = getTimelinePresentation(status);
   const stats = useMemo(() => {
     const now = new Date();
     const due = new Date(dueDate + "T23:59:59");
@@ -78,35 +95,45 @@ export function CountdownClock({ dueDate, closeDate }: Props) {
         <div className="font-semibold text-foreground">{dueFmt}</div>
       </div>
 
-      {/* Calendar days */}
-      <div>
-        <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Calendar days</span>
-        <div className={`font-bold text-lg leading-tight ${urgencyColor}`}>
-          {isPast ? `${Math.abs(calDaysLeft)}d overdue` : `${calDaysLeft}d left`}
-        </div>
-      </div>
-
-      {/* Business days */}
-      <div>
-        <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Business days</span>
-        <div className={`font-bold text-lg leading-tight ${urgencyColor}`}>
-          {isPast ? `${Math.abs(bizDaysLeft)}d overdue` : `${bizDaysLeft}d left`}
-        </div>
-      </div>
-
-      {/* Timeline progress */}
-      {pctElapsed !== null && (
-        <div className="flex-1 min-w-[140px]">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span className="uppercase tracking-wide font-medium">Timeline</span>
-            <span className="font-semibold">{pctElapsed}% elapsed</span>
+      {presentation.tracksSchedule ? (
+        <>
+          {/* Calendar days */}
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Calendar days</span>
+            <div className={`font-bold text-lg leading-tight ${urgencyColor}`}>
+              {isPast ? `${Math.abs(calDaysLeft)}d overdue` : `${calDaysLeft}d left`}
+            </div>
           </div>
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${barColor}`}
-              style={{ width: `${pctElapsed}%` }}
-            />
+
+          {/* Business days */}
+          <div>
+            <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Business days</span>
+            <div className={`font-bold text-lg leading-tight ${urgencyColor}`}>
+              {isPast ? `${Math.abs(bizDaysLeft)}d overdue` : `${bizDaysLeft}d left`}
+            </div>
           </div>
+
+          {/* Timeline progress */}
+          {pctElapsed !== null && (
+            <div className="flex-1 min-w-[140px]">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span className="uppercase tracking-wide font-medium">Timeline</span>
+                <span className="font-semibold">{pctElapsed}% elapsed</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${barColor}`}
+                  style={{ width: `${pctElapsed}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex-1 min-w-[180px]">
+          <span className="text-muted-foreground text-xs uppercase tracking-wide font-medium">Timeline status</span>
+          <div className="font-semibold text-foreground">{presentation.label}</div>
+          <p className="text-xs text-muted-foreground">{presentation.detail}</p>
         </div>
       )}
     </div>

@@ -989,6 +989,7 @@ export default function ProjectDetailPage() {
               <CountdownClock
                 dueDate={(project as unknown as Record<string, string>).due_date}
                 closeDate={project.close_date ?? undefined}
+                status={project.status}
               />
             )}
           </CardContent>
