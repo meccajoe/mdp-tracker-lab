@@ -28,3 +28,13 @@ test("budget detail does not label quote-allocation hours with a stale labor rat
   );
   assert.doesNotMatch(budgetDetailSource, /@ \$\{LABOR_RATE\}\/hr/);
 });
+
+test("overview uses the quote-allocation hours allowance and percentage", () => {
+  assert.match(source, /const overviewLaborBudgetHours = allocationLaborBudgetHours \?\? project\.budget_hrs \?\? 0/);
+  assert.match(source, /const overviewPctHrs = overviewLaborBudgetHours > 0/);
+  const overviewSource = source.slice(
+    source.indexOf('<TabsContent value="overview"'),
+    source.indexOf('<TabsContent value="budget"'),
+  );
+  assert.match(overviewSource, /\{formatNumber\(overviewLaborBudgetHours\)\} hrs \(\{overviewPctHrs\.toFixed\(0\)\}%\)/);
+});

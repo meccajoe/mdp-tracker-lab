@@ -828,7 +828,10 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const pctHrs = project.pct_hrs_used ?? 0;
+  const overviewLaborBudgetHours = allocationLaborBudgetHours ?? project.budget_hrs ?? 0;
+  const overviewPctHrs = overviewLaborBudgetHours > 0
+    ? (project.total_hrs_used / overviewLaborBudgetHours) * 100
+    : 0;
   const pctBudget = project.pct_budget_used ?? 0;
 
   async function handleSaveBudget() {
@@ -1061,12 +1064,12 @@ export default function ProjectDetailPage() {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="font-medium">Hours Used</span>
-                <span className={getBudgetHealthColor(pctHrs)}>
+                <span className={getBudgetHealthColor(overviewPctHrs)}>
                   {formatNumber(project.total_hrs_used)} /{" "}
-                  {formatNumber(project.budget_hrs)} hrs ({pctHrs.toFixed(0)}%)
+                  {formatNumber(overviewLaborBudgetHours)} hrs ({overviewPctHrs.toFixed(0)}%)
                 </span>
               </div>
-              <Progress value={Math.min(pctHrs, 100)} />
+              <Progress value={Math.min(overviewPctHrs, 100)} />
             </div>
 
             {/* Budget Dollars */}
