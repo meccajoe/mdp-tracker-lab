@@ -29,12 +29,16 @@ test("budget detail does not label quote-allocation hours with a stale labor rat
   assert.doesNotMatch(budgetDetailSource, /@ \$\{LABOR_RATE\}\/hr/);
 });
 
-test("overview uses the quote-allocation hours allowance and percentage", () => {
-  assert.match(source, /const overviewLaborBudgetHours = allocationLaborBudgetHours \?\? project\.budget_hrs \?\? 0/);
-  assert.match(source, /const overviewPctHrs = overviewLaborBudgetHours > 0/);
+test("overview reports allocation-backed labor, non-labor, and total actual costs", () => {
+  assert.match(source, /import \{ buildProjectOverviewSummary \} from "@\/lib\/project-overview-summary"/);
+  assert.match(source, /const overviewSummary = quoteAllocationRows\.length > 0/);
+  assert.match(source, /buildProjectOverviewSummary\(\{/);
   const overviewSource = source.slice(
     source.indexOf('<TabsContent value="overview"'),
     source.indexOf('<TabsContent value="budget"'),
   );
-  assert.match(overviewSource, /\{formatNumber\(overviewLaborBudgetHours\)\} hrs \(\{overviewPctHrs\.toFixed\(0\)\}%\)/);
+  assert.match(overviewSource, /Labor hours/);
+  assert.match(overviewSource, /Non-labor spend/);
+  assert.match(overviewSource, /Total actual cost/);
+  assert.doesNotMatch(overviewSource, /Budget Spent/);
 });

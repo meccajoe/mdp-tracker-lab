@@ -82,6 +82,7 @@ import { getBillcomExpenseDisplayDetails } from "@/lib/billcom-expense-display";
 import { PageShell } from "@/components/ui/page-shell";
 import { QUOTED_LABOR_RATE_PER_HR } from "@/lib/budget-formula";
 import { canonicalLaborCostQueryFilter } from "@/lib/labor-rate-source";
+import { buildProjectOverviewSummary } from "@/lib/project-overview-summary";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -828,11 +829,15 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const overviewLaborBudgetHours = allocationLaborBudgetHours ?? project.budget_hrs ?? 0;
-  const overviewPctHrs = overviewLaborBudgetHours > 0
-    ? (project.total_hrs_used / overviewLaborBudgetHours) * 100
-    : 0;
-  const pctBudget = project.pct_budget_used ?? 0;
+  const overviewSummary = quoteAllocationRows.length > 0
+    ? buildProjectOverviewSummary({
+      allocation: quoteAllocationTotals,
+      labor_actual_hours: allocationLaborActualHours,
+      labor_actual_cost: allocationLaborActualCost,
+      material_actual: allocationMaterialsActual,
+      non_lm_actual: allocationNonLmActual,
+    })
+    : null;
 
   async function handleSaveBudget() {
     if (!project) return;
@@ -1060,32 +1065,39 @@ export default function ProjectDetailPage() {
           <CardTitle>Budget Summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Hours */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">Hours Used</span>
-                <span className={getBudgetHealthColor(overviewPctHrs)}>
-                  {formatNumber(project.total_hrs_used)} /{" "}
-                  {formatNumber(overviewLaborBudgetHours)} hrs ({overviewPctHrs.toFixed(0)}%)
-                </span>
+          {overviewSummary ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Labor hours</span>
+                  <span className={getBudgetHealthColor(overviewSummary.labor.percent)}>
+                    {formatNumber(overviewSummary.labor.actual)} / {formatNumber(overviewSummary.labor.budget)} hrs ({overviewSummary.labor.percent.toFixed(0)}%)
+                  </span>
+                </div>
+                <Progress value={Math.min(overviewSummary.labor.percent, 100)} />
               </div>
-              <Progress value={Math.min(overviewPctHrs, 100)} />
-            </div>
-
-            {/* Budget Dollars */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">Budget Spent</span>
-                <span className={getBudgetHealthColor(pctBudget)}>
-                  {formatCurrency(project.total_spent)} /{" "}
-                  {formatCurrency(project.total_budget)} ({pctBudget.toFixed(0)}
-                  %)
-                </span>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Non-labor spend</span>
+                  <span className={getBudgetHealthColor(overviewSummary.non_labor.percent)}>
+                    {formatCurrency(overviewSummary.non_labor.actual)} / {formatCurrency(overviewSummary.non_labor.budget)} ({overviewSummary.non_labor.percent.toFixed(0)}%)
+                  </span>
+                </div>
+                <Progress value={Math.min(overviewSummary.non_labor.percent, 100)} />
               </div>
-              <Progress value={Math.min(pctBudget, 100)} />
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">Total actual cost</span>
+                  <span className={getBudgetHealthColor(overviewSummary.total_cost.percent)}>
+                    {formatCurrency(overviewSummary.total_cost.actual)} / {formatCurrency(overviewSummary.total_cost.budget)} ({overviewSummary.total_cost.percent.toFixed(0)}%)
+                  </span>
+                </div>
+                <Progress value={Math.min(overviewSummary.total_cost.percent, 100)} />
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Quote Allocation is required before this project can show an allocation-backed budget summary.</p>
+          )}
 
           {project.pending_amount > 0 && (
             <p className="text-sm text-muted-foreground">
