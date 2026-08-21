@@ -1332,11 +1332,6 @@ export default function ProjectDetailPage() {
                             <span className="w-3.5 shrink-0" />
                           )}
                           {field.label}
-                          {field.isHours && (
-                            <span className="text-muted-foreground text-xs ml-1">
-                              @ ${LABOR_RATE}/hr
-                            </span>
-                          )}
                         </span>
                       </TableCell>
                       {effectiveIsAdmin && (

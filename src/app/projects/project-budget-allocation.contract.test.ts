@@ -20,3 +20,11 @@ test("budget detail uses the quote-allocation labor-hours formula when available
   assert.match(source, /const allocationLaborBudgetHours = quoteAllocationRows\.length > 0 \? quoteAllocationTotals\.labor_hours : null/);
   assert.match(source, /field\.key === "budget_hrs" && allocationLaborBudgetHours != null\s*\? allocationLaborBudgetHours/);
 });
+
+test("budget detail does not label quote-allocation hours with a stale labor rate", () => {
+  const budgetDetailSource = source.slice(
+    source.indexOf('<TabsContent value="budget"'),
+    source.indexOf('<TabsContent value="allocation"'),
+  );
+  assert.doesNotMatch(budgetDetailSource, /@ \$\{LABOR_RATE\}\/hr/);
+});
