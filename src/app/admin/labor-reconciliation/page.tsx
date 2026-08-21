@@ -31,12 +31,18 @@ export default function LaborReconciliationPage() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loading, setLoading] = useState(true);
 
+  async function authenticatedFetch(url: string, init: RequestInit = {}) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Authentication required");
+    return fetch(url, { ...init, credentials: "include", headers: { ...init.headers, Authorization: `Bearer ${session.access_token}` } });
+  }
+
   async function load() {
     setLoading(true);
     const projectQuery = projectId === "all" ? "" : `&projectId=${projectId}`;
     const [logs, july] = await Promise.all([
-      fetch(`/api/admin/labor-reconciliation?start=${start}&end=${end}${projectQuery}`),
-      fetch(`/api/admin/labor-reconciliation/july-preview${projectId === "all" ? "" : `?projectId=${projectId}`}`),
+      authenticatedFetch(`/api/admin/labor-reconciliation?start=${start}&end=${end}${projectQuery}`),
+      authenticatedFetch(`/api/admin/labor-reconciliation/july-preview${projectId === "all" ? "" : `?projectId=${projectId}`}`),
     ]);
     const logsResult = await logs.json();
     const julyResult = await july.json();
@@ -59,11 +65,13 @@ export default function LaborReconciliationPage() {
     const csv = ["Account ID,Project ID,Project,Memo,Debit,Credit", ...preview.journalEntry.lines.map((line) => [line.accountId, line.projectId, line.projectName, line.memo, line.debit.toFixed(2), line.credit.toFixed(2)].map(escape).join(","))].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); const link = document.createElement("a"); link.href = url; link.download = "july-2026-wage-allocation-je-review.csv"; link.click(); URL.revokeObjectURL(url);
   }
-  function exportJulyReviewPackage() {
-    window.location.assign("/api/admin/labor-reconciliation/july-review-package");
+  async function exportJulyReviewPackage() {
+    const response = await authenticatedFetch("/api/admin/labor-reconciliation/july-review-package");
+    if (!response.ok) { toast.error("Could not export July review package."); return; }
+    const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = "july-2026-labor-review-package.xlsx"; link.click(); URL.revokeObjectURL(url);
   }
   async function saveReviewDraft() {
-    const response = await fetch("/api/admin/labor-reconciliation/july-preview/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: projectId === "all" ? null : projectId }) });
+    const response = await authenticatedFetch("/api/admin/labor-reconciliation/july-preview/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId: projectId === "all" ? null : projectId }) });
     const result = await response.json();
     if (!response.ok) { toast.error(result.error ?? "Could not save review draft."); return; }
     toast.success(`Review-only draft ${result.draft.id} saved.`);

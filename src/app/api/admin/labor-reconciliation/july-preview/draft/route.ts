@@ -3,7 +3,7 @@ import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildJulyLaborReview } from "@/lib/july-labor-review";
 
 export async function POST(request: NextRequest) {
-  const actor = await requireProjectAdmin();
+  const actor = await requireProjectAdmin(request);
   if (!actor.ok) return actor.response;
   try {
     const body = await request.json().catch(() => ({})) as { projectId?: string };

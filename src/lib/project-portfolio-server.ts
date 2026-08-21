@@ -24,7 +24,7 @@ export function getSupabaseAdmin() {
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 }
 
-export async function requireProjectAdmin(): Promise<ProjectAdminContext | ProjectAdminError> {
+export async function requireProjectAdmin(request?: Request): Promise<ProjectAdminContext | ProjectAdminError> {
   const cookieStore = await cookies();
   const supabaseAuth = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
@@ -39,10 +39,12 @@ export async function requireProjectAdmin(): Promise<ProjectAdminContext | Proje
     },
   });
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseAuth.auth.getUser();
+  const bearer = request?.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const bearerAuth = bearer ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } }) : null;
+  const bearerResult = bearer ? await bearerAuth!.auth.getUser(bearer) : null;
+  const cookieResult = bearer ? null : await supabaseAuth.auth.getUser();
+  const user = bearerResult?.data.user ?? cookieResult?.data.user;
+  const authError = bearerResult?.error ?? cookieResult?.error;
 
   if (authError || !user?.email) {
     return {

@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 
 const contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const sheet = (rows: Record<string, unknown>[]) => XLSX.utils.json_to_sheet(rows);
 
-export async function GET() {
-  const actor = await requireProjectAdmin();
+export async function GET(request: NextRequest) {
+  const actor = await requireProjectAdmin(request);
   if (!actor.ok) return actor.response;
   const { data: draft, error } = await actor.supabase.from("labor_allocation_je_reviews").select("*").eq("period_start", "2026-07-01").eq("period_end", "2026-07-31").order("created_at", { ascending: false }).limit(1).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

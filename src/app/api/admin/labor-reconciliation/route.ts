@@ -3,7 +3,7 @@ import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { canonicalLaborCostQueryFilter } from "@/lib/labor-rate-source";
 
 export async function GET(request: NextRequest) {
-  const actor = await requireProjectAdmin();
+  const actor = await requireProjectAdmin(request);
   if (!actor.ok) return actor.response;
   const start = request.nextUrl.searchParams.get("start") ?? "2000-01-01";
   const end = request.nextUrl.searchParams.get("end") ?? "2100-01-01";
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const actor = await requireProjectAdmin();
+  const actor = await requireProjectAdmin(request);
   if (!actor.ok) return actor.response;
   const body = await request.json().catch(() => ({})) as { periodStart?: string; periodEnd?: string; targetProjectId?: string; sourceProjectId?: string | null; amount?: number; memo?: string; entryIds?: string[] };
   if (!body.periodStart || !body.periodEnd || !body.targetProjectId || !Number.isFinite(body.amount) || body.amount! <= 0 || !body.entryIds?.length) return NextResponse.json({ error: "Period, target project, amount, and labor entries are required." }, { status: 400 });
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const actor = await requireProjectAdmin();
+  const actor = await requireProjectAdmin(request);
   if (!actor.ok) return actor.response;
   const body = await request.json().catch(() => ({})) as { serviceItem?: string; laborBucket?: string; sourceGlAccountId?: string; targetGlAccountId?: string; notes?: string };
   const allowedBuckets = new Set(["Production Labor", "I&D Labor", "Contractor Labor"]);
