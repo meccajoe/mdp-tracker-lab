@@ -1,52 +1,48 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildPostMortemDataGaps, buildPostMortemLaborSummary } from "@/lib/project-postmortem";
 
 export const maxDuration = 300;
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  try { return await generatePostmortem(request, context); } catch (reason) { const message = reason instanceof Error ? reason.message : "Unknown generation error"; console.error("[postmortem/generate] unexpected failure", message); return NextResponse.json({ error: `Post-mortem generation failed: ${message}` }, { status: 500 }); }
+async function generateAndSave(args: { supabase: any; projectId: string; actorEmail: string; sourceSnapshot: unknown }) {
+  const apiKey = process.env.ADA_LLM_API_KEY;
+  if (!apiKey) throw new Error("Ada model credentials are not configured.");
+  const client = new Anthropic({ apiKey });
+  const result = await client.messages.create({
+    model: process.env.ADA_POSTMORTEM_MODEL || process.env.ADA_VISION_MODEL || "claude-sonnet-4-6",
+    max_tokens: 1800,
+    system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.",
+    messages: [{ role: "user", content: JSON.stringify(args.sourceSnapshot) }],
+  });
+  const text = result.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("").trim();
+  let narrative: unknown; try { narrative = JSON.parse(text); } catch { throw new Error("Ada returned an invalid post-mortem draft."); }
+  const { error } = await args.supabase.from("project_postmortems").insert({ project_id: args.projectId, source_snapshot: args.sourceSnapshot, narrative, generated_by: args.actorEmail }).select("*").single();
+  if (error) throw new Error(error.message);
 }
 
-async function generatePostmortem(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const actor = await requireProjectAdmin(); if (!actor.ok) return actor.response;
-  const { id } = await context.params;
-  console.log("[postmortem/generate] started", id);
-  const { data: project, error } = await actor.supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("id", id).single();
-  if (error || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  if (project.status !== "Completed") return NextResponse.json({ error: "Post-mortems are available only for completed projects." }, { status: 400 });
-  const [labor, expenses, issues, lines] = await Promise.all([
-    actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,service_item,reg_hours,ot_hours,hourly_rate").eq("project_id", id),
-    actor.supabase.from("expenses").select("id,vendor,category,amount,date,notes").eq("project_id", id),
-    actor.supabase.from("production_issues").select("id,category,severity,title,description,status,reported_date").eq("project_id", id),
-    actor.supabase.from("quote_line_items").select("id,sku,description,quantity,line_total,source_date").eq("project_id", id),
-  ]);
-  const sourceErrors = [labor.error, expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
-  console.log("[postmortem/generate] source ready", id, { labor: labor.data?.length ?? 0, expenses: expenses.data?.length ?? 0, issues: issues.data?.length ?? 0, lines: lines.data?.length ?? 0 });
-  const laborSummary = buildPostMortemLaborSummary(labor.data ?? []);
-  const modelSnapshot = {
-    project,
-    labor_by_service_item: laborSummary,
-    expense_summary: Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry: any) => { const category = entry.category ?? "Uncategorized"; groups[category] = groups[category] ?? { category, amount: 0 }; groups[category].amount += Number(entry.amount ?? 0); return groups; }, {})),
-    issues: (issues.data ?? []).slice(0, 50),
-    quote_lines: (lines.data ?? []).slice(0, 100),
-    data_gaps: buildPostMortemDataGaps(laborSummary),
-  };
-  const sourceSnapshot = { generated_at: new Date().toISOString(), ...modelSnapshot };
-  const apiKey = process.env.ADA_LLM_API_KEY; if (!apiKey) return NextResponse.json({ error: "Ada model credentials are not configured." }, { status: 503 });
-  const client = new Anthropic({ apiKey });
-  let result: Anthropic.Message;
+export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    result = await client.messages.create({ model: process.env.ADA_POSTMORTEM_MODEL || process.env.ADA_VISION_MODEL || "claude-sonnet-4-6", max_tokens: 1800, system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.", messages: [{ role: "user", content: JSON.stringify(sourceSnapshot) }] });
+    const actor = await requireProjectAdmin(); if (!actor.ok) return actor.response;
+    const { id } = await context.params;
+    const { data: project, error } = await actor.supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("id", id).single();
+    if (error || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (project.status !== "Completed") return NextResponse.json({ error: "Post-mortems are available only for completed projects." }, { status: 400 });
+    const [labor, expenses, issues, lines] = await Promise.all([
+      actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,service_item,reg_hours,ot_hours,hourly_rate").eq("project_id", id),
+      actor.supabase.from("expenses").select("id,vendor,category,amount,date,notes").eq("project_id", id),
+      actor.supabase.from("production_issues").select("id,category,severity,title,description,status,reported_date").eq("project_id", id),
+      actor.supabase.from("quote_line_items").select("id,sku,description,quantity,line_total,source_date").eq("project_id", id),
+    ]);
+    const sourceErrors = [labor.error, expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
+    const laborSummary = buildPostMortemLaborSummary(labor.data ?? []);
+    const sourceSnapshot = { generated_at: new Date().toISOString(), project, labor_by_service_item: laborSummary, expense_summary: Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry: any) => { const category = entry.category ?? "Uncategorized"; groups[category] = groups[category] ?? { category, amount: 0 }; groups[category].amount += Number(entry.amount ?? 0); return groups; }, {})), issues: (issues.data ?? []).slice(0, 50), quote_lines: (lines.data ?? []).slice(0, 100), data_gaps: buildPostMortemDataGaps(laborSummary) };
+    console.log("[postmortem/generate] queued", id);
+    after(async () => { try { await generateAndSave({ supabase: actor.supabase, projectId: id, actorEmail: actor.actorEmail, sourceSnapshot }); console.log("[postmortem/generate] complete", id); } catch (reason) { console.error("[postmortem/generate] background failure", id, reason instanceof Error ? reason.message : reason); } });
+    return NextResponse.json({ status: "generating" }, { status: 202 });
   } catch (reason) {
-    const message = reason instanceof Error ? reason.message : "Unknown model error";
-    console.error("[postmortem/generate] model request failed", message);
-    return NextResponse.json({ error: `Ada generation failed: ${message}` }, { status: 502 });
+    const message = reason instanceof Error ? reason.message : "Unknown generation error";
+    console.error("[postmortem/generate] unexpected failure", message);
+    return NextResponse.json({ error: `Post-mortem generation failed: ${message}` }, { status: 500 });
   }
-  const text = result.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("").trim();
-  let narrative: unknown; try { narrative = JSON.parse(text); } catch { return NextResponse.json({ error: "Ada returned an invalid post-mortem draft." }, { status: 502 }); }
-  const { data: postmortem, error: saveError } = await actor.supabase.from("project_postmortems").insert({ project_id: id, source_snapshot: sourceSnapshot, narrative, generated_by: actor.actorEmail }).select("*").single();
-  if (saveError) return NextResponse.json({ error: saveError.message }, { status: 500 });
-  return NextResponse.json({ postmortem }, { status: 201 });
 }
