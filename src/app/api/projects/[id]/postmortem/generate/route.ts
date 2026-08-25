@@ -6,7 +6,11 @@ import { selectAdaModel } from "@/lib/ada-model-policy";
 
 export const maxDuration = 300;
 
-export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try { return await generatePostmortem(request, context); } catch (reason) { const message = reason instanceof Error ? reason.message : "Unknown generation error"; console.error("[postmortem/generate] unexpected failure", message); return NextResponse.json({ error: `Post-mortem generation failed: ${message}` }, { status: 500 }); }
+}
+
+async function generatePostmortem(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await requireProjectAdmin(); if (!actor.ok) return actor.response;
   const { id } = await context.params;
   const { data: project, error } = await actor.supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("id", id).single();
