@@ -16,7 +16,8 @@ async function generateAndSave(args: { supabase: any; projectId: string; actorEm
     messages: [{ role: "user", content: JSON.stringify(args.sourceSnapshot) }],
   });
   const text = result.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("").trim();
-  let narrative: unknown; try { narrative = JSON.parse(text); } catch { throw new Error("Ada returned an invalid post-mortem draft."); }
+  const jsonText = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  let narrative: unknown; try { narrative = JSON.parse(jsonText); } catch { throw new Error("Ada returned an invalid post-mortem draft."); }
   const { error } = await args.supabase.from("project_postmortems").insert({ project_id: args.projectId, source_snapshot: args.sourceSnapshot, narrative, generated_by: args.actorEmail }).select("*").single();
   if (error) throw new Error(error.message);
 }
