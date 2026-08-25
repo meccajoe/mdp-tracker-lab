@@ -12,6 +12,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 async function generatePostmortem(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await requireProjectAdmin(); if (!actor.ok) return actor.response;
   const { id } = await context.params;
+  console.log("[postmortem/generate] started", id);
   const { data: project, error } = await actor.supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("id", id).single();
   if (error || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
   if (project.status !== "Completed") return NextResponse.json({ error: "Post-mortems are available only for completed projects." }, { status: 400 });
@@ -22,6 +23,7 @@ async function generatePostmortem(_request: NextRequest, context: { params: Prom
     actor.supabase.from("quote_line_items").select("id,sku,description,quantity,line_total,source_date").eq("project_id", id),
   ]);
   const sourceErrors = [labor.error, expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
+  console.log("[postmortem/generate] source ready", id, { labor: labor.data?.length ?? 0, expenses: expenses.data?.length ?? 0, issues: issues.data?.length ?? 0, lines: lines.data?.length ?? 0 });
   const laborSummary = buildPostMortemLaborSummary(labor.data ?? []);
   const modelSnapshot = {
     project,
