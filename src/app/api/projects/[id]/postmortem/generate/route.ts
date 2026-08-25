@@ -12,12 +12,14 @@ async function generateAndSave(args: { supabase: any; projectId: string; actorEm
   const result = await client.messages.create({
     model: process.env.ADA_POSTMORTEM_MODEL || process.env.ADA_VISION_MODEL || "claude-sonnet-4-6",
     max_tokens: 1800,
-    system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.",
+    system: "You create evidence-grounded project post-mortems. Call save_postmortem_draft exactly once. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.",
     messages: [{ role: "user", content: JSON.stringify(args.sourceSnapshot) }],
+    tools: [{ name: "save_postmortem_draft", description: "Return the structured post-mortem draft.", input_schema: { type: "object", properties: { executive_summary: { type: "string" }, outcome: { type: "string", enum: ["on_target", "mixed", "overrun", "insufficient_data"] }, labor_assessment: { type: "string" }, materials_assessment: { type: "string" }, root_causes: { type: "array", items: { type: "object", additionalProperties: true } }, recommendations: { type: "array", items: { type: "object", additionalProperties: true } }, ada_lessons: { type: "array", items: { type: "object", additionalProperties: true } }, data_gaps: { type: "array", items: { type: "string" } } }, required: ["executive_summary", "outcome", "labor_assessment", "materials_assessment", "root_causes", "recommendations", "ada_lessons", "data_gaps"], additionalProperties: false } }],
+    tool_choice: { type: "tool", name: "save_postmortem_draft" },
   });
-  const text = result.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("").trim();
-  const jsonText = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  let narrative: unknown; try { narrative = JSON.parse(jsonText); } catch { throw new Error("Ada returned an invalid post-mortem draft."); }
+  const tool = result.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === "save_postmortem_draft");
+  if (!tool?.input || typeof tool.input !== "object") throw new Error("Ada did not return a structured post-mortem draft.");
+  const narrative = tool.input;
   const { error } = await args.supabase.from("project_postmortems").insert({ project_id: args.projectId, source_snapshot: args.sourceSnapshot, narrative, generated_by: args.actorEmail }).select("*").single();
   if (error) throw new Error(error.message);
 }
