@@ -5,7 +5,7 @@ import { buildPostMortemDataGaps, buildPostMortemLaborSummary } from "@/lib/proj
 
 export const maxDuration = 300;
 
-async function generateAndSave(args: { supabase: any; projectId: string; actorEmail: string; sourceSnapshot: unknown }) {
+async function generateAndSave(args: { supabase: any; runId: string; sourceSnapshot: unknown }) {
   const apiKey = process.env.ADA_LLM_API_KEY;
   if (!apiKey) throw new Error("Ada model credentials are not configured.");
   const client = new Anthropic({ apiKey });
@@ -20,8 +20,8 @@ async function generateAndSave(args: { supabase: any; projectId: string; actorEm
   const tool = result.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === "save_postmortem_draft");
   if (!tool?.input || typeof tool.input !== "object") throw new Error("Ada did not return a structured post-mortem draft.");
   const narrative = tool.input;
-  const { error } = await args.supabase.from("project_postmortems").insert({ project_id: args.projectId, source_snapshot: args.sourceSnapshot, narrative, generated_by: args.actorEmail }).select("*").single();
-  if (error) throw new Error(error.message);
+  const { data: saved, error } = await args.supabase.from("project_postmortems").update({ status: "draft", narrative, error_message: null }).eq("id", args.runId).select("id").single();
+  if (error || !saved) throw new Error(error?.message ?? "Generated draft row was not updated.");
 }
 
 export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -40,9 +40,21 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
     const sourceErrors = [labor.error, expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
     const laborSummary = buildPostMortemLaborSummary(labor.data ?? []);
     const sourceSnapshot = { generated_at: new Date().toISOString(), project, labor_by_service_item: laborSummary, expense_summary: Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry: any) => { const category = entry.category ?? "Uncategorized"; groups[category] = groups[category] ?? { category, amount: 0 }; groups[category].amount += Number(entry.amount ?? 0); return groups; }, {})), issues: (issues.data ?? []).slice(0, 50), quote_lines: (lines.data ?? []).slice(0, 100), data_gaps: buildPostMortemDataGaps(laborSummary) };
-    console.log("[postmortem/generate] queued", id);
-    after(async () => { try { await generateAndSave({ supabase: actor.supabase, projectId: id, actorEmail: actor.actorEmail, sourceSnapshot }); console.log("[postmortem/generate] complete", id); } catch (reason) { console.error("[postmortem/generate] background failure", id, reason instanceof Error ? reason.message : reason); } });
-    return NextResponse.json({ status: "generating" }, { status: 202 });
+    const { data: run, error: queueError } = await actor.supabase.from("project_postmortems").insert({ project_id: id, status: "generating", source_snapshot: sourceSnapshot, narrative: {}, generated_by: actor.actorEmail }).select("id").single();
+    if (queueError || !run) return NextResponse.json({ error: queueError?.message ?? "Could not queue post-mortem generation." }, { status: 500 });
+    const runId = run.id;
+    console.log("[postmortem/generate] queued", id, runId);
+    after(async () => {
+      try {
+        await generateAndSave({ supabase: actor.supabase, runId, sourceSnapshot });
+        console.log("[postmortem/generate] complete", id, runId);
+      } catch (reason) {
+        const message = reason instanceof Error ? reason.message : "Unknown generation error";
+        await actor.supabase.from("project_postmortems").update({ status: "failed", error_message: message }).eq("id", runId);
+        console.error("[postmortem/generate] background failure", id, runId, message);
+      }
+    });
+    return NextResponse.json({ id: runId, status: "generating" }, { status: 202 });
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : "Unknown generation error";
     console.error("[postmortem/generate] unexpected failure", message);
