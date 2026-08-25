@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildPostMortemDataGaps, buildPostMortemLaborSummary } from "@/lib/project-postmortem";
-import { selectAdaModel } from "@/lib/ada-model-policy";
 
 export const maxDuration = 300;
 
@@ -24,12 +23,20 @@ async function generatePostmortem(_request: NextRequest, context: { params: Prom
   ]);
   const sourceErrors = [labor.error, expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
   const laborSummary = buildPostMortemLaborSummary(labor.data ?? []);
-  const sourceSnapshot = { generated_at: new Date().toISOString(), project, labor_by_service_item: laborSummary, expenses: expenses.data ?? [], issues: issues.data ?? [], quote_lines: lines.data ?? [], data_gaps: buildPostMortemDataGaps(laborSummary) };
+  const modelSnapshot = {
+    project,
+    labor_by_service_item: laborSummary,
+    expense_summary: Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry: any) => { const category = entry.category ?? "Uncategorized"; groups[category] = groups[category] ?? { category, amount: 0 }; groups[category].amount += Number(entry.amount ?? 0); return groups; }, {})),
+    issues: (issues.data ?? []).slice(0, 50),
+    quote_lines: (lines.data ?? []).slice(0, 100),
+    data_gaps: buildPostMortemDataGaps(laborSummary),
+  };
+  const sourceSnapshot = { generated_at: new Date().toISOString(), ...modelSnapshot };
   const apiKey = process.env.ADA_LLM_API_KEY; if (!apiKey) return NextResponse.json({ error: "Ada model credentials are not configured." }, { status: 503 });
   const client = new Anthropic({ apiKey });
   let result: Anthropic.Message;
   try {
-    result = await client.messages.create({ model: selectAdaModel({ purpose: "conversation", complexity: "standard", lowConfidence: false }), max_tokens: 1800, system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.", messages: [{ role: "user", content: JSON.stringify(sourceSnapshot) }] });
+    result = await client.messages.create({ model: process.env.ADA_POSTMORTEM_MODEL || process.env.ADA_VISION_MODEL || "claude-sonnet-4-6", max_tokens: 1800, system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.", messages: [{ role: "user", content: JSON.stringify(sourceSnapshot) }] });
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : "Unknown model error";
     console.error("[postmortem/generate] model request failed", message);
