@@ -23,7 +23,14 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
   const sourceSnapshot = { generated_at: new Date().toISOString(), project, labor_by_service_item: laborSummary, expenses: expenses.data ?? [], issues: issues.data ?? [], quote_lines: lines.data ?? [], data_gaps: buildPostMortemDataGaps(laborSummary) };
   const apiKey = process.env.ADA_LLM_API_KEY; if (!apiKey) return NextResponse.json({ error: "Ada model credentials are not configured." }, { status: 503 });
   const client = new Anthropic({ apiKey });
-  const result = await client.messages.create({ model: selectAdaModel({ purpose: "conversation", complexity: "standard", lowConfidence: false }), max_tokens: 1800, system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.", messages: [{ role: "user", content: JSON.stringify(sourceSnapshot) }] });
+  let result: Anthropic.Message;
+  try {
+    result = await client.messages.create({ model: selectAdaModel({ purpose: "conversation", complexity: "standard", lowConfidence: false }), max_tokens: 1800, system: "You create evidence-grounded project post-mortems. Return valid JSON only with executive_summary, outcome (on_target|mixed|overrun|insufficient_data), labor_assessment, materials_assessment, root_causes (array of {finding,confidence,evidence}), recommendations (array of {owner,priority,recommendation,evidence}), ada_lessons (array of {condition,lesson,recommendation,confidence,evidence}), and data_gaps. Never invent facts or causal claims. Treat calculated labor cost as incomplete when the snapshot says rates are missing.", messages: [{ role: "user", content: JSON.stringify(sourceSnapshot) }] });
+  } catch (reason) {
+    const message = reason instanceof Error ? reason.message : "Unknown model error";
+    console.error("[postmortem/generate] model request failed", message);
+    return NextResponse.json({ error: `Ada generation failed: ${message}` }, { status: 502 });
+  }
   const text = result.content.filter((block): block is Anthropic.TextBlock => block.type === "text").map((block) => block.text).join("").trim();
   let narrative: unknown; try { narrative = JSON.parse(text); } catch { return NextResponse.json({ error: "Ada returned an invalid post-mortem draft." }, { status: 502 }); }
   const { data: postmortem, error: saveError } = await actor.supabase.from("project_postmortems").insert({ project_id: id, source_snapshot: sourceSnapshot, narrative, generated_by: actor.actorEmail }).select("*").single();
