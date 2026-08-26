@@ -59,7 +59,8 @@ export function buildPostMortemLaborSummary(entries: PostMortemLaborEntry[]) {
 export function buildPostMortemDataGaps(labor: ReturnType<typeof buildPostMortemLaborEvidence>) {
   const gaps: string[] = [];
   if (labor.labor_by_service_item.some((row) => row.service_item === "Unassigned")) gaps.push("Some labor entries have no service-item/trade coding.");
-  if (!labor.rate_coverage.complete) gaps.push(`${labor.rate_coverage.missing_rate_hours} labor hours lack a verified QBO Time pay rate; direct wage cost is incomplete.`);
+  if (labor.rate_coverage.total_hours === 0) gaps.push("No canonical QBO Time labor entries are available for this project.");
+  else if (!labor.rate_coverage.complete) gaps.push(`${labor.rate_coverage.missing_rate_hours} labor hours lack a verified QBO Time pay rate; direct wage cost is incomplete.`);
   if (labor.overtime_hours > 0) gaps.push(`${labor.overtime_hours} overtime hours are present, but the overtime premium rule is not configured; direct wage cost excludes the premium.`);
   return gaps;
 }

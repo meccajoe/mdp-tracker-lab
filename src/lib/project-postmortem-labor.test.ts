@@ -32,3 +32,10 @@ test("flags overtime until its premium rule is configured", () => {
   assert.equal(evidence.overtime_hours, 2);
   assert.match(buildPostMortemDataGaps(evidence).join(" "), /overtime premium/i);
 });
+
+test("reports absent canonical labor without claiming zero hours have missing rates", () => {
+  const evidence = buildPostMortemLaborEvidence([]);
+  const gaps = buildPostMortemDataGaps(evidence).join(" ");
+  assert.match(gaps, /No canonical QBO Time labor entries/i);
+  assert.doesNotMatch(gaps, /0 labor hours lack/i);
+});
