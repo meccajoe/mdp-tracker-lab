@@ -275,13 +275,18 @@ export async function POST(request: NextRequest) {
         const projectId = jcIdToProject.get(String(s.jobcode_id));
         if (!projectId) return null;
         const totalHours = s.duration / 3600;
+        const userRate = userRates.get(String(s.user_id));
+        const verifiedRate = Number(userRate?.pay_rate) > 0 ? Number(userRate?.pay_rate) : null;
+        const rateVerifiedAt = new Date().toISOString();
         return {
           project_id: projectId,
-          employee_name: userRates.get(String(s.user_id))?.name ?? users[String(s.user_id)] ?? `User ${s.user_id}`,
+          employee_name: userRate?.name ?? users[String(s.user_id)] ?? `User ${s.user_id}`,
           date: s.date,
           reg_hours: s.type === "regular" ? totalHours : 0,
           ot_hours: s.type === "overtime" ? totalHours : 0,
-          hourly_rate: userRates.get(String(s.user_id))?.pay_rate || 30, // uses TSheets pay_rate; falls back to $30
+          hourly_rate: verifiedRate,
+          rate_source: verifiedRate === null ? null : "qbo_time_users",
+          rate_verified_at: verifiedRate === null ? null : rateVerifiedAt,
           service_item: normalizeLaborServiceItem(s.customfields?.[SERVICE_ITEM_CUSTOMFIELD_ID]),
           qbo_entry_id: `ts_${s.id}`, // prefix to distinguish from QBO TimeActivity IDs
           synced_at: new Date().toISOString(),
@@ -293,7 +298,9 @@ export async function POST(request: NextRequest) {
         date: string;
         reg_hours: number;
         ot_hours: number;
-        hourly_rate: number;
+        hourly_rate: number | null;
+        rate_source: string | null;
+        rate_verified_at: string | null;
         service_item: string | null;
         qbo_entry_id: string;
         synced_at: string;
