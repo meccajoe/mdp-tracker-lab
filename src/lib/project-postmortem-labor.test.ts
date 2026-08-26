@@ -5,7 +5,7 @@ import { buildPostMortemDataGaps, buildPostMortemLaborEvidence } from "./project
 test("builds auditable employee-rate evidence from canonical QBO Time rows", () => {
   const evidence = buildPostMortemLaborEvidence([
     { qbo_entry_id: "ts_1", employee_name: "Worker A", service_item: "FAB LABOR", reg_hours: 4, ot_hours: 0, hourly_rate: 25, rate_source: "qbo_time_users", rate_verified_at: "2026-08-25T00:00:00Z" },
-    { qbo_entry_id: "ts_2", employee_name: "Worker B", service_item: "FAB LABOR", reg_hours: 2, ot_hours: 0, hourly_rate: 30, rate_source: "qbo_time_users", rate_verified_at: "2026-08-25T00:00:00Z" },
+    { qbo_entry_id: "ts_2", employee_name: "Worker B", service_item: "FAB LABOR", reg_hours: 2, ot_hours: 0, hourly_rate: 30, rate_source: "qbo_time_users_matched", rate_verified_at: "2026-08-25T00:00:00Z" },
     { qbo_entry_id: "qbo_3", employee_name: "Worker A", service_item: "FAB LABOR", reg_hours: 99, ot_hours: 0, hourly_rate: 0, rate_source: null, rate_verified_at: null },
   ]);
   assert.equal(evidence.rate_coverage.total_hours, 6);

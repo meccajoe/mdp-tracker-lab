@@ -316,6 +316,21 @@ export async function POST(request: NextRequest) {
       totalSynced += batch.length;
     }
 
+    // Older canonical rows predate explicit provenance. Mark them verified only
+    // when their stored rate exactly matches the employee's current QBO Time rate.
+    const matchedRateVerifiedAt = new Date().toISOString();
+    for (const user of userRates.values()) {
+      if (!(Number(user.pay_rate) > 0)) continue;
+      const { error: provenanceErr } = await supabase
+        .from("qbo_labor_entries")
+        .update({ rate_source: "qbo_time_users_matched", rate_verified_at: matchedRateVerifiedAt })
+        .like("qbo_entry_id", "ts_%")
+        .eq("employee_name", user.name)
+        .eq("hourly_rate", user.pay_rate)
+        .is("rate_source", null);
+      if (provenanceErr) throw new Error(`Rate provenance backfill failed: ${provenanceErr.message}`);
+    }
+
     return NextResponse.json({
       synced: totalSynced,
       matched: matchedProjects.length,
