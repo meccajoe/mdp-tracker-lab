@@ -25,6 +25,16 @@ test("does not guess a missing rate", () => {
   assert.match(buildPostMortemDataGaps(evidence).join(" "), /lack a verified QBO Time pay rate/i);
 });
 
+test("excludes a positive stored rate without verified QBO Time provenance from wage cost", () => {
+  const evidence = buildPostMortemLaborEvidence([
+    { qbo_entry_id: "ts_legacy", employee_name: "Worker A", service_item: "SHOP LABOR", reg_hours: 4, ot_hours: 0, hourly_rate: 30, rate_source: null, rate_verified_at: null },
+  ]);
+  assert.equal(evidence.calculated_base_wage_cost, 0);
+  assert.equal(evidence.rate_coverage.verified_hours, 0);
+  assert.equal(evidence.rate_coverage.missing_rate_hours, 4);
+  assert.equal(evidence.employee_rate_evidence[0]?.calculated_base_wage_cost, 0);
+});
+
 test("flags overtime until its premium rule is configured", () => {
   const evidence = buildPostMortemLaborEvidence([
     { qbo_entry_id: "ts_1", employee_name: "Worker A", service_item: "SHOP LABOR", reg_hours: 0, ot_hours: 2, hourly_rate: 25, rate_source: "qbo_time_users", rate_verified_at: "2026-08-25T00:00:00Z" },

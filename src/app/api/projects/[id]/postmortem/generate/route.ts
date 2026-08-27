@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { after, NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
-import { buildPostMortemDataGaps, buildPostMortemLaborEvidence } from "@/lib/project-postmortem";
+import { buildPostMortemDataGaps, buildPostMortemLaborEvidence, type PostMortemLaborEntry } from "@/lib/project-postmortem";
+import { fetchAllPostmortemSourceRows } from "@/lib/postmortem-source-pagination";
 
 export const maxDuration = 300;
 
@@ -32,14 +33,14 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
     if (error || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (project.status !== "Completed") return NextResponse.json({ error: "Post-mortems are available only for completed projects." }, { status: 400 });
     const [labor, expenses, issues, lines] = await Promise.all([
-      actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate,rate_source,rate_verified_at").eq("project_id", id).like("qbo_entry_id", "ts_%"),
+      fetchAllPostmortemSourceRows<PostMortemLaborEntry>((from, to) => actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate,rate_source,rate_verified_at").eq("project_id", id).like("qbo_entry_id", "ts_%").order("id", { ascending: true }).range(from, to)),
       actor.supabase.from("expenses").select("id,vendor,category,amount,date,notes").eq("project_id", id),
       actor.supabase.from("production_issues").select("id,category,severity,title,description,status,reported_date").eq("project_id", id),
       actor.supabase.from("quote_line_items").select("id,sku,description,quantity,line_total,source_date").eq("project_id", id),
     ]);
-    const sourceErrors = [labor.error, expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
-    const laborEvidence = buildPostMortemLaborEvidence(labor.data ?? []);
-    const sourceSnapshot = { generated_at: new Date().toISOString(), project, labor: laborEvidence, expense_summary: Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry: any) => { const category = entry.category ?? "Uncategorized"; groups[category] = groups[category] ?? { category, amount: 0 }; groups[category].amount += Number(entry.amount ?? 0); return groups; }, {})), issues: (issues.data ?? []).slice(0, 50), quote_lines: (lines.data ?? []).slice(0, 100), data_gaps: buildPostMortemDataGaps(laborEvidence) };
+    const sourceErrors = [expenses.error, issues.error, lines.error].filter(Boolean); if (sourceErrors.length) return NextResponse.json({ error: sourceErrors[0]?.message }, { status: 500 });
+    const laborEvidence = buildPostMortemLaborEvidence(labor.rows);
+    const sourceSnapshot = { generated_at: new Date().toISOString(), project, labor: laborEvidence, source_integrity: { labor_row_count: labor.rows.length, labor_page_count: labor.pageCount, complete: labor.complete }, expense_summary: Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry: any) => { const category = entry.category ?? "Uncategorized"; groups[category] = groups[category] ?? { category, amount: 0 }; groups[category].amount += Number(entry.amount ?? 0); return groups; }, {})), issues: (issues.data ?? []).slice(0, 50), quote_lines: (lines.data ?? []).slice(0, 100), data_gaps: buildPostMortemDataGaps(laborEvidence) };
     const { data: run, error: queueError } = await actor.supabase.from("project_postmortems").insert({ project_id: id, status: "generating", source_snapshot: sourceSnapshot, narrative: {}, generated_by: actor.actorEmail }).select("id").single();
     if (queueError || !run) return NextResponse.json({ error: queueError?.message ?? "Could not queue post-mortem generation." }, { status: 500 });
     const runId = run.id;

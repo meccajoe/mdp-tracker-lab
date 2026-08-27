@@ -19,7 +19,7 @@ export function buildPostMortemLaborEvidence(entries: PostMortemLaborEntry[]) {
     const hours = regularHours + overtime;
     const rate = Number(entry.hourly_rate) > 0 ? Number(entry.hourly_rate) : null;
     const verified = rate !== null && entry.rate_source?.startsWith("qbo_time_users") === true;
-    const baseCost = rate === null ? 0 : hours * rate;
+    const baseCost = verified && rate !== null ? hours * rate : 0;
     totalHours += hours;
     overtimeHours += overtime;
     if (verified) verifiedHours += hours;
