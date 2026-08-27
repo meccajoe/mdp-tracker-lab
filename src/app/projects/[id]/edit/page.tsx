@@ -54,6 +54,7 @@ export default function EditProjectPage() {
   const [pm, setPm] = useState<string>("");
   const [jobNumber, setJobNumber] = useState("");
   const [status, setStatus] = useState<string>("Active");
+  const [initialStatus, setInitialStatus] = useState<string>("Active");
   const [closeDate, setCloseDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [contractAmount, setContractAmount] = useState("");
@@ -120,6 +121,7 @@ export default function EditProjectPage() {
       setPm(project.pm);
       setJobNumber(project.job_number ?? "");
       setStatus(project.status);
+      setInitialStatus(project.status);
       setCloseDate(project.close_date ?? "");
       setDueDate((project as unknown as Record<string, unknown>).due_date as string ?? "");
       setContractAmount(
@@ -259,7 +261,25 @@ export default function EditProjectPage() {
       }
     }
 
-    toast.success("Project updated successfully.");
+    if (initialStatus !== "Completed" && status === "Completed") {
+      const generationResponse = await fetch(`/api/projects/${projectId}/postmortem/generate`, {
+        method: "POST",
+      });
+      if (!generationResponse.ok) {
+        const generationBody = await generationResponse.json().catch(() => null);
+        toast.error(
+          "Project completed, but post-mortem generation failed to start: " +
+            (generationBody?.error ?? "Unknown error")
+        );
+        return;
+      }
+    }
+
+    toast.success(
+      initialStatus !== "Completed" && status === "Completed"
+        ? "Project completed. Post-mortem generation started."
+        : "Project updated successfully."
+    );
     router.push(`/projects/${projectId}`);
   }
 

@@ -3,6 +3,8 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { buildPostMortemDataGaps, buildPostMortemLaborEvidence, type PostMortemLaborEntry } from "@/lib/project-postmortem";
 import { fetchAllPostmortemSourceRows } from "@/lib/postmortem-source-pagination";
+import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
+import { todayCentral } from "@/lib/date-utils";
 
 export const maxDuration = 300;
 
@@ -25,12 +27,21 @@ async function generateAndSave(args: { supabase: any; runId: string; sourceSnaps
   if (error || !saved) throw new Error(error?.message ?? "Generated draft row was not updated.");
 }
 
-export async function POST(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const actor = await requireProjectAdmin(); if (!actor.ok) return actor.response;
+    const actor = await requireProjectAdmin(request); if (!actor.ok) return actor.response;
     const { id } = await context.params;
-    const { data: project, error } = await actor.supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("id", id).single();
+    const body = await request.json().catch(() => ({}));
+    const completeProject = body.complete_project === true;
+    let { data: project, error } = await actor.supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("id", id).single();
     if (error || !project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (completeProject && project.status !== "Completed") {
+      const completion = await actor.supabase.from("projects").update({ status: "Completed", close_date: project.close_date ?? todayCentral() }).eq("id", id).select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").single();
+      if (completion.error || !completion.data) return NextResponse.json({ error: completion.error?.message ?? "Could not complete project." }, { status: 500 });
+      project = completion.data;
+      const portfolioSync = await syncPmStartingPortfolioMembership({ supabase: actor.supabase, projectId: id, pmInitials: project.pm, status: project.status });
+      if (portfolioSync.error) console.error("[postmortem/generate] completion portfolio sync failed", id, portfolioSync.error);
+    }
     if (project.status !== "Completed") return NextResponse.json({ error: "Post-mortems are available only for completed projects." }, { status: 400 });
     const [labor, expenses, issues, lines] = await Promise.all([
       fetchAllPostmortemSourceRows<PostMortemLaborEntry>((from, to) => actor.supabase.from("qbo_labor_entries").select("qbo_entry_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate,rate_source,rate_verified_at").eq("project_id", id).like("qbo_entry_id", "ts_%").order("id", { ascending: true }).range(from, to)),
@@ -55,7 +66,7 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ i
         console.error("[postmortem/generate] background failure", id, runId, message);
       }
     });
-    return NextResponse.json({ id: runId, status: "generating" }, { status: 202 });
+    return NextResponse.json({ id: runId, status: "generating", project_status: project.status }, { status: 202 });
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : "Unknown generation error";
     console.error("[postmortem/generate] unexpected failure", message);

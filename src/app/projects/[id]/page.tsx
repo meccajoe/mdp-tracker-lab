@@ -76,7 +76,6 @@ import { QboLaborTable } from "@/components/qbo-labor-table";
 import { ProjectNotificationRecommendationCard } from "@/components/project-notification-recommendation-card";
 import { ProjectIssuesCard } from "@/components/project-issues-card";
 import { ProjectPostmortemCard } from "@/components/project-postmortem-card";
-import { ProjectCompletionReadiness } from "@/components/project-completion-readiness";
 import { ProjectLaborExceptions } from "@/components/project-labor-exceptions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminView } from "@/components/admin-view-provider";
@@ -341,6 +340,7 @@ export default function ProjectDetailPage() {
   // QBO Labor state
   const [qboLaborEntries, setQboLaborEntries] = useState<QboLaborEntry[]>([]);
   const [laborSyncing, setLaborSyncing] = useState(false);
+  const [completionSubmitting, setCompletionSubmitting] = useState(false);
   const [laborView, setLaborView] = useState<"employee" | "date">("employee");
   const [laborDateFilter, setLaborDateFilter] = useState<"all" | "week" | "month" | "custom">("all");
   const [laborCustomStart, setLaborCustomStart] = useState("");
@@ -887,6 +887,26 @@ export default function ProjectDetailPage() {
     toast.success("Budget updated.");
   }
 
+  async function completeProjectAndGenerate() {
+    if (!project || completionSubmitting) return;
+    setCompletionSubmitting(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}/postmortem/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ complete_project: true }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Could not complete project.");
+      await fetchProject();
+      toast.success("Project completed. Post-mortem generation started.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not complete project.");
+    } finally {
+      setCompletionSubmitting(false);
+    }
+  }
+
   return (
     <PageShell>
       {/* Header */}
@@ -960,6 +980,11 @@ export default function ProjectDetailPage() {
               />
             </DialogContent>
           </Dialog>
+          {effectiveIsAdmin && project.status !== "Completed" && (
+            <Button size="sm" onClick={completeProjectAndGenerate} disabled={completionSubmitting}>
+              {completionSubmitting ? "Completing…" : "Mark complete"}
+            </Button>
+          )}
           {effectiveIsAdmin && (
             <Link href={`/projects/${projectId}/edit`}>
               <Button variant="outline" size="sm">Edit Project</Button>
@@ -987,7 +1012,6 @@ export default function ProjectDetailPage() {
         </div>
 
         <TabsContent value="overview" className="min-w-0 pt-5 space-y-6">
-        <ProjectCompletionReadiness projectId={project.id} />
         <ProjectPostmortemCard projectId={project.id} status={project.status} />
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] items-stretch">
         <Card className="h-full">
