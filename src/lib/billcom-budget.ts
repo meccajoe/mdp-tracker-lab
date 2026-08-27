@@ -231,11 +231,9 @@ function buildMemberAssignmentWarning(status: BillBudgetMemberStatus, pmEmail?: 
 async function assignBillBudgetMember({
   budgetUuid,
   memberUuid,
-  total,
 }: {
   budgetUuid: string;
   memberUuid: string;
-  total: number;
 }): Promise<{ status: BillBudgetMemberStatus; detail?: string }> {
   const response = await fetch(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}/members/${memberUuid}`), {
     method: "PUT",
@@ -245,8 +243,10 @@ async function assignBillBudgetMember({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      limit: total,
-      recurringLimit: total,
+      limit: 0,
+      recurringLimit: 0,
+      shareBudgetFunds: false,
+      role: "MEMBER",
     }),
   });
 
@@ -404,7 +404,6 @@ export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { 
       const memberAssignment = await assignBillBudgetMember({
         budgetUuid,
         memberUuid: memberUser.uuid,
-        total,
       });
       memberStatus = memberAssignment.status;
       memberError = memberAssignment.detail ?? null;
@@ -524,7 +523,6 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
       const memberAssignment = await assignBillBudgetMember({
         budgetUuid,
         memberUuid: memberUser.uuid,
-        total,
       });
       memberStatus = memberAssignment.status;
       memberError = memberAssignment.detail ?? null;

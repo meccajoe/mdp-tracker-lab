@@ -135,12 +135,15 @@ test('Bill budget helper uses BILL budget description field and initial-create s
   assert.doesNotMatch(helperSource, /PATCH[\s\S]*existing bill budget/i);
 });
 
-test('Bill budget helper defaults owner to Paul and supports PM member assignment after create', () => {
+test('Bill budget helper adds PMs as unfunded members so project funds remain requestable', () => {
   assert.match(helperSource, /paul@meccadesign\.com/);
   assert.match(helperSource, /\/v3\/spend\/users/);
   assert.match(helperSource, /\/v3\/spend\/budgets\/\$\{budgetUuid\}\/members\/\$\{memberUuid\}/);
-  assert.match(helperSource, /limit:/);
-  assert.match(helperSource, /recurringLimit:/);
+  assert.match(helperSource, /limit:\s*0/);
+  assert.match(helperSource, /recurringLimit:\s*0/);
+  assert.match(helperSource, /shareBudgetFunds:\s*false/);
+  assert.match(helperSource, /role:\s*"MEMBER"/);
+  assert.doesNotMatch(helperSource, /limit:\s*total,[\s\S]{0,80}recurringLimit:\s*total/);
 });
 
 test('manual BILL budget trigger route requires admin auth and writes manual trigger source', () => {
