@@ -181,6 +181,9 @@ export interface QboLaborEntry {
   reg_hours: number;
   ot_hours: number;
   hourly_rate: number;
+  rate_source?: string | null;
+  rate_verified_at?: string | null;
+  service_item?: string | null;
   qbo_entry_id: string;
   synced_at: string;
 }

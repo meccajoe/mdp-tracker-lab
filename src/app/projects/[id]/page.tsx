@@ -77,6 +77,7 @@ import { ProjectNotificationRecommendationCard } from "@/components/project-noti
 import { ProjectIssuesCard } from "@/components/project-issues-card";
 import { ProjectPostmortemCard } from "@/components/project-postmortem-card";
 import { ProjectCompletionReadiness } from "@/components/project-completion-readiness";
+import { ProjectLaborExceptions } from "@/components/project-labor-exceptions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminView } from "@/components/admin-view-provider";
 import { todayCentral, formatDateCentral, formatDateTimeCentral } from "@/lib/date-utils";
@@ -2125,6 +2126,7 @@ export default function ProjectDetailPage() {
 
               return (
                 <div>
+                  <ProjectLaborExceptions entries={qboLaborEntries} closeDate={project.close_date} />
                   {/* Summary bar */}
                   <div className="flex flex-wrap items-center gap-4 px-6 py-4 border-b bg-muted/30">
                     <div className="text-sm"><span className="text-muted-foreground">Reg Hrs:</span> <span className="font-mono font-medium">{totalReg.toFixed(1)}</span></div>
