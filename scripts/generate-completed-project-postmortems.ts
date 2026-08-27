@@ -16,6 +16,7 @@ function option(name: string) {
 
 const dryRun = process.argv.includes("--dry-run");
 const regenerateAffected = process.argv.includes("--regenerate-affected");
+const explicitProjectIds = new Set((option("--project-ids") ?? "").split(",").map((value) => value.trim()).filter(Boolean));
 const limit = option("--limit") ? Math.max(1, Number(option("--limit"))) : undefined;
 const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -134,7 +135,7 @@ async function main() {
     const evidence = run.source_snapshot?.labor?.employee_rate_evidence ?? [];
     return evidence.some((row: any) => Number(row.hourly_rate) > 0 && !String(row.rate_source ?? "").startsWith("qbo_time_users"));
   }).map(([projectId]) => projectId));
-  let candidates = (projectsResult.data ?? []).filter((project) => !freshRunning.has(project.id) && (regenerateAffected ? affected.has(project.id) : !settled.has(project.id)));
+  let candidates = (projectsResult.data ?? []).filter((project) => !freshRunning.has(project.id) && (explicitProjectIds.size > 0 ? explicitProjectIds.has(project.id) : regenerateAffected ? affected.has(project.id) : !settled.has(project.id)));
   if (limit) candidates = candidates.slice(0, limit);
   const summary = { completed: projectsResult.data?.length ?? 0, alreadySettled: settled.size, alreadyRunning: freshRunning.size, affected: affected.size, candidates: candidates.length, generated: 0, failed: 0 };
   if (dryRun) return console.log(JSON.stringify({ dryRun: true, summary, projectIds: candidates.map((project) => project.id) }, null, 2));

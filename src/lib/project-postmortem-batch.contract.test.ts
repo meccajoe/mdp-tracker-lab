@@ -16,6 +16,7 @@ test("one-time completed-project post-mortem batch is resumable and persists eve
   assert.match(source, /BATCH_DELAY_MS/);
   assert.match(source, /--dry-run/);
   assert.match(source, /--regenerate-affected/);
+  assert.match(source, /--project-ids/);
   assert.match(source, /fetchAllPostmortemSourceRows/);
   assert.match(source, /source_integrity/);
   assert.match(source, /--limit/);
