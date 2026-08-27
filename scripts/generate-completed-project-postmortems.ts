@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
-import { buildPostMortemDataGaps, buildPostMortemLaborEvidence } from "../src/lib/project-postmortem";
+import { buildPostMortemDataGaps, buildPostMortemLaborEvidence, type PostMortemLaborEntry } from "../src/lib/project-postmortem";
+import { fetchAllPostmortemSourceRows } from "../src/lib/postmortem-source-pagination";
 
 const BATCH_CONCURRENCY = Math.max(1, Number(process.env.BATCH_CONCURRENCY ?? 2));
 const BATCH_DELAY_MS = Math.max(0, Number(process.env.BATCH_DELAY_MS ?? 1000));
@@ -14,6 +15,7 @@ function option(name: string) {
 }
 
 const dryRun = process.argv.includes("--dry-run");
+const regenerateAffected = process.argv.includes("--regenerate-affected");
 const limit = option("--limit") ? Math.max(1, Number(option("--limit"))) : undefined;
 const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -48,14 +50,14 @@ const postmortemTool: Anthropic.Tool = {
 async function buildSource(project: Record<string, unknown>) {
   const id = String(project.id);
   const [labor, expenses, issues, lines] = await Promise.all([
-    supabase.from("qbo_labor_entries").select("qbo_entry_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate,rate_source,rate_verified_at").eq("project_id", id).like("qbo_entry_id", "ts_%"),
+    fetchAllPostmortemSourceRows<PostMortemLaborEntry>((from, to) => supabase.from("qbo_labor_entries").select("qbo_entry_id,employee_name,service_item,reg_hours,ot_hours,hourly_rate,rate_source,rate_verified_at").eq("project_id", id).like("qbo_entry_id", "ts_%").order("id", { ascending: true }).range(from, to)),
     supabase.from("expenses").select("id,vendor,category,amount,date,notes").eq("project_id", id),
     supabase.from("production_issues").select("id,category,severity,title,description,status,reported_date").eq("project_id", id),
     supabase.from("quote_line_items").select("id,sku,description,quantity,line_total,source_date").eq("project_id", id),
   ]);
-  const sourceError = labor.error ?? expenses.error ?? issues.error ?? lines.error;
+  const sourceError = expenses.error ?? issues.error ?? lines.error;
   if (sourceError) throw new Error(sourceError.message);
-  const laborEvidence = buildPostMortemLaborEvidence(labor.data ?? []);
+  const laborEvidence = buildPostMortemLaborEvidence(labor.rows);
   const expenseSummary = Object.values((expenses.data ?? []).reduce((groups: Record<string, { category: string; amount: number }>, entry) => {
     const category = entry.category ?? "Uncategorized";
     groups[category] = groups[category] ?? { category, amount: 0 };
@@ -66,6 +68,7 @@ async function buildSource(project: Record<string, unknown>) {
     generated_at: new Date().toISOString(),
     project,
     labor: laborEvidence,
+    source_integrity: { labor_row_count: labor.rows.length, labor_page_count: labor.pageCount, complete: labor.complete },
     expense_summary: expenseSummary,
     issues: (issues.data ?? []).slice(0, 50),
     quote_lines: (lines.data ?? []).slice(0, 100),
@@ -117,7 +120,7 @@ async function generate(project: Record<string, unknown>) {
 async function main() {
   const projectsResult = await supabase.from("projects").select("id,name,job_number,client,pm,status,close_date,due_date,contract_amount,budget_hrs,budget_materials,quote_materials,notes").eq("status", "Completed").order("id");
   if (projectsResult.error) throw new Error(projectsResult.error.message);
-  const runsResult = await supabase.from("project_postmortems").select("id,project_id,status,generated_at");
+  const runsResult = await supabase.from("project_postmortems").select("id,project_id,status,generated_at,source_snapshot").order("generated_at", { ascending: false });
   if (runsResult.error) throw new Error(runsResult.error.message);
 
   const settled = new Set((runsResult.data ?? []).filter((run) => SETTLED_STATUSES.has(run.status)).map((run) => run.project_id));
@@ -125,9 +128,15 @@ async function main() {
   const stale = (runsResult.data ?? []).filter((run) => run.status === "generating" && !freshRunning.has(run.project_id));
   for (const run of stale) await supabase.from("project_postmortems").update({ status: "failed", error_message: "Batch resumed after stale generation state." }).eq("id", run.id);
 
-  let candidates = (projectsResult.data ?? []).filter((project) => !settled.has(project.id) && !freshRunning.has(project.id));
+  const latestByProject = new Map<string, any>();
+  for (const run of runsResult.data ?? []) if (!latestByProject.has(run.project_id)) latestByProject.set(run.project_id, run);
+  const affected = new Set([...latestByProject.entries()].filter(([, run]) => {
+    const evidence = run.source_snapshot?.labor?.employee_rate_evidence ?? [];
+    return evidence.some((row: any) => Number(row.hourly_rate) > 0 && !String(row.rate_source ?? "").startsWith("qbo_time_users"));
+  }).map(([projectId]) => projectId));
+  let candidates = (projectsResult.data ?? []).filter((project) => !freshRunning.has(project.id) && (regenerateAffected ? affected.has(project.id) : !settled.has(project.id)));
   if (limit) candidates = candidates.slice(0, limit);
-  const summary = { completed: projectsResult.data?.length ?? 0, alreadySettled: settled.size, alreadyRunning: freshRunning.size, candidates: candidates.length, generated: 0, failed: 0 };
+  const summary = { completed: projectsResult.data?.length ?? 0, alreadySettled: settled.size, alreadyRunning: freshRunning.size, affected: affected.size, candidates: candidates.length, generated: 0, failed: 0 };
   if (dryRun) return console.log(JSON.stringify({ dryRun: true, summary, projectIds: candidates.map((project) => project.id) }, null, 2));
 
   let cursor = 0;
