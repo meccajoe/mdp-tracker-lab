@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import {
   ProjectSummary,
   Expense,
@@ -891,7 +892,7 @@ export default function ProjectDetailPage() {
     if (!project || completionSubmitting) return;
     setCompletionSubmitting(true);
     try {
-      const response = await fetch(`/api/projects/${project.id}/postmortem/generate`, {
+      const response = await authenticatedFetch(`/api/projects/${project.id}/postmortem/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ complete_project: true }),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticated-fetch";
 import {
   fetchProjectLookup,
   getLookupLinkedFields,
@@ -262,7 +263,7 @@ export default function EditProjectPage() {
     }
 
     if (initialStatus !== "Completed" && status === "Completed") {
-      const generationResponse = await fetch(`/api/projects/${projectId}/postmortem/generate`, {
+      const generationResponse = await authenticatedFetch(`/api/projects/${projectId}/postmortem/generate`, {
         method: "POST",
       });
       if (!generationResponse.ok) {
