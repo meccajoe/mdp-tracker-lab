@@ -93,6 +93,8 @@ Verbal design economics discussed:
 
 This is **not yet an approved formula**. The exact internal-rate policy, provenance, and whether Tracker should show wage cost, budget cost, billing value, or all three must be confirmed. No guessed `$25` fallback should be implemented.
 
+There is a material terminology conflict to resolve before implementation: the call references `$105/hour` in quote economics, prior approved fabrication logic uses `selling price / 210` for allowed hours and `$41/hour` for internal labor-budget dollars, actual labor evidence uses verified employee pay rates, and design was described as `$125/hour` client billing versus roughly `$22–$25/hour` direct wage cost. These are different measures and must remain separate. Overtime, holiday/salary treatment, excluded employees, and any PM-bonus/COGS impact also require explicit policy.
+
 ### 7. Tracker is the operational scoreboard; Monday remains the task checklist
 
 The desired 2027 operating model is:
@@ -138,6 +140,8 @@ Desired recurring access discussed:
 - assigned PM: always assigned. **[01:01:07–01:08:44]**
 
 The exact Bill role for each person and approval authority must be confirmed before changing live access.
+
+The broader Bill operating policy also remains open: whether every purchase should require individual approval, how budget top-ups should work, whether requests should be batched, and whether materials are intentionally excluded from project budgets. **[01:06:54–01:08:46]**
 
 ## Material insights and opportunities
 
@@ -227,6 +231,7 @@ Alina is providing frequent operational feedback that catches real workflow fric
 | P1 | Sync | Carry item identity and quoted trade budgets from HubSpot into Tracker; carry actual item/trade selection from QuickBooks Time into canonical labor rows. | Tracker engineering | Idempotent sync and historical-safe migration required. |
 | P1 | Tracker UI | Add Item and Item × Trade labor views, trade filters, and quoted/actual/variance reporting. | Tracker engineering | After source fields are reliable. |
 | P1 | Pilot | Pilot on 2–3 active projects with a small worker group; validate phone UX and daily coding accuracy. | Production lead + Tracker engineering | Define success/error thresholds first. |
+| P1 | Data quality | Define the historical comparability boundary, completeness flags, correction audit trail, and whether any old entries are backfilled. | Tracker engineering + production owner | Earlier projects and corrected time entries are not uniformly complete. |
 | P2 | Production handoff | Generate item work orders with drawings, materials, and labor budgets. | Tracker product/engineering | Requires proven item contract. |
 | P2 | Post-mortems/Ada | Enrich snapshots with item/trade variance and feed only reviewed structured lessons into Ada. | Tracker/Ada engineering + reviewer | Preserve immutable snapshots and approval gate. |
 | P2 | Final artifacts | Add an explicit final/approved spreadsheet action and durable Drive/version linkage. | Ada engineering + quote owner | Define revision policy. |
@@ -291,9 +296,11 @@ Only after the first three phases are trustworthy:
 1. **Quote artifacts:** Please provide Ferris the links or files for the blank/current template and the filled final example shared at the end of the call. Identify which is v8 and which completed file is based on v5.
 2. **Item definition:** Should a project item mean only a fabricated deliverable, or any discrete labor-bearing work package, including pull/pack/prep and test-fit work? The call supports the broader definition but uses both descriptions.
 3. **Design labor policy:** Is the internal design budget a fixed approved rate, the employee’s verified pay rate, or another loaded rate? Should Tracker show client billing value, internal budget, verified wage cost, or all three?
+   Also confirm fabrication budget rate, overtime/holiday/salary handling, excluded employees, and whether any of these measures affect PM bonus or COGS reporting.
 4. **Trade list:** What exact ten or so choices should workers see? Should `Install` and `Dismantle` be separate? Please provide a screenshot/export of the final QuickBooks Time configuration before it is activated.
 5. **Pilot:** Which 2–3 active projects and which workers should be the pilot? Is `Item 1–25` sufficient, and who will verify clock-in accuracy daily?
 6. **Bill.com roles:** Confirm whether Joe and Emily are owners/admins, David and Rooster are members, and the assigned PM is a member. Who can approve requests and change budget amounts?
+   Also confirm the intended top-up/request workflow and whether project materials should remain outside these budgets.
 7. **Final artifact rule:** What action declares a spreadsheet final, and should the final copy automatically land in Ada’s Mecca Drive folder while preserving all prior revisions?
 8. **Post-mortem target:** After Paul reviews five drafts, what numeric sections and explanations should every post-mortem contain?
 9. **Venturity:** Has the one-hour validation session been scheduled, and can we get their written acceptance criteria or annotated output?
@@ -304,6 +311,7 @@ Only after the first three phases are trustworthy:
 - Do not assume QuickBooks Time supports the proposed reusable-item model until API/export/mobile behavior is proven.
 - Do not join labor by item number alone; it must be scoped by project and, where needed, source revision.
 - Do not treat historical service-item coding as perfect ground truth; preserve confidence and correction history.
+- Do not compare incomplete early projects to the pilot without an explicit completeness flag and historical-data boundary.
 - Do not mix installation/dismantle/design hours into shop-efficiency conclusions.
 - Do not use approximate wage rates or call direct wage cost fully loaded labor cost.
 - Do not infer worker quality from speed alone.
