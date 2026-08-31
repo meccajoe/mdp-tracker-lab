@@ -2,7 +2,14 @@ type AllocationRow = { projectId: string; projectName: string; serviceItem: stri
 type JeLine = { accountId: string; projectId: string | null; projectName: string | null; memo: string; debit: number; credit: number };
 
 export function buildJulyLaborJeDraft(rows: AllocationRow[]) {
-  const lines: JeLine[] = rows.map((row) => ({ accountId: row.targetGlAccountId, projectId: row.projectId, projectName: row.projectName, memo: `July 2026 wage allocation — ${row.serviceItem}`, debit: round(row.wageCost), credit: 0 }));
+  const debits = new Map<string, { accountId: string; projectId: string; projectName: string; wageCost: number }>();
+  for (const row of rows) {
+    const key = [row.projectId, row.targetGlAccountId].join("\u0000");
+    const debit = debits.get(key) ?? { accountId: row.targetGlAccountId, projectId: row.projectId, projectName: row.projectName, wageCost: 0 };
+    debit.wageCost += row.wageCost;
+    debits.set(key, debit);
+  }
+  const lines: JeLine[] = [...debits.values()].map((debit) => ({ accountId: debit.accountId, projectId: debit.projectId, projectName: debit.projectName, memo: `July 2026 wage allocation — GL ${debit.accountId}`, debit: round(debit.wageCost), credit: 0 }));
   for (const workerClassification of ["employee", "contractor"] as const) {
     const amount = round(rows.filter((row) => row.workerClassification === workerClassification).reduce((sum, row) => sum + row.wageCost, 0));
     if (!amount) continue;
