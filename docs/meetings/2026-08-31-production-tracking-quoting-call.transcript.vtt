@@ -1,0 +1,2681 @@
+WEBVTT
+
+00:00.000 --> 00:04.020
+But I built it out as one and then multiplied it by 39.
+
+00:05.720 --> 00:08.420
+And then everything, you know, follows from there.
+
+00:08.420 --> 00:17.280
+So this one, this then comes over here and fills in automatically.
+
+00:18.180 --> 00:27.360
+I added like an option for like resale stuff so that it marks it up differently and there's no labor.
+
+00:27.360 --> 00:32.840
+Because that's one of the things I, I mean, it's probably almost every project or something like that.
+
+00:34.340 --> 00:42.020
+And then it actually generates this like handoff for production that has like hours and materials budget.
+
+00:43.160 --> 00:50.840
+So not that we, I don't know if we use this, but it just generated that too.
+
+00:50.840 --> 01:00.860
+So, and then still has this put together too, in case we want to do, if we want to decode a quote, a previous quote.
+
+01:02.500 --> 01:13.040
+So this, I would say is like, honestly, not the priority right now, but you can kind of see the direction I'm going with it.
+
+01:13.040 --> 01:19.020
+Is that ultimately I'm like, okay, you know, the format that Ada does, I need something like that every single time.
+
+01:20.300 --> 01:30.140
+And I need a way, the biggest thing I've, I've realized, I mean, over the last year with Ada is like, the quotes are just so complex.
+
+01:30.820 --> 01:33.780
+You know, there's, I mean, unique is a better word.
+
+01:33.780 --> 01:35.200
+You know, they're just so unique.
+
+01:35.820 --> 01:48.600
+And so it's like, it's almost, it's, it's incredibly rare that there's a quote that Ada can do 100% and understand everything.
+
+01:49.340 --> 01:59.380
+And to kind of put that in perspective, I mean, I can't even catch everything, you know, in a lot of these quotes.
+
+01:59.380 --> 02:04.940
+So when we're looking at, you know, let's see if I've got.
+
+02:16.780 --> 02:19.740
+I had a pretty, I had a pretty good example of one.
+
+02:19.740 --> 02:31.840
+I mean, you can imagine what some of the stuff is that we get, you know, and everything we're getting now is like, for the most part, 95% AI.
+
+02:32.440 --> 02:42.880
+And so, you know, it's sort of like, it's sort of like, if I gave that to a person, they're going to have questions.
+
+02:42.880 --> 02:45.520
+And even then they're going to work through the quote.
+
+02:45.880 --> 02:50.640
+And this happens all the time, whether I do it, dad does it, you know, Maria does it.
+
+02:51.000 --> 02:53.980
+And we're going to, you know, look at the notes.
+
+02:54.660 --> 02:55.760
+We're going to look at the quote.
+
+02:56.500 --> 03:00.600
+And we have the benefit of we're like on the call, you know, usually with these people.
+
+03:01.120 --> 03:04.020
+And then we're going to put together the quote and the renderings.
+
+03:04.020 --> 03:04.800
+We're going to look at the renderings.
+
+03:04.860 --> 03:05.700
+We're going to put together the quote.
+
+03:06.140 --> 03:07.160
+We're going to share it.
+
+03:07.160 --> 03:11.180
+We're then going to get on the call or get awarded the project.
+
+03:11.780 --> 03:16.180
+And then there's going to be like, well, no, no, like that's supposed to be like this.
+
+03:16.420 --> 03:19.640
+And behind that wall, we need it to be like this.
+
+03:19.700 --> 03:23.840
+And it's like, well, okay, we can add, you know, we can add money.
+
+03:25.540 --> 03:26.760
+But like, it doesn't change it.
+
+03:26.780 --> 03:29.020
+Like we wouldn't have known that from the beginning.
+
+03:29.020 --> 03:32.680
+So Ada is always going to have the same sort of challenge.
+
+03:32.920 --> 03:34.100
+It'll get better and better.
+
+03:34.100 --> 03:42.100
+The other thing is like, you know, something that Ada will run into that I run into is like so many quotes.
+
+03:42.180 --> 03:51.460
+I have to go out and be like, okay, you know, like I'm quoting something for Johnny Walker and they want the ice bin.
+
+03:52.200 --> 03:56.380
+You know, they want just an off the shelf ice bin, you know, so I don't know.
+
+03:56.460 --> 03:57.580
+I just got to go Google that.
+
+03:57.700 --> 03:58.960
+Okay, that looks like the rendering.
+
+03:59.520 --> 04:00.640
+Okay, here's an ice bin.
+
+04:01.080 --> 04:01.520
+Add that.
+
+04:01.520 --> 04:03.540
+Now, Ada could do everything else.
+
+04:03.580 --> 04:05.120
+And then we go in, we add those things.
+
+04:05.260 --> 04:12.720
+So point being, you know, there's always going to be two people working on it together, the human, the AI.
+
+04:13.860 --> 04:20.340
+And I would imagine a year, two years, maybe completely AI.
+
+04:20.340 --> 04:26.140
+But the key is, I think, will be how much data we can give Ada back.
+
+04:27.720 --> 04:32.340
+And so using a consistent format, you know, like this.
+
+04:35.020 --> 04:38.180
+Oh, I guess I realized I wasn't even showing this to you.
+
+04:38.320 --> 04:40.060
+Yeah, I was seeing the blank.
+
+04:40.060 --> 04:40.540
+Yeah, yeah.
+
+04:41.200 --> 04:41.560
+Yeah.
+
+04:41.660 --> 04:49.060
+So like, yeah, so this is the takeoff here, you know, and then it feeds into this.
+
+04:49.520 --> 04:49.800
+Yeah.
+
+04:50.060 --> 05:00.380
+And then it even creates like a handoff, which I'm not sure, you know, how we would, because ultimately we want that to be in the budget tracker and not a separate thing.
+
+05:00.380 --> 05:24.880
+So the main thing I'm working on right now is trying to get the tracker and QuickBooks time to start tracking per item fabrication.
+
+05:24.880 --> 05:45.140
+So in QuickBooks time, I added, I haven't like, I got to the point where I was like, okay, if I change this, it might break something, you know, that you're doing with the automation.
+
+05:46.740 --> 05:49.560
+So let me log in here real quick.
+
+05:54.880 --> 06:13.060
+So basically, in time,
+
+06:13.060 --> 06:30.400
+What I'm trying to get them to do is to start clocking in to the trade.
+
+06:30.400 --> 06:42.380
+And so like right now, they would clock in to they pick a project, then they click one of these things.
+
+06:43.720 --> 06:48.960
+And what I did was I went through the other day.
+
+06:48.960 --> 06:59.580
+And I, I hid a bunch of these things because like, they were all showing up.
+
+06:59.840 --> 07:01.920
+And for some reason, it was actually Scott.
+
+07:01.980 --> 07:03.400
+I was like, no, you need to leave all that on.
+
+07:03.440 --> 07:04.680
+But I just hid them.
+
+07:04.960 --> 07:06.280
+So it doesn't get rid of them.
+
+07:06.400 --> 07:08.880
+And so the only things that we're really wanting are like electrical labor.
+
+07:09.160 --> 07:15.340
+This was the question I was asking you of like, the other day was like, should I just create a new one?
+
+07:15.340 --> 07:15.940
+Yeah.
+
+07:16.300 --> 07:31.940
+And so what I'm actually going to do is I think I hid everything so that it's there's not 68 things because actually, every time those guys clocked in, they were in some cases, according to Rooster selecting the service item type.
+
+07:32.240 --> 07:34.220
+So like if they were doing paint, they were doing it.
+
+07:34.580 --> 07:37.800
+He says that what he does, he goes back and he changed and he edits it.
+
+07:38.120 --> 07:41.140
+And so like that data historically should be in there.
+
+07:41.140 --> 07:41.700
+Yep.
+
+07:42.720 --> 07:47.460
+And so then, I mean, it's actually pretty rich going back a good while.
+
+07:48.500 --> 07:48.940
+Okay.
+
+07:49.480 --> 07:54.900
+So what we'll do is by hiding, I think we only left 10 of them.
+
+07:56.000 --> 07:58.200
+It'll be a lot easier for them to select the right thing.
+
+07:58.980 --> 08:02.760
+And then I might even simplify it more so that it looks like this.
+
+08:02.940 --> 08:06.440
+So it's super obvious and it's not abbreviations and things like that.
+
+08:06.440 --> 08:17.000
+But I can just move these into here like, you know, the AI had suggested and then just hide the old ones basically.
+
+08:18.140 --> 08:20.180
+And then I added this.
+
+08:20.720 --> 08:24.420
+So this is basically item one through 25.
+
+08:24.900 --> 08:27.440
+Which I can't, I'm not seeing, I don't think I'm seeing.
+
+08:27.560 --> 08:28.240
+Oh, is it not?
+
+08:28.680 --> 08:29.460
+It's a window.
+
+08:29.460 --> 08:30.260
+So that's why.
+
+08:30.560 --> 08:30.680
+Okay.
+
+08:35.400 --> 08:36.700
+Let me see if I can just.
+
+08:40.260 --> 08:44.680
+Yeah, it like shows this one as a window.
+
+08:45.780 --> 08:48.080
+So it's like doesn't show up.
+
+08:49.020 --> 08:52.780
+So like I added this.
+
+08:53.960 --> 08:55.380
+So one through 25.
+
+08:55.380 --> 09:02.240
+So what this would do is, and I don't know if this will work, but it says it will work.
+
+09:03.280 --> 09:19.480
+I mean, according to ChatGPT, working through this, I feel like, in other words, what would, my first thought was, oh, every time we have a quote, we'll put the quote items in here verbatim.
+
+09:19.480 --> 09:28.020
+So, but there's, then you, if you delete them, you lose the data for that project.
+
+09:28.220 --> 09:33.680
+But two, you would, so in other words, you'd end up with like thousands and thousands and thousands of items.
+
+09:34.120 --> 09:41.300
+So the workaround was instead use just a numbering system.
+
+09:41.300 --> 09:51.560
+So when you look at a quote, like this would be the item one, item two, item three, whatever it is.
+
+09:51.780 --> 09:55.640
+And really the only stuff that gets an item is fabrication stuff.
+
+09:56.220 --> 10:00.840
+Everything else is just, you know, a non, there's just no item number.
+
+10:01.280 --> 10:06.120
+So when we build a quote, we'll select, you know, the item as well.
+
+10:06.120 --> 10:18.840
+So going back to this, I can't, I'm trying to see, I don't think I can preview what it looks like for them on their phone.
+
+10:19.020 --> 10:20.620
+Because most of them just use the phone.
+
+10:21.660 --> 10:25.220
+But it's pretty, it's really easy.
+
+10:25.300 --> 10:26.540
+They basically select the project.
+
+10:27.120 --> 10:32.740
+They select the service item, which now there's only like 10 things showing.
+
+10:33.160 --> 10:35.100
+And they select the build item.
+
+10:35.100 --> 10:36.620
+Now they're not doing this yet.
+
+10:38.440 --> 10:42.420
+Because now I need to add it to the quote in HubSpot.
+
+10:43.380 --> 10:45.400
+And I've got all the way to that point.
+
+10:45.540 --> 10:51.780
+And I was like, huh, I wonder if this will break something by adding a column.
+
+10:52.600 --> 10:57.240
+And more importantly, we need that column.
+
+10:57.240 --> 11:05.320
+We need that item both from HubSpot and time to feed into the tracker.
+
+11:06.380 --> 11:11.220
+So that when we go to the tracker, we would.
+
+11:11.220 --> 11:15.620
+And this was one of my things was you can't get back to.
+
+11:15.620 --> 11:22.580
+Yeah, I noticed that when I was getting in there today, I was like, oh, man, like, how did I miss that?
+
+11:23.660 --> 11:25.020
+Yeah, it's just a minor thing.
+
+11:25.020 --> 11:31.000
+But okay, so then, you know, ideally, we would come to a project like this.
+
+11:31.000 --> 11:43.260
+And we would see in our labor, like another view of by item and type.
+
+11:43.520 --> 11:48.080
+And like how, you know, so we could look at it by like type very easily.
+
+11:48.080 --> 11:51.600
+We look at it by, which actually you can do.
+
+11:54.080 --> 11:55.260
+Let's see.
+
+11:57.560 --> 11:58.240
+Here.
+
+11:58.800 --> 12:05.080
+So like you can sort of, like I was looking at some.
+
+12:05.320 --> 12:09.720
+And it was actually pretty telling about something I was looking at.
+
+12:11.520 --> 12:16.920
+She finally took it off.
+
+12:18.080 --> 12:20.120
+Let's see if it's on here.
+
+12:21.260 --> 12:23.640
+I just noticed, wow, there's a lot of CNC time.
+
+12:23.800 --> 12:26.760
+Like in my head, I'm definitely not quoting that much time.
+
+12:28.160 --> 12:32.200
+And so some of that is probably a staff issue.
+
+12:32.340 --> 12:35.080
+Some of that is probably me not including enough time.
+
+12:35.380 --> 12:37.420
+But what I was able to do is just sort of go through.
+
+12:37.740 --> 12:41.940
+And, you know, I don't think there's a way to filter by type, obviously.
+
+12:42.320 --> 12:43.500
+But I know who's who.
+
+12:43.500 --> 12:47.560
+And so I was like, oh, wow, that's a lot of hours for, you know, that project.
+
+12:47.560 --> 12:49.200
+Probably add that filter.
+
+12:50.440 --> 12:50.560
+Yeah.
+
+12:50.660 --> 12:52.480
+So we definitely want to.
+
+12:53.880 --> 12:55.520
+Because what we want to do.
+
+12:55.820 --> 13:05.020
+So what I'm trying to get production to focus on is being super, super focused on time per item.
+
+13:05.020 --> 13:20.920
+Because the areas that we've identified are, we have easily 4% or 5% fixed costs sitting on cost of sales that we're not accounting for.
+
+13:20.920 --> 13:22.780
+Okay, I can fix that with a quoting.
+
+13:25.780 --> 13:34.880
+And then we have, you know, easily 5% in optimization that we could do on the fabrication.
+
+13:34.880 --> 13:39.620
+Probably 10% pretty easily over time.
+
+13:40.140 --> 13:47.640
+And I believe that there's probably 20% optimization potential.
+
+13:47.640 --> 13:55.040
+So now you're talking about just between fixing, accounting for some of the things that we're not accounting for.
+
+13:55.840 --> 13:59.600
+And becoming more efficient.
+
+14:00.280 --> 14:04.520
+Like, there's the 10% net that we don't have.
+
+14:04.520 --> 14:20.580
+And so that's why I've been really focused on, okay, we have to have a quote format that we use no matter what.
+
+14:20.580 --> 14:26.320
+Like, we run it through this format so that we can account for everything.
+
+14:28.320 --> 14:32.280
+Have ADA use, you know, play into that same format.
+
+14:33.720 --> 14:37.400
+Down the road, if there's ever another human estimator, they'll use that format.
+
+14:38.040 --> 14:42.120
+And then all of that data goes back into ADA anyways.
+
+14:42.120 --> 14:42.640
+Yeah.
+
+14:42.640 --> 14:48.640
+But in addition to the actual time.
+
+14:48.980 --> 14:58.880
+Because now ADA will know, like, whether ADA quoted it or Paul quoted it, we said 20 hours on this part.
+
+14:59.860 --> 15:01.240
+Even if it doesn't have the drawings.
+
+15:01.820 --> 15:03.540
+And this was kind of like what I was saying a few weeks ago.
+
+15:03.840 --> 15:07.620
+About, like, I think there's, like, an even simpler way to quote a lot of this stuff.
+
+15:07.620 --> 15:14.960
+Where it can just look at something and be like, a wall is this.
+
+15:15.300 --> 15:16.240
+Decking is this.
+
+15:17.740 --> 15:19.180
+Maybe it's per square foot.
+
+15:19.320 --> 15:29.240
+Maybe we find that 90% of the time, 80% of the time, anything made out of wood, there's a square foot way to do it.
+
+15:29.440 --> 15:31.960
+You know, that's down the road.
+
+15:32.120 --> 15:35.960
+But it's going to come from just data, data, data going back in.
+
+15:35.960 --> 15:52.040
+And so we'll be able to, this data will exist of quoted, actual, per item, per trade for everything we build.
+
+15:53.820 --> 15:54.100
+Okay.
+
+15:54.100 --> 15:57.740
+So that's what we're trying to get to here.
+
+15:58.060 --> 16:02.900
+Because then that gives production.
+
+16:03.500 --> 16:07.100
+Like, already it's a huge help that they have this.
+
+16:08.020 --> 16:09.120
+You know, that's huge.
+
+16:10.600 --> 16:11.640
+Now they have a goal.
+
+16:12.420 --> 16:13.660
+We want to delineate.
+
+16:13.660 --> 16:18.700
+We want to make that even more specific.
+
+16:18.940 --> 16:26.540
+That it's, like, here's how much we think each item is and each trade within that item.
+
+16:26.780 --> 16:28.360
+So item one is a cabinet.
+
+16:28.860 --> 16:36.640
+We think it's 16 hours of carpentry, eight hours of laminate, four hours of CNC, six hours of paint.
+
+16:36.640 --> 16:43.720
+And now they have their whole work order created all from here.
+
+16:44.060 --> 16:48.000
+And then we can add a button that basically says generate work order.
+
+16:48.360 --> 16:51.300
+And it generates the work order for each item.
+
+16:51.760 --> 16:54.460
+And then the drawings will match the item.
+
+16:54.800 --> 16:56.520
+So item one, item two, whatever.
+
+16:56.520 --> 17:03.100
+And then as those things get handed off, there's no thinking to it.
+
+17:03.220 --> 17:14.820
+I mean, like, eventually, you know, I mean, yeah, eventually every workstation could have a tablet.
+
+17:15.260 --> 17:19.680
+And it just loads up the thing that they're supposed to work on.
+
+17:19.740 --> 17:21.600
+There's not even the physical handoff.
+
+17:21.600 --> 17:25.540
+Because that's just, that's, you know, I mean, it's fine right now.
+
+17:25.600 --> 17:28.760
+But, you know, it won't be necessary.
+
+17:30.080 --> 17:32.160
+The AI will run most of that.
+
+17:32.380 --> 17:33.640
+It'll take the quote.
+
+17:33.760 --> 17:34.500
+It'll generate everything.
+
+17:34.620 --> 17:36.820
+It'll generate all of this as it already is.
+
+17:37.160 --> 17:43.240
+And then assign the work and pop up on their tablet that's on their workstation and be like, here's what you're supposed to be doing.
+
+17:43.660 --> 17:43.760
+Yeah.
+
+17:43.880 --> 17:44.520
+Here's your timer.
+
+17:44.900 --> 17:50.500
+You know, like, here's exactly, you know, here, you know, according to what we have.
+
+17:50.500 --> 17:53.740
+Like, you have the drawings, you have your materials, and you have 17 hours left.
+
+17:54.380 --> 17:55.100
+You know, and so.
+
+17:56.600 --> 18:01.060
+I was actually thinking about that exact thing the other day as I was working on something for y'all.
+
+18:01.180 --> 18:06.140
+I was like, man, like, eventually these people are going to sign in at a workstation.
+
+18:06.140 --> 18:12.600
+And based on the sign in code that they have, which will be unique, it'll literally just tell them, here's what to do.
+
+18:12.860 --> 18:13.840
+Here's how long you have.
+
+18:14.080 --> 18:14.180
+Yeah.
+
+18:14.520 --> 18:20.960
+You know, they'll be able to escalate to whoever directly without having to walk all the way to the office.
+
+18:20.960 --> 18:21.960
+Yeah.
+
+18:21.960 --> 18:22.840
+Yeah.
+
+18:22.840 --> 18:23.940
+And it'll know.
+
+18:24.600 --> 18:35.660
+But before we even get to that point, because we're going to start tracking item per person, we'll know how efficient they are.
+
+18:36.220 --> 18:36.340
+Yeah.
+
+18:36.340 --> 18:48.040
+So we'll know if they're 80% efficient, 90% efficient, 60% and they're fired, or 90% and they get this type of work, and 80% gets this type of work.
+
+18:48.040 --> 18:58.160
+And also identifying eventually, I would imagine in the next 18 months, cameras that will identify what they're inefficient at.
+
+18:58.160 --> 19:13.820
+But so being able to look at their whole workday and be like, okay, like, they're good at this, this, and this, and then they get to this point, and they can't, they, that's when, that's where they got caught up and the time got, you know, out of control.
+
+19:14.060 --> 19:18.740
+So, yeah, that'll all, that'll all happen for sure.
+
+19:18.740 --> 19:27.580
+Well, I think the, I think pulling the items as you're describing it into the quote, that that's going to unlock a ton.
+
+19:27.580 --> 19:31.120
+And I, I mean, I, I had not really thought about that specifically.
+
+19:31.340 --> 19:50.060
+Obviously, like, when you mentioned, I don't know when it was, a month or so ago, that Rooster had been tagging all that stuff, and I went in and saw that, I was like, holy shit, like, that's a, so when I rebuilt Ada, I mean, like, it, it'll be able to tap into all of that.
+
+19:50.060 --> 20:02.520
+So the, the new Ada is, like, so much better than, than Slack, just because you get it out of Slack, and now, like, your ability to, you can do whatever you want.
+
+20:03.300 --> 20:05.580
+It is a lot, it is much better.
+
+20:06.340 --> 20:07.180
+I haven't, I haven't.
+
+20:07.180 --> 20:10.120
+And what I'm talking about is, like, the back end.
+
+20:10.560 --> 20:18.140
+Like, if I showed you, well, first of all, like, I mean, I can show you whenever, at any time, your database.
+
+20:19.000 --> 20:29.240
+Because, like, the database that y'all have built up over the last, you know, however long we've been really using the tracker is, like, super rich.
+
+20:29.240 --> 20:35.440
+I mean, just dozens and dozens of tables that have captured tons of data and information.
+
+20:35.680 --> 20:41.280
+And when I rebuilt Ada, now it pulls all of that.
+
+20:41.520 --> 20:50.580
+Every conversation, every quote, every spreadsheet that gets produced gets pulled into a table and is now, and is unique and referenceable.
+
+20:50.580 --> 21:05.380
+And so, like, truly, for the first time, Ada has a, a very, very deep graph of knowledge that, that only will get deeper and deeper and better and better the more it gets used.
+
+21:05.520 --> 21:07.960
+And the, and the, and not necessarily the more Ada gets used.
+
+21:08.040 --> 21:09.920
+I mean, obviously, the more Ada gets used, of course.
+
+21:09.980 --> 21:14.540
+But just the more the tracker gets used, because it's, it's now linked to everything.
+
+21:16.080 --> 21:19.180
+Yeah, I mean, that, I get that.
+
+21:19.180 --> 21:38.900
+And that's why I want us to, and especially with, you know, let's just call it, you know, four months, you know, to just, to try to get that to, like, as complete, you know, minus, obviously, future iterations and additions and things.
+
+21:38.900 --> 21:48.460
+But, like, we're tracking every project, all, all purchases, all expenses are showing up correctly.
+
+21:48.460 --> 21:54.860
+All the calculations are correct, which we've, we've got that stuff.
+
+21:55.860 --> 21:59.980
+We're pulling in labor, which we're doing.
+
+22:00.300 --> 22:06.020
+Now we're making, now we're showing much more granular data on the labor.
+
+22:06.020 --> 22:16.300
+And going into 2027, being able to be like, okay, guys, like, this, this website is everything.
+
+22:16.560 --> 22:18.400
+Like, this is everything we need.
+
+22:19.860 --> 22:23.860
+Monday is your, is your, your checklist of what to do.
+
+22:23.860 --> 22:33.320
+And, you know, email is communications, like, but in terms of, you know, the scoreboard, the stat sheet, it's all here.
+
+22:33.320 --> 22:34.500
+And it's all accurate.
+
+22:35.240 --> 22:44.840
+And this is a, this is a major hub of information that is, like, critical to running the business, especially on the production side.
+
+22:44.840 --> 22:48.740
+But really, project managers as well, because this is where they're going.
+
+22:49.000 --> 22:50.740
+And, I mean, I'm getting great feedback.
+
+22:51.040 --> 22:52.940
+You know, they're, they love the information.
+
+22:54.120 --> 22:55.400
+You know, they love the data.
+
+22:55.940 --> 23:02.140
+And so, you know, but I know, you know, like, we can go, we can go so much further with it.
+
+23:02.680 --> 23:06.800
+And so, yeah, I mean, just real quick on the chat.
+
+23:06.800 --> 23:27.280
+I mean, having, like, like, this stuff back, being able to kind of go through and, like, you know, be like, no, I want to cut it from a sheet of plywood, pre-drill the holes, and, like, just have, like, a chat and have it, like, work through and be like, okay, well, in that case, you can, you can get 40 of them on a piece or whatever.
+
+23:27.280 --> 23:33.000
+Or, you know, like, that's, that's been really good.
+
+23:33.300 --> 23:48.740
+Because a lot of the stuff that we're doing, you know, I might build the, like, most of the quote, but I need the support, you know, throughout to be able to upload a drawing and be like, tell me what you think.
+
+23:49.640 --> 23:51.600
+Okay, like, let's focus on this one thing.
+
+23:51.880 --> 23:55.960
+Let's focus on this thing and work through, you know, some stuff.
+
+23:55.960 --> 24:07.940
+And you can do that with, you know, other tools, obviously, but not the, not the one, not one that has a reference that this has and has the materials and all that stuff.
+
+24:08.040 --> 24:10.880
+So, so that's been nice.
+
+24:10.960 --> 24:12.000
+I've done a few.
+
+24:15.220 --> 24:16.940
+Let's see if it's not all right.
+
+24:17.320 --> 24:25.620
+You know, the other thing that having these items, one of the other things, I mean, I'm sure we'll continue to come up with, like, oh, wow, now we can do this and that.
+
+24:25.620 --> 24:33.380
+But I, I built out kind of the early postmortem system last week.
+
+24:33.380 --> 24:37.720
+So if you were to go look at, like, a completed project now, you'll see a postmortem at the top.
+
+24:37.720 --> 24:42.240
+And my initial thought was, like, these are okay.
+
+24:42.980 --> 24:47.400
+Like, they're helpful, but they lack detail.
+
+24:48.220 --> 24:51.800
+You know, like, they'll tell you, like, oh, you had, like, an overage on hours.
+
+24:51.800 --> 24:53.640
+And it's like, well, I kind of knew that from the data.
+
+24:53.740 --> 24:55.480
+But, you know, it's nice to see it in a summary.
+
+24:55.480 --> 25:06.720
+But, like, now it'll be able to specifically tell you once we tie this item, these items in, like, you were over on CNC hours by X or so on.
+
+25:06.900 --> 25:17.640
+And, like, that, what that will then help Ada be able to do is, I mean, eventually it'll be able to look at projects and say, like, don't put this guy on this project.
+
+25:17.640 --> 25:19.840
+Yeah, that's, that's what I'm saying.
+
+25:20.140 --> 25:21.160
+I mean, it will.
+
+25:22.040 --> 25:29.000
+You know, the measurement of efficiency, even without any, like, vision, it will be able to just say, like, quoted, actual.
+
+25:29.420 --> 25:45.920
+And once it has, like, three months of data, you know, maybe less, because they're working on so many things, it's going to start to really connect the dots in terms of, you know, who, who is the most efficient, the least efficient.
+
+25:45.920 --> 25:48.860
+It will, it'll probably get some people fired.
+
+25:49.940 --> 25:55.960
+You know, it'll probably get some other people, you know, you know, get them a chance to make more money.
+
+25:56.560 --> 26:08.720
+And so, down the road, what I want to do with this is, I've been thinking about it, is be able to tell the production team, like, hey, if you're assigned 20 hours and you finish in 18,
+
+26:08.720 --> 26:17.220
+like, we, we would have based that quote on $105 an hour.
+
+26:17.220 --> 26:28.100
+And so, if they say, if they finish two hours early, they put $210 profit, you know, back, you know, back into the project.
+
+26:28.440 --> 26:30.820
+But at the same time, it's not like we told them to go home.
+
+26:31.200 --> 26:32.520
+They started another project.
+
+26:32.740 --> 26:33.740
+They started another build.
+
+26:33.740 --> 26:43.940
+But what we would do is, you'd be like, hey, if you finish for every hour, you get, for every hour early, you get $10, you know, forever, like on everything.
+
+26:44.560 --> 26:46.680
+And so, now you start to give them the incentive.
+
+26:47.200 --> 26:50.880
+Not only did you just, then you started the next thing right away, so you're still on the clock.
+
+26:50.880 --> 27:01.620
+But now you're creating the additional incentive of, I'm not finishing early and they're going to send me home or I'm not going to have something or what's the point?
+
+27:01.760 --> 27:07.680
+It's like, there is an incentive to finishing early every single chance possible.
+
+27:08.620 --> 27:12.220
+And you're just going to make more money, you know.
+
+27:12.220 --> 27:18.080
+If you finish early on, I mean, these guys, some of these guys are building, you know, 500 things a year.
+
+27:18.080 --> 27:29.740
+If they finish early on half of them, you know, on 250 of them and it's 10 bucks a piece, you know, I mean, that's 2,500 bucks, you know, just for doing your damn job.
+
+27:29.740 --> 27:41.100
+So, you know, I don't know if that's the actual number, but we'll be able to do that type of thing through, you know, through tracking per item.
+
+27:41.100 --> 27:53.900
+So, this I think is like, you know, it's a big thing to get in because it'll give us this whole other data set that we haven't really had.
+
+27:54.460 --> 28:06.780
+So, basically every time we take a step, another step, I'm like, oh, but wait, we need this, you know, or what if we had this, you know.
+
+28:06.780 --> 28:11.720
+And so, it was like huge getting to this point where this is very visible.
+
+28:12.740 --> 28:21.140
+And then, you know, obviously, you know, not super great there, but huge getting to that point.
+
+28:21.140 --> 28:34.160
+And then, now to be able to identify who, and not just who's taking the most time, but how much time did they have?
+
+28:34.700 --> 28:36.060
+What was assigned?
+
+28:36.740 --> 28:38.720
+Same thing back to the tablet thing.
+
+28:38.800 --> 28:44.080
+Right now, what Rooster has them doing is he's like, he's just asking them for feedback on their build.
+
+28:44.080 --> 28:52.500
+Well, now we'll give them, we might send them a, maybe eventually it's like a little text message or something.
+
+28:52.620 --> 28:56.800
+And it goes out and it says, hey, here's the five things you worked on this week.
+
+28:57.240 --> 28:58.520
+These three were on time.
+
+28:59.340 --> 29:00.140
+Any comments?
+
+29:00.280 --> 29:01.440
+These two were behind.
+
+29:02.240 --> 29:03.200
+Can you give us some feedback?
+
+29:03.820 --> 29:06.440
+And like, boom, just more data, you know.
+
+29:06.480 --> 29:11.360
+And that can all be automated, you know, where instead of like, hey, write this down and let me scan it.
+
+29:11.360 --> 29:12.460
+Like, where's it go?
+
+29:12.660 --> 29:14.180
+You know, like it's just gone forever.
+
+29:14.440 --> 29:16.500
+We can, we can, we can collect all that.
+
+29:16.640 --> 29:23.300
+So, so that was the, that was the main thing is.
+
+29:28.140 --> 29:29.780
+So I added this.
+
+29:30.640 --> 29:32.360
+I got to this point.
+
+29:32.360 --> 29:41.320
+And then I just, I just had questions about build.com.
+
+29:41.580 --> 29:54.760
+But so I don't know if you want to, before I add that, like if, if you want to like get to a point where you're like, okay, we can add that now.
+
+29:55.220 --> 29:59.000
+Because it's going to change the template basically is what it'll do.
+
+29:59.000 --> 29:59.440
+Yeah.
+
+29:59.440 --> 29:59.560
+Yeah.
+
+29:59.660 --> 30:01.380
+I mean, I'd rather do it sooner than later.
+
+30:02.960 --> 30:16.160
+You know, I, I think, I think what, once we hang up today, you know, the first thing I'm going to, I mean, I'd like for you to send me that template that's, you know, you're up with all the tabs and everything.
+
+30:16.160 --> 30:23.000
+Um, and if you have like, like a completed one where you have like, here's the template, the blank template.
+
+30:23.000 --> 30:25.520
+And then like, here's a filled in one that would be useful.
+
+30:26.280 --> 30:31.060
+Um, and then I'm going to have, and have you added, you've already added all the items.
+
+30:31.060 --> 30:33.240
+So they're all in there in QuickBooks time.
+
+30:34.380 --> 30:36.120
+Yeah, I did one through 25.
+
+30:36.120 --> 30:40.880
+Um, I don't, I think it's unlikely we would really be more than that.
+
+30:41.600 --> 30:47.760
+Um, cause it's again, fabrication items, not, um, total items.
+
+30:48.280 --> 30:55.340
+So, you know, and we might add in like, I might, it would basically be anything where there's actual like labor.
+
+30:55.340 --> 31:00.740
+And I assume that somewhere tied to each item is like a description of what it is.
+
+31:02.900 --> 31:05.960
+So, so that's the thing.
+
+31:06.080 --> 31:14.060
+Basically what you'll have is every quote will use the same, or sorry, every project is just the same items over and over and over.
+
+31:14.420 --> 31:23.780
+And so essentially like within QuickBooks time, the reporting, if you report on item one, it's not going to be accurate.
+
+31:23.780 --> 31:29.160
+It'll have to be a subset of a project to have the, you know, the real data.
+
+31:29.300 --> 31:32.000
+And so that's the test that I actually don't know if it'll work.
+
+31:32.640 --> 31:43.680
+It's, you know, chat GPT says it'll work, but QuickBooks time doesn't have a ton of data or a ton of like written information about this, um, and how to do this.
+
+31:43.680 --> 31:49.760
+Like it doesn't have a native way to do per item.
+
+31:49.760 --> 31:57.160
+So what you could do is like, you know, you can imagine if you're like, for us, like we could, you could track all this stuff.
+
+31:57.280 --> 32:09.240
+But when we want to track this, uh, like this specific thing, there's not a way to do that.
+
+32:09.240 --> 32:17.840
+Because if, if this was a project that has like, you know, five things, it's all going to show up as carpentry.
+
+32:18.240 --> 32:20.960
+So what's going to happen is this will be called item one.
+
+32:20.960 --> 32:25.000
+And then like, if this was fabrication, this would be item two.
+
+32:25.560 --> 32:31.380
+And so then, then that, for that project follows it forever.
+
+32:31.380 --> 32:45.000
+So this would be like, if I go to maybe like a, like, um, this one, well, still not the best example, but, um, you know, like this one.
+
+32:45.100 --> 32:46.860
+So it'll be like, this is dad's quote.
+
+32:46.920 --> 32:50.940
+So it's a little bit different format, but item one anchor desk.
+
+32:50.940 --> 33:01.260
+So when that guy's working on the anchor desk, he selects flashpoint set project carpentry or CNC or paint item one.
+
+33:03.440 --> 33:03.960
+Okay.
+
+33:03.960 --> 33:14.580
+That until I turn it on, I don't know, um, how well that'll work.
+
+33:16.280 --> 33:33.280
+Otherwise, going back to what I said earlier, the only other way to do it, at least using QuickBooks is you just have to put every single unique item in and you can't really get rid of them unless you, you know, get the data and then store it elsewhere.
+
+33:33.960 --> 33:34.200
+Okay.
+
+33:35.780 --> 33:36.300
+Okay.
+
+33:36.820 --> 33:46.020
+I'll, I'll, I'll look at that a little bit closer to, and just see like, if I come to the same conclusion.
+
+33:47.580 --> 33:48.060
+Yeah.
+
+33:48.120 --> 33:56.680
+So like over the course of a year, if we do 300 projects, there's going to be 300, let's call it 300 item ones.
+
+33:56.800 --> 33:57.040
+Yeah.
+
+33:57.380 --> 34:00.240
+But different, just unique to the project.
+
+34:00.880 --> 34:02.100
+Unique to the project.
+
+34:02.300 --> 34:02.500
+Yeah.
+
+34:02.500 --> 34:18.260
+So the identifier is, it's basically like, if, if the, it's like project number one, project number two, project number three, and then, then the next project number one, project number two, project number three, four, five, six.
+
+34:18.260 --> 34:20.440
+You know, so it'll vary.
+
+34:21.560 --> 34:37.080
+But one through five will get used hundreds of times, you know, stuff after that will be used less, but it shouldn't matter as long as the first, you know, identifier is the project number.
+
+34:37.080 --> 34:44.080
+And they'll always, the items will only be tied to fabrication line items.
+
+34:44.320 --> 34:44.960
+Nothing else.
+
+34:47.060 --> 34:47.460
+Yes.
+
+34:47.560 --> 34:47.880
+Correct.
+
+34:48.280 --> 34:48.520
+Okay.
+
+34:48.520 --> 34:49.520
+Yeah.
+
+34:49.520 --> 34:49.520
+
+
+34:49.520 --> 34:49.520
+
+
+34:49.520 --> 34:49.540
+Yeah.
+
+34:49.540 --> 34:59.760
+And a lot of that goes on to, and labor, a lot of that goes on to, because if, for example, like there could be labor only on like, this one doesn't have it.
+
+34:59.760 --> 35:10.440
+But if there was like, we're buying, we're buying something and just reselling it, but we want to set it up first.
+
+35:10.440 --> 35:16.900
+I'm trying to do a better job of not doing that as fabrication because it skews that whole formula.
+
+35:17.780 --> 35:31.540
+And instead doing that as like, we have like that pull pack prep and I've considered maybe adding one or two other items to like account for like those types of, you know, we, we bought this thing.
+
+35:31.640 --> 35:34.700
+We're going to test fit it and then pack it up and deliver it.
+
+35:34.700 --> 35:42.760
+Um, so there's a lot of those types of things where there is labor, there's no actual fabrication.
+
+35:43.300 --> 35:55.180
+And, but we might want that person when they work on that to select item five, because in our quote, we said you have eight hours to do this whole thing.
+
+35:55.540 --> 35:59.420
+And we want them to, we want to know, was it 10 or was it two?
+
+35:59.960 --> 36:01.440
+So, okay.
+
+36:01.440 --> 36:05.080
+But the majority of it will be just fabrication.
+
+36:05.460 --> 36:05.600
+Yeah.
+
+36:06.040 --> 36:06.280
+Yeah.
+
+36:07.980 --> 36:08.460
+Okay.
+
+36:10.180 --> 36:15.280
+Well, that's, again, yeah, I'm, I'm hoping that works.
+
+36:15.960 --> 36:27.620
+Um, I would think it would work based on their current system, where it's basically having you select service items, which would be used over and over and over and over and over.
+
+36:27.620 --> 36:40.280
+And still like for some companies, you know, like, um, I mean, ours probably isn't that much different.
+
+36:40.380 --> 36:43.000
+Like I hit all this crap cause I don't, they don't need to see that.
+
+36:43.100 --> 36:52.440
+But, um, you know, if you're like an AC, you know, HVAC company, you know, you're, you're going to have 30, 30 service items that you select from.
+
+36:52.440 --> 37:03.540
+Um, um, we probably, we probably don't have 30 and ours are maybe a little more unique, uh, because it's more broad.
+
+37:03.640 --> 37:06.380
+It's, you know, it's not like, Hey, I'm working on this type of unit.
+
+37:06.480 --> 37:08.300
+It's like, I'm just doing this type of work.
+
+37:08.300 --> 37:13.080
+And then, and then the specific item identifier would just be a number.
+
+37:14.840 --> 37:16.440
+So, yeah.
+
+37:18.800 --> 37:29.400
+If for some reason that like doesn't work, then I think plan B would be, we basically have to add every unique item.
+
+37:29.400 --> 37:39.200
+And then at some point, like, like archive them or something, but hopefully not.
+
+37:39.240 --> 37:40.660
+Cause this would simplify it a lot.
+
+37:40.860 --> 37:41.620
+If we can do it this way.
+
+37:41.860 --> 37:42.080
+Hopefully not.
+
+37:42.220 --> 37:43.100
+That would, that would be a pain.
+
+37:43.560 --> 37:48.160
+I mean, it'd be easy enough to automate adding the stuff, but yeah.
+
+37:48.300 --> 37:50.240
+Find finding the right one.
+
+37:51.140 --> 37:51.580
+Yeah.
+
+37:51.840 --> 37:52.080
+Yeah.
+
+37:52.080 --> 38:08.420
+Cause at any point, if you have 30 active projects and there's five things each, you've got 150 items and some of them are going to have similar names like, you know, cabinet or like, you know, reception counter or whatever.
+
+38:09.380 --> 38:17.280
+And yeah, they're going to clock on to, we really want them to just go like, I'm on, I'm on Amazon project drawing.
+
+38:17.280 --> 38:20.080
+So this is item two clock onto item two.
+
+38:20.460 --> 38:20.840
+That's it.
+
+38:22.080 --> 38:27.440
+So that will become a big part of the shot vocabulary is item.
+
+38:27.660 --> 38:29.140
+What item number are you on?
+
+38:30.560 --> 38:31.080
+Okay.
+
+38:34.140 --> 38:34.660
+Okay.
+
+38:35.180 --> 38:41.580
+So, um, well, before we get into the bill.com stuff, just a couple other updates.
+
+38:41.580 --> 38:48.520
+So Venturity, I mean, Ahmad responded today and I responded back pretty quickly.
+
+38:48.520 --> 38:55.360
+I mean, I tried to get back to him as quickly as possible because it takes him like a week or two in between responses.
+
+38:56.080 --> 39:05.040
+So I'm like, you know, I mean, literally it's like, he sent me that note this morning and I'm like, what I want to write him back.
+
+39:05.040 --> 39:08.260
+He's like, dude, I can make that change in like 30 seconds.
+
+39:08.880 --> 39:12.340
+But it took you two weeks to respond.
+
+39:12.340 --> 39:22.580
+You know, so like I, cause I think what they're trying to do is really cool, but like, it's never going to come to fruition the way that they have it in their mind.
+
+39:22.580 --> 39:34.140
+If, if they don't, you know, like take the time to help me nail down what, what is right and what isn't right from, for what they want to be able to do with it.
+
+39:34.140 --> 39:49.700
+Um, well, I did sort of like when we did the, um, financial summit the week before last, I kind of, kind of got on them a little bit about that because originally they were going to do the whip, like reconciliation.
+
+39:49.700 --> 39:52.840
+Like basically there's this giant entry that they have to do.
+
+39:52.920 --> 39:56.940
+That's going to like make one month look terrible.
+
+39:57.720 --> 40:01.640
+Um, they were going to do it in June and then they were going to do it.
+
+40:01.640 --> 40:04.520
+And I was like, well, can you at least do it in like July?
+
+40:04.740 --> 40:11.020
+Because, you know, I'd rather not, we're trying to go through this stuff with our, our, our line of credit renewal.
+
+40:11.020 --> 40:16.320
+And like, I'd rather that be on Q2, even though we can explain it and it's just normal.
+
+40:16.320 --> 40:18.580
+It's like sort of a correction.
+
+40:19.660 --> 40:21.840
+Um, and he was like, I can be on that call with the bank.
+
+40:21.840 --> 40:23.320
+Like, I was like, no, I get it.
+
+40:23.320 --> 40:25.280
+Just like, is it a big deal to move it to July?
+
+40:25.360 --> 40:26.180
+He was like, no, not at all.
+
+40:26.220 --> 40:29.660
+Well, then they weren't ready to do it because he's waiting on this.
+
+40:29.660 --> 40:32.040
+And I was like, well, so now it's going to be August.
+
+40:32.260 --> 40:36.440
+Like, you know, guys, like now, is it even going to be August?
+
+40:36.680 --> 40:38.560
+Like, sounds like it's going to be September.
+
+40:38.800 --> 40:45.580
+So, you know, I think he understood that I was like frustrated because I just wanted to, I just want to get that like done and behind us.
+
+40:45.580 --> 40:47.920
+So that then we have normal, you know, books.
+
+40:48.800 --> 40:50.080
+Um, so.
+
+40:50.820 --> 40:51.220
+Well.
+
+40:51.300 --> 40:51.760
+Yeah, I would.
+
+40:52.080 --> 41:01.080
+I'll follow, you know, he replied and I haven't responded yet, but I'll reply and I'll just say, hey, like, do you have like an hour this week to just nail this down?
+
+41:01.080 --> 41:14.260
+Because for me, there's an, I'm at a stopping point until I get like real solid feedback about not how it works, but if it's producing the result they want.
+
+41:14.260 --> 41:17.160
+And only they can tell me that.
+
+41:17.260 --> 41:21.180
+Like I, I can run a million tests and show that it works and all that.
+
+41:21.180 --> 41:31.080
+But like, unless they say, yes, we went through this and this is exactly what we want or tweak these things to get it to the point we need it to be at.
+
+41:31.080 --> 41:33.440
+Like they're the only ones that can tell me that.
+
+41:35.080 --> 41:35.560
+So.
+
+41:38.120 --> 41:41.480
+Um, outside of that, let's see.
+
+41:41.480 --> 41:55.520
+Sorry, I'm just reading through my, my list of, of things.
+
+41:55.520 --> 42:09.680
+All right.
+
+42:09.780 --> 42:13.160
+I, yeah, I think that, that covers everything.
+
+42:14.240 --> 42:16.880
+Um, have you, have you noticed the postmortems yet?
+
+42:16.920 --> 42:19.200
+I didn't say anything cause I was still working on them.
+
+42:20.060 --> 42:20.980
+I haven't seen it.
+
+42:20.980 --> 42:41.980
+But if you want to take a look at how one of those, what, what it looks like right now, if you like go to projects and filter the status to completed and just pick a project like that actually has some cost to it, um, like arrow, you know, whatever.
+
+42:41.980 --> 42:42.620
+It doesn't matter.
+
+42:42.620 --> 42:50.960
+Any ones that actually have a cost, uh, and you'll see, I mean, they all have one, but the ones with costs are better.
+
+42:50.980 --> 42:53.860
+Because they, you know, there's actually something to report on.
+
+42:54.240 --> 43:05.060
+And then you go to the overview and it should, they should all have, uh, a draft, uh, postmortem.
+
+43:05.060 --> 43:12.520
+Um, that just, it's, you know, just a few sentences, paragraph about, you know, kind of what, what it's reading.
+
+43:12.520 --> 43:21.440
+And so obviously adding these items, that'll make them richer, uh, than they are right now.
+
+43:22.320 --> 43:35.480
+But, you know, if you take a look at a handful of these and say like, okay, you know, these are okay, but like, here's what I'd really like to see, you know, then I can figure out if it's possible to show that right now.
+
+43:35.480 --> 43:39.140
+And if so, have it start showing that.
+
+43:40.140 --> 43:49.600
+So one thing I see when I, I went to one and it says, um, like generate draft and it says authentication required when I clicked it.
+
+43:49.600 --> 43:49.840
+Hmm.
+
+43:55.720 --> 43:58.760
+Does it show the, yeah, let me see what.
+
+43:58.980 --> 44:00.440
+Like I just went to this one.
+
+44:01.020 --> 44:03.180
+Um, let me try another.
+
+44:04.580 --> 44:08.580
+Yeah, it's probably just something on your, I just need to fix it on your end.
+
+44:08.580 --> 44:22.660
+It was like the same issue that Ahmad was having a few weeks ago where he was like, I can't, you know, it's been a week or two since, since you said, you know, it was just like a server side thing that I just need to fix.
+
+44:22.720 --> 44:23.480
+I'll fix that.
+
+44:24.340 --> 44:27.960
+Cause it should, they, they actually all have a post-mortem.
+
+44:28.360 --> 44:29.940
+Um, in fact, let me.
+
+44:30.340 --> 44:30.600
+Okay.
+
+44:32.000 --> 44:35.220
+So it just auto generates once it's marked completed.
+
+44:35.480 --> 44:35.760
+Yeah.
+
+44:35.760 --> 44:35.820
+Yeah.
+
+44:38.200 --> 44:38.740
+That's it.
+
+44:38.740 --> 44:38.960
+Okay.
+
+44:38.960 --> 44:43.960
+Okay.
+
+45:05.960 --> 45:07.160
+Let's see what else.
+
+45:08.960 --> 45:10.940
+Yeah.
+
+45:10.940 --> 45:11.920
+I think that's it.
+
+45:12.220 --> 45:16.860
+Um, Emily had asked about something earlier.
+
+45:19.800 --> 45:24.180
+Oh, she wanted to separate design hours from shop hours in the budget detail.
+
+45:25.320 --> 45:28.020
+And yeah, that, yeah, that is a, an important one.
+
+45:28.020 --> 45:30.020
+And I, I mean, I can do that.
+
+45:30.020 --> 45:39.340
+Um, but it's going to want, you know, we, right now we don't, I don't think we have like an hourly rate or a formula for design specifically.
+
+45:39.340 --> 45:50.280
+So in order to show like a, uh, uh, like an actual dollar value budget, I need that.
+
+45:50.280 --> 45:59.920
+Um, so we charge 125 an hour and it's on the quote, the number of hours.
+
+45:59.920 --> 46:03.340
+And then they're all like 25 an hour.
+
+46:03.340 --> 46:04.340
+Okay.
+
+46:04.340 --> 46:05.020
+Okay.
+
+46:05.380 --> 46:06.400
+These are the ones.
+
+46:06.400 --> 46:11.940
+I mean, yeah, they might be a little less, but like probably the most is 25.
+
+46:12.400 --> 46:12.680
+Okay.
+
+46:12.840 --> 46:18.560
+Um, so yeah, 22, 23, something like that.
+
+46:18.560 --> 46:26.900
+Um, so if it was 10 hours, you know, we're charging a client at 1250, but we're, we're actually budgeting 250.
+
+46:27.300 --> 46:27.820
+Yeah.
+
+46:28.120 --> 46:28.440
+Okay.
+
+46:29.240 --> 46:29.560
+Okay.
+
+46:30.120 --> 46:31.100
+That should work.
+
+46:34.820 --> 46:38.640
+Um, I think that's it for her.
+
+46:38.900 --> 46:42.180
+You know, I, Alina has stuff like every day.
+
+46:44.460 --> 46:44.980
+Yes.
+
+46:45.140 --> 46:45.580
+Very.
+
+46:45.920 --> 46:46.640
+I appreciate.
+
+46:46.640 --> 46:52.300
+I mean, she's some of, most of the time it's like, she catches things where it's like, okay,
+
+46:52.720 --> 46:58.080
+she wants it to work a certain way for her since she's the one doing it.
+
+46:58.080 --> 47:03.480
+And the way that it was built worked fine, but not the way she wants it to.
+
+47:03.600 --> 47:12.360
+So like I, they're easy enough changes and, and you know, uh, it, it's interesting for sure.
+
+47:12.700 --> 47:16.620
+Um, but yeah, she, she, she sends, she sends me,
+
+47:16.620 --> 47:17.180
+she sends me stuff too.
+
+47:17.280 --> 47:20.500
+And I, you know, I can tell what she's not looking for more stuff to do.
+
+47:20.560 --> 47:23.200
+It's all like, she's just trying to like get it all ironed out.
+
+47:23.280 --> 47:23.580
+Yeah.
+
+47:23.680 --> 47:24.480
+Uh, which is good.
+
+47:24.480 --> 47:29.940
+Cause you know, some people have them have the, um, a lot of times you hire people out of like the Philippines or something.
+
+47:29.940 --> 47:37.660
+And they'll just like, they'll just like trudge through like the most laborious thing instead of ever making any sort of like suggestion.
+
+47:37.660 --> 47:38.100
+So.
+
+47:38.620 --> 47:38.800
+Yeah.
+
+47:39.320 --> 47:39.680
+Yeah.
+
+47:39.680 --> 47:41.080
+No, she's, she's really good about it.
+
+47:41.080 --> 47:45.940
+I mean, she messages me multiple times a week with, can we make it do this?
+
+47:45.940 --> 47:46.880
+Or can we make it do that?
+
+47:46.880 --> 47:48.000
+Or it's doing this.
+
+47:48.000 --> 47:52.280
+And, and that's not how I, that's not how I like to look at it.
+
+47:52.280 --> 47:53.820
+And I mean, it's easy stuff.
+
+47:54.140 --> 48:12.260
+Um, but yeah, I mean, I, I wish that Maribel would give me more like, I mean, she, I've told her, like I've messaged her and said like, Hey, like, you know, if you have some time to catch up, like, I'd like to understand, you know, kind of what your day looks like.
+
+48:12.260 --> 48:18.640
+See if there's any opportunities to, uh, streamline anything and, you know, she's nice and responds.
+
+48:18.640 --> 48:21.360
+She's like, yeah, let me, let me see if I can come up with some ideas.
+
+48:21.360 --> 48:22.980
+And then I, you know, I've never gotten anything.
+
+48:22.980 --> 48:28.460
+I know there's opportunities to make her more efficient.
+
+48:28.980 --> 48:39.340
+I just think either she's super busy or maybe doesn't quite know how to approach that or, or maybe is afraid to.
+
+48:39.340 --> 48:43.980
+Um, I mean, I, I read about that all the time.
+
+48:43.980 --> 48:53.060
+Like, you know, employees are afraid to talk to their employers about AI efficiencies because they don't want their jobs to be taken away.
+
+48:54.320 --> 48:54.460
+Yeah.
+
+48:54.840 --> 49:08.660
+I mean, yeah, I don't know that, that, that is kind of too bad because I'm sure there's all sorts of opportunities there, but I know on the, in, in my opinion,
+
+49:08.660 --> 49:15.760
+you know, I'm, I'm, I'm much more concerned about the AR side, you know, because that's the money coming in.
+
+49:15.760 --> 49:16.160
+Yep.
+
+49:16.420 --> 49:18.360
+Um, so.
+
+49:19.640 --> 49:21.700
+Well, Alina's on it, that's for sure.
+
+49:22.100 --> 49:23.820
+Um, okay, let's see.
+
+49:23.920 --> 49:35.520
+See if you, see if on the, the tracker do like a command shift R, like a hard, hard reset, and then see if you can see those postmortems on a completed project now.
+
+49:35.520 --> 49:35.580
+Yeah.
+
+49:38.660 --> 49:39.660
+Yeah.
+
+49:51.760 --> 49:53.800
+Did it auto run or.
+
+49:53.880 --> 49:54.120
+Yeah.
+
+49:54.300 --> 50:00.180
+If you give it a second, like if you go to a different project and like, give it a second, it'll, they persist.
+
+50:00.440 --> 50:02.200
+So they, I've run them all already.
+
+50:02.200 --> 50:06.540
+Um, so every pro every completed project should have one.
+
+50:06.960 --> 50:13.280
+And when, when a new project gets completed, like if you went and completed one right now, it would auto generate.
+
+50:13.280 --> 50:28.540
+So, you know, that regenerate draft is like if additional information came in, um, you know, more expenses or labor or whatever, then you could go regenerate the draft to, you know, kind of capture the new information.
+
+50:28.540 --> 50:31.540
+That's what that there's for, but they, they'll all auto generate.
+
+50:31.540 --> 50:34.580
+So, you know, like I said, they're okay.
+
+50:35.020 --> 50:47.340
+And, and for, for Ada, I mean, again, it's another, you know, good, you know, uh, structured piece of data that she can grab from every project.
+
+50:47.760 --> 50:48.240
+Yeah.
+
+50:48.600 --> 50:48.780
+Yeah.
+
+50:49.220 --> 50:53.300
+It's, uh, it'll get even better with the item stuff, I think.
+
+50:53.300 --> 50:57.300
+Um, so I would say, you know, it's a work in progress.
+
+50:58.560 --> 50:59.000
+Yeah.
+
+50:59.640 --> 51:07.300
+Looking at this, um, this made me think of something kind of aligned with the, um, design labors.
+
+51:07.300 --> 51:19.240
+Like, you know, if we go here, I guess, I guess first question is, is it basing this on the new formula?
+
+51:20.720 --> 51:21.160
+Yeah.
+
+51:21.160 --> 51:22.740
+Or is this like, okay.
+
+51:23.140 --> 51:23.360
+Yeah.
+
+51:23.520 --> 51:24.000
+Um, okay.
+
+51:24.140 --> 51:24.560
+That's good.
+
+51:25.040 --> 51:48.020
+So looking at this, um, I think in addition to separating design, when people log, like when this labor gets logged in, it's going to hit here.
+
+51:48.020 --> 51:56.840
+So like, I think that we also want to change how, how all the labor hits.
+
+51:57.000 --> 52:09.880
+So like, because, because it's kind of a, it's a, a little bit of point of contention with like the production team is they're like, well, is my, like, I'm losing our, or my hour report.
+
+52:09.880 --> 52:19.140
+And I'm glad that they're like being, you know, that they care because they're like, well, my hours are going to look worse because then they go on site and they, and like three guys install it for.
+
+52:19.140 --> 52:23.060
+You know, 30 hours each and 120 hours get added to something.
+
+52:23.060 --> 52:25.540
+And I'm like, yeah, that's true.
+
+52:25.540 --> 52:32.360
+But like, you know, if that's the case, then the project, as long as they didn't go over the projects to still be on budget.
+
+52:32.360 --> 52:46.220
+But I think if we can actually separate that, it's, it's even better because like, I mean, at the end of the day, I mean, I think you, you get what I'm saying that like, I mean, this is the biggest, this is it.
+
+52:46.220 --> 53:10.260
+You know, like this, the, the, the, the more, the more, the more visibility, the more accuracy that we have on the labor, where it's going, how many hours, who, what, when, all that, the better, because that's, what's going to, you know, make or break.
+
+53:10.260 --> 53:26.180
+Like, you know, this project probably honestly isn't completely accurate because one, it was earlier in the year before the PMs were plugging in everything.
+
+53:26.180 --> 53:35.960
+And two, like, this should have a number, like a actual or something.
+
+53:36.040 --> 53:40.240
+I don't know, maybe it's in there somewhere, but anyways, we, we do want to.
+
+53:40.260 --> 53:43.400
+I mean, they have their own code.
+
+53:43.980 --> 54:00.660
+And I think going back to the build, like they should, like, I was going to clean this up too, to where it's like, they're selecting, they select the right thing.
+
+54:01.660 --> 54:08.540
+They, like, we don't have dismantle, but I was going to like, when you're on the install, select the install.
+
+54:08.680 --> 54:10.540
+When you're on the dismantle, select the dismantle.
+
+54:10.540 --> 54:16.180
+You know, we want to get them, like, really selecting what is it you're working on.
+
+54:16.380 --> 54:24.080
+I don't think I need them to select item one, item two for this part, because it's more like you're just doing the whole, the whole setup.
+
+54:24.080 --> 54:37.360
+But I do want to know which part of it they're on because, you know, our quote typically, and I have gone back and forth with like, should I start to combine these and just have one number?
+
+54:37.360 --> 54:48.940
+And using the, that quote sheet will make it easier to do that because one of the reasons I do it this way is so that I can make sense of it all after the fact that I'm like, okay, I thought of this, I thought of that.
+
+54:48.940 --> 54:50.120
+I thought of this, I thought of that.
+
+54:50.120 --> 54:56.420
+But if I have a quote sheet, and I can go back and look at that and be like, it's all here.
+
+54:56.920 --> 55:00.500
+And then I just plug in like, one number for the whole installation.
+
+55:01.980 --> 55:04.900
+We could still, we would have the hours allocated to it.
+
+55:05.660 --> 55:10.440
+And it would sort of have, it would have its own budget, its own actual everything.
+
+55:10.860 --> 55:11.720
+So, okay.
+
+55:11.720 --> 55:25.840
+Yeah, I mean, look, as long as we're capturing it somewhere in QuickBooks or HubSpot, but in this case, QuickBooks, then we can pull it in.
+
+55:27.720 --> 55:31.040
+So, you know, separating it is not hard.
+
+55:31.120 --> 55:35.780
+It just needs to be able to know, you know, specifically where to put something.
+
+55:37.060 --> 55:37.460
+So.
+
+55:39.200 --> 55:39.600
+Yeah.
+
+55:41.720 --> 55:43.800
+Okay.
+
+55:44.160 --> 55:44.480
+So.
+
+55:45.960 --> 55:47.000
+Bill.com.
+
+55:49.700 --> 55:51.660
+Yeah, I think the big thing there is.
+
+55:53.100 --> 55:55.160
+So in terms of how.
+
+55:56.580 --> 56:01.660
+I'm still not sure I'm using it completely correctly in terms of like best practice.
+
+56:06.020 --> 56:09.980
+But I guess the main question for you is when, when it, when it's created.
+
+56:11.720 --> 56:14.080
+Who automatically gets.
+
+56:17.500 --> 56:18.940
+Assigned to the budget.
+
+56:19.700 --> 56:23.560
+So the way that it works right now is.
+
+56:23.560 --> 56:29.620
+When the project gets added to the tracker.
+
+56:29.620 --> 56:35.520
+If it has travel or props.
+
+56:35.940 --> 56:37.980
+It, it auto creates the budget.
+
+56:37.980 --> 56:38.980
+Because.
+
+56:38.980 --> 56:39.240
+Because.
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:39.240
+
+
+56:39.240 --> 56:40.240
+And the reason for that.
+
+56:40.240 --> 56:41.340
+And the reason for that.
+
+56:41.340 --> 56:45.020
+It's only those two is because there's, there's no other categories.
+
+56:45.020 --> 56:51.700
+That are tied directly to a bill.com card.
+
+56:53.000 --> 56:54.960
+That are, that are getting used.
+
+56:54.960 --> 56:58.640
+Um, from the budget in the tracker.
+
+56:58.640 --> 57:00.900
+So like labor, obviously not materials.
+
+57:00.900 --> 57:03.840
+You know, David's typically purchasing, purchasing those separately.
+
+57:04.560 --> 57:05.100
+Um.
+
+57:05.100 --> 57:10.140
+And maybe bulk purchasing and then spreading out per project.
+
+57:10.140 --> 57:10.540
+Whatever.
+
+57:10.540 --> 57:11.040
+So.
+
+57:11.040 --> 57:11.100
+So.
+
+57:11.100 --> 57:12.540
+It's just those.
+
+57:12.700 --> 57:15.180
+So if it has travel or props.
+
+57:16.220 --> 57:18.880
+It, it auto creates the budget.
+
+57:18.880 --> 57:22.600
+And the budget is based on those two categories.
+
+57:22.600 --> 57:23.820
+Mm-hmm.
+
+57:23.820 --> 57:26.400
+It auto assigns you as the owner.
+
+57:27.020 --> 57:28.140
+Every time.
+
+57:28.720 --> 57:31.400
+And if there is a PM assigned.
+
+57:32.460 --> 57:37.080
+Then it will add that PM as a, as a member.
+
+57:38.520 --> 57:41.460
+The, you know, Emily asked me a question the other day.
+
+57:41.460 --> 57:43.480
+And I, I made a couple tweaks for her.
+
+57:43.480 --> 57:45.400
+But it, it did make me realize.
+
+57:45.400 --> 57:48.560
+Like I, I think one of the things that's happening is.
+
+57:50.120 --> 57:51.460
+If the PM.
+
+57:51.460 --> 57:54.400
+So what, like think of the workflow like this.
+
+57:54.400 --> 57:56.200
+Deal gets one in HubSpot.
+
+57:56.200 --> 57:58.980
+Auto creates MDP tracker job.
+
+57:58.980 --> 58:01.840
+And if those two categories have a budget.
+
+58:01.840 --> 58:04.140
+It auto creates the build.com budget.
+
+58:04.460 --> 58:08.480
+But if the PM hasn't been assigned in the tracker yet.
+
+58:09.480 --> 58:12.360
+Then the budget gets created without the PM.
+
+58:14.040 --> 58:16.220
+And so you're the only owner.
+
+58:16.880 --> 58:19.680
+And so then I think what Emily's having to do is go back.
+
+58:19.680 --> 58:23.840
+And add the PM.
+
+58:25.040 --> 58:27.920
+Or, or like re-sync the budget.
+
+58:28.460 --> 58:30.920
+And then it, it sees, oh, now there's a PM.
+
+58:31.020 --> 58:32.380
+And it, it adds them as a member.
+
+58:33.840 --> 58:35.460
+The issue she was having.
+
+58:35.620 --> 58:37.000
+Or that they were having.
+
+58:37.000 --> 58:40.260
+Was the budget was being created.
+
+58:43.260 --> 58:49.920
+So that the whole amount was assigned to the owner and the members.
+
+58:50.780 --> 58:54.000
+I mean, and what that, because of the way build up works.
+
+58:54.000 --> 58:57.760
+Is if you, if the whole amount is assigned to you.
+
+58:57.940 --> 59:01.220
+Then you can't request any specific amount.
+
+59:01.220 --> 59:04.040
+So I flipped.
+
+59:04.940 --> 59:08.760
+I changed, I changed the budget style.
+
+59:09.820 --> 59:10.860
+I'll tell you like.
+
+59:11.820 --> 59:13.420
+Let me get logged in real quick.
+
+59:13.540 --> 59:16.240
+And I can tell you what, what the actual like.
+
+59:17.700 --> 59:18.860
+Terminology was.
+
+59:18.860 --> 59:19.860
+So.
+
+59:32.460 --> 59:33.020
+So.
+
+59:34.300 --> 59:36.720
+Previously, when the budgets got created.
+
+59:37.600 --> 59:38.980
+They were.
+
+59:38.980 --> 59:45.460
+They, it was like full access to the budget.
+
+59:46.080 --> 59:50.620
+And in order for, for budget members to be able to request funds.
+
+59:50.620 --> 59:53.220
+It needed to be a request based access.
+
+59:53.220 --> 59:53.820
+So I just.
+
+59:54.340 --> 59:56.360
+I, I fixed all the budgets.
+
+59:56.520 --> 59:57.220
+So now they're that.
+
+59:57.360 --> 59:59.360
+And any new one that gets created will be that.
+
+59:59.480 --> 01:00:00.840
+So now fund requests.
+
+01:00:00.840 --> 01:00:02.580
+I think that that's fixed.
+
+01:00:02.580 --> 01:00:12.820
+I was thinking about ways to account for a PM not being assigned to a project right away.
+
+01:00:13.580 --> 01:00:17.220
+And there's really only two ways I could think of it.
+
+01:00:17.280 --> 01:00:21.320
+Either I delay the, the bill.com budget creation.
+
+01:00:21.320 --> 01:00:24.740
+You know, so it, it, I just put a rule that says, you know, okay, wait.
+
+01:00:26.600 --> 01:00:31.500
+Three hours or whatever to, before you create the bill.com budget.
+
+01:00:31.500 --> 01:00:34.740
+That way Emily can go in, assign the PM.
+
+01:00:34.740 --> 01:00:40.380
+And then, then once it picks it in, that's assuming that whatever window we select that
+
+01:00:40.380 --> 01:00:42.160
+she actually adds the PM to it.
+
+01:00:42.200 --> 01:00:45.960
+The alternative would be, I don't have it auto create the budgets.
+
+01:00:46.260 --> 01:00:49.080
+And she goes in and clicks the button.
+
+01:00:49.400 --> 01:00:55.700
+So, you know, every project has like a, a create bill budget button on them.
+
+01:00:55.700 --> 01:00:59.700
+And so she would just click that button and it would go create it.
+
+01:00:59.700 --> 01:01:05.700
+And assuming that she's already added the PM, then they will be assigned as a budget member
+
+01:01:05.700 --> 01:01:06.420
+automatically.
+
+01:01:07.160 --> 01:01:14.080
+Now I did ask her if she wanted me to like auto add others to it.
+
+01:01:14.160 --> 01:01:18.500
+Like, does David need to be added to every budget automatically?
+
+01:01:18.500 --> 01:01:22.420
+Just so that like, he doesn't need to be added manually.
+
+01:01:22.420 --> 01:01:24.460
+He's just already on it.
+
+01:01:25.660 --> 01:01:30.540
+You know, things like that, that, that, that is, that's one of the main things that we want
+
+01:01:30.540 --> 01:01:30.900
+to do.
+
+01:01:31.380 --> 01:01:31.820
+Okay.
+
+01:01:32.280 --> 01:01:34.600
+So like, he basically needs to be on all of them.
+
+01:01:35.440 --> 01:01:39.720
+I think it makes sense to have a rooster just, I mean, if it's easy, you know, just to have
+
+01:01:39.720 --> 01:01:48.120
+rooster because he, if David's out, which happens, I mean, he, he works from home, but he has
+
+01:01:48.120 --> 01:01:49.260
+some weird like family thing.
+
+01:01:49.260 --> 01:01:56.440
+So if he's out and they're like, Hey, I need to send somebody to go pick something up, um,
+
+01:01:56.620 --> 01:01:59.380
+take my card or I need to order something right now.
+
+01:02:00.080 --> 01:02:05.560
+There's been a few instances where it's like, it just avoids one more potential point of,
+
+01:02:05.560 --> 01:02:09.540
+um, you know, whatever contention.
+
+01:02:09.540 --> 01:02:13.520
+Um, David on all of them.
+
+01:02:13.680 --> 01:02:17.720
+And then the PM, if the PM is assigned, it should know that.
+
+01:02:17.820 --> 01:02:22.360
+And I think that that is where I've seen it like break a few times.
+
+01:02:23.220 --> 01:02:28.700
+Um, and I was looking at actually at this one.
+
+01:02:28.700 --> 01:02:42.000
+And, and I mean, but when I, when I closed this, it would have already had, it would have
+
+01:02:42.000 --> 01:02:44.020
+already had the PM on this one.
+
+01:02:44.660 --> 01:02:47.900
+Like, um, they were assigned in HubSpot.
+
+01:02:48.920 --> 01:02:49.480
+Yeah.
+
+01:02:50.120 --> 01:02:50.660
+Okay.
+
+01:02:51.020 --> 01:02:54.340
+Because I have that as also like a required field.
+
+01:02:54.340 --> 01:03:05.040
+So when, so when you close it, you, you, I'm pretty sure I still had it set to be required,
+
+01:03:05.040 --> 01:03:07.980
+but it's just so unlikely we would close one and not have it.
+
+01:03:07.980 --> 01:03:16.980
+But in this particular instance, I actually, um, assigned a job number and maybe this confused
+
+01:03:16.980 --> 01:03:17.220
+it.
+
+01:03:17.320 --> 01:03:17.580
+It is.
+
+01:03:17.680 --> 01:03:21.880
+I assigned a job number before I actually closed one it because we needed to start doing some
+
+01:03:21.880 --> 01:03:22.660
+design work.
+
+01:03:22.660 --> 01:03:27.460
+I didn't want to close it yet because I wasn't totally sure.
+
+01:03:28.300 --> 01:03:35.640
+Um, but this one aside, I've, I've definitely have seen it happen a few times where I get
+
+01:03:35.640 --> 01:03:39.880
+the notification and in some cases the PM is on it.
+
+01:03:40.140 --> 01:03:43.600
+And then in other cases they're coming to me and they're like, Hey, can you add me to
+
+01:03:43.600 --> 01:03:44.980
+the budget?
+
+01:03:44.980 --> 01:03:52.640
+Like, like this one here, like when I assigned, when I closed one it, I put Molly.
+
+01:03:52.660 --> 01:04:00.660
+So like, she should be on it now, keep in mind that's instant, you know, it's like assign
+
+01:04:00.660 --> 01:04:02.900
+Molly close one.
+
+01:04:02.900 --> 01:04:12.580
+So if there's something in there when it runs and it doesn't pick up yet because it's looking,
+
+01:04:12.580 --> 01:04:15.600
+you know, that that's all going to be like at the same exact click.
+
+01:04:15.880 --> 01:04:16.320
+Yeah.
+
+01:04:16.320 --> 01:04:18.860
+It assigns her and marks it as closed one.
+
+01:04:18.860 --> 01:04:25.780
+So if that, so if the closed one triggers it, maybe sometimes HubSpot has a slight lag in
+
+01:04:25.780 --> 01:04:28.040
+giving it the information because I've also seen it work.
+
+01:04:28.260 --> 01:04:33.360
+I also have several where they're on, but I did not add them to the budget.
+
+01:04:33.360 --> 01:04:34.360
+Okay.
+
+01:04:34.360 --> 01:04:43.600
+Let me, let me look at that because I think I might have an idea about where, where there
+
+01:04:43.600 --> 01:04:45.600
+at least could be an issue.
+
+01:04:45.600 --> 01:04:55.920
+I, because I think what the bill.com budget creation is reading from the tracker.
+
+01:04:55.920 --> 01:04:59.200
+So it's looking for if there's a PM assigned in the tracker.
+
+01:05:00.880 --> 01:05:06.840
+And I'm like, now that I'm thinking about it, I'm like, I don't know if when we auto create
+
+01:05:06.840 --> 01:05:13.080
+the tracker job, if it's looking for a PM or if Emily's going in and manually adding them
+
+01:05:13.080 --> 01:05:15.380
+in the tracker.
+
+01:05:15.540 --> 01:05:16.580
+So that's kind of what I was saying.
+
+01:05:16.580 --> 01:05:26.640
+Like the HubSpot deal closes, it auto creates the, the Amazon or the, the tracker projects.
+
+01:05:26.640 --> 01:05:33.320
+I'm looking at the Amazon one and then it auto creates the bill budget if it's there.
+
+01:05:33.320 --> 01:05:37.200
+So like those three things happen within like a 60 second window.
+
+01:05:38.520 --> 01:05:48.260
+But if, if they're, if Emily hasn't assigned the PM, then it wouldn't know to add them.
+
+01:05:48.360 --> 01:05:49.200
+So let me look at that.
+
+01:05:49.240 --> 01:05:50.160
+Cause that might be the issue.
+
+01:05:50.220 --> 01:05:55.380
+It might, it might be that I just need to update the logic to pull in the PM from HubSpot
+
+01:05:55.380 --> 01:05:56.880
+if it's not doing that already.
+
+01:05:56.880 --> 01:05:59.800
+Cause I don't think it is like, I don't remember.
+
+01:05:59.800 --> 01:06:05.560
+I don't remember that ever speccing that specifically.
+
+01:06:05.920 --> 01:06:07.800
+So I'll, I'll go double check that.
+
+01:06:08.120 --> 01:06:09.660
+That might, it might be that simple.
+
+01:06:10.720 --> 01:06:11.160
+Okay.
+
+01:06:11.280 --> 01:06:15.680
+If not, I'll figure out what the issue is, but it might be, it might be easy.
+
+01:06:19.340 --> 01:06:19.740
+Okay.
+
+01:06:19.960 --> 01:06:24.500
+I think that was the main thing was like, you know, they were asking me, like people were
+
+01:06:24.500 --> 01:06:28.560
+coming to me like, Hey, how do I like, um, I need the, I need access.
+
+01:06:28.560 --> 01:06:31.540
+And I'm like, man, I don't know why that's not working.
+
+01:06:31.620 --> 01:06:32.940
+But then other times it was.
+
+01:06:33.320 --> 01:06:33.600
+So, yeah.
+
+01:06:34.620 --> 01:06:39.180
+So rooster, David, Emily should always be assigned.
+
+01:06:40.460 --> 01:06:41.620
+And like automatically.
+
+01:06:42.880 --> 01:06:44.800
+Do you want to always be the owner?
+
+01:06:44.800 --> 01:06:50.620
+So you, so that's always, so you always have to approve the funds or is that, do you not?
+
+01:06:50.760 --> 01:06:54.320
+I think if she, yeah, I should be.
+
+01:06:54.320 --> 01:06:57.820
+Um, and then the other person would be to make emulate an owner.
+
+01:06:57.940 --> 01:07:00.160
+I don't know, or, or at least an admin.
+
+01:07:01.280 --> 01:07:07.500
+Um, so that, so that they can sometimes go to her and get those things done.
+
+01:07:07.500 --> 01:07:12.040
+Cause sometimes what they're doing is they're like, Hey, I need, it's a little weird how
+
+01:07:12.040 --> 01:07:12.480
+it works.
+
+01:07:12.480 --> 01:07:16.360
+And this is why I'm not sure I'm using it correctly because like, if you go in there
+
+01:07:16.360 --> 01:07:23.020
+and let's say the budget's like 2,500 bucks and you assign, you know, 2,200 bucks and then
+
+01:07:23.020 --> 01:07:23.700
+they request.
+
+01:07:23.700 --> 01:07:26.480
+So you've, you've assigned, there's 300 left.
+
+01:07:26.480 --> 01:07:39.220
+And then someone requests 400, you have to like go in, add money to cover the difference and then assign it.
+
+01:07:40.100 --> 01:07:42.000
+And I'm like, I don't know.
+
+01:07:42.280 --> 01:07:46.820
+It seems like it'd be easier if you just, I don't know.
+
+01:07:46.880 --> 01:07:51.560
+I don't know if every purchase should be approved and it just ties to a bigger number sort of
+
+01:07:51.560 --> 01:07:57.700
+like, but I mean, or if we just auto put in, cause sometimes what happens is like, you know,
+
+01:07:57.700 --> 01:08:00.620
+they don't tell me like, Hey, I have three things in a row I'm about to put in.
+
+01:08:00.640 --> 01:08:02.940
+So I go in there, I add 500 bucks.
+
+01:08:03.020 --> 01:08:03.580
+I approve it.
+
+01:08:04.680 --> 01:08:06.260
+An hour later, I get another request.
+
+01:08:06.700 --> 01:08:07.100
+Okay.
+
+01:08:07.140 --> 01:08:08.100
+I go, I had five, you know?
+
+01:08:08.100 --> 01:08:11.540
+And so, so I, maybe that's the way to do it.
+
+01:08:11.720 --> 01:08:17.280
+But I was just telling her, I was like, I think you should be, um, you should be an admin
+
+01:08:17.280 --> 01:08:26.100
+to this too, because then you can be the backup, um, for, um, if I'm not available.
+
+01:08:26.100 --> 01:08:31.320
+Cause sometimes I'm like, I'm on a call like this or in a meeting and two hours goes by and
+
+01:08:31.320 --> 01:08:35.180
+they're, they're trying to buy something for, you know, a hundred bucks or whatever, book
+
+01:08:35.180 --> 01:08:36.560
+a hotel room and they can't do it.
+
+01:08:36.560 --> 01:08:44.180
+So, so ideally, you know, me, her, David, Rooster and the PM.
+
+01:08:45.060 --> 01:08:45.500
+Okay.
+
+01:08:45.500 --> 01:08:46.800
+Got it.
+
+01:08:48.980 --> 01:08:49.540
+Okay.
+
+01:08:50.280 --> 01:08:53.400
+Um, anything else?
+
+01:08:55.380 --> 01:08:56.740
+No, that's all I've got.
+
+01:08:57.140 --> 01:08:57.480
+Okay.
+
+01:08:57.860 --> 01:09:06.020
+If you'll send me the, a template, the, the quote template, and then, um, if you have like
+
+01:09:06.020 --> 01:09:09.460
+a filled out one, like a completed one, that would be good too.
+
+01:09:10.180 --> 01:09:14.420
+Uh, I mean, I'll, I'll, I'll dive into that and the item thing.
+
+01:09:14.420 --> 01:09:23.720
+And then for HubSpot, once I, once I get to a conclusion on either the way that you want
+
+01:09:23.720 --> 01:09:29.260
+to do it or the way you've talked about doing it is, is the best way to do it or maybe an
+
+01:09:29.260 --> 01:09:31.180
+alternative, I'll present it to you.
+
+01:09:31.180 --> 01:09:36.140
+Um, then I'll, I'll go create the HubSpot stuff.
+
+01:09:38.420 --> 01:09:39.520
+Yeah, I think so.
+
+01:09:39.580 --> 01:09:46.060
+I mean, um, like I added it as a dropdown and like I was sitting there yesterday and I was like about to do it.
+
+01:09:46.060 --> 01:09:50.140
+And I was like, this might, this might break something.
+
+01:09:50.140 --> 01:09:54.800
+Um, so I didn't, I didn't want to, cause it was going to change that template.
+
+01:09:55.640 --> 01:09:57.080
+So anyways, yeah.
+
+01:09:57.400 --> 01:09:59.080
+Um, yeah.
+
+01:09:59.100 --> 01:10:02.240
+Once you get to that point, we can talk through those steps.
+
+01:10:02.440 --> 01:10:02.920
+Okay.
+
+01:10:04.380 --> 01:10:05.320
+Okay, cool.
+
+01:10:05.440 --> 01:10:08.020
+Well, send me that stuff and I'll, I'll, I'll get moved.
+
+01:10:08.760 --> 01:10:10.560
+I'm just making a copy of them.
+
+01:10:10.600 --> 01:10:12.720
+So I'm just going to share a copy.
+
+01:10:12.720 --> 01:10:15.320
+With you.
+
+01:10:15.920 --> 01:10:16.980
+Yeah, that's fine.
+
+01:10:18.840 --> 01:10:24.620
+And then the, the one that is for the actual project was.
+
+01:10:27.360 --> 01:10:29.540
+Using like version five.
+
+01:10:30.940 --> 01:10:34.120
+I haven't done one yet with version eight.
+
+01:10:34.320 --> 01:10:39.560
+So like, it doesn't have the travel on it, but I don't really need ADA to do that part.
+
+01:10:39.560 --> 01:10:42.780
+Uh, I think eventually we'll be able to have ADA do travel.
+
+01:10:43.140 --> 01:10:45.880
+Um, but not, not right now.
+
+01:10:46.080 --> 01:10:46.200
+So.
+
+01:10:46.680 --> 01:10:46.840
+Okay.
+
+01:10:48.380 --> 01:10:49.140
+All right.
+
+01:10:49.240 --> 01:10:52.640
+And regarding the spreadsheets.
+
+01:10:56.640 --> 01:11:04.060
+Do you do a, do you anticipate exporting them and doing like a lot of work outside of,
+
+01:11:04.060 --> 01:11:08.500
+outside of ADA on them?
+
+01:11:09.560 --> 01:11:15.340
+I just, I ask because like, I'm, I want to make sure that we capture the final version.
+
+01:11:16.340 --> 01:11:16.780
+So.
+
+01:11:16.960 --> 01:11:22.420
+Yeah, we just need, it just needs a way to, um, we can just put them all into like a Google
+
+01:11:22.420 --> 01:11:26.360
+drive or something, you know, like the final wherever.
+
+01:11:26.560 --> 01:11:27.880
+I mean, it can be emailed somewhere.
+
+01:11:28.040 --> 01:11:29.100
+It can be a Slack channel.
+
+01:11:29.220 --> 01:11:30.820
+I mean, we can.
+
+01:11:31.200 --> 01:11:36.240
+ADA does have like a, a specific Google shared Google drive folder.
+
+01:11:36.240 --> 01:11:40.060
+That's attached to the Mecca design that.
+
+01:11:40.240 --> 01:11:45.220
+So like when it creates a Google export right now, like they all go in there so I can read
+
+01:11:45.220 --> 01:11:45.860
+that folder.
+
+01:11:46.020 --> 01:11:50.840
+So as long as everything's in there, but one of the features that I did add to ADA, I don't
+
+01:11:50.840 --> 01:11:56.280
+know if you've had a chance to test it, but when you generate a spreadsheet, you should
+
+01:11:56.280 --> 01:11:58.580
+be able to pull it up in like a split tab.
+
+01:11:58.580 --> 01:12:03.440
+Like you can split tab the conversation and, and the spreadsheet or the conversation and
+
+01:12:03.440 --> 01:12:09.640
+the image and you can live edit the spreadsheet just by talking with her.
+
+01:12:10.000 --> 01:12:14.280
+So you can say like, you know, I want to update this, this line item, you know, blah, blah,
+
+01:12:14.320 --> 01:12:14.460
+blah.
+
+01:12:15.140 --> 01:12:24.900
+Um, or you can, you should be able to update the spreadsheet manually inside the, the ADA and
+
+01:12:24.900 --> 01:12:27.820
+she'll, she'll then recognize that it was updated.
+
+01:12:28.460 --> 01:12:30.680
+So it's like, but it works both ways.
+
+01:12:31.120 --> 01:12:32.920
+So anyways, okay.
+
+01:12:33.160 --> 01:12:33.380
+Yeah.
+
+01:12:33.380 --> 01:12:38.340
+I just want to make sure we don't lose, lose those final versions of anything.
+
+01:12:38.340 --> 01:12:44.140
+Cause that's what, that's going to be the best information for ADA if she has finals on
+
+01:12:44.140 --> 01:12:44.560
+everything.
+
+01:12:46.480 --> 01:12:46.960
+Okay.
+
+01:12:47.140 --> 01:12:47.820
+That makes sense.
+
+01:12:48.120 --> 01:12:48.480
+Okay.
+
+01:12:48.480 --> 01:12:55.780
+Um, so I shared those and yeah, just let me know.
+
+01:12:55.900 --> 01:12:59.140
+I think you see where we're trying to go with it.
+
+01:12:59.340 --> 01:12:59.680
+So yeah.
+
+01:13:00.280 --> 01:13:00.720
+Yeah.
+
+01:13:00.920 --> 01:13:01.220
+Okay.
+
+01:13:01.540 --> 01:13:01.960
+Got them.
+
+01:13:02.280 --> 01:13:02.620
+All right.
+
+01:13:02.880 --> 01:13:03.060
+All right.
+
+01:13:03.060 --> 01:13:03.220
+Cool.
+
+01:13:03.940 --> 01:13:04.160
+Bye.
+
+01:13:04.400 --> 01:13:04.660
+All right.
+
+01:13:05.100 --> 01:13:05.440
+See ya.
+
