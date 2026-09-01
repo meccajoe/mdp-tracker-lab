@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, createHash } from "crypto";
-import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, type HubSpotLineItem } from "@/lib/hubspot";
+import { getDeal, getDealCompany, getDealQuote, getQuoteLineItems, resolveHubSpotProjectManagerInitials, type HubSpotLineItem } from "@/lib/hubspot";
 import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/hubspot-quote-parser";
 import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
@@ -373,6 +373,23 @@ export async function POST(req: NextRequest) {
       // Fetch deal
       const deal = await getDeal(String(dealId));
 
+      const { data: pmRoles, error: pmRolesError } = await supabase
+        .from("user_roles")
+        .select("full_name, pm_initials")
+        .not("pm_initials", "is", null);
+      if (pmRolesError) {
+        console.error(`[hubspot webhook] Failed to load PM mapping for deal ${dealId}:`, pmRolesError);
+      }
+      const resolvedPmInitials = resolveHubSpotProjectManagerInitials(
+        deal.properties.account_manager,
+        pmRoles ?? [],
+      );
+      if (deal.properties.account_manager && !resolvedPmInitials) {
+        console.error(
+          `[hubspot webhook] Unmapped HubSpot account_manager for deal ${dealId}: ${deal.properties.account_manager}`,
+        );
+      }
+
       // Fetch company name
       let companyName = "Unknown";
       try {
@@ -429,7 +446,7 @@ export async function POST(req: NextRequest) {
         job_number: jobNumber,
         name: deal.properties.dealname,
         client: companyName,
-        pm: "TBD",
+        pm: resolvedPmInitials ?? "TBD",
         status: "Active",
         close_date: deal.properties.closedate || null,
         due_date: deal.properties.due_date || null,
@@ -592,7 +609,7 @@ export async function POST(req: NextRequest) {
         if (portfolioSync.error) {
           console.error(`[hubspot webhook] Failed to sync PM portfolio membership for project ${existingProject.id}:`, portfolioSync.error);
         }
-        await maybeSeedBillBudget(existingProject.id, existingProject.bill_budget_uuid ?? null, existingProject.pm ?? null);
+        await maybeSeedBillBudget(existingProject.id, existingProject.bill_budget_uuid ?? null, updatePayload.pm ?? null);
         console.log(`[hubspot webhook] Refreshed project ${existingProject.id} for deal ${dealId}`);
         results.push({ dealId, status: "updated" });
         continue;

@@ -22,6 +22,7 @@ const {
   BILL_DEFAULT_INCLUDED_BUDGET_KEYS,
   calculateBillManagedBudgetTotal,
   buildBillBudgetDescription,
+  buildBillBudgetMemberEmails,
   shouldSeedBillBudget,
 } = await import(path.resolve('src/lib/billcom-budget.ts'));
 
@@ -144,6 +145,36 @@ test('Bill budget helper adds PMs as unfunded members so project funds remain re
   assert.match(helperSource, /shareBudgetFunds:\s*false/);
   assert.match(helperSource, /role:\s*"MEMBER"/);
   assert.doesNotMatch(helperSource, /limit:\s*total,[\s\S]{0,80}recurringLimit:\s*total/);
+});
+
+test('Bill budget helper always reconciles Emily, David, Caleb/Rooster, and the assigned PM under Paul', () => {
+  assert.deepEqual(
+    buildBillBudgetMemberEmails('nick@meccadesign.com'),
+    [
+      'emily@meccadesign.com',
+      'production@meccadesign.com',
+      'rooster@meccadesign.com',
+      'nick@meccadesign.com',
+    ],
+  );
+  assert.deepEqual(
+    buildBillBudgetMemberEmails('paul@meccadesign.com'),
+    [
+      'emily@meccadesign.com',
+      'production@meccadesign.com',
+      'rooster@meccadesign.com',
+    ],
+  );
+  assert.match(helperSource, /\/v3\/spend\/budgets\/\$\{budgetUuid\}\/members\?limit=/);
+  assert.match(helperSource, /billcom_budget_member_missing_after_assign/);
+});
+
+test('Closed Won workflow resolves HubSpot account_manager before Tracker insert and BILL sync', () => {
+  assert.match(helperSource, /BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL[^\n]*paul@meccadesign\.com/);
+  assert.match(routeSource, /account_manager/);
+  assert.match(routeSource, /resolveHubSpotProjectManagerInitials/);
+  assert.match(routeSource, /pm:\s*resolvedPmInitials \?\? "TBD"/);
+  assert.match(routeSource, /maybeSeedBillBudget\(existingProject\.id, existingProject\.bill_budget_uuid \?\? null, updatePayload\.pm/);
 });
 
 test('manual BILL budget trigger route requires admin auth and writes manual trigger source', () => {

@@ -1,7 +1,7 @@
 # Project Work-Package Labor Pilot
 
 **Date:** 2026-09-01  
-**Status:** investigation complete; implementation contract proposed  
+**Status:** HubSpot PM propagation and deterministic BILL roster reconciliation deployed; work-package pilot proposed
 **Scope:** standardized quote → HubSpot → QuickBooks Time → MDP Tracker → BILL → production closeout
 
 ## Confirmed decisions
@@ -21,11 +21,21 @@
    - Hours allowed
    - Notes for production
 7. The confirmed BILL roster is:
-   - Joe: owner/approver;
+   - Paul: owner/approver;
    - Emily: owner/admin or backup approver;
    - David: request-based member;
    - Caleb McCallum, also called Rooster: request-based member;
    - assigned PM: request-based member.
+
+## HubSpot → Tracker → BILL rollout — 2026-09-01
+
+- Tracker now requests HubSpot `account_manager` with the deal and resolves it against `user_roles.full_name` / `pm_initials` before inserting the project.
+- Approved HubSpot aliases currently cover `Nicholas Gonzales → Nick Gonzales` and `Destiny Freeman → Destiny Gardner`.
+- Existing non-`TBD` Tracker PM assignments remain authoritative; existing `TBD` projects can be repaired from HubSpot on the next webhook refresh.
+- BILL create/update now reconciles Emily, David (`production@meccadesign.com`), Caleb/Rooster, and the assigned PM as request-based members under Paul as owner.
+- Every member PUT is followed by BILL membership read-back. Missing members produce a persisted warning instead of a false success.
+- Live proof on budget `26188` read back Paul as `OWNER` and Emily, David Mendoza, Caleb McCallum, and Nick Gonzales as request-based `MEMBER` records with zero limits and `shareBudgetFunds: false`.
+- One HubSpot account-manager option remains intentionally unmapped: `Kenneth Mecca`. Tracker already uses `KM` for Kristina Morland, so no initials were guessed.
 
 ## Workbook conclusions
 

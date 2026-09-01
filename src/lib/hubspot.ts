@@ -68,7 +68,37 @@ export interface HubSpotDeal {
     hs_object_id: string;
     job_number: string | null;
     hs_is_closed_won: string | null;
+    account_manager: string | null;
   };
+}
+
+export type TrackerProjectManagerRole = {
+  full_name?: string | null;
+  pm_initials?: string | null;
+};
+
+const HUBSPOT_PM_NAME_ALIASES: Record<string, string> = {
+  "nicholas gonzales": "nick gonzales",
+  "destiny freeman": "destiny gardner",
+};
+
+function normalizePersonName(value?: string | null): string {
+  return value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+}
+
+export function resolveHubSpotProjectManagerInitials(
+  accountManager: string | null | undefined,
+  roles: TrackerProjectManagerRole[],
+): string | null {
+  const hubspotName = normalizePersonName(accountManager);
+  if (!hubspotName) return null;
+
+  const targetName = HUBSPOT_PM_NAME_ALIASES[hubspotName] ?? hubspotName;
+  const matches = roles.filter(
+    (role) => normalizePersonName(role.full_name) === targetName && role.pm_initials?.trim(),
+  );
+
+  return matches.length === 1 ? matches[0].pm_initials!.trim() : null;
 }
 
 export interface HubSpotLineItem {
@@ -96,7 +126,7 @@ export function sortHubspotLineItemsByQuotePosition(lineItems: HubSpotLineItem[]
 }
 
 export async function getDeal(dealId: string): Promise<HubSpotDeal> {
-  const props = "dealname,closedate,due_date,amount,hs_object_id,job_number,hs_is_closed_won";
+  const props = "dealname,closedate,due_date,amount,hs_object_id,job_number,hs_is_closed_won,account_manager";
   const data = await hubspotFetch(
     `/crm/v3/objects/deals/${dealId}?properties=${props}`
   ) as HubSpotDeal;

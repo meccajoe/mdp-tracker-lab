@@ -4,6 +4,13 @@ const BILLCOM_SPEND_COMPANY_ID = process.env.BILLCOM_SPEND_COMPANY_ID ?? "Q29tcG
 const BILLCOM_API_TOKEN = process.env.BILLCOM_API_TOKEN ?? "";
 const BILLCOM_BUDGET_OWNER_UUID = process.env.BILLCOM_BUDGET_OWNER_UUID ?? "";
 const BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL = (process.env.BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL ?? "paul@meccadesign.com").trim().toLowerCase();
+const BILLCOM_ALWAYS_MEMBER_EMAILS = (
+  process.env.BILLCOM_ALWAYS_MEMBER_EMAILS
+  ?? "emily@meccadesign.com,production@meccadesign.com,rooster@meccadesign.com"
+)
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 const BILL_SPEND_USERS_PAGE_LIMIT = 200;
 const BILL_SPEND_USERS_MAX_PAGES = 10;
 
@@ -144,6 +151,12 @@ export function resolveBillSpendMemberEmail(user?: {
   return normalizeEmail(user.bill_spend_email) ?? normalizeEmail(user.email);
 }
 
+export function buildBillBudgetMemberEmails(pmEmail?: string | null): string[] {
+  const emails = [...BILLCOM_ALWAYS_MEMBER_EMAILS, normalizeEmail(pmEmail)]
+    .filter((email): email is string => Boolean(email) && email !== BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL);
+  return [...new Set(emails)];
+}
+
 function buildBillcomUrl(path: string): string {
   return `${BILLCOM_BASE_URL}${path}`;
 }
@@ -228,6 +241,17 @@ function buildMemberAssignmentWarning(status: BillBudgetMemberStatus, pmEmail?: 
   }
 }
 
+type BillBudgetMemberReconciliation = {
+  email: string;
+  uuid: string | null;
+  status: BillBudgetMemberStatus;
+  detail?: string;
+};
+
+type BillBudgetMembersResponse = {
+  results?: Array<{ userUuid?: string | null }>;
+};
+
 async function assignBillBudgetMember({
   budgetUuid,
   memberUuid,
@@ -258,6 +282,106 @@ async function assignBillBudgetMember({
   }
 
   return { status: "assigned" };
+}
+
+async function listBillBudgetMemberUuids(budgetUuid: string): Promise<Set<string>> {
+  const response = await fetch(
+    buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}/members?limit=${BILL_SPEND_USERS_PAGE_LIMIT}`),
+    {
+      headers: {
+        apiToken: BILLCOM_API_TOKEN,
+        Accept: "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`billcom_budget_members_readback_failed:${response.status}:${await readBillcomError(response)}`);
+  }
+
+  const data = (await response.json()) as BillBudgetMembersResponse;
+  return new Set(
+    (data.results ?? [])
+      .map((member) => member.userUuid)
+      .filter((uuid): uuid is string => Boolean(uuid)),
+  );
+}
+
+async function reconcileBillBudgetMembers({
+  budgetUuid,
+  users,
+  pmEmail,
+}: {
+  budgetUuid: string;
+  users: BillSpendUser[];
+  pmEmail?: string | null;
+}): Promise<BillBudgetMemberReconciliation[]> {
+  const results: BillBudgetMemberReconciliation[] = [];
+
+  for (const email of buildBillBudgetMemberEmails(pmEmail)) {
+    const memberUser = findBillSpendUser(users, email);
+    if (!memberUser?.uuid) {
+      results.push({ email, uuid: null, status: "bill_user_not_found" });
+      continue;
+    }
+
+    const assignment = await assignBillBudgetMember({
+      budgetUuid,
+      memberUuid: memberUser.uuid,
+    });
+    results.push({
+      email,
+      uuid: memberUser.uuid,
+      status: assignment.status,
+      detail: assignment.detail,
+    });
+  }
+
+  let verifiedMemberUuids: Set<string>;
+  try {
+    verifiedMemberUuids = await listBillBudgetMemberUuids(budgetUuid);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "billcom_budget_members_readback_failed";
+    return results.map((result) => result.status === "assigned"
+      ? { ...result, status: "assign_failed", detail }
+      : result);
+  }
+
+  return results.map((result) => (
+    result.status === "assigned" && result.uuid && !verifiedMemberUuids.has(result.uuid)
+      ? {
+          ...result,
+          status: "assign_failed" as const,
+          detail: `billcom_budget_member_missing_after_assign:${result.email}`,
+        }
+      : result
+  ));
+}
+
+function summarizeMemberReconciliation(
+  results: BillBudgetMemberReconciliation[],
+  pmEmail?: string | null,
+): {
+  memberStatus: BillBudgetMemberStatus;
+  memberUuid: string | null;
+  warning: string | null;
+} {
+  const normalizedPmEmail = normalizeEmail(pmEmail);
+  const pmResult = normalizedPmEmail === BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL
+    ? { status: "owner_already_covers_pm" as const, uuid: null }
+    : normalizedPmEmail
+      ? results.find((result) => result.email === normalizedPmEmail)
+      : null;
+  const warning = results
+    .map((result) => buildMemberAssignmentWarning(result.status, result.email, result.detail))
+    .filter((value): value is string => Boolean(value))
+    .join(";") || null;
+
+  return {
+    memberStatus: pmResult?.status ?? (normalizedPmEmail ? "bill_user_not_found" : "missing_pm_email"),
+    memberUuid: pmResult?.uuid ?? null,
+    warning,
+  };
 }
 
 export function buildBillBudgetDescription({
@@ -386,31 +510,8 @@ export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { 
   const data = (await response.json()) as { uuid?: string; id?: string; name?: string };
   const budgetUuid = data.uuid ?? data.id ?? input.budgetUuid;
   const pmEmail = normalizeEmail(input.pmEmail);
-
-  let memberStatus: BillBudgetMemberStatus = "assigned";
-  let memberUuid: string | null = null;
-  let memberError: string | null = null;
-
-  if (!pmEmail) {
-    memberStatus = "missing_pm_email";
-  } else if (pmEmail === owner.email) {
-    memberStatus = "owner_already_covers_pm";
-  } else {
-    const memberUser = findBillSpendUser(users, pmEmail);
-    if (!memberUser?.uuid) {
-      memberStatus = "bill_user_not_found";
-    } else {
-      memberUuid = memberUser.uuid;
-      const memberAssignment = await assignBillBudgetMember({
-        budgetUuid,
-        memberUuid: memberUser.uuid,
-      });
-      memberStatus = memberAssignment.status;
-      memberError = memberAssignment.detail ?? null;
-    }
-  }
-
-  const warning = buildMemberAssignmentWarning(memberStatus, pmEmail, memberError ?? undefined);
+  const memberResults = await reconcileBillBudgetMembers({ budgetUuid, users, pmEmail });
+  const { memberStatus, memberUuid, warning } = summarizeMemberReconciliation(memberResults, pmEmail);
 
   return {
     status: warning ? "created_with_member_warning" : "created",
@@ -505,34 +606,15 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
   const data = (await response.json()) as { uuid?: string; id?: string; name?: string };
   const budgetUuid = data.uuid ?? data.id;
   const pmEmail = normalizeEmail(input.pmEmail);
-
-  let memberStatus: BillBudgetMemberStatus = "assigned";
-  let memberUuid: string | null = null;
-  let memberError: string | null = null;
-
-  if (!pmEmail) {
-    memberStatus = "missing_pm_email";
-  } else if (pmEmail === owner.email) {
-    memberStatus = "owner_already_covers_pm";
-  } else {
-    const memberUser = findBillSpendUser(users, pmEmail);
-    if (!memberUser?.uuid) {
-      memberStatus = "bill_user_not_found";
-    } else if (budgetUuid) {
-      memberUuid = memberUser.uuid;
-      const memberAssignment = await assignBillBudgetMember({
-        budgetUuid,
-        memberUuid: memberUser.uuid,
-      });
-      memberStatus = memberAssignment.status;
-      memberError = memberAssignment.detail ?? null;
-    } else {
-      memberStatus = "assign_failed";
-      memberError = "billcom_budget_member_assign_failed:missing_budget_uuid";
-    }
-  }
-
-  const warning = buildMemberAssignmentWarning(memberStatus, pmEmail, memberError ?? undefined);
+  const memberResults = budgetUuid
+    ? await reconcileBillBudgetMembers({ budgetUuid, users, pmEmail })
+    : buildBillBudgetMemberEmails(pmEmail).map((email) => ({
+        email,
+        uuid: null,
+        status: "assign_failed" as const,
+        detail: "billcom_budget_member_assign_failed:missing_budget_uuid",
+      }));
+  const { memberStatus, memberUuid, warning } = summarizeMemberReconciliation(memberResults, pmEmail);
 
   return {
     status: warning ? "created_with_member_warning" : "created",

@@ -135,7 +135,7 @@ The PM is intermittently missing because the HubSpot close-won event, Tracker pr
 
 Desired recurring access discussed:
 
-- Joe: owner/approver;
+- Paul: owner/approver;
 - Emily: owner/admin or equivalent backup approver;
 - David: always assigned;
 - Rooster: always assigned;
@@ -300,7 +300,7 @@ Only after the first three phases are trustworthy:
 3. **Design labor policy:** Resolved for quoting/display: `$125/hour` external and `$41/hour` internal budget/display, with verified direct base wage cost shown separately. Overtime/holiday/salary handling, excluded employees, and PM-bonus/COGS effects remain separate policy questions.
 4. **Trade list:** What exact ten or so choices should workers see? Should `Install` and `Dismantle` be separate? Please provide a screenshot/export of the final QuickBooks Time configuration before it is activated.
 5. **Pilot:** Which 2–3 active projects and which workers should be the pilot? Is `Item 1–25` sufficient, and who will verify clock-in accuracy daily?
-6. **Bill.com roles:** Roster resolved: Joe owner/approver; Emily owner/admin or backup approver; David, Caleb/Rooster, and the assigned PM request-based members. The intended top-up/request workflow and whether project materials remain outside these budgets still require policy confirmation.
+6. **Bill.com roles:** Roster resolved: Paul owner/approver; Emily owner/admin or backup approver; David, Caleb/Rooster, and the assigned PM request-based members. The intended top-up/request workflow and whether project materials remain outside these budgets still require policy confirmation.
 7. **Final artifact rule:** What action declares a spreadsheet final, and should the final copy automatically land in Ada’s Mecca Drive folder while preserving all prior revisions?
 8. **Post-mortem target:** After Paul reviews five drafts, what numeric sections and explanations should every post-mortem contain?
 9. **Venturity:** Has the one-hour validation session been scheduled, and can we get their written acceptance criteria or annotated output?
