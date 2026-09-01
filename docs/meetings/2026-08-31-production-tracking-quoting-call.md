@@ -46,9 +46,11 @@ This implies that the product needs:
 - access to drawings, notes, historical quotes, materials, and outside-product research;
 - durable capture of the final accepted result.
 
-### 3. Use project-scoped item numbers instead of globally unique QuickBooks Time items
+### 3. Use project-scoped work-package numbers instead of globally unique QuickBooks Time items
 
 The preferred first test is a reusable `Item 1` through `Item 25` list in QuickBooks Time, interpreted inside the selected project. `Item 1` in one project is unrelated to `Item 1` in another. The composite identity must therefore be at least `project_id + item_number`; item number alone is meaningless. **[08:18–10:18; 31:06–34:44]**
+
+Joe subsequently confirmed that an item means **any discrete labor-bearing work package**, not only a fabricated deliverable. This includes pull/pack/prep, test fitting, and resale-related handling or modification where labor is quoted. Resale itself remains a procurement/commercial classification and must not be reclassified as fabrication.
 
 The expected clock-in flow is:
 
@@ -83,7 +85,7 @@ The CNC example showed the value: actual CNC time looked materially higher than 
 
 ### 6. Separate shop, design, installation, and dismantle labor
 
-Project-wide labor totals currently create contention because installation hours can make shop performance appear worse. Design hours also need to be separated from shop hours in Budget Detail. Installation and dismantle should use distinct codes; they generally do not need item numbers because they apply to the overall setup, but they still need their own budgets and actuals. **[45:12–46:31; 51:25–55:35]**
+Project-wide labor totals currently create contention because installation hours can make shop performance appear worse. Design hours also need to be separated from shop hours in Budget Detail. Installation and dismantle should use distinct codes and retain separate budgets and actuals. Where either phase is modeled as a labor-bearing work package, it may receive a project-scoped item number under the confirmed broader item definition. **[45:12–46:31; 51:25–55:35]**
 
 Verbal design economics discussed:
 
@@ -91,7 +93,7 @@ Verbal design economics discussed:
 - internal design wage/cost approximation: up to `$25/hour`, possibly `$22–$23/hour` for some employees;
 - example: 10 hours bills at $1,250 while an internal budget might be $250. **[45:19–46:31]**
 
-This is **not yet an approved formula**. The exact internal-rate policy, provenance, and whether Tracker should show wage cost, budget cost, billing value, or all three must be confirmed. No guessed `$25` fallback should be implemented.
+The follow-up policy decision is to use the fixed internal/external rates already represented by the current v8 quote and Tracker display model: `$125/hour` external/client design rate (`v8 Settings!B22`) and `$41/hour` internal budget/display rate (`v8 Settings!B7`). Actual calculated direct base wage cost based on verified employee pay rates remains a separate measure. No guessed `$22–$25` fallback should be implemented.
 
 There is a material terminology conflict to resolve before implementation: the call references `$105/hour` in quote economics, prior approved fabrication logic uses `selling price / 210` for allowed hours and `$41/hour` for internal labor-budget dollars, actual labor evidence uses verified employee pay rates, and design was described as `$125/hour` client billing versus roughly `$22–$25/hour` direct wage cost. These are different measures and must remain separate. Overtime, holiday/salary treatment, excluded employees, and any PM-bonus/COGS impact also require explicit policy.
 
@@ -139,7 +141,7 @@ Desired recurring access discussed:
 - Rooster: always assigned;
 - assigned PM: always assigned. **[01:01:07–01:08:44]**
 
-The exact Bill role for each person and approval authority must be confirmed before changing live access.
+Joe subsequently confirmed the target roster: Joe as owner/approver, Emily as owner/admin or backup approver, David and Caleb McCallum (also known as Rooster) as request-based members, and the assigned PM as a request-based member. BILL company-level admin rights and budget-level `OWNER`/`MEMBER` roles must still be represented explicitly rather than conflated.
 
 The broader Bill operating policy also remains open: whether every purchase should require individual approval, how budget top-ups should work, whether requests should be batched, and whether materials are intentionally excluded from project budgets. **[01:06:54–01:08:46]**
 
@@ -219,12 +221,12 @@ Alina is providing frequent operational feedback that catches real workflow fric
 
 | Priority | Workstream | Action | Owner/function | Dependency/status |
 |---|---|---|---|---|
-| P0 | Quote source | Obtain the blank current quote template and one filled final example, including version labels and all tabs. | Joe / quote owner | The files were shared during the call; Ferris needs links or copies. |
-| P0 | Item identity | Run a technical spike proving whether QuickBooks Time exposes the reusable item field through UI, API, exports, and phone clock-in. Validate composite identity `project + item`. | Tracker engineering | No live template changes until proven. |
+| P0 | Quote source | Inspect the blank v8 builder and filled Whatnot example, including formulas, validations, handoff fields, and defects. | Ferris / Tracker engineering | Complete; see `docs/research/2026-09-01-quote-workbook-audit.md`. |
+| P0 | Item identity | Run a technical spike proving QuickBooks Time reusable Build Item and project-filter behavior through API, exports, and phone clock-in. Validate composite identity `project + item`. | Tracker engineering | API/config inventory complete; mobile pilot still required. |
 | P0 | Data contract | Define canonical fields for project, item number, item description, work-package type, quoted hours by trade, material budget, and source revision. | Tracker engineering + quote owner | Requires spreadsheet examples. |
 | P0 | Trade taxonomy | Approve the worker-facing trade/service list and map old codes to canonical codes without deleting history. | Production owner + Tracker engineering | Need the exact visible QuickBooks Time list. |
-| P0 | Bill access | Audit the close-won → Tracker → Bill budget sequence and PM source. Confirm always-assigned users and roles. | Tracker/Bill engineering + Joe | Avoid time-delay workaround if direct HubSpot data/reconciliation solves it. |
-| P0 | Design labor | Confirm the design budget/cost rule and its provenance. | Finance + quote owner | `$25` was approximate, not final. |
+| P0 | Bill access | Carry HubSpot `account_manager` into Tracker and reconcile the confirmed BILL roster deterministically. | Tracker/Bill engineering | Audit complete: current webhook discards the populated HubSpot PM and creates Tracker projects as `TBD`. |
+| P0 | Design labor | Use fixed `$125/hour` external and `$41/hour` internal budget/display rates; keep verified direct base wage cost separate. | Finance + quote owner | Policy confirmed in follow-up. |
 | P0 | Post-mortems | Have Paul review 5 representative drafts and state what is missing. | Paul / production owner | Browser-auth issue is already fixed. |
 | P0 | Venturity | Schedule a one-hour output-validation session and obtain explicit accepted/tweak feedback. | Joe + Venturity/accounting | Accounting-semantic blocker. |
 | P1 | HubSpot | Add the approved item/work-package fields to quote line items/templates without breaking current quote generation. | Tracker/HubSpot engineering | After the data-contract spike. |
@@ -293,14 +295,12 @@ Only after the first three phases are trustworthy:
 
 ## Questions and inputs required before implementation
 
-1. **Quote artifacts:** Please provide Ferris the links or files for the blank/current template and the filled final example shared at the end of the call. Identify which is v8 and which completed file is based on v5.
-2. **Item definition:** Should a project item mean only a fabricated deliverable, or any discrete labor-bearing work package, including pull/pack/prep and test-fit work? The call supports the broader definition but uses both descriptions.
-3. **Design labor policy:** Is the internal design budget a fixed approved rate, the employee’s verified pay rate, or another loaded rate? Should Tracker show client billing value, internal budget, verified wage cost, or all three?
-   Also confirm fabrication budget rate, overtime/holiday/salary handling, excluded employees, and whether any of these measures affect PM bonus or COGS reporting.
+1. **Quote artifacts:** Resolved. The blank v8 builder and filled Whatnot example were inspected; see the workbook audit.
+2. **Item definition:** Resolved. A project item is any discrete labor-bearing work package; resale remains distinct from fabrication.
+3. **Design labor policy:** Resolved for quoting/display: `$125/hour` external and `$41/hour` internal budget/display, with verified direct base wage cost shown separately. Overtime/holiday/salary handling, excluded employees, and PM-bonus/COGS effects remain separate policy questions.
 4. **Trade list:** What exact ten or so choices should workers see? Should `Install` and `Dismantle` be separate? Please provide a screenshot/export of the final QuickBooks Time configuration before it is activated.
 5. **Pilot:** Which 2–3 active projects and which workers should be the pilot? Is `Item 1–25` sufficient, and who will verify clock-in accuracy daily?
-6. **Bill.com roles:** Confirm whether Joe and Emily are owners/admins, David and Rooster are members, and the assigned PM is a member. Who can approve requests and change budget amounts?
-   Also confirm the intended top-up/request workflow and whether project materials should remain outside these budgets.
+6. **Bill.com roles:** Roster resolved: Joe owner/approver; Emily owner/admin or backup approver; David, Caleb/Rooster, and the assigned PM request-based members. The intended top-up/request workflow and whether project materials remain outside these budgets still require policy confirmation.
 7. **Final artifact rule:** What action declares a spreadsheet final, and should the final copy automatically land in Ada’s Mecca Drive folder while preserving all prior revisions?
 8. **Post-mortem target:** After Paul reviews five drafts, what numeric sections and explanations should every post-mortem contain?
 9. **Venturity:** Has the one-hour validation session been scheduled, and can we get their written acceptance criteria or annotated output?
