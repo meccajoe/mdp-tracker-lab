@@ -110,6 +110,7 @@ async function postSlackNotification(
   parsed: ParsedQuote,
   budgets: CalculatedBudgets,
   reclassified: ParsedQuote["reclassified"],
+  projectPm: string,
   dealId: number,
   portalId: string
 ) {
@@ -154,7 +155,7 @@ async function postSlackNotification(
         { type: "mrkdwn", text: `*Job #*\n${projectId}` },
         { type: "mrkdwn", text: `*Client*\n${client}` },
         { type: "mrkdwn", text: `*Contract*\n${fmt(contractAmount)}` },
-        { type: "mrkdwn", text: `*PM*\nTBD — assign in tracker` },
+        { type: "mrkdwn", text: `*PM*\n${projectPm}` },
         { type: "mrkdwn", text: `*Due Date*\nNot set` },
       ],
     },
@@ -645,6 +646,7 @@ export async function POST(req: NextRequest) {
         parsed,
         budgetPreview,
         parsed.reclassified,
+        deal.properties.account_manager?.trim() || (insertPayload.pm as string),
         dealId,
         portalId
       ).catch((err) => console.error("[hubspot webhook] Slack error:", err));

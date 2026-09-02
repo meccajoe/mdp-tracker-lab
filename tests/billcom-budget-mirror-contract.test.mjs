@@ -177,6 +177,18 @@ test('Closed Won workflow resolves HubSpot account_manager before Tracker insert
   assert.match(routeSource, /maybeSeedBillBudget\(existingProject\.id, existingProject\.bill_budget_uuid \?\? null, updatePayload\.pm/);
 });
 
+test('new-project Slack notification reports the PM resolved from HubSpot', () => {
+  assert.match(
+    routeSource,
+    /async function postSlackNotification\([\s\S]*?projectPm:\s*string[\s\S]*?`\*PM\*\\n\$\{projectPm\}`/,
+  );
+  assert.match(
+    routeSource,
+    /postSlackNotification\([\s\S]*?deal\.properties\.account_manager\?\.trim\(\)\s*\|\|\s*\(insertPayload\.pm as string\)/,
+  );
+  assert.doesNotMatch(routeSource, /`\*PM\*\\nTBD — assign in tracker`/);
+});
+
 test('manual BILL budget trigger route requires admin auth and writes manual trigger source', () => {
   assert.match(manualRouteSource, /canManageProjectActions/);
   assert.match(manualRouteSource, /Authentication required/);
