@@ -11,8 +11,8 @@ test("groups July wage allocation rows by project, service GL, and worker class"
   ], new Map([["daniel gutierrez", "employee"], ["alex wall", "contractor"]]));
 
   assert.deepEqual(result.rows, [
-    { projectId: "26144", projectName: "Netflix", serviceItem: "GRAPHICS LABOR", targetGlAccountId: "105", workerClassification: "contractor", hours: 3, wageCost: 90 },
-    { projectId: "26153", projectName: "Whatnot", serviceItem: "SHOP LABOR", targetGlAccountId: "231", workerClassification: "employee", hours: 6, wageCost: 150 },
+    { projectId: "26144", projectName: "Netflix", serviceItem: "GRAPHICS LABOR", targetGlAccountId: "105", targetGlAccountDisplay: "500600 COS - Labor:COS - Graphics", workerClassification: "contractor", hours: 3, wageCost: 90 },
+    { projectId: "26153", projectName: "Whatnot", serviceItem: "SHOP LABOR", targetGlAccountId: "231", targetGlAccountDisplay: "500100 COS - Labor:COS - Production Labor", workerClassification: "employee", hours: 6, wageCost: 150 },
   ]);
   assert.deepEqual(result.unclassifiedWorkers, []);
 });

@@ -12,10 +12,10 @@ test("builds a balanced review-only July wage JE", () => {
   assert.equal(result.creditTotal, 240);
   assert.equal(result.balanced, true);
   assert.deepEqual(result.lines, [
-    { accountId: "231", projectId: "26153", projectName: "Whatnot", memo: "July 2026 wage allocation — GL 231", debit: 150, credit: 0 },
-    { accountId: "105", projectId: "26144", projectName: "Netflix", memo: "July 2026 wage allocation — GL 105", debit: 90, credit: 0 },
-    { accountId: "427", projectId: null, projectName: null, memo: "July 2026 employee wage allocation", debit: 0, credit: 150 },
-    { accountId: "392", projectId: null, projectName: null, memo: "July 2026 contractor wage allocation", debit: 0, credit: 90 },
+    { accountId: "231", accountDisplay: "500100 COS - Labor:COS - Production Labor", projectId: "26153", projectName: "Whatnot", memo: "July 2026 wage allocation — GL 231", debit: 150, credit: 0 },
+    { accountId: "105", accountDisplay: "500600 COS - Labor:COS - Graphics", projectId: "26144", projectName: "Netflix", memo: "July 2026 wage allocation — GL 105", debit: 90, credit: 0 },
+    { accountId: "427", accountDisplay: "600100 Payroll Expenses:Salaries & wages", projectId: null, projectName: null, memo: "July 2026 employee wage allocation", debit: 0, credit: 150 },
+    { accountId: "392", accountDisplay: "600150 Payroll Expenses:Salaries & wages:Contract Labor", projectId: null, projectName: null, memo: "July 2026 contractor wage allocation", debit: 0, credit: 90 },
   ]);
 });
 
@@ -26,8 +26,8 @@ test("consolidates multiple Service Items into one project and GL debit line", (
   ]);
 
   assert.deepEqual(result.lines, [
-    { accountId: "231", projectId: "26153", projectName: "Whatnot", memo: "July 2026 wage allocation — GL 231", debit: 200, credit: 0 },
-    { accountId: "427", projectId: null, projectName: null, memo: "July 2026 employee wage allocation", debit: 0, credit: 200 },
+    { accountId: "231", accountDisplay: "500100 COS - Labor:COS - Production Labor", projectId: "26153", projectName: "Whatnot", memo: "July 2026 wage allocation — GL 231", debit: 200, credit: 0 },
+    { accountId: "427", accountDisplay: "600100 Payroll Expenses:Salaries & wages", projectId: null, projectName: null, memo: "July 2026 employee wage allocation", debit: 0, credit: 200 },
   ]);
   assert.equal(result.debitTotal, 200);
   assert.equal(result.creditTotal, 200);
