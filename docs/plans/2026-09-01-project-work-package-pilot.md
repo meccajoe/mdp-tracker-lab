@@ -327,7 +327,7 @@ The first three budgets were created by the closed-won webhook. The variation de
 
 New and existing project budgets should reconcile to:
 
-- Joe — owner/approver;
+- Paul — owner/approver;
 - Emily — owner/admin or backup approver;
 - David — request-based member;
 - Caleb McCallum/Rooster — request-based member;

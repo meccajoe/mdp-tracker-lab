@@ -12,9 +12,8 @@ test("labor reconciliation API returns Service Item data and durable allocation 
   assert.match(route, /export async function PUT/);
 });
 
-test("labor reconciliation page exposes each log Service Item and an allocation mapping table", () => {
+test("labor reconciliation page exposes each log Service Item without the superseded mapping editor", () => {
   assert.match(page, /Service Item/);
-  assert.match(page, /Allocation mapping/);
-  assert.match(page, /Source GL ID/);
-  assert.match(page, /Target GL ID/);
+  assert.doesNotMatch(page, /Allocation mapping/);
+  assert.doesNotMatch(page, /Save mapping/);
 });

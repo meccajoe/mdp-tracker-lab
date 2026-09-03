@@ -18,7 +18,7 @@ test("parseLineItems classifies fabrication and crating explicitly while keeping
   assert.equal(parsed.quotes.shipping, 0);
 });
 
-test("calculateBudgets derives labor and materials from fabrication subtotal only", async () => {
+test("calculateBudgets derives labor hours at the approved $105 quoted rate and materials from fabrication subtotal only", async () => {
   const budgets = await calculateBudgets({
     contractAmount: 100000,
     quotes: {
@@ -39,7 +39,7 @@ test("calculateBudgets derives labor and materials from fabrication subtotal onl
   });
 
   assert.equal(budgets.budget_materials, 10000);
-  assert.equal(budgets.budget_hrs, 244);
+  assert.equal(budgets.budget_hrs, 95);
   assert.equal(budgets.budget_crating, 3000);
   assert.equal(budgets.budget_shipping, 5600);
   assert.equal(budgets.budget_storage, 1200);

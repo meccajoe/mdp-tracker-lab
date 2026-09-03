@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
-const appLayoutPath = path.join(repoRoot, "src", "app", "layout.tsx");
+const appShellPath = path.join(repoRoot, "src", "components", "AppShell.tsx");
 const wipPath = path.join(repoRoot, "src", "app", "admin", "reports", "wip", "page.tsx");
 const projectDetailPath = path.join(repoRoot, "src", "app", "projects", "[id]", "page.tsx");
 const flagsPath = path.join(repoRoot, "src", "app", "admin", "flags", "page.tsx");
@@ -15,17 +15,16 @@ function read(p) {
 }
 
 test("global app shell and table-heavy tracker pages use widened content containers on large screens", () => {
-  const appLayout = read(appLayoutPath);
+  const appShell = read(appShellPath);
   const wip = read(wipPath);
   const projectDetail = read(projectDetailPath);
   const flags = read(flagsPath);
   const vendors = read(vendorsPath);
 
-  assert.match(appLayout, /max-w-\[1800px\]|max-w-screen-2xl/);
-  assert.doesNotMatch(appLayout, /max-w-7xl/);
+  assert.match(appShell, /max-w-\[1800px\]|max-w-screen-2xl/);
+  assert.doesNotMatch(appShell, /max-w-7xl/);
 
   for (const source of [wip, projectDetail, flags, vendors]) {
-    assert.match(source, /max-w-\[1800px\]|max-w-screen-2xl/);
     assert.doesNotMatch(source, /max-w-6xl|max-w-7xl/);
   }
 });

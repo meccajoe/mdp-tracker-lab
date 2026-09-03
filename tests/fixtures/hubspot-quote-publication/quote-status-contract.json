@@ -1,0 +1,89 @@
+{
+  "source": {
+    "system": "hubspot",
+    "mode": "read_only",
+    "endpoint_family": "/crm/v3/properties/quotes and /crm/v3/objects/quotes/search"
+  },
+  "property": {
+    "name": "hs_quote_status",
+    "label": "Status",
+    "type": "enumeration",
+    "field_type": "calculation_equation",
+    "options": [
+      "DRAFT",
+      "PENDING_APPROVAL",
+      "CHANGES_REQUESTED",
+      "PUBLISHED",
+      "PUBLISHING",
+      "ACCEPTED",
+      "EXPIRED",
+      "VOID",
+      "ARCHIVED"
+    ]
+  },
+  "acceptance": {
+    "property": "hs_quote_status",
+    "accepted_value": "ACCEPTED",
+    "published_value": "PUBLISHED",
+    "observed_accepted_count": 0,
+    "observed_published_count": 487
+  },
+  "observed_quote": {
+    "id": "[REDACTED]",
+    "properties": {
+      "hs_acceptance_method": null,
+      "hs_accepted_date": null,
+      "hs_all_assigned_business_unit_ids": null,
+      "hs_clickwrap_accepted_by": null,
+      "hs_createdate": "[REDACTED]",
+      "hs_esign_date": null,
+      "hs_esign_enabled": null,
+      "hs_esign_num_signers_completed": null,
+      "hs_esign_num_signers_required": null,
+      "hs_esign_reassignment_enabled": null,
+      "hs_esign_verification_method": "email",
+      "hs_expiration_date": "[REDACTED]",
+      "hs_expiration_template_path": "@hubspot/cms-quotes-theme/templates/expired.html",
+      "hs_expired": "false",
+      "hs_expired_end_of_access_date": null,
+      "hs_last_published_date": "[REDACTED]",
+      "hs_lastmodifieddate": "[REDACTED]",
+      "hs_manually_signed": null,
+      "hs_object_id": "[REDACTED]",
+      "hs_payment_status": "PAYMENT_NOT_ENABLED",
+      "hs_pdf_generation_status": "PDF_GENERATED",
+      "hs_quote_esign_status": "NO_ESIGN_STATUS",
+      "hs_quote_progression_status": "",
+      "hs_quote_status": "PUBLISHED",
+      "hs_render_status": "RENDERED",
+      "hs_show_countersignature_box": null,
+      "hs_show_signature_box": null,
+      "hs_sign_status": null,
+      "hs_status": "APPROVAL_NOT_NEEDED",
+      "hs_upcoming_expiration_reminder_date": null,
+      "hubspot_owner_assigneddate": null
+    }
+  },
+  "acceptance_probe": {
+    "accepted_date_count": 0,
+    "acceptance_method_count": 0,
+    "esign_date_count": 211,
+    "manually_signed_count": 3,
+    "signed_sample": {
+      "current_quote_status": "EXPIRED",
+      "has_esign_date": true,
+      "hs_sign_status": "ESIGN_COMPLETED",
+      "hs_quote_esign_status": "SIGNED",
+      "property_history_exposed_prior_accepted_state": false
+    },
+    "conclusion": "The account schema exposes ACCEPTED, but no current or historical accepted-state record was observable in this read-only probe. Signed evidence exists under esign fields. A controlled quote lifecycle pilot is still required before enabling automatic acceptance ingestion."
+  },
+  "replay_contract": {
+    "canonical_identity_fields": [
+      "hs_quote_status",
+      "hs_sign_status",
+      "hs_quote_esign_status"
+    ],
+    "idempotency_rule": "Deduplicate a future webhook by provider event identity when supplied, otherwise by publication identity plus event type plus evidence hash."
+  }
+}

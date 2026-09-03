@@ -18,6 +18,8 @@ function findMigration(fragment) {
 const helperSource = read('src/lib/billcom-budget.ts');
 const typesSource = read('src/lib/types.ts');
 const usersPageSource = read('src/app/admin/users/page.tsx');
+const usersCreateRouteSource = read('src/app/api/admin/users/route.ts');
+const usersUpdateRouteSource = read('src/app/api/admin/users/[email]/route.ts');
 const webhookRouteSource = read('src/app/api/webhooks/hubspot/route.ts');
 const manualRouteSource = read('src/app/api/projects/[id]/bill-budget/route.ts');
 
@@ -35,14 +37,20 @@ test('BILL budget helper exposes canonical PM member email resolver', () => {
   assert.match(helperSource, /normalizeEmail\(user\.bill_spend_email\) \?\? normalizeEmail\(user\.email\)/);
 });
 
-test('admin users page exposes editable BILL member email mapping', () => {
+test('admin users page sends editable BILL member email through secured admin APIs', () => {
   assert.match(usersPageSource, /bill_spend_email/);
   assert.match(usersPageSource, /BILL member email/i);
   assert.match(usersPageSource, /setNewBillSpendEmail/);
   assert.match(usersPageSource, /setEditBillSpendEmail/);
   assert.match(usersPageSource, /select\("\*"\)/);
-  assert.match(usersPageSource, /bill_spend_email: newBillSpendEmail\.trim\(\)\.toLowerCase\(\) \|\| null/);
-  assert.match(usersPageSource, /bill_spend_email: editBillSpendEmail\.trim\(\)\.toLowerCase\(\) \|\| null/);
+  assert.match(usersPageSource, /authenticatedFetch\("\/api\/admin\/users"/);
+  assert.match(usersPageSource, /billSpendEmail: newBillSpendEmail/);
+  assert.match(usersPageSource, /billSpendEmail: editBillSpendEmail/);
+  assert.match(usersCreateRouteSource, /requireAdminActor\(\)/);
+  assert.match(usersCreateRouteSource, /billSpendEmail\.trim\(\)\.toLowerCase\(\) \|\| null/);
+  assert.match(usersCreateRouteSource, /bill_spend_email: billSpendEmail/);
+  assert.match(usersUpdateRouteSource, /requireAdminActor\(\)/);
+  assert.match(usersUpdateRouteSource, /updates\.bill_spend_email = typeof body\.billSpendEmail === "string" \? body\.billSpendEmail\.trim\(\)\.toLowerCase\(\) \|\| null : null/);
 });
 
 test('automatic and manual BILL budget create paths use canonical BILL member mapping from user_roles', () => {

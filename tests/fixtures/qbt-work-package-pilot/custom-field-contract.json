@@ -1,0 +1,740 @@
+{
+  "source": {
+    "system": "quickbooks_time",
+    "mode": "read_only",
+    "endpoint_family": "/api/v1/customfields, customfielditems, timesheets, and timesheets_deleted"
+  },
+  "custom_fields": [
+    {
+      "id": "2883322",
+      "name": "Build Item",
+      "required": true,
+      "show_to_all": true,
+      "active": true,
+      "applies_to": "timesheet",
+      "items": [
+        {
+          "id": "28895968",
+          "name": "Item 01",
+          "active": true
+        },
+        {
+          "id": "28895970",
+          "name": "Item 02",
+          "active": true
+        },
+        {
+          "id": "28896254",
+          "name": "Item 03",
+          "active": true
+        },
+        {
+          "id": "28896256",
+          "name": "Item 04",
+          "active": true
+        },
+        {
+          "id": "28896258",
+          "name": "Item 05",
+          "active": true
+        },
+        {
+          "id": "28896260",
+          "name": "Item 06",
+          "active": true
+        },
+        {
+          "id": "28896262",
+          "name": "Item 07",
+          "active": true
+        },
+        {
+          "id": "28896264",
+          "name": "Item 08",
+          "active": true
+        },
+        {
+          "id": "28896266",
+          "name": "Item 09",
+          "active": true
+        },
+        {
+          "id": "28896268",
+          "name": "Item 10",
+          "active": true
+        },
+        {
+          "id": "28896270",
+          "name": "Item 11",
+          "active": true
+        },
+        {
+          "id": "28896272",
+          "name": "Item 12",
+          "active": true
+        },
+        {
+          "id": "28896274",
+          "name": "Item 13",
+          "active": true
+        },
+        {
+          "id": "28896276",
+          "name": "Item 14",
+          "active": true
+        },
+        {
+          "id": "28896278",
+          "name": "Item 15",
+          "active": true
+        },
+        {
+          "id": "28896280",
+          "name": "Item 16",
+          "active": true
+        },
+        {
+          "id": "28896282",
+          "name": "Item 17",
+          "active": true
+        },
+        {
+          "id": "28896284",
+          "name": "Item 18",
+          "active": true
+        },
+        {
+          "id": "28896286",
+          "name": "Item 19",
+          "active": true
+        },
+        {
+          "id": "28896288",
+          "name": "Item 20",
+          "active": true
+        },
+        {
+          "id": "28896290",
+          "name": "Item 21",
+          "active": true
+        },
+        {
+          "id": "28896292",
+          "name": "Item 22",
+          "active": true
+        },
+        {
+          "id": "28896294",
+          "name": "Item 23",
+          "active": true
+        },
+        {
+          "id": "28896296",
+          "name": "Item 24",
+          "active": true
+        },
+        {
+          "id": "28896298",
+          "name": "Item 25",
+          "active": true
+        }
+      ]
+    },
+    {
+      "id": "957306",
+      "name": "Service Item",
+      "required": true,
+      "show_to_all": true,
+      "active": true,
+      "applies_to": "timesheet",
+      "items": [
+        {
+          "id": "6447978",
+          "name": "FAB LABOR",
+          "active": true
+        },
+        {
+          "id": "6447980",
+          "name": "Sales",
+          "active": true
+        },
+        {
+          "id": "6447982",
+          "name": "Hours",
+          "active": true
+        },
+        {
+          "id": "6447984",
+          "name": "PmntDiscount_Discounts",
+          "active": true
+        },
+        {
+          "id": "6447986",
+          "name": "PmntDiscount_Legal & Professional Fees",
+          "active": false
+        },
+        {
+          "id": "6447988",
+          "name": "PmntDiscount_Bank Service Charges",
+          "active": false
+        },
+        {
+          "id": "6447990",
+          "name": "PACK LABOR",
+          "active": true
+        },
+        {
+          "id": "6447992",
+          "name": "PmntDiscount_Kenneth Mecca - Shareholder Loa",
+          "active": false
+        },
+        {
+          "id": "6447994",
+          "name": "CC Fee",
+          "active": true
+        },
+        {
+          "id": "6447996",
+          "name": "SHOP LABOR-OVERTIME",
+          "active": true
+        },
+        {
+          "id": "6447998",
+          "name": "INSTALL LABOR - OVERTIME",
+          "active": true
+        },
+        {
+          "id": "6448000",
+          "name": "SCUPT LABOR",
+          "active": true
+        },
+        {
+          "id": "6448002",
+          "name": "METAL LABOR",
+          "active": true
+        },
+        {
+          "id": "6448004",
+          "name": "INSTALL LABOR",
+          "active": true
+        },
+        {
+          "id": "6448006",
+          "name": "ELEC LABOR",
+          "active": true
+        },
+        {
+          "id": "6448008",
+          "name": "Opening Balance",
+          "active": false
+        },
+        {
+          "id": "6448010",
+          "name": "Income - Wood",
+          "active": false
+        },
+        {
+          "id": "6448012",
+          "name": "Income:Graphics",
+          "active": true
+        },
+        {
+          "id": "6448014",
+          "name": "Income:Shipping",
+          "active": true
+        },
+        {
+          "id": "6448016",
+          "name": "Income - Install",
+          "active": false
+        },
+        {
+          "id": "6448018",
+          "name": "Income - Travel",
+          "active": false
+        },
+        {
+          "id": "6448020",
+          "name": "Income:Design",
+          "active": true
+        },
+        {
+          "id": "6448022",
+          "name": "DESIGN LABOR",
+          "active": true
+        },
+        {
+          "id": "6448024",
+          "name": "CNC LABOR",
+          "active": true
+        },
+        {
+          "id": "6448026",
+          "name": "WELD LABOR",
+          "active": true
+        },
+        {
+          "id": "6448028",
+          "name": "TRAVEL-Hotel",
+          "active": true
+        },
+        {
+          "id": "6448030",
+          "name": "Meals",
+          "active": false
+        },
+        {
+          "id": "6448032",
+          "name": "TRAVEL-Airfare",
+          "active": true
+        },
+        {
+          "id": "6448034",
+          "name": "SHOP-Tolls",
+          "active": true
+        },
+        {
+          "id": "6448036",
+          "name": "TRAVEL-Auto",
+          "active": true
+        },
+        {
+          "id": "6448038",
+          "name": "GRAPH LABOR",
+          "active": true
+        },
+        {
+          "id": "6448040",
+          "name": "SHOP-Fuel",
+          "active": true
+        },
+        {
+          "id": "6448042",
+          "name": "SHOP-Repairs",
+          "active": true
+        },
+        {
+          "id": "6448044",
+          "name": "TRAVEL-Meals",
+          "active": true
+        },
+        {
+          "id": "6448046",
+          "name": "TRAVEL - Uber/Lyft/Taxi",
+          "active": true
+        },
+        {
+          "id": "6448048",
+          "name": "TRAVEL - Per Diem",
+          "active": true
+        },
+        {
+          "id": "6448050",
+          "name": "Income:Storage",
+          "active": true
+        },
+        {
+          "id": "6448052",
+          "name": "1406 Valve (O)",
+          "active": false
+        },
+        {
+          "id": "6448054",
+          "name": "1507 Valve (O)",
+          "active": false
+        },
+        {
+          "id": "6448056",
+          "name": "WOOD LABOR",
+          "active": true
+        },
+        {
+          "id": "6448058",
+          "name": "Yellow",
+          "active": false
+        },
+        {
+          "id": "6448060",
+          "name": "1201 Valve (Y)",
+          "active": false
+        },
+        {
+          "id": "6448064",
+          "name": "1201 Valve (O)",
+          "active": false
+        },
+        {
+          "id": "6448066",
+          "name": "LAM LABOR",
+          "active": true
+        },
+        {
+          "id": "6448070",
+          "name": "Income:Show Prep",
+          "active": true
+        },
+        {
+          "id": "6448072",
+          "name": "Income:Fabrication",
+          "active": true
+        },
+        {
+          "id": "6448076",
+          "name": "Income - Floor Install",
+          "active": true
+        },
+        {
+          "id": "6448080",
+          "name": "Income - Supervision",
+          "active": false
+        },
+        {
+          "id": "6448084",
+          "name": "Income:On-site Show Services",
+          "active": true
+        },
+        {
+          "id": "6448086",
+          "name": "Income - Drayage",
+          "active": true
+        },
+        {
+          "id": "6448090",
+          "name": "M8 Deluxe",
+          "active": false
+        },
+        {
+          "id": "6448094",
+          "name": "Interchangeable Graphic",
+          "active": false
+        },
+        {
+          "id": "6448098",
+          "name": "PAINT LABOR",
+          "active": true
+        },
+        {
+          "id": "6448102",
+          "name": "SHOW SERVICE EXP",
+          "active": true
+        },
+        {
+          "id": "6448106",
+          "name": "Income - Show Services",
+          "active": true
+        },
+        {
+          "id": "6448110",
+          "name": "SHOP LABOR",
+          "active": true
+        },
+        {
+          "id": "6448112",
+          "name": "Grey",
+          "active": false
+        },
+        {
+          "id": "6448116",
+          "name": "41-03 (G)",
+          "active": false
+        },
+        {
+          "id": "6448118",
+          "name": "25S-01 (G)",
+          "active": false
+        },
+        {
+          "id": "6448122",
+          "name": "JJ2L-02 Valve (O)",
+          "active": false
+        },
+        {
+          "id": "6448126",
+          "name": "Admin",
+          "active": true
+        },
+        {
+          "id": "6448130",
+          "name": "CREDIT Adjustment",
+          "active": true
+        },
+        {
+          "id": "6448132",
+          "name": "Overpayment",
+          "active": false
+        },
+        {
+          "id": "8163724",
+          "name": "PAINT EXP",
+          "active": true
+        },
+        {
+          "id": "8163948",
+          "name": "GRAPH EXP",
+          "active": true
+        },
+        {
+          "id": "8164854",
+          "name": "WOOD EXP",
+          "active": true
+        },
+        {
+          "id": "9104428",
+          "name": "CNC OVERTIME",
+          "active": true
+        },
+        {
+          "id": "9104748",
+          "name": "GRAPHIC OVERTIME",
+          "active": true
+        },
+        {
+          "id": "9104810",
+          "name": "DESIGN OVERTIME",
+          "active": true
+        },
+        {
+          "id": "10804200",
+          "name": "Income - Building Maintenance",
+          "active": true
+        },
+        {
+          "id": "11570204",
+          "name": "Income:Install/Strike",
+          "active": true
+        },
+        {
+          "id": "11570208",
+          "name": "Income - Project Management",
+          "active": true
+        },
+        {
+          "id": "11570210",
+          "name": "Income - Install & Project Management",
+          "active": false
+        },
+        {
+          "id": "11570226",
+          "name": "Income - Repair",
+          "active": true
+        },
+        {
+          "id": "12267312",
+          "name": "Income:Rental",
+          "active": true
+        },
+        {
+          "id": "12294544",
+          "name": "Income - Deliver/Install/Strike",
+          "active": true
+        },
+        {
+          "id": "13318590",
+          "name": "Income - PM, CAD's and Trucking",
+          "active": false
+        },
+        {
+          "id": "13737910",
+          "name": "SHOP LABOR - OVERTIME",
+          "active": false
+        },
+        {
+          "id": "13741186",
+          "name": "INSTALL LABOR (renamed 2024-06-12)",
+          "active": false
+        },
+        {
+          "id": "14098800",
+          "name": "Income - Pickup",
+          "active": false
+        },
+        {
+          "id": "14271854",
+          "name": "Income - Materials",
+          "active": true
+        },
+        {
+          "id": "14582956",
+          "name": "Holiday",
+          "active": true
+        },
+        {
+          "id": "14841986",
+          "name": "Income - Delivery",
+          "active": true
+        },
+        {
+          "id": "18619150",
+          "name": "Vacation",
+          "active": true
+        },
+        {
+          "id": "18619162",
+          "name": "Sick Time",
+          "active": true
+        },
+        {
+          "id": "19121116",
+          "name": "Miscellaneous charges",
+          "active": true
+        },
+        {
+          "id": "19955884",
+          "name": "Bad Debt",
+          "active": true
+        },
+        {
+          "id": "19956136",
+          "name": "Customer Refund",
+          "active": true
+        },
+        {
+          "id": "20503052",
+          "name": "HubSpot Custom Line Item",
+          "active": true
+        },
+        {
+          "id": "22603634",
+          "name": "Prep",
+          "active": true
+        },
+        {
+          "id": "25292044",
+          "name": "Income:Admin",
+          "active": true
+        },
+        {
+          "id": "25292996",
+          "name": "Income:Travel",
+          "active": true
+        },
+        {
+          "id": "27758760",
+          "name": "At cost",
+          "active": true
+        },
+        {
+          "id": "28729498",
+          "name": "Discount",
+          "active": true
+        }
+      ]
+    },
+    {
+      "id": "2883364",
+      "name": "Type of Work",
+      "required": false,
+      "show_to_all": false,
+      "active": true,
+      "applies_to": "timesheet",
+      "items": [
+        {
+          "id": "28896678",
+          "name": "Carpentry",
+          "active": true
+        },
+        {
+          "id": "28896680",
+          "name": "Paint",
+          "active": true
+        },
+        {
+          "id": "28896682",
+          "name": "Metal",
+          "active": true
+        },
+        {
+          "id": "28896684",
+          "name": "Install Prep",
+          "active": true
+        },
+        {
+          "id": "28896686",
+          "name": "Install/Dismantle",
+          "active": true
+        },
+        {
+          "id": "28896688",
+          "name": "Sculpt",
+          "active": true
+        },
+        {
+          "id": "28896768",
+          "name": "Graphics",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "labor_payload": {
+    "id": "[REDACTED]",
+    "user_id": "[REDACTED]",
+    "jobcode_id": "[REDACTED]",
+    "date": "[REDACTED]",
+    "duration": 7620,
+    "type": "regular",
+    "state": "APPROVED",
+    "customfields": {
+      "957306": "FAB LABOR",
+      "2883322": "",
+      "2883364": ""
+    }
+  },
+  "correction_contract": {
+    "current_snapshot_only": true,
+    "observed_timesheet_keys": [
+      "attached_files",
+      "created_by_user_id",
+      "customfields",
+      "date",
+      "distance_tracking",
+      "duration",
+      "end",
+      "id",
+      "jobcode_id",
+      "last_modified",
+      "location",
+      "locked",
+      "notes",
+      "on_the_clock",
+      "start",
+      "state",
+      "type",
+      "tz",
+      "tz_str",
+      "user_id"
+    ],
+    "deleted_timesheet_shape": {
+      "endpoint_available": true,
+      "observed_keys": [
+        "attached_files",
+        "customfields",
+        "date",
+        "duration",
+        "end",
+        "id",
+        "jobcode_id",
+        "last_modified",
+        "location",
+        "locked",
+        "notes",
+        "on_the_clock",
+        "start",
+        "type",
+        "tz",
+        "tz_str",
+        "user_id"
+      ]
+    },
+    "requirement": "Tracker must append import snapshots and correction events; the current-timesheet response alone does not preserve prior values."
+  },
+  "replay_contract": {
+    "canonical_field_order": [
+      "2883322",
+      "957306",
+      "2883364"
+    ],
+    "payload_value_shape": "Timesheet customfields are keyed by immutable custom-field ID and contain labels or empty strings, not custom-field item IDs.",
+    "idempotency_rule": "Use the source timesheet ID plus source last_modified as the import-version identity; append a correction when the same source ID arrives with a later last_modified and changed canonical payload."
+  }
+}

@@ -6,8 +6,9 @@ const component = readFileSync("src/components/project-completion-readiness.tsx"
 const route = readFileSync("src/app/api/projects/[id]/completion-readiness/route.ts", "utf8");
 const page = readFileSync("src/app/projects/[id]/page.tsx", "utf8");
 
-test("project overview exposes the persisted completion readiness review", () => {
-  assert.match(page, /ProjectCompletionReadiness/);
+test("legacy completion readiness remains auditable without restoring the removed overview gate", () => {
+  assert.doesNotMatch(page, /ProjectCompletionReadiness/);
+  assert.match(page, /Mark complete/);
   assert.match(component, /Completion Readiness/);
   assert.match(component, /No reportable issues/);
   assert.match(component, /Save review/);

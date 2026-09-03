@@ -21,18 +21,13 @@ test('missing PM email is treated as non-actionable for BILL budget creation', (
   assert.doesNotMatch(pageSource, /no PM email is set for this project yet/i, 'project page should not blame missing project PM email in BILL note copy');
 });
 
-test('project page shows Notes above timeline and BILL cards, collapsed by default', () => {
+test('project page keeps Notes compact in an on-demand dialog', () => {
   const notesIndex = pageSource.indexOf('project.notes && (');
-  const timelineIndex = pageSource.indexOf('CardTitle className="text-base">Timeline');
-  const billIndex = pageSource.indexOf('CardTitle className="text-base">BILL Budget');
 
-  assert.ok(notesIndex >= 0, 'notes disclosure should exist');
-  assert.ok(timelineIndex >= 0, 'timeline card should exist');
-  assert.ok(billIndex >= 0, 'BILL budget card should exist');
-  assert.ok(notesIndex < timelineIndex, 'notes should render above the timeline card row');
-  assert.ok(notesIndex < billIndex, 'notes should render above the BILL budget card row');
-  assert.match(pageSource, /<details className="[^"]*group[^"]*">/, 'notes should use a disclosure element');
-  assert.doesNotMatch(pageSource, /<details[^>]*open[^>]*>[\s\S]*<span className="font-medium">Notes<\/span>/, 'notes should stay collapsed by default');
+  assert.ok(notesIndex >= 0, 'notes control should exist');
+  assert.match(pageSource, /<Dialog>[\s\S]*aria-label="Open project notes"/);
+  assert.match(pageSource, /<DialogTitle>Project notes<\/DialogTitle>/);
+  assert.doesNotMatch(pageSource, /<details[^>]*>[\s\S]*Notes/, 'the superseded disclosure should remain removed');
 });
 
 test('BILL budget route supports stale-link recovery state', () => {

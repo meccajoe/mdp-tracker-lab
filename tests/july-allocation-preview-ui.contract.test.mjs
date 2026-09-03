@@ -5,15 +5,18 @@ import { resolve } from "node:path";
 
 const route = resolve("src/app/api/admin/labor-reconciliation/july-preview/route.ts");
 const page = resolve("src/app/admin/labor-reconciliation/page.tsx");
+const reviewHelper = resolve("src/lib/july-labor-review.ts");
 
-test("July allocation preview route uses roster classification and the allocation-grid helper", () => {
+test("July allocation preview route delegates roster, allocation, and tie-out work to the shared review helper", () => {
   assert.ok(existsSync(route), "July preview route should exist");
   const source = readFileSync(route, "utf8");
-  assert.match(source, /buildJulyLaborAllocationGrid/);
-  assert.match(source, /labor_worker_classifications/);
-  assert.match(source, /2026-07-01/);
-  assert.match(source, /buildLaborTieOut/);
-  assert.match(source, /tieOut/);
+  const helperSource = readFileSync(reviewHelper, "utf8");
+  assert.match(source, /buildJulyLaborReview/);
+  assert.match(helperSource, /buildJulyLaborAllocationGrid/);
+  assert.match(helperSource, /labor_worker_classifications/);
+  assert.match(helperSource, /2026-07-01/);
+  assert.match(helperSource, /buildLaborTieOut/);
+  assert.match(helperSource, /tieOut/);
 });
 
 test("Labor Reconciliation exposes the July 2026 review-only pilot preview", () => {
