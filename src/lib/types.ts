@@ -1,3 +1,42 @@
+import type { QuoteLifecycleStatus } from "@/lib/quote-domain";
+
+export interface QuoteWorkspace {
+  id: string;
+  workspace_number: string;
+  lifecycle_status: QuoteLifecycleStatus;
+  current_revision_id: string | null;
+  commercial_approved_revision_id: string | null;
+  hubspot_published_revision_id: string | null;
+  customer_accepted_revision_id: string | null;
+  operationally_released_revision_id: string | null;
+  row_version: number;
+  archived_at: string | null;
+}
+
+export interface QuoteRevision {
+  id: string;
+  workspace_id: string;
+  revision_number: number;
+  revision_kind: "baseline" | "revision" | "amendment" | "change_order";
+  parent_revision_id: string | null;
+  supersedes_revision_id: string | null;
+  normalization_status: "pending" | "normalized" | "needs_review" | "mismatch";
+  manifest_hash: string | null;
+  locked_at: string | null;
+}
+
+export interface WorkPackage {
+  id: string;
+  workspace_id: string;
+  project_id: string | null;
+  item_number: number;
+  parent_work_package_id: string | null;
+  display_name: string;
+  quantity: number;
+  classification: "fabrication" | "graphics" | "resale" | "service" | "project_wide" | "pass_through";
+  status: "draft" | "approved" | "released" | "active" | "completed" | "cancelled" | "superseded";
+}
+
 export interface Project {
   id: string;
   name: string;

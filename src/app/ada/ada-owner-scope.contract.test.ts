@@ -10,11 +10,13 @@ const workspace = readFileSync(join(root, "src/app/api/ada/workspaces/[workspace
 const changes = readFileSync(join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/sheet/changes/route.ts"), "utf8");
 const apply = readFileSync(join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[revisionId]/sheet/changes/[changeId]/apply/route.ts"), "utf8");
 
-test("Ada project mutations and links are owner-scoped", () => {
+test("Ada projects remain owner-scoped while quote workspaces are membership-scoped", () => {
   assert.ok((project.match(/created_by_email/g) ?? []).length >= 2);
   assert.match(project, /\.eq\("created_by_email", access\.actorEmail\)/);
-  assert.match(workspaces, /\.eq\("created_by_email", admin\.actorEmail\)/);
-  assert.match(workspace, /\.eq\("created_by_email", access\.actorEmail\)/);
+  assert.match(workspaces, /from\("quote_workspace_members"\)/);
+  assert.match(workspaces, /\.in\("id", workspaceIds\)/);
+  assert.match(workspace, /requireAdaWorkspaceAccess/);
+  assert.doesNotMatch(workspaces, /\.eq\("created_by_email", admin\.actorEmail\)/);
 });
 
 test("Ada Sheet change list, stage, and apply require owned workspace access", () => {

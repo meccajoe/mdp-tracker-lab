@@ -36,10 +36,11 @@ test("every revision creation path uses canonical server validation and atomic p
   assert.doesNotMatch(revisionsRoute, /body\.marginPct/);
 });
 
-test("acceptance is latest-only, canonical, and idempotent through one database operation", () => {
+test("commercial approval is latest-only, canonical, and idempotent through one database operation", () => {
   assert.match(acceptRoute, /accept_ada_quote_revision/);
   assert.doesNotMatch(acceptRoute, /from\("ada_quote_events"\)\.insert/);
   assert.doesNotMatch(acceptRoute, /from\("ada_quote_workspaces"\)\.update/);
-  assert.match(acceptRoute, /acceptedRevisionId/);
+  assert.match(acceptRoute, /commercialApprovedRevisionId/);
+  assert.doesNotMatch(acceptRoute, /acceptedRevisionId|status: "accepted"/);
   assert.match(messagesRoute, /workspaceResult\.data\.status === "accepted" \? "accepted"/);
 });

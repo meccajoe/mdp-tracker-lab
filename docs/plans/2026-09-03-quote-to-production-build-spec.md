@@ -1178,6 +1178,8 @@ Apply schema only after remote prerequisite checks. Re-query tables, columns, co
 
 **Go gate:** Unauthorized workspace access fails server-side; immutable revision constraints reject post-lock updates; state-transition tests cover every gate.
 
+**Local implementation status — 2026-09-03:** The four Release 1 migrations, canonical domain/permission helpers, normalized legacy backfill, governed compatibility RPCs, membership-aware Ada routes, immutable evidence ledger, and durable outbox are implemented locally. Workspace creation is capability-gated and atomic across the workspace, owner membership, compatibility concept, and `workspace_created` event; workspace discovery is based on active membership rather than creator identity. Verification passed with 468/468 discovered tests across 216 files, the disposable PostgreSQL migration/security harness (`release1_sql_harness_ok`), a production build with 49/49 static pages, `git diff --check`, and zero credential-pattern hits across 48 changed/untracked text files. The final independent read-only review is pending. Linked migration/schema inspection was not executed because the terminal approval timed out. Release 1 remains unapplied remotely and is not complete until independent review, read-only linked inspection, authorized application, and exact remote read-back all pass.
+
 ### Release 2 — Normalized revisions and structured proposals
 
 **Goal:** Make commercial lines, Build Items, labor allocations, and Ada proposals reviewable and revision-safe.

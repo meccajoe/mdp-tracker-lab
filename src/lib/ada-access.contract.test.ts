@@ -26,7 +26,10 @@ test("Ada has an explicit permission boundary on direct routes and API calls", (
   assert.match(serverSource, /ada_access/);
   assert.match(serverSource, /requireAdaWorkspaceAccess/);
   assert.match(serverSource, /created_by_email/);
-  assert.match(routeSource, /requireAdaAccess\(/);
+  assert.match(routeSource, /requireAdaIdentity\(/);
+  assert.match(routeSource, /quote_workspace_members/);
+  assert.match(routeSource, /create_quote_workspace/);
+  assert.doesNotMatch(routeSource, /requireAdaAccess\(/);
   assert.match(gateSource, /AdaAccessGate/);
   assert.match(pageSource, /AdaAccessGate/);
   assert.match(sidebarSource, /Ada/);

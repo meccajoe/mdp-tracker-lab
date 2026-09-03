@@ -11,7 +11,7 @@ test("Ada applies a natural-language quote correction as a new grounded revision
   assert.match(source, /instruction/);
   assert.match(source, /ada_quote_revisions/);
   assert.match(source, /generateAdaQuote/);
-  assert.match(source, /requireAdaAccess/);
+  assert.match(source, /requireAdaWorkspaceAccess/);
   const canvasSource = readFileSync(canvas, "utf8");
   assert.match(canvasSource, /Ask Ada to revise/);
   assert.match(canvasSource, /onNaturalLanguageRevision/);

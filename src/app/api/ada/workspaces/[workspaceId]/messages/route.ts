@@ -16,7 +16,7 @@ export async function POST(
   context: { params: Promise<{ workspaceId: string }> },
 ) {
   const { workspaceId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId);
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft");
   if (!access.ok) return access.response;
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const content = typeof body.content === "string" ? body.content.trim() : "";

@@ -12,10 +12,12 @@ const upload = readFileSync(join(root, "src/components/ada-file-upload.tsx"), "u
 const viewer = readFileSync(join(root, "src/components/ada-evidence-viewer.tsx"), "utf8");
 const assetsRoute = readFileSync(join(root, "src/app/api/ada/workspaces/[workspaceId]/assets/route.ts"), "utf8");
 const conceptsRoute = readFileSync(join(root, "src/app/api/ada/workspaces/[workspaceId]/concepts/route.ts"), "utf8");
+const governedMigration = readFileSync(join(root, "supabase/migrations/20260903103000_quote_normalized_backfill.sql"), "utf8");
 
 test("Ada uses one workspace quote lineage without a visible Concept contract", () => {
-  assert.match(createRoute, /label: "Workspace"/);
-  assert.match(createRoute, /compatibility/i);
+  assert.match(createRoute, /rpc\("create_quote_workspace"/);
+  assert.match(governedMigration, /INSERT INTO public\.ada_quote_concepts/i);
+  assert.match(governedMigration, /'Workspace'[\s\S]*compatibility_concept_created/i);
   assert.doesNotMatch(createRoute, /Concept 1/);
   assert.doesNotMatch(detailRoute, /concepts:/);
   assert.doesNotMatch(detail, /concepts\[0\]/);

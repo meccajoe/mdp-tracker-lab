@@ -6,7 +6,7 @@ const root = process.cwd();
 const migrations = join(root, "supabase/migrations");
 const access = join(root, "src/lib/ada-server.ts");
 const workspaces = join(root, "src/app/api/ada/workspaces/route.ts");
-test("Ada grants explicit access and scopes workspace listings to the active owner", () => {
+test("Ada grants explicit access and scopes workspace listings to active members", () => {
   const file = readdirSync(migrations).find((name) => name.endsWith("_ada_user_workspaces.sql"));
   assert.ok(file);
   const sql = readFileSync(join(migrations, file!), "utf8");
@@ -14,5 +14,8 @@ test("Ada grants explicit access and scopes workspace listings to the active own
   assert.match(sql, /created_by_email/i);
   assert.match(readFileSync(access, "utf8"), /ada_access/);
   const source = readFileSync(workspaces, "utf8");
-  assert.match(source, /eq\("created_by_email", admin\.actorEmail\)/);
+  assert.match(source, /from\("quote_workspace_members"\)/);
+  assert.match(source, /eq\("email_normalized", admin\.actorEmail\)/);
+  assert.match(source, /\.in\("id", workspaceIds\)/);
+  assert.doesNotMatch(source, /eq\("created_by_email", admin\.actorEmail\)/);
 });

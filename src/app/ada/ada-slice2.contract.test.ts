@@ -11,6 +11,7 @@ const conceptsRoute = join(root, "src/app/api/ada/workspaces/[workspaceId]/conce
 const messagesRoute = join(root, "src/app/api/ada/workspaces/[workspaceId]/messages/route.ts");
 const detailComponent = join(root, "src/components/ada-workspace-detail.tsx");
 const shell = join(root, "src/components/ada-workspace-shell.tsx");
+const governedMigration = join(root, "supabase/migrations/20260903103000_quote_normalized_backfill.sql");
 
 function conversationMigration() {
   const filename = readdirSync(migrations).find((entry) => entry.endsWith("_ada_quote_conversations.sql"));
@@ -40,11 +41,13 @@ test("Ada chats retain an internal default message thread and private persistent
   const messagesSource = readFileSync(messagesRoute, "utf8");
   const detailSource = readFileSync(detailComponent, "utf8");
   const shellSource = readFileSync(shell, "utf8");
+  const governedSource = readFileSync(governedMigration, "utf8");
 
-  assert.match(createSource, /from\("ada_quote_concepts"\)/);
-  assert.match(createSource, /label: "Workspace"/);
-  assert.match(createSource, /compatibility/i);
-  assert.match(workspaceDetailSource, /requireAdaAccess\(/);
+  assert.match(createSource, /rpc\("create_quote_workspace"/);
+  assert.match(governedSource, /INSERT INTO public\.ada_quote_concepts/i);
+  assert.match(governedSource, /'Workspace'[\s\S]*'standard'[\s\S]*'draft'/i);
+  assert.match(governedSource, /compatibility_concept_created/i);
+  assert.match(workspaceDetailSource, /requireAdaWorkspaceAccess\(/);
   assert.match(workspaceDetailSource, /ada_quote_messages/);
   assert.match(conceptsSource, /requireAdaWorkspaceAccess\(/);
   assert.match(conceptsSource, /Concepts are deferred/);

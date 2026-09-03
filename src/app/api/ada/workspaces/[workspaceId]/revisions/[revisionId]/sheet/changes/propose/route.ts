@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { inferAdaSheetDraft } from "@/lib/ada-sheet-instructions";
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 export async function POST(request: Request, context: { params: Promise<{ workspaceId: string; revisionId: string }> }) {
-  const access = await requireAdaAccess(); if (!access.ok) return access.response;
-  const { workspaceId, revisionId } = await context.params; const body = await request.json().catch(() => ({})) as { instruction?: unknown };
+  const { workspaceId, revisionId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
+  const body = await request.json().catch(() => ({})) as { instruction?: unknown };
   const instruction = typeof body.instruction === "string" ? body.instruction.trim() : "";
   if (!instruction) return NextResponse.json({ error: "Tell Ada what sheet value to change." }, { status: 400 });
-  const { data: workspace } = await access.supabase.from("ada_quote_workspaces").select("id").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle();
-  if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
+
   const [{ data: sheet }, { data: revision, error: revisionError }] = await Promise.all([
     access.supabase.from("ada_quote_sheets").select("id").eq("workspace_id", workspaceId).eq("revision_id", revisionId).maybeSingle(),
     access.supabase.from("ada_quote_revisions").select("quote_json").eq("id", revisionId).eq("workspace_id", workspaceId).maybeSingle(),

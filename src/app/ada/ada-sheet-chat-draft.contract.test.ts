@@ -11,5 +11,5 @@ test("Ada turns safe sheet instructions into persisted draft changes", () => {
   assert.match(source, /instruction/);
   assert.match(source, /ada_quote_sheet_changes/);
   assert.match(source, /status: "draft"/);
-  assert.match(source, /requireAdaAccess/);
+  assert.match(source, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
 });

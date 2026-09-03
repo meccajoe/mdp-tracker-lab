@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { readAdaGoogleSheetRange } from "@/lib/ada-google-sheets";
 import { quoteRevisionToSheetValues } from "@/lib/ada-quote-workbook";
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 function comparable(value: unknown) { return String(value ?? "").trim(); }
 
 export async function POST(_request: Request, context: { params: Promise<{ workspaceId: string; revisionId: string }> }) {
-  const access = await requireAdaAccess(); if (!access.ok) return access.response;
   const { workspaceId, revisionId } = await context.params;
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
   const [{ data: workspace }, { data: sheet }, { data: revision, error: revisionError }] = await Promise.all([
-    access.supabase.from("ada_quote_workspaces").select("id, title").eq("id", workspaceId).eq("created_by_email", access.actorEmail).maybeSingle(),
+    access.supabase.from("ada_quote_workspaces").select("id, title").eq("id", workspaceId).maybeSingle(),
     access.supabase.from("ada_quote_sheets").select("id, spreadsheet_id").eq("workspace_id", workspaceId).eq("revision_id", revisionId).maybeSingle(),
     access.supabase.from("ada_quote_revisions").select("quote_json, revision_number, internal_cost, sell_price, margin_pct, assumptions_json").eq("id", revisionId).eq("workspace_id", workspaceId).maybeSingle(),
   ]);

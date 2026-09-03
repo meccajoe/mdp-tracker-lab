@@ -18,7 +18,7 @@ export async function POST(
   context: { params: Promise<{ workspaceId: string; assetId: string }> },
 ) {
   const { workspaceId, assetId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId);
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft");
   if (!access.ok) return access.response;
 
   const [workspaceResult, assetResult, existingResult] = await Promise.all([
@@ -49,28 +49,23 @@ export async function POST(
     if (latestCheck.error) throw new Error(latestCheck.error.message);
     if (latestCheck.data) return NextResponse.json({ created: false, revision: latestCheck.data, reason: "quote_exists" });
 
-    const { revision, snapshot } = await createAdaQuoteRevision({ supabase: access.supabase, workspaceId, actorEmail: access.actorEmail, quoteValue: { lineItems: quote.lineItems }, assumptions: quote.assumptions, evidence: quote.evidence });
     const compatibilityThread = await resolveAdaCompatibilityThread(access, workspaceId);
     if (compatibilityThread.error || !compatibilityThread.id) {
-      await access.supabase.from("ada_quote_revisions").delete().eq("id", revision.id).eq("workspace_id", workspaceId);
       throw new Error(compatibilityThread.error ?? "Ada chat compatibility thread not found.");
     }
+    const { revision, snapshot } = await createAdaQuoteRevision({ supabase: access.actorSupabase, workspaceId, actorEmail: access.actorEmail, quoteValue: { lineItems: quote.lineItems }, assumptions: quote.assumptions, evidence: quote.evidence });
 
     const fileName = plainFileName(asset.original_name);
     const userContent = `Uploaded client drawing: ${fileName}`;
     const assistantContent = `I analyzed **${fileName}** and created **Revision ${revision.revision_number}** as an initial quote.\n\n${analysis.summary || "The drawing analysis is attached to this quote for review."}\n\n**Initial estimate**\n- Internal cost: ${money(snapshot.totals.internalCost)}\n- Sell price: ${money(snapshot.totals.sellPrice)}\n- Gross margin: ${snapshot.totals.marginPct.toFixed(1)}%\n\nReview the scope, assumptions, and confidence in the Quote Canvas. Tell me what to change and I’ll create the next revision without overwriting this one.`;
     const { data: userMessage, error: userError } = await access.supabase.from("ada_quote_messages").insert({ workspace_id: workspaceId, concept_id: compatibilityThread.id, role: "user", content: userContent, created_by_email: access.actorEmail }).select("id,workspace_id,concept_id,role,content,structured_payload_json,created_by_email,created_at").single();
     if (userError) {
-      await access.supabase.from("ada_quote_revisions").delete().eq("id", revision.id).eq("workspace_id", workspaceId);
       throw new Error(userError.message);
     }
     const payload = { citations: [{ sourceId: `asset:${assetId}`, label: asset.original_name }], needsInput: Array.isArray(analysis.questions) ? analysis.questions.slice(0, 1) : [], limitations: intelligence.limitations, quoteAction: "propose_revision", revisionInstruction: "Initial quote generated from analyzed client drawing.", revision, revisionDelta: null };
     const { data: assistantMessage, error: assistantError } = await access.supabase.from("ada_quote_messages").insert({ workspace_id: workspaceId, concept_id: compatibilityThread.id, role: "assistant", content: assistantContent, structured_payload_json: payload, created_by_email: access.actorEmail }).select("id,workspace_id,concept_id,role,content,structured_payload_json,created_by_email,created_at").single();
     if (assistantError) {
-      await Promise.all([
-        access.supabase.from("ada_quote_messages").delete().eq("id", userMessage.id).eq("workspace_id", workspaceId),
-        access.supabase.from("ada_quote_revisions").delete().eq("id", revision.id).eq("workspace_id", workspaceId),
-      ]);
+      await access.supabase.from("ada_quote_messages").delete().eq("id", userMessage.id).eq("workspace_id", workspaceId);
       throw new Error(assistantError.message);
     }
 

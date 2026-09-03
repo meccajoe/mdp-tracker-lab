@@ -16,8 +16,8 @@ test("Ada quote revisions are immutable and render a reviewable quote canvas", (
   assert.match(sql, /unique \(workspace_id, revision_number\)/i);
   assert.ok(require("node:fs").existsSync(route));
   assert.ok(require("node:fs").existsSync(canvas));
-  assert.match(readFileSync(route, "utf8"), /requireAdaAccess/);
-  assert.match(readFileSync(route, "utf8"), /created_by_email/);
+  assert.match(readFileSync(route, "utf8"), /requireAdaWorkspaceAccess/);
+  assert.doesNotMatch(readFileSync(route, "utf8"), /created_by_email/);
   const canvasSource = readFileSync(canvas, "utf8");
   assert.match(canvasSource, /Internal cost/);
   assert.match(canvasSource, /Sell price/);

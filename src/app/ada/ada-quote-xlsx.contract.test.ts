@@ -13,7 +13,7 @@ test("Ada derives a formula-backed XLSX workbook from an immutable quote revisio
   assert.match(source, /SUM\(/);
   assert.match(source, /Internal Cost/);
   assert.match(source, /Sell Price/);
-  assert.match(routeSource, /requireAdaAccess/);
-  assert.match(routeSource, /created_by_email/);
+  assert.match(routeSource, /requireAdaWorkspaceAccess\(workspaceId\)/);
+  assert.doesNotMatch(routeSource, /created_by_email/);
   assert.match(routeSource, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/);
 });

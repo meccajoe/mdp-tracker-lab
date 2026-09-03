@@ -22,7 +22,7 @@ test("Ada intelligence is owner-scoped, bounded, and exposes cited Tracker evide
   assert.match(source, /budget_formula_settings/);
   assert.match(source, /MAX_EVIDENCE_PER_RESOURCE/);
   assert.match(source, /enforceComparableGate/);
-  assert.match(routeSource, /requireAdaAccess/);
-  assert.match(routeSource, /created_by_email/);
+  assert.match(routeSource, /requireAdaWorkspaceAccess\(workspaceId\)/);
+  assert.doesNotMatch(routeSource, /created_by_email/);
   assert.match(routeSource, /query/);
 });

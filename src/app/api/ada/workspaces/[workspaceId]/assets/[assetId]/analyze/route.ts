@@ -10,7 +10,7 @@ export async function POST(
   context: { params: Promise<{ workspaceId: string; assetId: string }> },
 ) {
   const { workspaceId, assetId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId);
+  const access = await requireAdaWorkspaceAccess(workspaceId, "attach_evidence");
   if (!access.ok) return access.response;
   const { data: asset, error: assetError } = await access.supabase
     .from("ada_quote_assets")

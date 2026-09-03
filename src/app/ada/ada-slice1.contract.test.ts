@@ -39,7 +39,10 @@ test("Ada exposes a quote-library route, workspace route, and authorized create 
   const surfaceSource = readFileSync(workspaceSurface, "utf8");
   const sidebarSource = readFileSync(sidebar, "utf8");
 
-  assert.match(routeSource, /requireAdaAccess\(/, "Ada create/list route should use the Joe-only server-side authorization guard");
+  assert.match(routeSource, /requireAdaIdentity\(/, "Ada create/list route should authenticate the actor before normalized authorization");
+  assert.match(routeSource, /quote_workspace_members/, "Ada listings should use normalized workspace membership");
+  assert.match(routeSource, /create_quote_workspace/, "Ada creation should use the capability-gated workspace RPC");
+  assert.doesNotMatch(routeSource, /requireAdaAccess\(/, "normalized quote authorization must not depend on the legacy Ada flag");
   assert.match(routeSource, /from\("ada_quote_workspaces"\)/);
   assert.match(workspaceSource, /AdaWorkspaceShell/);
   assert.match(shellSource, /AdaWorkspaceSurface/);

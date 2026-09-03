@@ -7,8 +7,8 @@ const route = join(root, "src/app/api/ada/workspaces/[workspaceId]/revisions/[re
 test("Ada creates a private Google working sheet from an owned quote revision", () => {
   assert.ok(existsSync(route));
   const source = readFileSync(route, "utf8");
-  assert.match(source, /requireAdaAccess/);
-  assert.match(source, /created_by_email/);
+  assert.match(source, /requireAdaWorkspaceAccess/);
+  assert.doesNotMatch(source, /\.eq\("created_by_email",\s*access\.actorEmail\)/);
   assert.match(source, /createPrivateAdaGoogleSheet/);
   assert.match(source, /revisionId/);
 });

@@ -7,7 +7,7 @@ export async function POST(
   context: { params: Promise<{ workspaceId: string }> },
 ) {
   const { workspaceId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId);
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft");
   if (!access.ok) return access.response;
   return NextResponse.json(
     { error: "Concepts are deferred. Continue this quote as one Chat with immutable revisions." },

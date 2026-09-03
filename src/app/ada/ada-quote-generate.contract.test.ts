@@ -24,7 +24,7 @@ test("Ada quote generation uses Opus, grounded context, and creates a revision",
   assert.match(source, /name: "finalize_ada_quote"/);
   assert.match(source, /tool_choice: \{ type: "tool", name: "finalize_ada_quote" \}/);
   assert.doesNotMatch(source, /text\.match\(\/\\\{\[\\s\\S\]\*\\\}\//, "quote generation must not parse freeform JSON text");
-  assert.match(routeSource, /requireAdaAccess/);
+  assert.match(routeSource, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
   assert.match(routeSource, /createAdaQuoteRevision/);
   assert.match(routeSource, /actorEmail: access\.actorEmail/);
 });

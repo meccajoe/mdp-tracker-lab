@@ -24,7 +24,7 @@ export async function GET(_request: Request, context: { params: Promise<{ worksp
 
 export async function POST(request: Request, context: { params: Promise<{ workspaceId: string; revisionId: string }> }) {
   const { workspaceId, revisionId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId); if (!access.ok) return access.response;
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
   const body = await request.json().catch(() => ({})) as { rangeA1?: unknown; values?: unknown };
   const rangeA1 = typeof body.rangeA1 === "string" ? body.rangeA1.trim() : "";
   const values = Array.isArray(body.values) ? body.values : null;

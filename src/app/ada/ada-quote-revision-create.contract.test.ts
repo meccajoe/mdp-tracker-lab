@@ -10,6 +10,6 @@ test("Ada creates sequential immutable quote revisions with validated totals", (
   assert.doesNotMatch(route, /body\.internalCost/);
   assert.doesNotMatch(route, /body\.sellPrice/);
   assert.doesNotMatch(route, /body\.marginPct/);
-  assert.match(route, /requireAdaAccess/);
+  assert.match(route, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
   assert.match(route, /actorEmail/);
 });

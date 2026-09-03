@@ -17,7 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ worksp
 
 export async function DELETE(_request: Request, context: { params: Promise<{ workspaceId: string; assetId: string }> }) {
   const { workspaceId, assetId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId);
+  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft");
   if (!access.ok) return access.response;
   const { data: asset, error } = await access.supabase.from("ada_quote_assets").select("id, concept_id, storage_path, original_name").eq("id", assetId).eq("workspace_id", workspaceId).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

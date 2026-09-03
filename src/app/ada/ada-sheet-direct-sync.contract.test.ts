@@ -18,5 +18,5 @@ test("Ada reads linked Sheets and persists direct-edit sync status without overw
   assert.match(source, /needs_review/);
   assert.match(source, /last_sync_at/);
   assert.match(source, /sync_conflicts_json/);
-  assert.match(source, /requireAdaAccess/);
+  assert.match(source, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
 });

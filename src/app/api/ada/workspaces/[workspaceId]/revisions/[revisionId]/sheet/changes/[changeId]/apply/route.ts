@@ -4,7 +4,7 @@ import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 export async function POST(_request: Request, context: { params: Promise<{ workspaceId: string; revisionId: string; changeId: string }> }) {
   const { workspaceId, revisionId, changeId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId); if (!access.ok) return access.response;
+  const access = await requireAdaWorkspaceAccess(workspaceId, "approve_change"); if (!access.ok) return access.response;
   const { data: revision } = await access.supabase.from("ada_quote_revisions").select("id").eq("id", revisionId).eq("workspace_id", workspaceId).maybeSingle();
   if (!revision) return NextResponse.json({ error: "Quote revision not found." }, { status: 404 });
   const { data: sheet } = await access.supabase.from("ada_quote_sheets").select("id, spreadsheet_id").eq("workspace_id", workspaceId).eq("revision_id", revisionId).maybeSingle();
