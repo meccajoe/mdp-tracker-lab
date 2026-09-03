@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 import { getLaborGlAccountDisplay } from "@/lib/labor-gl-accounts";
+import { parseLaborReviewPeriod } from "@/lib/labor-review-period";
 
 const contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const sheet = (rows: Record<string, unknown>[]) => XLSX.utils.json_to_sheet(rows);
@@ -9,7 +10,10 @@ const sheet = (rows: Record<string, unknown>[]) => XLSX.utils.json_to_sheet(rows
 export async function GET(request: NextRequest) {
   const actor = await requireProjectAdmin(request);
   if (!actor.ok) return actor.response;
-  const { data: draft, error } = await actor.supabase.from("labor_allocation_je_reviews").select("*").eq("period_start", "2026-07-01").eq("period_end", "2026-07-31").order("created_at", { ascending: false }).limit(1).single();
+  let period;
+  try { period = parseLaborReviewPeriod(request.nextUrl.searchParams.get("start"), request.nextUrl.searchParams.get("end")); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid labor review period." }, { status: 400 }); }
+  const { data: draft, error } = await actor.supabase.from("labor_allocation_je_reviews").select("*").eq("period_start", period.startDate).eq("period_end", period.endDate).order("created_at", { ascending: false }).limit(1).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet(Object.entries(draft.source_snapshot.tie_out ?? {}).map(([metric, value]) => ({ Metric: metric, Value: value }))), "Tie-out summary");
@@ -18,5 +22,5 @@ export async function GET(request: NextRequest) {
   XLSX.utils.book_append_sheet(workbook, sheet(draft.exception_rows.map((row: any) => ({ "Source Entry ID": row.id, Reason: row.reason }))), "Exceptions");
   XLSX.utils.book_append_sheet(workbook, sheet([{ "QBO Account ID": "427", "Source Account": "600100 Salaries & Wages", "Review Status": "Venturity review required" }, { "QBO Account ID": "392", "Source Account": "600150 Contract Labor", "Review Status": "Venturity review required" }]), "Source reconciliation");
   const body = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-  return new NextResponse(body, { headers: { "Content-Type": contentType, "Content-Disposition": 'attachment; filename="july-2026-labor-review-package.xlsx"' } });
+  return new NextResponse(body, { headers: { "Content-Type": contentType, "Content-Disposition": `attachment; filename="${period.fileKey}-labor-review-package.xlsx"` } });
 }

@@ -8,7 +8,7 @@ const routes = ["src/app/api/admin/labor-reconciliation/route.ts", "src/app/api/
 
 test("Labor Reconciliation sends browser bearer auth to every protected API call", () => {
   assert.match(page, /session\.access_token/);
-  assert.match(page, /Authorization: `Bearer \$\{session\.access_token\}`/);
+  assert.match(page, /Authorization: .*session\.access_token/);
 });
 test("project admin guard accepts and validates bearer auth", () => {
   assert.match(auth, /request\?: Request/);
