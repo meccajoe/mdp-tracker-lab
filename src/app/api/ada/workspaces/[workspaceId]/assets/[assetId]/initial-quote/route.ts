@@ -22,8 +22,8 @@ export async function POST(
   if (!access.ok) return access.response;
 
   const [workspaceResult, assetResult, existingResult] = await Promise.all([
-    access.supabase.from("ada_quote_workspaces").select("id,title,tracker_project_id,status").eq("id", workspaceId).eq("created_by_email", access.actorEmail).single(),
-    access.supabase.from("ada_quote_assets").select("id,original_name,mime_type,analysis_status,analysis_json").eq("id", assetId).eq("workspace_id", workspaceId).maybeSingle(),
+    access.supabase.from("ada_quote_workspaces").select("id,title,tracker_project_id,status").eq("id", workspaceId).single(),
+    access.supabase.from("ada_quote_assets").select("id,original_name,mime_type,analysis_status,analysis_json").eq("id", assetId).eq("workspace_id", workspaceId).is("archived_at", null).maybeSingle(),
     access.supabase.from("ada_quote_revisions").select("id,revision_number,quote_json,internal_cost,sell_price,margin_pct,assumptions_json,evidence_json,created_at").eq("workspace_id", workspaceId).order("revision_number", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (workspaceResult.error || assetResult.error || existingResult.error) return NextResponse.json({ error: workspaceResult.error?.message ?? assetResult.error?.message ?? existingResult.error?.message }, { status: 500 });
@@ -35,7 +35,7 @@ export async function POST(
 
   const [messagesResult, assetsResult] = await Promise.all([
     access.supabase.from("ada_quote_messages").select("role,content").eq("workspace_id", workspaceId).order("created_at"),
-    access.supabase.from("ada_quote_assets").select("id,original_name,mime_type,analysis_status,analysis_json").eq("workspace_id", workspaceId).eq("analysis_status", "ready").order("created_at"),
+    access.supabase.from("ada_quote_assets").select("id,original_name,mime_type,analysis_status,analysis_json").eq("workspace_id", workspaceId).eq("analysis_status", "ready").is("archived_at", null).order("created_at"),
   ]);
   if (messagesResult.error || assetsResult.error) return NextResponse.json({ error: messagesResult.error?.message ?? assetsResult.error?.message }, { status: 500 });
 
@@ -69,11 +69,17 @@ export async function POST(
       throw new Error(assistantError.message);
     }
 
-    const completedAt = new Date().toISOString();
-    await Promise.all([
-      access.supabase.from("ada_quote_events").insert({ workspace_id: workspaceId, concept_id: compatibilityThread.id, event_type: "drawing_initial_quote_created", actor_email: access.actorEmail, payload_json: { asset_id: assetId, revision_id: revision.id, revision_number: revision.revision_number, user_message_id: userMessage.id, assistant_message_id: assistantMessage.id } }),
-      access.supabase.from("ada_quote_workspaces").update({ last_activity_at: completedAt, status: "in_review" }).eq("id", workspaceId).eq("created_by_email", access.actorEmail),
-    ]);
+    const { error: eventError } = await access.actorSupabase.rpc("record_ada_compatibility_event", {
+      p_workspace_id: workspaceId,
+      p_concept_id: compatibilityThread.id,
+      p_event_type: "drawing_initial_quote_created",
+      p_actor_email: access.actorEmail,
+      p_actor_capability: "edit_draft",
+      p_workspace_status: "in_review",
+      p_payload_json: { asset_id: assetId, revision_id: revision.id, revision_number: revision.revision_number, user_message_id: userMessage.id, assistant_message_id: assistantMessage.id },
+      p_idempotency_key: `drawing-initial-quote:${workspaceId}:${revision.id}`,
+    });
+    if (eventError) throw new Error(eventError.message);
     return NextResponse.json({ created: true, revision, userMessage, assistantMessage }, { status: 201 });
   } catch (reason) {
     return NextResponse.json({ error: reason instanceof Error ? reason.message : "Ada could not create the initial quote from this drawing." }, { status: 500 });

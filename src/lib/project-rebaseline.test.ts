@@ -14,7 +14,6 @@ import {
 
 test("buildStoredQuoteSnapshotFromParsedQuote stores fabrication subtotal as the L&M quote basis", () => {
   const snapshot = buildStoredQuoteSnapshotFromParsedQuote({
-    contractAmount: 29055,
     quotes: {
       fabrication: 14330,
       design: 1000,
@@ -29,7 +28,6 @@ test("buildStoredQuoteSnapshotFromParsedQuote stores fabrication subtotal as the
       rental: 0,
       flooring: 1930,
     },
-    reclassified: [],
   });
 
   assert.equal(snapshot.quote_materials, 14330);
@@ -52,7 +50,6 @@ test("buildStoredQuoteSnapshotFromParsedQuote can apply the fabrication snapshot
   Object.assign(
     payload,
     buildStoredQuoteSnapshotFromParsedQuote({
-      contractAmount: 5000,
       quotes: {
         fabrication: 2000,
         design: 250,
@@ -67,7 +64,6 @@ test("buildStoredQuoteSnapshotFromParsedQuote can apply the fabrication snapshot
         rental: 0,
         flooring: 0,
       },
-      reclassified: [],
     })
   );
 
@@ -78,7 +74,6 @@ test("buildStoredQuoteSnapshotFromParsedQuote can apply the fabrication snapshot
 
 test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budgets for webhook resyncs", () => {
   const fields = buildHubspotQuoteSyncFields({
-    contractAmount: 29055,
     quotes: {
       fabrication: 14330,
       design: 1000,
@@ -93,7 +88,6 @@ test("buildHubspotQuoteSyncFields merges stored quote snapshot and derived budge
       rental: 0,
       flooring: 1930,
     },
-    reclassified: [],
   });
 
   assert.equal(fields.quote_materials, 14330);

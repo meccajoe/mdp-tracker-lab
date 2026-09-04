@@ -28,7 +28,7 @@ test("a newly uploaded client drawing is analyzed and becomes the first quote re
   assert.doesNotMatch(viewer, /before she can rely on this evidence/i);
 
   assert.match(route, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
-  assert.match(route, /analysis_status.*ready/s);
+  assert.match(route, /analysis_status[\s\S]*ready/);
   assert.match(route, /ada_quote_revisions/);
   assert.match(route, /existingRevision/);
   assert.match(route, /generateAdaQuote/);

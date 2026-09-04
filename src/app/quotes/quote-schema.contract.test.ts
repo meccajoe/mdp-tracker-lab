@@ -14,6 +14,21 @@ const foundationName = "20260903100000_quote_to_production_foundation.sql";
 const membershipsName = "20260903101000_quote_workspace_memberships.sql";
 const workflowName = "20260903102000_quote_workflow_events_and_outbox.sql";
 const backfillName = "20260903103000_quote_normalized_backfill.sql";
+const remoteVerificationSql = readFileSync(join(root, "tests/sql/release1-remote-verification.sql"), "utf8");
+
+test("manifest hashing resolves pgcrypto in local and Supabase extension schemas", () => {
+  const sql = migration(backfillName);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.quote_manifest_sha256[\s\S]*SET search_path = public, extensions[\s\S]*digest\(/i);
+});
+
+test("remote verification distinguishes authenticated workflow commands from internal maintenance RPCs", () => {
+  assert.doesNotMatch(
+    remoteVerificationSql,
+    /routine_name IN \([^)]*append_quote_workflow_event[^)]*\)[\s\S]{0,180}grantee IN \('PUBLIC','anon','authenticated'\)/i,
+  );
+  assert.match(remoteVerificationSql, /append_quote_workflow_event[\s\S]{0,300}grantee = 'authenticated'/i);
+  assert.match(remoteVerificationSql, /claim_integration_outbox[\s\S]{0,300}grantee = 'service_role'/i);
+});
 
 test("Release 1 foundation extends workspaces and revisions without renaming the Ada aggregate", () => {
   const sql = migration(foundationName);
@@ -125,6 +140,16 @@ test("workflow ledger is append-only and records full transition evidence", () =
   assert.match(sql, /operationally_released_revision_id\s*=\s*CASE/i);
   assert.match(sql, /GRANT EXECUTE[\s\S]*TO authenticated/i);
   assert.doesNotMatch(sql, /^GRANT EXECUTE ON FUNCTION public\.append_quote_workflow_event.* TO service_role;$/im);
+});
+
+test("workspace archive is a governed event and projection rather than a direct legacy update", () => {
+  const sql = migration(workflowName);
+  const route = readFileSync(join(root, "src/app/api/ada/workspaces/[workspaceId]/route.ts"), "utf8");
+  assert.match(sql, /WHEN event_name = 'workspace_archived' THEN[\s\S]*resulting = 'archived'/i);
+  assert.match(sql, /WHEN 'workspace_archived' THEN 'archive_workspace'/i);
+  assert.match(sql, /status = CASE WHEN p_event_type = 'workspace_archived' THEN 'archived'/i);
+  assert.match(route, /actorSupabase[\s\S]*\.rpc\("append_quote_workflow_event"/i);
+  assert.doesNotMatch(route, /\.update\(\{\s*status:\s*"archived"/i);
 });
 
 test("outbox has durable identity bounded retry and protected payload fields", () => {

@@ -17,13 +17,14 @@ export async function POST(
     .select("id, workspace_id, concept_id, storage_path, original_name, mime_type, analysis_status")
     .eq("id", assetId)
     .eq("workspace_id", workspaceId)
+    .is("archived_at", null)
     .maybeSingle();
 
   if (assetError) return NextResponse.json({ error: assetError.message }, { status: 500 });
   if (!asset) return NextResponse.json({ error: "Ada asset not found for this quote." }, { status: 404 });
   if (asset.analysis_status === "uploading") return NextResponse.json({ error: "Finish the file upload before analysis." }, { status: 409 });
 
-  await access.supabase.from("ada_quote_assets").update({ analysis_status: "analyzing", analysis_error: null }).eq("id", assetId);
+  await access.supabase.from("ada_quote_assets").update({ analysis_status: "analyzing", analysis_error: null }).eq("id", assetId).is("archived_at", null);
 
   try {
     const { data: download, error: downloadError } = await access.supabase.storage.from(ASSET_BUCKET).download(asset.storage_path);
@@ -36,6 +37,7 @@ export async function POST(
       .from("ada_quote_assets")
       .update({ analysis_status: "ready", analysis_json: analysisJson, analysis_error: null })
       .eq("id", assetId)
+      .is("archived_at", null)
       .select("id, analysis_status, analysis_json")
       .single();
 
@@ -44,7 +46,7 @@ export async function POST(
     return NextResponse.json({ asset: updated });
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : "Ada could not analyze this evidence.";
-    await access.supabase.from("ada_quote_assets").update({ analysis_status: "failed", analysis_error: message }).eq("id", assetId);
+    await access.supabase.from("ada_quote_assets").update({ analysis_status: "failed", analysis_error: message }).eq("id", assetId).is("archived_at", null);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

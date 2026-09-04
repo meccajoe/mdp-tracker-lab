@@ -24,7 +24,7 @@ export async function POST(
   const clientRequestId = typeof body.clientRequestId === "string" ? body.clientRequestId.trim() : "";
   if (!UUID_PATTERN.test(clientRequestId)) return NextResponse.json({ error: "A valid client request id is required." }, { status: 400 });
 
-  const { data: claimData, error: claimError } = await access.supabase.rpc("claim_ada_chat_turn", {
+  const { data: claimData, error: claimError } = await access.actorSupabase.rpc("claim_ada_chat_turn", {
     p_workspace_id: workspaceId,
     p_actor_email: access.actorEmail,
     p_client_request_id: clientRequestId,
@@ -74,11 +74,11 @@ export async function POST(
       void (async () => {
         try {
           send({ type: "status", phase: "context", label: "Gathering Tracker context…" });
-          const workspaceResult = await access.supabase.from("ada_quote_workspaces").select("title, client_name, contact_name, tracker_project_id, status").eq("id", workspaceId).eq("created_by_email", access.actorEmail).single();
+          const workspaceResult = await access.supabase.from("ada_quote_workspaces").select("title, client_name, contact_name, tracker_project_id, status").eq("id", workspaceId).single();
           if (workspaceResult.error) throw new Error(workspaceResult.error.message);
           const [messagesResult, assetsResult, revisionResult] = await Promise.all([
             access.supabase.from("ada_quote_messages").select("role, content, created_at").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(30),
-            access.supabase.from("ada_quote_assets").select("id, original_name, mime_type, analysis_json").eq("workspace_id", workspaceId).eq("analysis_status", "ready").order("created_at", { ascending: false }).limit(20),
+            access.supabase.from("ada_quote_assets").select("id, original_name, mime_type, analysis_json").eq("workspace_id", workspaceId).eq("analysis_status", "ready").is("archived_at", null).order("created_at", { ascending: false }).limit(20),
             access.supabase.from("ada_quote_revisions").select("id, revision_number, quote_json, internal_cost, sell_price, margin_pct, assumptions_json, evidence_json, created_at").eq("workspace_id", workspaceId).order("revision_number", { ascending: false }).limit(1).maybeSingle(),
           ]);
           if (messagesResult.error || assetsResult.error || revisionResult.error) throw new Error(messagesResult.error?.message ?? assetsResult.error?.message ?? revisionResult.error?.message ?? "Ada context could not load.");
@@ -115,10 +115,17 @@ export async function POST(
           const responseJson = { userMessage, assistantMessage, revision: revisionAction?.revision ?? null, revisionDelta: revisionAction?.revisionDelta ?? null };
           const completedTurn = await access.supabase.from("ada_chat_turns").update({ status: "completed", assistant_message_id: assistantMessage.id, revision_id: revisionAction?.revision.id ?? null, response_json: responseJson, error_message: null, completed_at: completedAt }).eq("id", turnId).eq("workspace_id", workspaceId).eq("actor_email", access.actorEmail.toLowerCase());
           if (completedTurn.error) throw new Error(completedTurn.error.message);
-          await Promise.all([
-            access.supabase.from("ada_quote_events").insert({ workspace_id: workspaceId, concept_id: compatibilityThreadId, event_type: "chat_turn_completed", actor_email: access.actorEmail, payload_json: { user_message_id: userMessage.id, assistant_message_id: assistantMessage.id, citations: generated.response.citations, quote_action: generated.response.quoteAction, model: generated.model } }),
-            access.supabase.from("ada_quote_workspaces").update({ last_activity_at: completedAt, status: revisionAction ? "in_review" : workspaceResult.data.status === "accepted" ? "accepted" : generated.response.needsInput.length ? "gathering_inputs" : workspaceResult.data.status }).eq("id", workspaceId).eq("created_by_email", access.actorEmail),
-          ]);
+          const { error: eventError } = await access.actorSupabase.rpc("record_ada_compatibility_event", {
+            p_workspace_id: workspaceId,
+            p_concept_id: compatibilityThreadId,
+            p_event_type: "chat_turn_completed",
+            p_actor_email: access.actorEmail,
+            p_actor_capability: "edit_draft",
+            p_workspace_status: revisionAction ? "in_review" : generated.response.needsInput.length ? "gathering_inputs" : null,
+            p_payload_json: { user_message_id: userMessage.id, assistant_message_id: assistantMessage.id, citations: generated.response.citations, quote_action: generated.response.quoteAction, model: generated.model },
+            p_idempotency_key: `chat-turn-completed:${workspaceId}:${turnId}`,
+          });
+          if (eventError) throw new Error(eventError.message);
           send({ type: "final", response: responseJson });
         } catch (reason) {
           const message = reason instanceof Error ? reason.message : "Ada could not complete this chat turn.";

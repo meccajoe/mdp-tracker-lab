@@ -34,7 +34,9 @@ test("Ada projects group multiple chats while legacy concept mechanics stay inte
   assert.match(detailSource, /export async function PATCH/);
   assert.match(detailSource, /export async function DELETE/);
   assert.match(detailSource, /requireAdaWorkspaceAccess\(/);
-  assert.match(detailSource, /status: "archived"/);
+  assert.match(detailSource, /actorSupabase\.rpc\("append_quote_workflow_event"/);
+  assert.match(detailSource, /p_event_type: "workspace_archived"/);
+  assert.doesNotMatch(detailSource, /\.update\(\{\s*status:\s*"archived"/);
   assert.doesNotMatch(detailSource, /storage\.from\(ASSET_BUCKET\)\.remove/);
   assert.match(surfaceSource, /New project/);
   assert.match(surfaceSource, /New chat/);

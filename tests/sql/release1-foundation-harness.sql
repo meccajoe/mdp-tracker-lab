@@ -46,6 +46,21 @@ CREATE TABLE public.ada_quote_concepts (
   status text NOT NULL,
   created_by_email text NOT NULL
 );
+CREATE TABLE public.ada_quote_assets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
+  concept_id uuid REFERENCES public.ada_quote_concepts(id) ON DELETE SET NULL,
+  storage_path text NOT NULL UNIQUE,
+  original_name text NOT NULL,
+  mime_type text NOT NULL,
+  byte_size bigint NOT NULL CHECK (byte_size > 0),
+  analysis_status text NOT NULL DEFAULT 'uploaded',
+  analysis_json jsonb,
+  analysis_error text,
+  created_by_email text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE public.ada_quote_revisions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
@@ -63,12 +78,61 @@ CREATE TABLE public.ada_quote_revisions (
 CREATE TABLE public.ada_quote_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
+  concept_id uuid REFERENCES public.ada_quote_concepts(id) ON DELETE SET NULL,
   event_type text NOT NULL,
   actor_email text,
   payload_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE public.ada_quote_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
+  concept_id uuid NOT NULL REFERENCES public.ada_quote_concepts(id) ON DELETE CASCADE,
+  role text NOT NULL,
+  content text NOT NULL,
+  structured_payload_json jsonb,
+  created_by_email text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.ada_chat_turns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
+  client_request_id uuid NOT NULL,
+  actor_email text NOT NULL,
+  request_content text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  user_message_id uuid REFERENCES public.ada_quote_messages(id) ON DELETE SET NULL,
+  assistant_message_id uuid REFERENCES public.ada_quote_messages(id) ON DELETE SET NULL,
+  revision_id uuid REFERENCES public.ada_quote_revisions(id) ON DELETE SET NULL,
+  response_json jsonb,
+  error_message text,
+  claimed_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (workspace_id, actor_email, client_request_id)
+);
+CREATE TABLE public.ada_quote_sheets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
+  revision_id uuid NOT NULL REFERENCES public.ada_quote_revisions(id) ON DELETE CASCADE,
+  spreadsheet_id text NOT NULL
+);
+CREATE TABLE public.ada_quote_sheet_changes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  sheet_id uuid NOT NULL REFERENCES public.ada_quote_sheets(id) ON DELETE CASCADE,
+  workspace_id uuid NOT NULL REFERENCES public.ada_quote_workspaces(id) ON DELETE CASCADE,
+  revision_id uuid NOT NULL REFERENCES public.ada_quote_revisions(id) ON DELETE CASCADE
+);
+CREATE TABLE public.ada_feedback (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id uuid REFERENCES public.ada_quote_workspaces(id) ON DELETE SET NULL,
+  submitted_by_email text NOT NULL,
+  category text NOT NULL,
+  message text NOT NULL
+);
 ALTER TABLE public.ada_quote_workspaces ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ada_quote_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ada_quote_revisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ada_quote_events ENABLE ROW LEVEL SECURITY;
 GRANT UPDATE ON public.ada_quote_workspaces TO service_role;
@@ -94,6 +158,15 @@ INSERT INTO public.ada_quote_revisions (id, workspace_id, revision_number, quote
 \ir ../../supabase/migrations/20260903102000_quote_workflow_events_and_outbox.sql
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
 
+CREATE TEMP TABLE workspace_less_revision_child (
+  id uuid PRIMARY KEY,
+  revision_id uuid NOT NULL,
+  note text
+);
+CREATE TRIGGER protect_archived_workspace_less_revision_child
+  BEFORE INSERT OR UPDATE OR DELETE ON workspace_less_revision_child
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+
 SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
 SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
 SET ROLE authenticated;
@@ -103,7 +176,21 @@ SELECT public.create_ada_quote_revision(
   '{"lineItems":[{"itemName":"Install labor","buildItem":"Install","clientPrice":1050,"internalCost":500,"lineType":"install","pricingBasis":"reviewed","evidenceRefs":[]}]}'::jsonb,
   500, 1050, 52.38, '[]'::jsonb, '[]'::jsonb
 );
+SELECT public.create_ada_quote_revision(
+  :'created_workspace_id'::uuid, 'owner@example.com',
+  '{"lineItems":[{"itemName":"Archive fixture","buildItem":"Fixture","clientPrice":100,"internalCost":50,"lineType":"fabrication","pricingBasis":"reviewed","evidenceRefs":[]}]}'::jsonb,
+  50, 100, 50, '[]'::jsonb, '[]'::jsonb
+);
 RESET ROLE;
+
+INSERT INTO workspace_less_revision_child (id, revision_id, note) VALUES
+  ('29000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'active workspace child');
+INSERT INTO workspace_less_revision_child (id, revision_id, note)
+SELECT '29000000-0000-0000-0000-000000000002', id, 'workspace to archive'
+FROM public.ada_quote_revisions
+WHERE workspace_id = (SELECT id FROM public.ada_quote_workspaces WHERE title = 'Atomic creation test')
+ORDER BY revision_number DESC
+LIMIT 1;
 
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -157,8 +244,77 @@ DO $$ BEGIN
     RAISE EXCEPTION 'Unauthorized workspace creation left a partial row.';
   END IF;
 END $$;
+
 SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
 SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
+SELECT id AS archive_workspace_id, row_version AS archive_row_version
+FROM public.ada_quote_workspaces WHERE title = 'Atomic creation test' \gset
+SELECT set_config('test.archive_workspace_id', :'archive_workspace_id', false);
+INSERT INTO public.ada_quote_assets (
+  id, workspace_id, storage_path, original_name, mime_type, byte_size, analysis_status, created_by_email
+) VALUES (
+  '12000000-0000-0000-0000-000000000004', :'archive_workspace_id',
+  'archived/reassignment-fixture.pdf', 'reassignment-fixture.pdf',
+  'application/pdf', 10, 'uploaded', 'owner@example.com'
+);
+SET ROLE authenticated;
+SELECT public.append_quote_workflow_event(
+  :'archive_workspace_id',
+  NULL,
+  'workspace_archived',
+  'owner@example.com',
+  'owner',
+  'archive_workspace',
+  :'archive_row_version',
+  'archived',
+  'Operator archived workspace',
+  '[]'::jsonb,
+  '{}'::jsonb,
+  'test:workspace-archive:1'
+);
+RESET ROLE;
+SELECT set_config(
+  'test.archive_row_version',
+  (SELECT row_version::text FROM public.ada_quote_workspaces WHERE id = :'archive_workspace_id'),
+  false
+);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.quote_workflow_events e
+    JOIN public.ada_quote_workspaces w ON w.id = e.workspace_id
+    WHERE w.title = 'Atomic creation test' AND e.event_type = 'workspace_archived'
+  ) THEN RAISE EXCEPTION 'Workspace archive omitted governed evidence.'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_workspaces
+    WHERE title = 'Atomic creation test'
+      AND lifecycle_status = 'archived' AND status = 'archived' AND archived_at IS NOT NULL
+  ) THEN RAISE EXCEPTION 'Workspace archive did not project canonical and compatibility state.'; END IF;
+  BEGIN
+    UPDATE workspace_less_revision_child
+    SET note = 'must fail after archive'
+    WHERE id = '29000000-0000-0000-0000-000000000002';
+    RAISE EXCEPTION 'Workspace-less child mutation unexpectedly succeeded after archive.';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
+  END;
+  BEGIN
+    UPDATE workspace_less_revision_child
+    SET revision_id = '20000000-0000-0000-0000-000000000001'
+    WHERE id = '29000000-0000-0000-0000-000000000002';
+    RAISE EXCEPTION 'Workspace-less child reassignment escaped archived source protection.';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
+  END;
+  BEGIN
+    UPDATE workspace_less_revision_child
+    SET revision_id = (
+      SELECT id FROM public.ada_quote_revisions
+      WHERE workspace_id = current_setting('test.archive_workspace_id')::uuid
+      ORDER BY revision_number DESC LIMIT 1
+    )
+    WHERE id = '29000000-0000-0000-0000-000000000001';
+    RAISE EXCEPTION 'Workspace-less child reassignment escaped archived destination protection.';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
+  END;
+END $$;
 
 SELECT id, normalization_status, normalization_exception
 FROM public.ada_quote_revisions
@@ -326,14 +482,177 @@ END $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
 
+CREATE TEMP TABLE approved_workspace_status_before AS
+SELECT status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001';
+SET ROLE authenticated;
+SELECT public.record_ada_compatibility_event(
+  '10000000-0000-0000-0000-000000000001', NULL, 'chat_turn_completed',
+  'owner@example.com', 'edit_draft', 'gathering_inputs', '{}'::jsonb,
+  'test:approved-workspace-compatibility:1'
+);
+RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001')
+     IS DISTINCT FROM (SELECT status FROM approved_workspace_status_before) THEN
+    RAISE EXCEPTION 'Compatibility event regressed status after canonical commercial approval.';
+  END IF;
+END $$;
+
+INSERT INTO public.ada_quote_workspaces (id, workspace_number, title, created_by_email, status)
+VALUES ('10000000-0000-0000-0000-000000000003', 'QW-GOVERNED-FIXTURE', 'Governed compatibility fixture', 'owner@example.com', 'draft');
+INSERT INTO public.ada_quote_projects (id, created_by_email)
+VALUES ('13000000-0000-0000-0000-000000000003', 'outsider@example.com');
+INSERT INTO public.quote_workspace_members (workspace_id, user_id, email_normalized, workspace_role, added_by)
+VALUES ('10000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'owner@example.com', 'owner', 'release-1-test');
+INSERT INTO public.ada_quote_concepts (id, workspace_id, label, mode, status, created_by_email)
+VALUES ('11000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', 'Compatibility', 'standard', 'draft', 'owner@example.com');
+INSERT INTO public.ada_quote_assets (
+  id, workspace_id, concept_id, storage_path, original_name,
+  mime_type, byte_size, analysis_status, created_by_email
+) VALUES (
+  '12000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003',
+  '11000000-0000-0000-0000-000000000003', 'governed/fixture.pdf',
+  'fixture.pdf', 'application/pdf', 10, 'uploaded', 'owner@example.com'
+);
+
+SET ROLE authenticated;
+SELECT public.record_ada_compatibility_event(
+  '10000000-0000-0000-0000-000000000003', '11000000-0000-0000-0000-000000000003',
+  'asset_uploaded', 'owner@example.com', 'attach_evidence', 'gathering_inputs',
+  '{"asset_id":"12000000-0000-0000-0000-000000000003"}'::jsonb,
+  'test:compatibility-event:1'
+);
+SELECT public.record_ada_compatibility_event(
+  '10000000-0000-0000-0000-000000000003', '11000000-0000-0000-0000-000000000003',
+  'asset_uploaded', 'owner@example.com', 'attach_evidence', 'gathering_inputs',
+  '{"asset_id":"12000000-0000-0000-0000-000000000003"}'::jsonb,
+  'test:compatibility-event:1'
+);
+SELECT public.update_ada_quote_workspace_metadata(
+  '10000000-0000-0000-0000-000000000003', 'owner@example.com',
+  'Updated governed fixture', 'Client', 'Contact', NULL
+);
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.update_ada_quote_workspace_metadata(
+      '10000000-0000-0000-0000-000000000003', 'owner@example.com',
+      'Cross-owner project', 'Client', 'Contact', '13000000-0000-0000-0000-000000000003'
+    );
+    RAISE EXCEPTION 'Metadata service attached another actor''s project.';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+SELECT public.archive_ada_quote_asset(
+  '10000000-0000-0000-0000-000000000003', '12000000-0000-0000-0000-000000000003',
+  'owner@example.com', 'test:asset-archive:1'
+);
+SELECT public.archive_ada_quote_asset(
+  '10000000-0000-0000-0000-000000000003', '12000000-0000-0000-0000-000000000003',
+  'owner@example.com', 'test:asset-archive:1'
+);
+RESET ROLE;
+
+SET ROLE authenticated;
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.record_ada_compatibility_event(
+      current_setting('test.archive_workspace_id')::uuid,
+      NULL, 'chat_turn_completed', 'owner@example.com',
+      'edit_draft', NULL, '{}'::jsonb, 'test:archived-compatibility:1'
+    );
+    RAISE EXCEPTION 'Archived workspace accepted a compatibility event.';
+  EXCEPTION WHEN sqlstate '55000' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.update_ada_quote_workspace_metadata(
+      current_setting('test.archive_workspace_id')::uuid,
+      'owner@example.com', 'Mutated after archive', NULL, NULL, NULL
+    );
+    RAISE EXCEPTION 'Archived workspace accepted a metadata update.';
+  EXCEPTION WHEN sqlstate '55000' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.append_quote_workflow_event(
+      current_setting('test.archive_workspace_id')::uuid,
+      NULL, 'evidence_attached', 'owner@example.com', 'owner',
+      'attach_evidence',
+      current_setting('test.archive_row_version')::bigint,
+      'archived', NULL, '[]'::jsonb, '{}'::jsonb, 'test:archived-canonical-event:1'
+    );
+    RAISE EXCEPTION 'Archived workspace accepted a canonical no-op event.';
+  EXCEPTION WHEN sqlstate 'P0001' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+DO $$ BEGIN
+  IF (SELECT status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000003') <> 'gathering_inputs' THEN
+    RAISE EXCEPTION 'Compatibility status was not projected from its immutable event.';
+  END IF;
+  IF (SELECT title FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000003') <> 'Updated governed fixture' THEN
+    RAISE EXCEPTION 'Authenticated metadata service did not update the workspace.';
+  END IF;
+  IF (SELECT count(*) FROM public.ada_quote_events WHERE idempotency_key = 'test:compatibility-event:1') <> 1 THEN
+    RAISE EXCEPTION 'Compatibility event idempotency key created duplicate evidence.';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_assets
+    WHERE id = '12000000-0000-0000-0000-000000000003'
+      AND archived_at IS NOT NULL
+      AND archived_by_email = 'owner@example.com'
+  ) THEN
+    RAISE EXCEPTION 'Evidence archive did not preserve and mark the asset row.';
+  END IF;
+  IF (SELECT count(*) FROM public.ada_quote_events WHERE idempotency_key = 'test:asset-archive:1') <> 1 THEN
+    RAISE EXCEPTION 'Evidence archive idempotency key created duplicate evidence.';
+  END IF;
+END $$;
+
 GRANT SELECT ON public.ada_quote_revisions TO service_role;
 GRANT SELECT, UPDATE ON public.quote_revision_line_work_packages TO service_role;
+GRANT SELECT, UPDATE ON public.ada_quote_workspaces TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ada_quote_assets TO service_role;
 SET ROLE service_role;
 SELECT set_config('app.quote_projection_writer', 'on', false);
 DO $$ BEGIN
   BEGIN
+    INSERT INTO public.ada_quote_assets (
+      workspace_id, storage_path, original_name, mime_type, byte_size, analysis_status, created_by_email
+    ) VALUES (
+      current_setting('test.archive_workspace_id')::uuid, 'archived/forbidden.pdf',
+      'forbidden.pdf', 'application/pdf', 10, 'uploaded', 'owner@example.com'
+    );
+    RAISE EXCEPTION 'Service role inserted evidence after workspace archive.';
+  EXCEPTION WHEN sqlstate '55000' THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.ada_quote_assets
+    SET workspace_id = '10000000-0000-0000-0000-000000000003'
+    WHERE id = '12000000-0000-0000-0000-000000000004';
+    RAISE EXCEPTION 'Service role moved evidence out of an archived workspace.';
+  EXCEPTION WHEN sqlstate '55000' THEN NULL;
+  END;
+  BEGIN
     UPDATE public.ada_quote_workspaces SET lifecycle_status = 'closed' WHERE id = '10000000-0000-0000-0000-000000000001';
     RAISE EXCEPTION 'Service role forged the projection-writer setting.';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.ada_quote_workspaces SET status = 'estimating' WHERE id = '10000000-0000-0000-0000-000000000003';
+    RAISE EXCEPTION 'Service role directly changed a compatibility status projection.';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.ada_quote_assets WHERE id = '12000000-0000-0000-0000-000000000003';
+    RAISE EXCEPTION 'Service role physically deleted governed evidence.';
+  EXCEPTION WHEN sqlstate '55000' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.record_ada_compatibility_event(
+      '10000000-0000-0000-0000-000000000003', NULL, 'chat_turn_completed',
+      'owner@example.com', 'edit_draft', NULL, '{}'::jsonb, 'test:service-role-compatibility:1'
+    );
+    RAISE EXCEPTION 'Service role executed the human compatibility RPC.';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
   BEGIN
@@ -390,9 +709,9 @@ END $$;
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
 
 DO $$ BEGIN
-  IF (SELECT count(*) FROM public.work_packages) <> 3 OR
-     (SELECT count(*) FROM public.quote_revision_lines) <> 3 OR
-     (SELECT count(*) FROM public.quote_revision_line_work_packages) <> 3 THEN
+  IF (SELECT count(*) FROM public.work_packages) <> 4 OR
+     (SELECT count(*) FROM public.quote_revision_lines) <> 4 OR
+     (SELECT count(*) FROM public.quote_revision_line_work_packages) <> 4 THEN
     RAISE EXCEPTION 'Rerun changed normalized row counts.';
   END IF;
   IF (SELECT lifecycle_status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> 'commercial_approved' THEN

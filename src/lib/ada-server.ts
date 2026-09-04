@@ -56,7 +56,10 @@ export async function requireAdaWorkspaceAccess(workspaceId: string, action: Quo
   if (!canPerformQuoteAction(authorization.actor, action)) {
     return { ok: false as const, response: NextResponse.json({ error: "Quote Workspace access required." }, { status: 403 }) };
   }
-  return { ...access, quoteActor: authorization.actor };
+  if (action !== "view_workspace" && authorization.workspaceLifecycle === "archived") {
+    return { ok: false as const, response: NextResponse.json({ error: "Archived Quote Workspaces are read-only." }, { status: 409 }) };
+  }
+  return { ...access, quoteActor: authorization.actor, workspaceLifecycle: authorization.workspaceLifecycle };
 }
 
 export async function resolveQuoteWorkspaceAuthorization(
@@ -78,6 +81,18 @@ export async function resolveQuoteWorkspaceAuthorization(
     return { ok: false as const, response: NextResponse.json({ error: "Ada chat not found." }, { status: 404 }) };
   }
 
+  const workspaceResult = await access.supabase
+    .from("ada_quote_workspaces")
+    .select("lifecycle_status")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  if (workspaceResult.error) {
+    return { ok: false as const, response: NextResponse.json({ error: workspaceResult.error.message }, { status: 500 }) };
+  }
+  if (!workspaceResult.data) {
+    return { ok: false as const, response: NextResponse.json({ error: "Ada chat not found." }, { status: 404 }) };
+  }
+
   const capabilityResult = await access.supabase
     .from("quote_user_capabilities")
     .select("capability")
@@ -95,7 +110,7 @@ export async function resolveQuoteWorkspaceAuthorization(
     capabilities: (capabilityResult.data ?? []).map((row: { capability: string }) => row.capability),
     isActiveMember: true,
   };
-  return { ok: true as const, actor };
+  return { ok: true as const, actor, workspaceLifecycle: workspaceResult.data.lifecycle_status as string };
 }
 
 export async function resolveAdaCompatibilityThread(access: { supabase: any; actorEmail: string }, workspaceId: string) {

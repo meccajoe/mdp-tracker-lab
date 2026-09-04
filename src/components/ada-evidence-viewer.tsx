@@ -21,7 +21,7 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const visibleAssets = assets;
@@ -60,20 +60,20 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
     }
   }
 
-  async function deleteAsset() {
-    if (!selected || !window.confirm(`Delete ${selected.original_name}? This removes the uploaded file and its analysis.`)) return;
-    setDeletingId(selected.id);
+  async function archiveAsset() {
+    if (!selected || !window.confirm(`Archive ${selected.original_name}? The file and its analysis will be retained in governed history.`)) return;
+    setArchivingId(selected.id);
     setError(null);
     try {
       const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/assets/${selected.id}`, { method: "DELETE" });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error ?? "Could not delete this file.");
+      if (!response.ok) throw new Error(result.error ?? "Could not archive this file.");
       setSelectedId("");
       await onChanged();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not delete this file.");
+      setError(reason instanceof Error ? reason.message : "Could not archive this file.");
     } finally {
-      setDeletingId(null);
+      setArchivingId(null);
     }
   }
 
@@ -83,6 +83,6 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
     <div className="flex min-h-0 flex-1 flex-col">{visibleAssets.length ? <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3 py-2">{visibleAssets.map((asset) => <button key={asset.id} type="button" onClick={() => setSelectedId(asset.id)} className={`max-w-44 shrink-0 rounded-md px-2 py-1.5 text-left text-xs ${asset.id === selected?.id ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-accent"}`}><span className="block truncate">{asset.original_name}</span></button>)}</div> : null}
       <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/15 p-4">{!selected ? <div className="max-w-xs text-center"><p className="text-sm font-medium">Add a drawing, PDF, or image</p><p className="mt-1 text-sm text-muted-foreground">Attach it from the chat composer. Ada will analyze it and create the first quote automatically.</p></div> : null}{selected && !previewUrl ? <p className="text-sm text-muted-foreground">Loading secure preview…</p> : null}{selected?.mime_type === "application/pdf" && previewUrl ? <iframe title={`PDF preview: ${selected.original_name}, page ${page}`} src={`${previewUrl}#page=${page}`} className="h-full min-h-[28rem] w-full bg-white" /> : null}{selected && selected.mime_type.startsWith("image/") && previewUrl ? <img src={previewUrl} alt={selected.original_name} className="h-full max-h-full w-full object-contain" /> : null}</div>{selected?.analysis_json?.questions?.length ? <section aria-label="Needs input" className="border-t border-border p-4"><p className="text-sm font-semibold">Improve the next revision</p><p className="mt-1 text-xs text-muted-foreground">Ada used working assumptions for the initial quote. Answer these where they would materially improve the estimate.</p>{selected.analysis_json.questions.map((question) => <div key={question} className="mt-2 flex items-start justify-between gap-2 text-sm"><span>{question}</span><button type="button" onClick={() => onAskInChat(question)} className="shrink-0 rounded border border-border px-2 py-1 text-xs">Ask in chat</button></div>)}</section> : null}
     </div>
-    {selected ? <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-3"><div className="flex items-center gap-1"><button type="button" aria-label="Previous PDF page" disabled={selected.mime_type !== "application/pdf" || page <= 1} onClick={() => setPage(page - 1)} className="h-7 rounded border px-2 text-xs disabled:opacity-40">←</button><p className="min-w-0 truncate text-xs text-muted-foreground">{selected.mime_type === "application/pdf" ? `Page ${page}` : selected.analysis_status === "uploaded" ? "Ready to analyze" : selected.analysis_status}</p><button type="button" aria-label="Next PDF page" disabled={selected.mime_type !== "application/pdf"} onClick={() => setPage(page + 1)} className="h-7 rounded border px-2 text-xs disabled:opacity-40">→</button></div><div className="flex items-center gap-2"><button type="button" aria-label="Delete file" disabled={deletingId === selected.id} onClick={() => void deleteAsset()} className="h-8 rounded-md px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50">{deletingId === selected.id ? "Deleting…" : "Delete"}</button><button disabled={selected.analysis_status === "analyzing" || analyzingId === selected.id || selected.analysis_status === "uploading"} type="button" onClick={() => void analyzeAsset()} className="h-8 rounded-md border border-border px-2.5 text-xs font-medium hover:bg-accent disabled:opacity-50">{analyzingId === selected.id || selected.analysis_status === "analyzing" ? "Analyzing…" : "Analyze"}</button></div></footer> : null}
+    {selected ? <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-3"><div className="flex items-center gap-1"><button type="button" aria-label="Previous PDF page" disabled={selected.mime_type !== "application/pdf" || page <= 1} onClick={() => setPage(page - 1)} className="h-7 rounded border px-2 text-xs disabled:opacity-40">←</button><p className="min-w-0 truncate text-xs text-muted-foreground">{selected.mime_type === "application/pdf" ? `Page ${page}` : selected.analysis_status === "uploaded" ? "Ready to analyze" : selected.analysis_status}</p><button type="button" aria-label="Next PDF page" disabled={selected.mime_type !== "application/pdf"} onClick={() => setPage(page + 1)} className="h-7 rounded border px-2 text-xs disabled:opacity-40">→</button></div><div className="flex items-center gap-2"><button type="button" aria-label="Archive file" disabled={archivingId === selected.id} onClick={() => void archiveAsset()} className="h-8 rounded-md px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50">{archivingId === selected.id ? "Archiving…" : "Archive"}</button><button disabled={selected.analysis_status === "analyzing" || analyzingId === selected.id || selected.analysis_status === "uploading"} type="button" onClick={() => void analyzeAsset()} className="h-8 rounded-md border border-border px-2.5 text-xs font-medium hover:bg-accent disabled:opacity-50">{analyzingId === selected.id || selected.analysis_status === "analyzing" ? "Analyzing…" : "Analyze"}</button></div></footer> : null}
   </aside>;
 }

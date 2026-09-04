@@ -21,12 +21,12 @@ test("Ada follows Codex composition: attachment from composer and a controlled f
   assert.match(uploadSource, /aria-label="Attach file"/);
   assert.match(detailSource, /setShowEvidence\(true\)/);
   assert.match(detailSource, /Open files/);
-  assert.match(evidenceSource, /Delete file/);
+  assert.match(evidenceSource, /Archive file/);
   assert.match(evidenceSource, /method: "DELETE"/);
   assert.match(uploadSource, /uploadToSignedUrl/);
   assert.match(uploadSource, /onUploaded/);
   assert.match(routeSource, /export async function DELETE/);
   assert.match(routeSource, /requireAdaWorkspaceAccess\(/);
-  assert.match(routeSource, /storage\.from\(ASSET_BUCKET\)\.remove/);
-  assert.match(routeSource, /asset_deleted/);
+  assert.match(routeSource, /archive_ada_quote_asset/);
+  assert.doesNotMatch(routeSource, /storage\.from\(ASSET_BUCKET\)\.remove/);
 });

@@ -4,7 +4,6 @@ DO $$
 DECLARE cascade_count integer;
 DECLARE missing_table_count integer;
 DECLARE missing_trigger_count integer;
-DECLARE unsafe_authenticated_execute_count integer;
 BEGIN
   SELECT count(*) INTO missing_table_count
   FROM unnest(ARRAY[
@@ -30,13 +29,31 @@ BEGIN
   WHERE NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = expected.trigger_name AND NOT tgisinternal);
   IF missing_trigger_count <> 0 THEN RAISE EXCEPTION '% required Release 1 triggers are missing.', missing_trigger_count; END IF;
 
-  SELECT count(*) INTO unsafe_authenticated_execute_count
-  FROM information_schema.routine_privileges
-  WHERE routine_schema = 'public'
-    AND routine_name IN ('append_quote_workflow_event','claim_integration_outbox','normalize_legacy_quote_revision')
-    AND grantee IN ('PUBLIC','anon','authenticated')
-    AND privilege_type = 'EXECUTE';
-  IF unsafe_authenticated_execute_count <> 0 THEN RAISE EXCEPTION 'Privileged Release 1 functions are directly executable by browser roles.'; END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public' AND routine_name = 'append_quote_workflow_event'
+      AND grantee IN ('PUBLIC','anon','service_role') AND privilege_type = 'EXECUTE'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public' AND routine_name = 'append_quote_workflow_event'
+      AND grantee = 'authenticated' AND privilege_type = 'EXECUTE'
+  ) THEN RAISE EXCEPTION 'Workflow event append does not have the authenticated actor-only grant contract.'; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public' AND routine_name = 'claim_integration_outbox'
+      AND grantee IN ('PUBLIC','anon','authenticated') AND privilege_type = 'EXECUTE'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public' AND routine_name = 'claim_integration_outbox'
+      AND grantee = 'service_role' AND privilege_type = 'EXECUTE'
+  ) THEN RAISE EXCEPTION 'Outbox claim does not have the service-role-only grant contract.'; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public' AND routine_name = 'normalize_legacy_quote_revision'
+      AND grantee IN ('PUBLIC','anon','authenticated','service_role') AND privilege_type = 'EXECUTE'
+  ) THEN RAISE EXCEPTION 'Normalization is directly executable outside its governed owner context.'; END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.ada_quote_revisions

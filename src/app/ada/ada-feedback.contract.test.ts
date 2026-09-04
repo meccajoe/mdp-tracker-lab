@@ -23,9 +23,9 @@ test("Ada exposes a persistent authenticated feedback control on every Ada scree
   assert.match(migrationSource, /status text not null default 'new'/i);
   assert.match(migrationSource, /enable row level security/i);
 
-  assert.match(routeSource, /requireAdaAccess\(\)/);
+  assert.match(routeSource, /requireAdaWorkspaceAccess\(input\.workspaceId, "edit_draft"\)/);
   assert.match(routeSource, /parseAdaFeedbackInput/);
-  assert.match(routeSource, /created_by_email.*access\.actorEmail/s);
+  assert.doesNotMatch(routeSource, /\.eq\("created_by_email", access\.actorEmail\)/);
   assert.match(routeSource, /from\("ada_feedback"\)\.insert/);
 
   assert.match(widgetSource, /aria-label="Send feedback"/);

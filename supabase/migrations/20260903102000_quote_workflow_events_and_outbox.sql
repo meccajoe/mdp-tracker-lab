@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.quote_workflow_events (
     'customer_accepted','customer_acceptance_revoked_or_voided','production_readiness_confirmed',
     'operational_release_approved','operationally_released','release_blocked','change_requested','change_approved',
     'work_package_corrected','labor_coding_corrected','project_activated','project_completed','postmortem_started',
-    'postmortem_approved','lesson_approved','lesson_withdrawn'
+    'postmortem_approved','lesson_approved','lesson_withdrawn','workspace_archived'
   )),
   CONSTRAINT quote_workflow_events_actor_check CHECK (nullif(btrim(actor_email), '') IS NOT NULL AND actor_email = lower(btrim(actor_email)) AND nullif(btrim(actor_capability), '') IS NOT NULL),
   CONSTRAINT quote_workflow_events_state_check CHECK (nullif(btrim(prior_state), '') IS NOT NULL AND nullif(btrim(resulting_state), '') IS NOT NULL),
@@ -35,6 +35,17 @@ CREATE INDEX IF NOT EXISTS idx_quote_workflow_events_workspace_time
 CREATE INDEX IF NOT EXISTS idx_quote_workflow_events_revision_time
   ON public.quote_workflow_events (revision_id, occurred_at, event_id)
   WHERE revision_id IS NOT NULL;
+
+ALTER TABLE public.ada_quote_events ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ada_quote_events_idempotency
+  ON public.ada_quote_events (idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
+ALTER TABLE public.ada_quote_assets ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+ALTER TABLE public.ada_quote_assets ADD COLUMN IF NOT EXISTS archived_by_email text;
+CREATE INDEX IF NOT EXISTS idx_ada_quote_assets_workspace_active
+  ON public.ada_quote_assets (workspace_id, created_at)
+  WHERE archived_at IS NULL;
 
 CREATE OR REPLACE FUNCTION public.jsonb_contains_sensitive_material(value jsonb)
 RETURNS boolean
@@ -129,6 +140,11 @@ CREATE TRIGGER reject_quote_workflow_event_mutation
   BEFORE UPDATE OR DELETE ON public.quote_workflow_events
   FOR EACH ROW EXECUTE FUNCTION public.reject_append_only_mutation();
 
+DROP TRIGGER IF EXISTS reject_ada_quote_event_mutation ON public.ada_quote_events;
+CREATE TRIGGER reject_ada_quote_event_mutation
+  BEFORE UPDATE OR DELETE ON public.ada_quote_events
+  FOR EACH ROW EXECUTE FUNCTION public.reject_append_only_mutation();
+
 CREATE OR REPLACE FUNCTION public.protect_integration_outbox_identity()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
@@ -150,12 +166,16 @@ CREATE TRIGGER protect_integration_outbox_identity
 CREATE OR REPLACE FUNCTION public.protect_quote_workspace_projection()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
-  IF (NEW.lifecycle_status, NEW.current_revision_id, NEW.commercial_approved_revision_id, NEW.hubspot_published_revision_id, NEW.customer_accepted_revision_id, NEW.operationally_released_revision_id)
+  IF (NEW.status, NEW.lifecycle_status, NEW.current_revision_id, NEW.commercial_approved_revision_id, NEW.hubspot_published_revision_id, NEW.customer_accepted_revision_id, NEW.operationally_released_revision_id)
      IS DISTINCT FROM
-     (OLD.lifecycle_status, OLD.current_revision_id, OLD.commercial_approved_revision_id, OLD.hubspot_published_revision_id, OLD.customer_accepted_revision_id, OLD.operationally_released_revision_id)
+     (OLD.status, OLD.lifecycle_status, OLD.current_revision_id, OLD.commercial_approved_revision_id, OLD.hubspot_published_revision_id, OLD.customer_accepted_revision_id, OLD.operationally_released_revision_id)
      AND (
        to_regprocedure('public.append_quote_workflow_event(uuid,uuid,text,text,text,text,bigint,text,text,jsonb,jsonb,text)') IS NULL
        OR current_user <> pg_get_userbyid((SELECT proowner FROM pg_proc WHERE oid = 'public.append_quote_workflow_event(uuid,uuid,text,text,text,text,bigint,text,text,jsonb,jsonb,text)'::regprocedure))
+     )
+     AND (
+       to_regprocedure('public.record_ada_compatibility_event(uuid,uuid,text,text,text,text,jsonb,text)') IS NULL
+       OR current_user <> pg_get_userbyid((SELECT proowner FROM pg_proc WHERE oid = 'public.record_ada_compatibility_event(uuid,uuid,text,text,text,text,jsonb,text)'::regprocedure))
      ) THEN
     RAISE EXCEPTION 'Quote lifecycle projections may change only through the workflow service.' USING ERRCODE = '42501';
   END IF;
@@ -172,7 +192,7 @@ CREATE TRIGGER protect_quote_workspace_projection
 CREATE OR REPLACE FUNCTION public.is_quote_transition_allowed(prior text, resulting text, event_name text)
 RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE
-    WHEN event_name IN ('evidence_attached','proposal_created','proposal_accepted','proposal_rejected','proposal_edited','change_requested','work_package_corrected','labor_coding_corrected','lesson_approved','lesson_withdrawn') THEN prior = resulting
+    WHEN event_name IN ('evidence_attached','proposal_created','proposal_accepted','proposal_rejected','proposal_edited','change_requested','work_package_corrected','labor_coding_corrected','lesson_approved','lesson_withdrawn') THEN prior = resulting AND prior <> 'archived'
     WHEN event_name = 'revision_created' THEN prior IN ('intake','draft','internal_review') AND resulting = 'draft'
     WHEN event_name = 'revision_submitted_for_review' THEN prior = 'draft' AND resulting = 'internal_review'
     WHEN event_name = 'commercial_approved' THEN prior = 'internal_review' AND resulting = 'commercial_approved'
@@ -192,6 +212,7 @@ RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
     WHEN event_name = 'postmortem_started' THEN prior = 'completed' AND resulting = 'postmortem_review'
     WHEN event_name = 'postmortem_approved' THEN prior IN ('completed','postmortem_review') AND resulting = 'closed'
     WHEN event_name = 'workspace_created' THEN prior = 'intake' AND resulting = 'intake'
+    WHEN event_name = 'workspace_archived' THEN prior <> 'archived' AND resulting = 'archived'
     ELSE false
   END
 $$;
@@ -229,8 +250,349 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $$
     WHEN 'postmortem_approved' THEN 'approve_postmortem'
     WHEN 'lesson_approved' THEN 'approve_lesson'
     WHEN 'lesson_withdrawn' THEN 'approve_lesson'
+    WHEN 'workspace_archived' THEN 'archive_workspace'
     ELSE NULL
   END
+$$;
+
+CREATE OR REPLACE FUNCTION public.quote_actor_has_workspace_capability(
+  p_workspace_id uuid,
+  p_actor_email text,
+  p_capability text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.quote_workspace_members member
+    WHERE member.workspace_id = p_workspace_id
+      AND member.user_id = auth.uid()
+      AND member.email_normalized = lower(btrim(p_actor_email))
+      AND member.removed_at IS NULL
+      AND (
+        (member.workspace_role = 'owner' AND p_capability IN ('create_workspace','attach_evidence','edit_draft','submit_review','archive_workspace')) OR
+        (member.workspace_role = 'editor' AND p_capability IN ('create_workspace','attach_evidence','edit_draft','submit_review')) OR
+        (member.workspace_role = 'reviewer' AND p_capability IN ('attach_evidence','submit_review','approve_change')) OR
+        EXISTS (
+          SELECT 1 FROM public.quote_user_capabilities capability
+          WHERE capability.user_id = auth.uid()
+            AND capability.email_normalized = lower(btrim(p_actor_email))
+            AND capability.capability = p_capability
+            AND capability.revoked_at IS NULL
+        )
+      )
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION public.record_ada_compatibility_event(
+  p_workspace_id uuid,
+  p_concept_id uuid,
+  p_event_type text,
+  p_actor_email text,
+  p_actor_capability text,
+  p_workspace_status text,
+  p_payload_json jsonb,
+  p_idempotency_key text
+)
+RETURNS public.ada_quote_events
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  normalized_actor text := lower(btrim(p_actor_email));
+  required_capability text;
+  existing_event public.ada_quote_events;
+  created_event public.ada_quote_events;
+  workspace_lifecycle text;
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM normalized_actor THEN
+    RAISE EXCEPTION 'Authenticated quote actor does not match the requested actor.' USING ERRCODE = '42501';
+  END IF;
+  IF nullif(btrim(p_idempotency_key), '') IS NULL OR jsonb_typeof(coalesce(p_payload_json, '{}'::jsonb)) <> 'object' THEN
+    RAISE EXCEPTION 'A compatibility event requires an idempotency key and object payload.' USING ERRCODE = '22023';
+  END IF;
+  IF public.jsonb_contains_sensitive_material(coalesce(p_payload_json, '{}'::jsonb)) THEN
+    RAISE EXCEPTION 'Compatibility event payload contains credential-shaped material.' USING ERRCODE = '22023';
+  END IF;
+
+  required_capability := CASE p_event_type
+    WHEN 'asset_uploaded' THEN 'attach_evidence'
+    WHEN 'drawing_initial_quote_created' THEN 'edit_draft'
+    WHEN 'chat_turn_completed' THEN 'edit_draft'
+    ELSE NULL
+  END;
+  IF required_capability IS NULL OR p_actor_capability <> required_capability OR
+     NOT public.quote_actor_has_workspace_capability(p_workspace_id, normalized_actor, required_capability) THEN
+    RAISE EXCEPTION 'Compatibility event capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  IF (p_event_type = 'asset_uploaded' AND p_workspace_status IS DISTINCT FROM 'gathering_inputs') OR
+     (p_event_type = 'drawing_initial_quote_created' AND p_workspace_status IS DISTINCT FROM 'in_review') OR
+     (p_event_type = 'chat_turn_completed' AND p_workspace_status IS NOT NULL AND p_workspace_status NOT IN ('gathering_inputs','in_review')) THEN
+    RAISE EXCEPTION 'Compatibility event requested an invalid workspace status projection.' USING ERRCODE = '22023';
+  END IF;
+  IF p_concept_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_concepts WHERE id = p_concept_id AND workspace_id = p_workspace_id
+  ) THEN
+    RAISE EXCEPTION 'Compatibility concept does not belong to this workspace.' USING ERRCODE = '23503';
+  END IF;
+
+  SELECT * INTO existing_event FROM public.ada_quote_events WHERE idempotency_key = p_idempotency_key;
+  IF FOUND THEN
+    IF existing_event.workspace_id <> p_workspace_id OR lower(existing_event.actor_email) <> normalized_actor THEN
+      RAISE EXCEPTION 'Idempotency key belongs to another compatibility actor or workspace.' USING ERRCODE = '23505';
+    END IF;
+    RETURN existing_event;
+  END IF;
+
+  SELECT lifecycle_status INTO workspace_lifecycle
+  FROM public.ada_quote_workspaces WHERE id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote Workspace not found.' USING ERRCODE = 'P0002'; END IF;
+  IF workspace_lifecycle = 'archived' THEN
+    RAISE EXCEPTION 'Archived Quote Workspaces are immutable.' USING ERRCODE = '55000';
+  END IF;
+
+  INSERT INTO public.ada_quote_events (
+    workspace_id, concept_id, event_type, payload_json, actor_email, idempotency_key
+  ) VALUES (
+    p_workspace_id, p_concept_id, p_event_type, coalesce(p_payload_json, '{}'::jsonb), normalized_actor, p_idempotency_key
+  ) RETURNING * INTO created_event;
+  UPDATE public.ada_quote_workspaces
+  SET status = CASE
+        WHEN lifecycle_status IN ('intake', 'draft', 'internal_review') THEN coalesce(p_workspace_status, status)
+        ELSE status
+      END,
+      last_activity_at = now()
+  WHERE id = p_workspace_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote Workspace not found.' USING ERRCODE = 'P0002'; END IF;
+  RETURN created_event;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_ada_quote_workspace_metadata(
+  p_workspace_id uuid,
+  p_actor_email text,
+  p_title text,
+  p_client_name text,
+  p_contact_name text,
+  p_ada_project_id uuid
+)
+RETURNS public.ada_quote_workspaces
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE updated_workspace public.ada_quote_workspaces;
+DECLARE normalized_actor text := lower(btrim(p_actor_email));
+DECLARE workspace_lifecycle text;
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM normalized_actor OR
+     NOT public.quote_actor_has_workspace_capability(p_workspace_id, normalized_actor, 'edit_draft') THEN
+    RAISE EXCEPTION 'Workspace metadata capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  SELECT lifecycle_status INTO workspace_lifecycle
+  FROM public.ada_quote_workspaces WHERE id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote Workspace not found.' USING ERRCODE = 'P0002'; END IF;
+  IF workspace_lifecycle = 'archived' THEN
+    RAISE EXCEPTION 'Archived Quote Workspaces are immutable.' USING ERRCODE = '55000';
+  END IF;
+  IF nullif(btrim(p_title), '') IS NULL THEN
+    RAISE EXCEPTION 'Chat title is required.' USING ERRCODE = '22023';
+  END IF;
+  IF p_ada_project_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_projects
+    WHERE id = p_ada_project_id AND lower(btrim(created_by_email)) = normalized_actor
+  ) THEN
+    RAISE EXCEPTION 'Ada project assignment is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.ada_quote_workspaces
+  SET title = btrim(p_title), client_name = p_client_name, contact_name = p_contact_name,
+      ada_project_id = p_ada_project_id, last_activity_at = now()
+  WHERE id = p_workspace_id
+  RETURNING * INTO updated_workspace;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote Workspace not found.' USING ERRCODE = 'P0002'; END IF;
+  RETURN updated_workspace;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.protect_ada_quote_asset_history()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'Quote evidence is retained; archive it instead.' USING ERRCODE = '55000';
+  END IF;
+  IF (NEW.archived_at, NEW.archived_by_email) IS DISTINCT FROM (OLD.archived_at, OLD.archived_by_email)
+     AND (
+       to_regprocedure('public.archive_ada_quote_asset(uuid,uuid,text,text)') IS NULL
+       OR current_user <> pg_get_userbyid((SELECT proowner FROM pg_proc WHERE oid = 'public.archive_ada_quote_asset(uuid,uuid,text,text)'::regprocedure))
+     ) THEN
+    RAISE EXCEPTION 'Quote evidence archive fields may change only through the archive service.' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS prevent_ada_quote_asset_delete ON public.ada_quote_assets;
+CREATE TRIGGER prevent_ada_quote_asset_delete
+  BEFORE UPDATE OR DELETE ON public.ada_quote_assets
+  FOR EACH ROW EXECUTE FUNCTION public.protect_ada_quote_asset_history();
+
+CREATE OR REPLACE FUNCTION public.archive_ada_quote_asset(
+  p_workspace_id uuid,
+  p_asset_id uuid,
+  p_actor_email text,
+  p_idempotency_key text
+)
+RETURNS public.ada_quote_assets
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE normalized_actor text := lower(btrim(p_actor_email));
+DECLARE asset_row public.ada_quote_assets;
+DECLARE workspace_lifecycle text;
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM normalized_actor OR
+     NOT public.quote_actor_has_workspace_capability(p_workspace_id, normalized_actor, 'edit_draft') THEN
+    RAISE EXCEPTION 'Evidence archive capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  SELECT lifecycle_status INTO workspace_lifecycle
+  FROM public.ada_quote_workspaces WHERE id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote Workspace not found.' USING ERRCODE = 'P0002'; END IF;
+  IF workspace_lifecycle = 'archived' THEN
+    RAISE EXCEPTION 'Archived Quote Workspaces are immutable.' USING ERRCODE = '55000';
+  END IF;
+  IF nullif(btrim(p_idempotency_key), '') IS NULL THEN
+    RAISE EXCEPTION 'Evidence archive requires an idempotency key.' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO asset_row FROM public.ada_quote_assets
+  WHERE id = p_asset_id AND workspace_id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Ada asset not found for this workspace.' USING ERRCODE = 'P0002'; END IF;
+  IF asset_row.archived_at IS NOT NULL THEN RETURN asset_row; END IF;
+  UPDATE public.ada_quote_assets
+  SET archived_at = now(), archived_by_email = normalized_actor
+  WHERE id = p_asset_id RETURNING * INTO asset_row;
+  INSERT INTO public.ada_quote_events (
+    workspace_id, concept_id, event_type, payload_json, actor_email, idempotency_key
+  ) VALUES (
+    p_workspace_id, asset_row.concept_id, 'asset_archived',
+    jsonb_build_object('asset_id', asset_row.id, 'original_name', asset_row.original_name),
+    normalized_actor, p_idempotency_key
+  );
+  UPDATE public.ada_quote_workspaces SET last_activity_at = now() WHERE id = p_workspace_id;
+  RETURN asset_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.protect_archived_quote_workspace_child()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE old_workspace_id uuid;
+DECLARE new_workspace_id uuid;
+DECLARE old_revision_id uuid;
+DECLARE new_revision_id uuid;
+BEGIN
+  IF TG_OP IN ('UPDATE', 'DELETE') THEN
+    old_workspace_id := nullif(to_jsonb(OLD) ->> 'workspace_id', '')::uuid;
+    old_revision_id := nullif(to_jsonb(OLD) ->> 'revision_id', '')::uuid;
+    IF old_workspace_id IS NULL AND old_revision_id IS NOT NULL THEN
+      SELECT workspace_id INTO old_workspace_id
+      FROM public.ada_quote_revisions
+      WHERE id = old_revision_id;
+    END IF;
+  END IF;
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    new_workspace_id := nullif(to_jsonb(NEW) ->> 'workspace_id', '')::uuid;
+    new_revision_id := nullif(to_jsonb(NEW) ->> 'revision_id', '')::uuid;
+    IF new_workspace_id IS NULL AND new_revision_id IS NOT NULL THEN
+      SELECT workspace_id INTO new_workspace_id
+      FROM public.ada_quote_revisions
+      WHERE id = new_revision_id;
+    END IF;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.ada_quote_workspaces
+    WHERE id IN (old_workspace_id, new_workspace_id) AND lifecycle_status = 'archived'
+  ) THEN
+    RAISE EXCEPTION 'Archived Quote Workspaces are immutable.' USING ERRCODE = '55000';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.claim_ada_chat_turn(
+  p_workspace_id uuid,
+  p_actor_email text,
+  p_client_request_id uuid,
+  p_request_content text
+)
+RETURNS TABLE(turn_id uuid, turn_status text, claimed boolean, response_json jsonb)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  existing_turn public.ada_chat_turns;
+  workspace_row public.ada_quote_workspaces;
+  normalized_actor text := lower(btrim(p_actor_email));
+  turn_found boolean;
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM normalized_actor OR
+     NOT public.quote_actor_has_workspace_capability(p_workspace_id, normalized_actor, 'edit_draft') THEN
+    RAISE EXCEPTION 'Chat turn capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_workspace_id::text || ':' || p_client_request_id::text, 0));
+  SELECT * INTO workspace_row FROM public.ada_quote_workspaces
+  WHERE id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Ada chat not found.' USING ERRCODE = 'P0002'; END IF;
+
+  SELECT * INTO existing_turn
+  FROM public.ada_chat_turns
+  WHERE workspace_id = p_workspace_id
+    AND actor_email = normalized_actor
+    AND client_request_id = p_client_request_id
+  FOR UPDATE;
+  turn_found := FOUND;
+
+  IF turn_found AND existing_turn.request_content <> p_request_content THEN
+    RAISE EXCEPTION 'This request id belongs to different message content.' USING ERRCODE = '22023';
+  END IF;
+  IF turn_found AND existing_turn.status = 'completed' THEN
+    RETURN QUERY SELECT existing_turn.id, existing_turn.status, false, existing_turn.response_json;
+    RETURN;
+  END IF;
+  IF turn_found AND existing_turn.status = 'pending' AND existing_turn.claimed_at > now() - interval '15 minutes' THEN
+    RETURN QUERY SELECT existing_turn.id, existing_turn.status, false, existing_turn.response_json;
+    RETURN;
+  END IF;
+  IF workspace_row.lifecycle_status = 'archived' THEN
+    RAISE EXCEPTION 'Archived Quote Workspaces are immutable.' USING ERRCODE = '55000';
+  END IF;
+
+  IF NOT turn_found THEN
+    INSERT INTO public.ada_chat_turns (
+      workspace_id, client_request_id, actor_email, request_content
+    ) VALUES (
+      p_workspace_id, p_client_request_id, normalized_actor, p_request_content
+    ) RETURNING * INTO existing_turn;
+    RETURN QUERY SELECT existing_turn.id, existing_turn.status, true, existing_turn.response_json;
+    RETURN;
+  END IF;
+
+  UPDATE public.ada_chat_turns
+  SET status = 'pending', claimed_at = now(), error_message = NULL,
+      response_json = NULL, completed_at = NULL
+  WHERE id = existing_turn.id
+  RETURNING * INTO existing_turn;
+  RETURN QUERY SELECT existing_turn.id, existing_turn.status, true, existing_turn.response_json;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.validate_quote_event_evidence(
@@ -377,7 +739,9 @@ BEGIN
     RAISE EXCEPTION 'Workflow event has no governed capability mapping.' USING ERRCODE = '42501';
   END IF;
   capability_authorized := p_actor_capability = required_capability AND (
-    (required_capability IN ('create_workspace','attach_evidence','edit_draft','submit_review') AND resolved_actor_role IN ('owner','editor','reviewer')) OR
+    (resolved_actor_role = 'owner' AND required_capability IN ('create_workspace','attach_evidence','edit_draft','submit_review','archive_workspace')) OR
+    (resolved_actor_role = 'editor' AND required_capability IN ('create_workspace','attach_evidence','edit_draft','submit_review')) OR
+    (resolved_actor_role = 'reviewer' AND required_capability IN ('attach_evidence','submit_review','approve_change')) OR
     EXISTS (
       SELECT 1 FROM public.quote_user_capabilities
       WHERE user_id = auth.uid() AND email_normalized = normalized_actor
@@ -423,6 +787,8 @@ BEGIN
 
   UPDATE public.ada_quote_workspaces
   SET lifecycle_status = p_resulting_state,
+      status = CASE WHEN p_event_type = 'workspace_archived' THEN 'archived' ELSE status END,
+      archived_at = CASE WHEN p_event_type = 'workspace_archived' THEN now() ELSE archived_at END,
       current_revision_id = CASE
         WHEN p_event_type IN ('revision_created','revision_submitted_for_review','commercial_approved') THEN p_revision_id
         ELSE current_revision_id
@@ -496,6 +862,15 @@ CREATE POLICY quote_workflow_event_member_read ON public.quote_workflow_events
 REVOKE INSERT, UPDATE, DELETE ON TABLE public.quote_workflow_events FROM anon, authenticated, service_role;
 REVOKE ALL ON TABLE public.integration_outbox FROM anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.append_quote_workflow_event(uuid, uuid, text, text, text, text, bigint, text, text, jsonb, jsonb, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.quote_actor_has_workspace_capability(uuid, text, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.record_ada_compatibility_event(uuid, uuid, text, text, text, text, jsonb, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.update_ada_quote_workspace_metadata(uuid, text, text, text, text, uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.archive_ada_quote_asset(uuid, uuid, text, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_ada_chat_turn(uuid, text, uuid, text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.claim_integration_outbox(text, integer) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.append_quote_workflow_event(uuid, uuid, text, text, text, text, bigint, text, text, jsonb, jsonb, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.record_ada_compatibility_event(uuid, uuid, text, text, text, text, jsonb, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_ada_quote_workspace_metadata(uuid, text, text, text, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.archive_ada_quote_asset(uuid, uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_ada_chat_turn(uuid, text, uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_integration_outbox(text, integer) TO service_role;

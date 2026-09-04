@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { parseAdaFeedbackInput } from "@/lib/ada-feedback";
-import { requireAdaAccess } from "@/lib/ada-server";
+import { requireAdaAccess, requireAdaWorkspaceAccess } from "@/lib/ada-server";
 
 export async function POST(request: Request) {
-  const access = await requireAdaAccess();
-  if (!access.ok) return access.response;
-
   try {
     const input = parseAdaFeedbackInput(await request.json().catch(() => ({})));
-    if (input.workspaceId) {
-      const { data: workspace, error: workspaceError } = await access.supabase
-        .from("ada_quote_workspaces")
-        .select("id, created_by_email")
-        .eq("id", input.workspaceId)
-        .eq("created_by_email", access.actorEmail)
-        .maybeSingle();
-      if (workspaceError) throw new Error(workspaceError.message);
-      if (!workspace) return NextResponse.json({ error: "Ada chat not found." }, { status: 404 });
-    }
+    const access = input.workspaceId
+      ? await requireAdaWorkspaceAccess(input.workspaceId, "edit_draft")
+      : await requireAdaAccess();
+    if (!access.ok) return access.response;
 
     const { data: feedback, error } = await access.supabase.from("ada_feedback").insert({
       workspace_id: input.workspaceId,

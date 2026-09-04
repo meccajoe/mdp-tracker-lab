@@ -42,5 +42,6 @@ test("commercial approval is latest-only, canonical, and idempotent through one 
   assert.doesNotMatch(acceptRoute, /from\("ada_quote_workspaces"\)\.update/);
   assert.match(acceptRoute, /commercialApprovedRevisionId/);
   assert.doesNotMatch(acceptRoute, /acceptedRevisionId|status: "accepted"/);
-  assert.match(messagesRoute, /workspaceResult\.data\.status === "accepted" \? "accepted"/);
+  assert.match(messagesRoute, /record_ada_compatibility_event/);
+  assert.doesNotMatch(messagesRoute, /workspaceResult\.data\.status === "accepted"|p_workspace_status:\s*"accepted"/);
 });

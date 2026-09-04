@@ -29,6 +29,8 @@ test("Ada server authorization accepts bearer auth before denying cookie-only re
   assert.match(server, /headers.*next\/headers/);
   assert.match(server, /authorization/);
   assert.match(server, /Bearer\\s\+/);
+  assert.match(server, /Authorization:\s*`Bearer \$\{bearerToken\}`/);
+  assert.doesNotMatch(server, /Authorization:\s*\*\*\*/);
   assert.match(server, /auth\.getUser\(bearerToken\)/);
   assert.match(server, /cookieUser/);
 });

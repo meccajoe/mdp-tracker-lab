@@ -16,6 +16,7 @@ export async function GET(
     .select("id, storage_path, analysis_status")
     .eq("id", assetId)
     .eq("workspace_id", workspaceId)
+    .is("archived_at", null)
     .maybeSingle();
 
   if (assetError) return NextResponse.json({ error: assetError.message }, { status: 500 });

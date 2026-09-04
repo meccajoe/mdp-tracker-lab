@@ -56,8 +56,9 @@ RETURNS text
 LANGUAGE sql
 IMMUTABLE
 STRICT
+SET search_path = public, extensions
 AS $$
-  SELECT encode(digest(convert_to(value::text, 'UTF8'), 'sha256'), 'hex')
+  SELECT encode(digest(convert_to(value::text, 'UTF8'), 'sha256'), 'hex');
 $$;
 
 CREATE OR REPLACE FUNCTION public.record_quote_normalization_exception(
@@ -633,3 +634,52 @@ REVOKE ALL ON FUNCTION public.create_quote_workspace(text, uuid, text, text, tex
 GRANT EXECUTE ON FUNCTION public.create_ada_quote_revision(uuid, text, jsonb, numeric, numeric, numeric, jsonb, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_quote_workspace(text, uuid, text, text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_ada_quote_revision(uuid, uuid, text) TO authenticated;
+
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_assets ON public.ada_quote_assets;
+CREATE TRIGGER protect_archived_ada_quote_assets BEFORE INSERT OR UPDATE OR DELETE ON public.ada_quote_assets
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_messages ON public.ada_quote_messages;
+CREATE TRIGGER protect_archived_ada_quote_messages BEFORE INSERT OR UPDATE OR DELETE ON public.ada_quote_messages
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_concepts ON public.ada_quote_concepts;
+CREATE TRIGGER protect_archived_ada_quote_concepts BEFORE INSERT OR UPDATE OR DELETE ON public.ada_quote_concepts
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_chat_turns ON public.ada_chat_turns;
+CREATE TRIGGER protect_archived_ada_chat_turns BEFORE INSERT OR UPDATE OR DELETE ON public.ada_chat_turns
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_revisions ON public.ada_quote_revisions;
+CREATE TRIGGER protect_archived_ada_quote_revisions BEFORE INSERT OR UPDATE OR DELETE ON public.ada_quote_revisions
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_events ON public.ada_quote_events;
+CREATE TRIGGER protect_archived_ada_quote_events BEFORE INSERT ON public.ada_quote_events
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_quote_workflow_events ON public.quote_workflow_events;
+CREATE TRIGGER protect_archived_quote_workflow_events BEFORE INSERT ON public.quote_workflow_events
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_sheets ON public.ada_quote_sheets;
+CREATE TRIGGER protect_archived_ada_quote_sheets BEFORE INSERT OR UPDATE OR DELETE ON public.ada_quote_sheets
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_quote_sheet_changes ON public.ada_quote_sheet_changes;
+CREATE TRIGGER protect_archived_ada_quote_sheet_changes BEFORE INSERT OR UPDATE OR DELETE ON public.ada_quote_sheet_changes
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_ada_feedback ON public.ada_feedback;
+CREATE TRIGGER protect_archived_ada_feedback BEFORE INSERT OR UPDATE OR DELETE ON public.ada_feedback
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_work_packages ON public.work_packages;
+CREATE TRIGGER protect_archived_work_packages BEFORE INSERT OR UPDATE OR DELETE ON public.work_packages
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_quote_revision_lines ON public.quote_revision_lines;
+CREATE TRIGGER protect_archived_quote_revision_lines BEFORE INSERT OR UPDATE OR DELETE ON public.quote_revision_lines
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_quote_revision_work_packages ON public.quote_revision_work_packages;
+CREATE TRIGGER protect_archived_quote_revision_work_packages BEFORE INSERT OR UPDATE OR DELETE ON public.quote_revision_work_packages
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_quote_revision_line_work_packages ON public.quote_revision_line_work_packages;
+CREATE TRIGGER protect_archived_quote_revision_line_work_packages BEFORE INSERT OR UPDATE OR DELETE ON public.quote_revision_line_work_packages
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_quote_revision_work_package_labor ON public.quote_revision_work_package_labor;
+CREATE TRIGGER protect_archived_quote_revision_work_package_labor BEFORE INSERT OR UPDATE OR DELETE ON public.quote_revision_work_package_labor
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
+DROP TRIGGER IF EXISTS protect_archived_quote_revision_normalization_exceptions ON public.quote_revision_normalization_exceptions;
+CREATE TRIGGER protect_archived_quote_revision_normalization_exceptions BEFORE INSERT OR UPDATE OR DELETE ON public.quote_revision_normalization_exceptions
+  FOR EACH ROW EXECUTE FUNCTION public.protect_archived_quote_workspace_child();
