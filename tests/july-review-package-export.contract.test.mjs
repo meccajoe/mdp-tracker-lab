@@ -13,4 +13,5 @@ test("exports the persisted selected-period review package as a workbook from La
   assert.match(source, /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/);
   assert.match(readFileSync(page, "utf8"), /Export review package/);
   assert.match(source, /parseLaborReviewPeriod/);
+  assert.match(source, /replaceAll\("—", "-"\)/);
 });

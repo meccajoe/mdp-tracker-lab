@@ -15,8 +15,8 @@ export function buildLaborJeDraft(rows: AllocationRow[], periodLabel: string) {
     debits.set(key, debit);
     credits.set(row.targetGlAccountId, (credits.get(row.targetGlAccountId) ?? 0) + row.wageCost);
   }
-  const lines: JeLine[] = [...debits.values()].map((debit) => ({ accountId: debit.accountId, accountDisplay: getLaborGlAccountDisplay(debit.accountId), projectId: debit.projectId, projectName: debit.projectName, memo: `${periodLabel} wage allocation — GL ${debit.accountId}`, debit: round(debit.wageCost), credit: 0 }));
-  for (const [accountId, amount] of credits) lines.push({ accountId, accountDisplay: getLaborGlAccountDisplay(accountId), projectId: null, projectName: null, memo: `${periodLabel} wage reclass — unprojected COGS`, debit: 0, credit: round(amount) });
+  const lines: JeLine[] = [...debits.values()].map((debit) => ({ accountId: debit.accountId, accountDisplay: getLaborGlAccountDisplay(debit.accountId), projectId: debit.projectId, projectName: debit.projectName, memo: `${periodLabel} wage allocation - GL ${debit.accountId}`, debit: round(debit.wageCost), credit: 0 }));
+  for (const [accountId, amount] of credits) lines.push({ accountId, accountDisplay: getLaborGlAccountDisplay(accountId), projectId: null, projectName: null, memo: `${periodLabel} wage reclass - unprojected COGS`, debit: 0, credit: round(amount) });
   const debitTotal = round(lines.reduce((sum, line) => sum + line.debit, 0));
   const creditTotal = round(lines.reduce((sum, line) => sum + line.credit, 0));
   return { lines, debitTotal, creditTotal, balanced: debitTotal === creditTotal };
