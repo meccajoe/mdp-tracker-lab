@@ -1213,6 +1213,8 @@ Apply schema only after remote prerequisite checks. Re-query tables, columns, co
 
 **Go gate:** A user can import/create a quote, review an Ada proposal as a structured diff, and produce an immutable normalized revision without any HubSpot/project dependency.
 
+**Release 2 progress — 2026-09-08:** Release 1 was fast-forwarded into `main` at `d78adbca5ff25aee111da10bba908e4d283f010f` and pushed. Release 2 began on `wip/quote-to-production-release-2` with a pure proposal-disposition domain seam. Pending proposals now fail closed on stale workspace row versions or repeated disposition, preserve source/proposal lineage and immutable original payloads, support reject and edit-and-accept outcomes, and emit exactly one deterministic revision request only after acceptance. Strict RED/GREEN was observed; focused and adjacent domain tests passed 15/15, the full repository sweep passed 485/485 across 219 files, TypeScript/diff checks passed, and the production build passed with 49/49 static pages. Proposal persistence, governed APIs, chat cutover, and review UI remain subsequent Release 2 slices; no database, deployment, HubSpot, QBT, QBO, or BILL change was included.
+
 ### Release 3 — Product-facing Quote Workspace
 
 **Goal:** Promote the Quote Workspace to a Tracker feature rather than an Ada-owned screen.
