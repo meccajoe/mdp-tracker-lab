@@ -506,6 +506,8 @@ INSERT INTO public.quote_workspace_members (workspace_id, user_id, email_normali
 VALUES ('10000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000001', 'owner@example.com', 'owner', 'release-1-test');
 INSERT INTO public.ada_quote_concepts (id, workspace_id, label, mode, status, created_by_email)
 VALUES ('11000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', 'Compatibility', 'standard', 'draft', 'owner@example.com');
+INSERT INTO public.ada_quote_concepts (id, workspace_id, label, mode, status, created_by_email)
+VALUES ('11000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000003', 'Alternate concept', 'standard', 'draft', 'owner@example.com');
 INSERT INTO public.ada_quote_assets (
   id, workspace_id, concept_id, storage_path, original_name,
   mime_type, byte_size, analysis_status, created_by_email

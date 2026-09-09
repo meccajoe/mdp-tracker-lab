@@ -8,11 +8,13 @@ const source = readFileSync(join(process.cwd(), "src/app/api/ada/workspaces/[wor
 test("Ada message route completes and persists a grounded assistant turn", () => {
   assert.match(source, /streamAdaConversation/);
   assert.match(source, /type: "delta"/);
-  assert.match(source, /role: "assistant"/);
-  assert.match(source, /structured_payload_json/);
+  assert.match(source, /actorSupabase\.rpc\("complete_ada_proposal_chat_turn"/);
+  assert.match(source, /p_assistant_content: assistantContent/);
+  assert.match(source, /p_assistant_payload_json: assistantPayload/);
+  assert.match(source, /actorSupabase\.rpc\("fail_ada_chat_turn"/);
   assert.match(source, /retrieveAdaIntelligence/);
-  assert.match(source, /chat_turn_completed/);
-  assert.match(source, /chat_turn_failed/);
+  assert.doesNotMatch(source, /from\("ada_quote_messages"\)\s*\.insert/);
+  assert.doesNotMatch(source, /record_ada_compatibility_event/);
   assert.match(source, /analysis_json/);
   assert.match(source, /quote_json/);
 });

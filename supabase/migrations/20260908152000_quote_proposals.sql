@@ -97,27 +97,223 @@ REVOKE INSERT, UPDATE, DELETE ON TABLE public.quote_proposals FROM anon, authent
 REVOKE ALL ON TABLE public.quote_proposals FROM anon, authenticated, service_role;
 GRANT SELECT ON TABLE public.quote_proposals TO authenticated;
 
+-- Chat persistence is owned by the turn row.  These RPCs deliberately keep
+-- the message, proposal, compatibility event, and completion state in one transaction.
+ALTER TABLE public.ada_chat_turns ADD COLUMN IF NOT EXISTS proposal_id uuid REFERENCES public.quote_proposals(id) ON DELETE SET NULL;
+
+CREATE OR REPLACE FUNCTION public.claim_ada_chat_turn(
+  p_workspace_id uuid, p_actor_email text, p_client_request_id uuid, p_request_content text
+) RETURNS TABLE(turn_id uuid, turn_status text, claimed boolean, response_json jsonb)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE existing_turn public.ada_chat_turns; workspace_row public.ada_quote_workspaces; normalized_actor text := lower(btrim(p_actor_email)); turn_found boolean;
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM normalized_actor OR NOT public.quote_actor_has_workspace_capability(p_workspace_id, normalized_actor, 'edit_draft') THEN RAISE EXCEPTION 'Chat turn capability is not authorized.' USING ERRCODE = '42501'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_workspace_id::text || ':' || p_client_request_id::text, 0));
+  SELECT * INTO workspace_row FROM public.ada_quote_workspaces WHERE id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Ada chat not found.' USING ERRCODE = 'P0002'; END IF;
+  SELECT * INTO existing_turn FROM public.ada_chat_turns WHERE workspace_id = p_workspace_id AND actor_email = normalized_actor AND client_request_id = p_client_request_id FOR UPDATE;
+  turn_found := FOUND;
+  IF turn_found AND existing_turn.request_content IS DISTINCT FROM p_request_content THEN RAISE EXCEPTION 'This request id belongs to different message content.' USING ERRCODE = '22023'; END IF;
+  IF turn_found AND existing_turn.status = 'completed' THEN RETURN QUERY SELECT existing_turn.id, existing_turn.status, false, existing_turn.response_json; RETURN; END IF;
+  IF turn_found AND existing_turn.status = 'pending' AND existing_turn.claimed_at > now() - interval '15 minutes' THEN RETURN QUERY SELECT existing_turn.id, existing_turn.status, false, existing_turn.response_json; RETURN; END IF;
+  IF nullif(btrim(p_request_content), '') IS NULL OR char_length(p_request_content) > 20000 OR octet_length(p_request_content) > 80000 THEN RAISE EXCEPTION 'Ada chat request exceeds the technical size limit.' USING ERRCODE = '22023'; END IF;
+  IF workspace_row.lifecycle_status = 'archived' THEN RAISE EXCEPTION 'Archived Quote Workspaces are immutable.' USING ERRCODE = '55000'; END IF;
+  IF NOT turn_found THEN
+    INSERT INTO public.ada_chat_turns(workspace_id, client_request_id, actor_email, request_content) VALUES (p_workspace_id, p_client_request_id, normalized_actor, p_request_content) RETURNING * INTO existing_turn;
+    RETURN QUERY SELECT existing_turn.id, existing_turn.status, true, existing_turn.response_json; RETURN;
+  END IF;
+  UPDATE public.ada_chat_turns SET status = 'pending', claimed_at = now(), error_message = NULL, response_json = NULL, completed_at = NULL WHERE id = existing_turn.id RETURNING * INTO existing_turn;
+  RETURN QUERY SELECT existing_turn.id, existing_turn.status, true, existing_turn.response_json;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.claim_ada_chat_turn(uuid, text, uuid, text) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_ada_chat_turn(uuid, text, uuid, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.ensure_ada_proposal_chat_user_message(
+  p_workspace_id uuid, p_turn_id uuid, p_concept_id uuid, p_actor_email text, p_request_content text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  t public.ada_chat_turns;
+  m public.ada_quote_messages;
+  actor text := lower(btrim(p_actor_email));
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM actor THEN
+    RAISE EXCEPTION 'Authenticated quote actor does not match the requested actor.' USING ERRCODE = '42501';
+  END IF;
+  IF nullif(btrim(p_request_content), '') IS NULL OR char_length(p_request_content) > 20000 OR octet_length(p_request_content) > 80000 THEN
+    RAISE EXCEPTION 'Ada chat request exceeds the technical size limit.' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO t FROM public.ada_chat_turns WHERE id = p_turn_id AND workspace_id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND OR t.actor_email IS DISTINCT FROM actor OR t.request_content IS DISTINCT FROM p_request_content THEN
+    RAISE EXCEPTION 'Ada chat turn context is invalid.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.quote_actor_has_workspace_capability(p_workspace_id, actor, 'edit_draft') THEN
+    RAISE EXCEPTION 'Chat turn capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.ada_quote_concepts WHERE id = p_concept_id AND workspace_id = p_workspace_id) THEN
+    RAISE EXCEPTION 'Compatibility concept does not belong to this workspace.' USING ERRCODE = '23503';
+  END IF;
+  IF t.user_message_id IS NOT NULL THEN
+    SELECT * INTO m FROM public.ada_quote_messages WHERE id = t.user_message_id;
+    IF FOUND THEN RETURN jsonb_build_object('userMessage', to_jsonb(m)); END IF;
+    RAISE EXCEPTION 'Ada chat user message linkage is invalid.' USING ERRCODE = 'P0001';
+  END IF;
+  IF t.status <> 'pending' THEN RAISE EXCEPTION 'Ada chat turn is not pending.' USING ERRCODE = '55000'; END IF;
+  INSERT INTO public.ada_quote_messages(workspace_id, concept_id, role, content, created_by_email)
+  VALUES (p_workspace_id, p_concept_id, 'user', p_request_content, actor)
+  RETURNING * INTO m;
+  UPDATE public.ada_chat_turns SET user_message_id = m.id WHERE id = t.id;
+  RETURN jsonb_build_object('userMessage', to_jsonb(m));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.fail_ada_chat_turn(
+  p_workspace_id uuid, p_turn_id uuid, p_actor_email text, p_error_message text DEFAULT NULL
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE actor text := lower(btrim(p_actor_email));
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM actor THEN RAISE EXCEPTION 'Authenticated quote actor does not match the requested actor.' USING ERRCODE = '42501'; END IF;
+  IF NOT public.quote_actor_has_workspace_capability(p_workspace_id, actor, 'edit_draft') THEN
+    RAISE EXCEPTION 'Chat turn capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.ada_chat_turns SET status = 'failed', error_message = 'Ada could not complete this chat turn.', completed_at = NULL
+  WHERE id = p_turn_id AND workspace_id = p_workspace_id AND actor_email = actor AND status <> 'completed';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.complete_ada_proposal_chat_turn(
+  p_workspace_id uuid, p_turn_id uuid, p_concept_id uuid, p_actor_email text,
+  p_expected_row_version bigint, p_source_revision_id uuid,
+  p_proposed_revision_json jsonb, p_proposed_assumptions_json jsonb, p_proposed_evidence_json jsonb,
+  p_creation_idempotency_key text, p_assistant_content text, p_assistant_payload_json jsonb,
+  p_proposal_delta_json jsonb, p_workspace_status text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  t public.ada_chat_turns;
+  m public.ada_quote_messages;
+  p public.quote_proposals;
+  event public.ada_quote_events;
+  actor text := lower(btrim(p_actor_email));
+  proposal_json jsonb := NULL;
+  response jsonb;
+  payload jsonb;
+BEGIN
+  IF public.current_quote_actor_email() IS DISTINCT FROM actor THEN
+    RAISE EXCEPTION 'Authenticated quote actor does not match the requested actor.' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO t FROM public.ada_chat_turns WHERE id = p_turn_id AND workspace_id = p_workspace_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Ada chat turn not found.' USING ERRCODE = 'P0002'; END IF;
+  IF t.actor_email IS DISTINCT FROM actor THEN
+    RAISE EXCEPTION 'Ada chat turn context is invalid.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.quote_actor_has_workspace_capability(p_workspace_id, actor, 'edit_draft') THEN
+    RAISE EXCEPTION 'Chat turn capability is not authorized.' USING ERRCODE = '42501';
+  END IF;
+  IF t.user_message_id IS NULL THEN
+    RAISE EXCEPTION 'Ada chat turn context is invalid.' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO m FROM public.ada_quote_messages WHERE id = t.user_message_id;
+  IF NOT FOUND OR m.workspace_id IS DISTINCT FROM p_workspace_id OR m.concept_id IS DISTINCT FROM p_concept_id
+     OR m.role IS DISTINCT FROM 'user' OR lower(btrim(m.created_by_email)) IS DISTINCT FROM actor
+     OR m.content IS DISTINCT FROM t.request_content THEN
+    RAISE EXCEPTION 'Ada chat user message provenance is invalid.' USING ERRCODE = '42501';
+  END IF;
+  IF t.status = 'completed' THEN
+    IF t.response_json IS NULL THEN RAISE EXCEPTION 'Completed Ada chat turn has no response.' USING ERRCODE = 'P0001'; END IF;
+    RETURN t.response_json;
+  END IF;
+  IF t.status <> 'pending' THEN RAISE EXCEPTION 'Ada chat turn is not pending.' USING ERRCODE = '55000'; END IF;
+  IF p_assistant_content IS NULL OR nullif(btrim(p_assistant_content), '') IS NULL
+     OR char_length(p_assistant_content) > 100000 OR octet_length(p_assistant_content) > 400000
+     OR jsonb_typeof(p_assistant_payload_json) IS DISTINCT FROM 'object'
+     OR (p_proposal_delta_json IS NOT NULL AND jsonb_typeof(p_proposal_delta_json) IS DISTINCT FROM 'object')
+     OR octet_length(jsonb_build_object('assistantPayload', p_assistant_payload_json, 'proposalDelta', coalesce(p_proposal_delta_json, 'null'::jsonb))::text) > 1048576 THEN
+    RAISE EXCEPTION 'Ada assistant response exceeds the technical size limit.' USING ERRCODE = '22023';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.ada_quote_concepts WHERE id = p_concept_id AND workspace_id = p_workspace_id) THEN
+    RAISE EXCEPTION 'Compatibility concept does not belong to this workspace.' USING ERRCODE = '23503';
+  END IF;
+  IF p_assistant_content IS NULL OR jsonb_typeof(coalesce(p_assistant_payload_json, '{}'::jsonb)) <> 'object' THEN
+    RAISE EXCEPTION 'Ada assistant response is invalid.' USING ERRCODE = '22023';
+  END IF;
+  IF p_proposed_revision_json IS NOT NULL THEN
+    p := public.create_quote_proposal(p_workspace_id, actor, p_expected_row_version, p_source_revision_id,
+      p_proposed_revision_json, coalesce(p_proposed_assumptions_json, '[]'::jsonb), coalesce(p_proposed_evidence_json, '[]'::jsonb), p_creation_idempotency_key);
+    proposal_json := jsonb_build_object(
+      'id', p.id, 'workspaceId', p.workspace_id, 'sourceRevisionId', p.source_revision_id,
+      'expectedRowVersion', p.expected_row_version, 'status', p.status,
+      'proposedRevision', p.proposed_revision_json, 'proposedAssumptions', p.proposed_assumptions_json,
+      'proposedEvidence', p.proposed_evidence_json, 'proposedManifestHash', p.proposed_manifest_hash,
+      'createdByEmail', p.created_by_email, 'createdAt', p.created_at,
+      'disposedByEmail', p.disposed_by_email, 'disposedAt', p.disposed_at, 'reason', p.reason,
+      'editedRevision', p.edited_revision_json, 'editedAssumptions', p.edited_assumptions_json,
+      'editedEvidence', p.edited_evidence_json, 'dispositionManifestHash', p.disposition_manifest_hash,
+      'acceptedRevisionId', p.accepted_revision_id, 'creationIdempotencyKey', p.creation_idempotency_key,
+      'dispositionIdempotencyKey', p.disposition_idempotency_key
+    );
+  END IF;
+  payload := p_assistant_payload_json || jsonb_build_object('proposal', proposal_json, 'proposalDelta', p_proposal_delta_json, 'revision', NULL, 'revisionDelta', NULL);
+  INSERT INTO public.ada_quote_messages(workspace_id, concept_id, role, content, structured_payload_json, created_by_email)
+  VALUES (p_workspace_id, p_concept_id, 'assistant', p_assistant_content, payload, actor)
+  RETURNING * INTO m;
+  SELECT * INTO event FROM public.record_ada_compatibility_event(
+    p_workspace_id, p_concept_id, 'chat_turn_completed', actor, 'edit_draft', p_workspace_status,
+    jsonb_build_object('turn_id', t.id, 'user_message_id', t.user_message_id, 'assistant_message_id', m.id,
+      'proposal_id', p.id, 'source_revision_id', p_source_revision_id, 'proposal_manifest_hash', p.proposed_manifest_hash),
+    'chat-turn-completed:' || p_workspace_id::text || ':' || t.id::text
+  );
+  response := jsonb_build_object('userMessage', (SELECT to_jsonb(x) FROM public.ada_quote_messages x WHERE x.id = t.user_message_id),
+    'assistantMessage', to_jsonb(m), 'proposal', proposal_json, 'proposalDelta', p_proposal_delta_json, 'revision', NULL, 'revisionDelta', NULL);
+  UPDATE public.ada_chat_turns SET status = 'completed', assistant_message_id = m.id, proposal_id = p.id,
+    response_json = response, error_message = NULL, completed_at = now() WHERE id = t.id;
+  RETURN response;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ensure_ada_proposal_chat_user_message(uuid, uuid, uuid, text, text) FROM PUBLIC, anon, service_role;
+REVOKE ALL ON FUNCTION public.fail_ada_chat_turn(uuid, uuid, text, text) FROM PUBLIC, anon, service_role;
+REVOKE ALL ON FUNCTION public.complete_ada_proposal_chat_turn(uuid, uuid, uuid, text, bigint, uuid, jsonb, jsonb, jsonb, text, text, jsonb, jsonb, text) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.ensure_ada_proposal_chat_user_message(uuid, uuid, uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.fail_ada_chat_turn(uuid, uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_ada_proposal_chat_turn(uuid, uuid, uuid, text, bigint, uuid, jsonb, jsonb, jsonb, text, text, jsonb, jsonb, text) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.quote_proposal_validate_snapshot(p_revision jsonb, p_assumptions jsonb, p_evidence jsonb)
 RETURNS void LANGUAGE plpgsql IMMUTABLE SET search_path = public AS $$
-DECLARE item jsonb;
+DECLARE item jsonb; evidence_ref jsonb; assumption jsonb;
 BEGIN
   IF public.jsonb_contains_sensitive_material(jsonb_build_object('revision', p_revision, 'assumptions', p_assumptions, 'evidence', p_evidence)) THEN
     RAISE EXCEPTION 'Proposal snapshots cannot contain credential-shaped material.' USING ERRCODE = '22023';
   END IF;
-  IF jsonb_typeof(p_revision) <> 'object' OR jsonb_typeof(p_revision -> 'lineItems') <> 'array'
+  IF jsonb_typeof(p_revision) IS DISTINCT FROM 'object' OR jsonb_typeof(p_revision -> 'lineItems') IS DISTINCT FROM 'array'
      OR jsonb_array_length(p_revision -> 'lineItems') = 0 THEN
     RAISE EXCEPTION 'Proposal revision must contain a non-empty lineItems array.' USING ERRCODE = '22023';
   END IF;
-  IF jsonb_typeof(p_assumptions) <> 'array' OR jsonb_typeof(p_evidence) <> 'array' THEN
+  IF jsonb_typeof(p_assumptions) IS DISTINCT FROM 'array' OR jsonb_typeof(p_evidence) IS DISTINCT FROM 'array' THEN
     RAISE EXCEPTION 'Proposal assumptions and evidence must be arrays.' USING ERRCODE = '22023';
   END IF;
+  IF jsonb_array_length(p_revision -> 'lineItems') > 500 OR jsonb_array_length(p_assumptions) > 200 OR jsonb_array_length(p_evidence) > 500
+     OR octet_length(jsonb_build_object('revision', p_revision, 'assumptions', p_assumptions, 'evidence', p_evidence)::text) > 1048576 THEN
+    RAISE EXCEPTION 'Proposal snapshot exceeds the technical size bound.' USING ERRCODE = '22023';
+  END IF;
+  FOR assumption IN SELECT value FROM jsonb_array_elements(p_assumptions) LOOP
+    IF jsonb_typeof(assumption) <> 'string' THEN RAISE EXCEPTION 'Proposal assumptions must contain only strings.' USING ERRCODE = '22023'; END IF;
+  END LOOP;
   FOR item IN SELECT value FROM jsonb_array_elements(p_revision -> 'lineItems') LOOP
-    IF jsonb_typeof(item) <> 'object' OR nullif(btrim(item ->> 'itemName'), '') IS NULL
-       OR nullif(btrim(item ->> 'buildItem'), '') IS NULL OR nullif(btrim(item ->> 'lineType'), '') IS NULL
-       OR coalesce(item ->> 'clientPrice', '') !~ '^[0-9]+([.][0-9]+)?$'
-       OR coalesce(item ->> 'internalCost', '') !~ '^[0-9]+([.][0-9]+)?$' THEN
-      RAISE EXCEPTION 'Proposal lineItems contain an invalid line or numeric value.' USING ERRCODE = '22023';
+    IF jsonb_typeof(item) <> 'object'
+       OR jsonb_typeof(item -> 'itemName') IS DISTINCT FROM 'string' OR nullif(btrim(item ->> 'itemName'), '') IS NULL
+       OR jsonb_typeof(item -> 'buildItem') IS DISTINCT FROM 'string' OR nullif(btrim(item ->> 'buildItem'), '') IS NULL
+       OR coalesce(item ->> 'lineType', '') NOT IN ('material', 'labor')
+       OR jsonb_typeof(item -> 'internalCost') IS DISTINCT FROM 'number' OR (CASE WHEN jsonb_typeof(item -> 'internalCost') = 'number' THEN (item ->> 'internalCost')::numeric ELSE 0 END) < 0
+       OR jsonb_typeof(item -> 'clientPrice') IS DISTINCT FROM 'number' OR (CASE WHEN jsonb_typeof(item -> 'clientPrice') = 'number' THEN (item ->> 'clientPrice')::numeric ELSE 0 END) < 0
+       OR coalesce(item ->> 'confidence', '') NOT IN ('high', 'medium', 'low')
+       OR jsonb_typeof(item -> 'evidenceRefs') IS DISTINCT FROM 'array'
+       OR (item ? 'pricingBasis' AND (jsonb_typeof(item -> 'pricingBasis') IS DISTINCT FROM 'string' OR coalesce(item ->> 'pricingBasis', '') NOT IN ('user_input', 'tracker_evidence', 'expert_estimate', 'blended')))
+       OR (item ? 'assumption' AND jsonb_typeof(item -> 'assumption') IS DISTINCT FROM 'string') THEN
+      RAISE EXCEPTION 'Proposal lineItems contain an invalid line schema.' USING ERRCODE = '22023';
     END IF;
+    FOR evidence_ref IN SELECT value FROM jsonb_array_elements(item -> 'evidenceRefs') LOOP
+      IF jsonb_typeof(evidence_ref) IS DISTINCT FROM 'string' THEN RAISE EXCEPTION 'Proposal evidenceRefs must contain only strings.' USING ERRCODE = '22023'; END IF;
+    END LOOP;
   END LOOP;
 END;
 $$;
@@ -291,7 +487,7 @@ CREATE OR REPLACE FUNCTION public.reject_quote_proposal(
   p_workspace_id uuid, p_proposal_id uuid, p_actor_email text, p_expected_row_version bigint,
   p_reason text, p_disposition_idempotency_key text
 ) RETURNS public.quote_proposals LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE w public.ada_quote_workspaces; p public.quote_proposals; existing public.quote_proposals; actor text := lower(btrim(p_actor_email)); member_role text;
+DECLARE w public.ada_quote_workspaces; p public.quote_proposals; existing public.quote_proposals; actor text := lower(btrim(p_actor_email)); member_role text; normalized_reason text;
 BEGIN
   IF public.current_quote_actor_email() IS DISTINCT FROM actor THEN RAISE EXCEPTION 'Authenticated quote actor does not match the requested actor.' USING ERRCODE = '42501'; END IF;
   SELECT * INTO w FROM public.ada_quote_workspaces WHERE id = p_workspace_id FOR UPDATE;
@@ -300,16 +496,18 @@ BEGIN
   SELECT workspace_role INTO member_role FROM public.quote_workspace_members WHERE workspace_id = p_workspace_id AND user_id = auth.uid() AND email_normalized = actor AND workspace_role IN ('owner','editor') AND removed_at IS NULL;
   IF NOT FOUND THEN RAISE EXCEPTION 'Active editor membership required.' USING ERRCODE = '42501'; END IF;
   IF nullif(btrim(p_disposition_idempotency_key), '') IS NULL OR char_length(btrim(p_disposition_idempotency_key)) > 200 THEN RAISE EXCEPTION 'Disposition idempotency key is required and bounded.' USING ERRCODE = '22023'; END IF;
+  normalized_reason := nullif(btrim(p_reason), '');
+  IF normalized_reason IS NULL OR char_length(normalized_reason) > 2000 THEN RAISE EXCEPTION 'Rejection reason is required and bounded.' USING ERRCODE = '22023'; END IF;
   SELECT * INTO existing FROM public.quote_proposals WHERE workspace_id = p_workspace_id AND disposition_idempotency_key = btrim(p_disposition_idempotency_key);
   IF FOUND THEN
-    IF existing.id = p_proposal_id AND existing.disposed_by_email = actor AND existing.status = 'rejected' AND existing.reason = btrim(p_reason) THEN RETURN existing; END IF;
+    IF existing.id = p_proposal_id AND existing.disposed_by_email = actor AND existing.status = 'rejected' AND existing.reason = normalized_reason THEN RETURN existing; END IF;
     RAISE EXCEPTION 'Disposition idempotency key was reused with a different request.' USING ERRCODE = '23505';
   END IF;
   IF w.archived_at IS NOT NULL OR w.lifecycle_status = 'archived' THEN RAISE EXCEPTION 'Archived Quote Workspace is immutable.' USING ERRCODE = '55000'; END IF;
   IF p.status <> 'pending' THEN RAISE EXCEPTION 'Quote proposal is already terminal.' USING ERRCODE = '55000'; END IF;
   IF w.row_version <> p_expected_row_version OR p.expected_row_version <> p_expected_row_version THEN RAISE EXCEPTION 'Stale Quote Workspace row version.' USING ERRCODE = '40001'; END IF;
   IF nullif(btrim(p_reason), '') IS NULL OR nullif(btrim(p_disposition_idempotency_key), '') IS NULL THEN RAISE EXCEPTION 'Rejection reason and idempotency key are required.' USING ERRCODE = '22023'; END IF;
-  UPDATE public.quote_proposals SET status='rejected', disposed_by_email=actor, disposed_at=now(), reason=btrim(p_reason), disposition_idempotency_key=btrim(p_disposition_idempotency_key) WHERE id=p.id RETURNING * INTO p;
+  UPDATE public.quote_proposals SET status='rejected', disposed_by_email=actor, disposed_at=now(), reason=normalized_reason, disposition_idempotency_key=btrim(p_disposition_idempotency_key) WHERE id=p.id RETURNING * INTO p;
   PERFORM public.append_quote_workflow_event(p_workspace_id, p.source_revision_id, 'proposal_rejected', actor, member_role, 'edit_draft', p_expected_row_version, w.lifecycle_status, p.reason, p.proposed_evidence_json, jsonb_build_object('proposal_id', p.id, 'source_revision_id', p.source_revision_id, 'proposal_manifest_hash', p.proposed_manifest_hash, 'expected_row_version', p_expected_row_version, 'resulting_workspace_row_version', p_expected_row_version + 1, 'workspace_row_version', p_expected_row_version + 1), 'proposal-rejected:' || p.id::text);
   RETURN p;
 END;
@@ -332,6 +530,7 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Active editor membership required.' USING ERRCODE = '42501'; END IF;
   IF nullif(btrim(p_disposition_idempotency_key), '') IS NULL OR char_length(btrim(p_disposition_idempotency_key)) > 200 THEN RAISE EXCEPTION 'Disposition idempotency key is required and bounded.' USING ERRCODE = '22023'; END IF;
   normalized_reason := nullif(btrim(p_reason), '');
+  IF p_reason IS NOT NULL AND char_length(btrim(p_reason)) > 2000 THEN RAISE EXCEPTION 'Acceptance reason is bounded.' USING ERRCODE = '22023'; END IF;
   edited := p_edited_revision_json IS NOT NULL OR p_edited_assumptions_json IS NOT NULL OR p_edited_evidence_json IS NOT NULL;
   IF edited AND (p_edited_revision_json IS NULL OR p_edited_assumptions_json IS NULL OR p_edited_evidence_json IS NULL) THEN RAISE EXCEPTION 'Edited acceptance requires a complete revision, assumptions, and evidence snapshot.' USING ERRCODE = '22023'; END IF;
   revision_json := coalesce(p_edited_revision_json, p.proposed_revision_json); assumptions_json := coalesce(p_edited_assumptions_json, p.proposed_assumptions_json); evidence_json := coalesce(p_edited_evidence_json, p.proposed_evidence_json);

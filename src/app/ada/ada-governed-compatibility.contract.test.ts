@@ -56,11 +56,13 @@ test("Ada compatibility workspace projections are written only by authenticated 
   for (const [path, source] of [
     ["complete route", completeRoute],
     ["initial quote route", initialQuoteRoute],
-    ["messages route", messagesRoute],
   ] as const) {
     assert.match(source, /actorSupabase\.rpc\("record_ada_compatibility_event"/, `${path} must use the compatibility event service`);
     assert.doesNotMatch(source, /from\("ada_quote_workspaces"\)[\s\S]{0,120}\.update\(\{[\s\S]{0,160}status:/, `${path} must not directly write workspace status`);
   }
+  assert.match(messagesRoute, /actorSupabase\.rpc\("complete_ada_proposal_chat_turn"/);
+  assert.doesNotMatch(messagesRoute, /record_ada_compatibility_event/);
+  assert.doesNotMatch(messagesRoute, /from\("ada_quote_workspaces"\)[\s\S]{0,120}\.update\(\{[\s\S]{0,160}status:/);
   assert.doesNotMatch(initialQuoteRoute, /\.eq\("created_by_email", access\.actorEmail\)/);
   assert.doesNotMatch(messagesRoute, /\.eq\("created_by_email", access\.actorEmail\)/);
   assert.match(workspaceRoute, /actorSupabase[\s\S]{0,80}\.rpc\("update_ada_quote_workspace_metadata"/);

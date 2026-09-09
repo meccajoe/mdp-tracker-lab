@@ -1,4 +1,4 @@
-export type AdaStreamPhase = "context" | "evidence" | "responding" | "updating_quote";
+export type AdaStreamPhase = "context" | "evidence" | "responding" | "saving_proposal";
 
 export type AdaStreamEvent =
   | { type: "status"; phase: AdaStreamPhase; label: string }
@@ -12,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function parseAdaStreamEvent(value: unknown): AdaStreamEvent {
   if (!isRecord(value) || typeof value.type !== "string") throw new Error("Invalid Ada stream event.");
-  if (value.type === "status" && ["context", "evidence", "responding", "updating_quote"].includes(String(value.phase)) && typeof value.label === "string") {
+  if (value.type === "status" && ["context", "evidence", "responding", "saving_proposal"].includes(String(value.phase)) && typeof value.label === "string") {
     return { type: "status", phase: value.phase as AdaStreamPhase, label: value.label };
   }
   if (value.type === "delta" && typeof value.text === "string") return { type: "delta", text: value.text };

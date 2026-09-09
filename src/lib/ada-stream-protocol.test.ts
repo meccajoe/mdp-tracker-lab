@@ -17,6 +17,11 @@ test("Ada decodes streaming events across arbitrary network chunks", () => {
   assert.deepEqual(decoder.finish(), []);
 });
 
+test("Ada decodes the proposal-saving status phase", () => {
+  const decoder = new AdaNdjsonDecoder();
+  const event = { type: "status" as const, phase: "saving_proposal" as const, label: "Preparing proposal for review…" };
+  assert.deepEqual(decoder.push(encodeAdaStreamEvent(event)), [event]);
+});
 test("Ada preserves one canonical final event", () => {
   const decoder = new AdaNdjsonDecoder();
   const final = { type: "final" as const, response: { userMessage: { id: "user-1" }, assistantMessage: { id: "assistant-1" }, revision: null, revisionDelta: null } };

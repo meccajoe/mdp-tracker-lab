@@ -13,6 +13,35 @@ function lineKey(line: AdaQuoteLine) {
   return `${line.buildItem}::${line.itemName}::${line.lineType}`.trim().toLowerCase();
 }
 
+function lineFingerprint(line: AdaQuoteLine) {
+  return JSON.stringify([
+    line.buildItem,
+    line.itemName,
+    line.lineType,
+    line.internalCost,
+    line.clientPrice,
+    line.confidence,
+    line.evidenceRefs,
+    line.pricingBasis,
+    line.assumption ?? null,
+  ]);
+}
+
+function groupedLines(lines: AdaQuoteLine[]) {
+  const groups = new Map<string, AdaQuoteLine[]>();
+  for (const line of lines) {
+    const key = lineKey(line);
+    const group = groups.get(key) ?? [];
+    group.push(line);
+    groups.set(key, group);
+  }
+  return groups;
+}
+
+function occurrenceKey(key: string, index: number, total: number) {
+  return total > 1 ? `${key}::${index + 1}` : key;
+}
+
 function validatedLines(lines: AdaQuoteLine[]) {
   return validateAdaQuoteSnapshot({ lineItems: lines }).quoteJson.lineItems;
 }
@@ -25,15 +54,41 @@ export function calculateAdaRevisionTotals(lines: AdaQuoteLine[]) {
 }
 
 export function buildAdaRevisionDelta(previousLines: AdaQuoteLine[], nextLines: AdaQuoteLine[]) {
-  const previous = new Map(previousLines.map((line) => [lineKey(line), line]));
-  const next = new Map(nextLines.map((line) => [lineKey(line), line]));
-  const added = [...next.entries()].filter(([key]) => !previous.has(key)).map(([key, line]) => ({ key, itemName: line.itemName, sellDelta: line.clientPrice }));
-  const removed = [...previous.entries()].filter(([key]) => !next.has(key)).map(([key, line]) => ({ key, itemName: line.itemName, sellDelta: -line.clientPrice }));
-  const changed = [...next.entries()].flatMap(([key, line]) => {
-    const old = previous.get(key);
-    if (!old || (old.internalCost === line.internalCost && old.clientPrice === line.clientPrice)) return [];
-    return [{ key, itemName: line.itemName, internalCostDelta: line.internalCost - old.internalCost, sellDelta: line.clientPrice - old.clientPrice }];
-  });
+  const previous = groupedLines(previousLines);
+  const next = groupedLines(nextLines);
+  const keys = new Set([...previous.keys(), ...next.keys()]);
+  const added: Array<{ key: string; itemName: string; sellDelta: number; line: AdaQuoteLine }> = [];
+  const removed: Array<{ key: string; itemName: string; sellDelta: number; line: AdaQuoteLine }> = [];
+  const changed: Array<{ key: string; itemName: string; internalCostDelta: number; sellDelta: number; before: AdaQuoteLine; after: AdaQuoteLine }> = [];
+
+  for (const key of keys) {
+    const previousGroup = previous.get(key) ?? [];
+    const nextGroup = next.get(key) ?? [];
+    const pairedCount = Math.min(previousGroup.length, nextGroup.length);
+    const totalOccurrences = Math.max(previousGroup.length, nextGroup.length);
+    for (let index = 0; index < pairedCount; index += 1) {
+      const before = previousGroup[index];
+      const after = nextGroup[index];
+      if (lineFingerprint(before) !== lineFingerprint(after)) {
+        changed.push({
+          key: occurrenceKey(key, index, totalOccurrences),
+          itemName: after.itemName,
+          internalCostDelta: after.internalCost - before.internalCost,
+          sellDelta: after.clientPrice - before.clientPrice,
+          before,
+          after,
+        });
+      }
+    }
+    for (let index = pairedCount; index < nextGroup.length; index += 1) {
+      const line = nextGroup[index];
+      added.push({ key: occurrenceKey(key, index, totalOccurrences), itemName: line.itemName, sellDelta: line.clientPrice, line });
+    }
+    for (let index = pairedCount; index < previousGroup.length; index += 1) {
+      const line = previousGroup[index];
+      removed.push({ key: occurrenceKey(key, index, totalOccurrences), itemName: line.itemName, sellDelta: -line.clientPrice, line });
+    }
+  }
   const previousTotals = calculateAdaRevisionTotals(previousLines);
   const nextTotals = calculateAdaRevisionTotals(nextLines);
   return { added, removed, changed, internalCostDelta: nextTotals.internalCost - previousTotals.internalCost, sellPriceDelta: nextTotals.sellPrice - previousTotals.sellPrice };
@@ -74,16 +129,33 @@ export async function createAdaRevisionFromInstruction(args: {
   assets: unknown[];
   intelligence: unknown[];
 }) {
+  const proposal = await generateAdaRevisionProposalFromInstruction(args);
+  const { revision } = await createAdaQuoteRevision({ supabase: args.supabase, workspaceId: args.workspaceId, actorEmail: args.actorEmail, quoteValue: proposal.snapshot.quoteJson, assumptions: proposal.snapshot.assumptions, evidence: proposal.snapshot.evidence });
+  return { revision, revisionDelta: proposal.proposalDelta, sourceRevisionId: proposal.sourceRevisionId };
+}
+
+export async function generateAdaRevisionProposalFromInstruction(args: {
+  workspaceId: string;
+  instruction: string;
+  currentRevision: RevisionLike | null;
+  messages: Array<{ content: string }>;
+  assets: unknown[];
+  intelligence: unknown[];
+  generateQuote?: typeof generateAdaQuote;
+}) {
   const previousLines = validatedLines(args.currentRevision?.quote_json?.lineItems ?? []);
-  const quote = await generateAdaQuote({
+  const generateQuote = args.generateQuote ?? generateAdaQuote;
+  const quote = await generateQuote({
     messages: args.messages,
     assets: args.assets,
     intelligence: args.intelligence,
     existingQuote: args.currentRevision?.quote_json ?? undefined,
     instruction: args.instruction,
   });
-  const { revision, snapshot } = await createAdaQuoteRevision({ supabase: args.supabase, workspaceId: args.workspaceId, actorEmail: args.actorEmail, quoteValue: { lineItems: quote.lineItems }, assumptions: quote.assumptions, evidence: quote.evidence });
-  const lines = snapshot.quoteJson.lineItems;
-  const revisionDelta = buildAdaRevisionDelta(previousLines, lines);
-  return { revision, revisionDelta, sourceRevisionId: args.currentRevision?.id ?? null };
+  const snapshot = validateAdaQuoteSnapshot({ lineItems: quote.lineItems }, quote.assumptions, quote.evidence);
+  return {
+    snapshot,
+    proposalDelta: buildAdaRevisionDelta(previousLines, snapshot.quoteJson.lineItems),
+    sourceRevisionId: args.currentRevision?.id ?? null,
+  };
 }

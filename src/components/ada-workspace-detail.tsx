@@ -7,15 +7,17 @@ import { AdaFileUpload } from "@/components/ada-file-upload";
 import { AdaIntelligenceDrawer } from "@/components/ada-intelligence-drawer";
 import { AdaMessageMarkdown } from "@/components/ada-message-markdown";
 import { AdaQuoteCanvas } from "@/components/ada-quote-canvas";
-import { AdaProposalReview, type AdaProposalReviewData } from "@/components/ada-proposal-review";
+import { AdaProposalReview, type AdaProposalDelta, type AdaProposalReviewData } from "@/components/ada-proposal-review";
 import { AdaSheetPane } from "@/components/ada-sheet-pane";
 import { adaFetch } from "@/lib/ada-client";
 import { AdaNdjsonDecoder, type AdaStreamEvent } from "@/lib/ada-stream-protocol";
 
-type Message = { id: string; role: "user" | "assistant" | "system"; content: string; structured_payload_json?: { citations?: Array<{ sourceId: string; label: string; page?: number }>; needsInput?: string[]; limitations?: string[]; revision?: any; revisionDelta?: { added?: unknown[]; removed?: unknown[]; changed?: unknown[]; internalCostDelta?: number; sellPriceDelta?: number } | null } | null };
+type Message = { id: string; role: "user" | "assistant" | "system"; content: string; structured_payload_json?: { citations?: Array<{ sourceId: string; label: string; page?: number }>; needsInput?: string[]; limitations?: string[]; revision?: any; revisionDelta?: AdaProposalDelta | null; proposal?: AdaProposalReviewData | null; proposalDelta?: AdaProposalDelta | null } | null };
 type Asset = { id: string; concept_id: string | null; original_name: string; mime_type: string; byte_size: number; analysis_status: "uploading" | "uploaded" | "analyzing" | "ready" | "failed"; analysis_json?: { questions?: string[] } | null; created_at: string };
 type Detail = { workspace: { title: string; client_name: string | null }; messages: Message[]; assets: Asset[] };
-type TurnResult = { userMessage?: Message; assistantMessage?: Message; revision?: any; revisionDelta?: any };
+type TurnResult = { userMessage?: Message; assistantMessage?: Message; revision?: any; revisionDelta?: any; proposal?: AdaProposalReviewData | null; proposalDelta?: AdaProposalDelta | null };
+type ProposalAcceptanceRequest = { expectedRowVersion: number; dispositionIdempotencyKey: string; quoteJson?: unknown; assumptions?: string[]; evidence?: unknown[] };
+type ProposalRejectionRequest = { expectedRowVersion: number; dispositionIdempotencyKey: string; reason: string };
 type UploadedAsset = { id: string; original_name: string; analysis_status: string };
 
 export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
@@ -34,6 +36,8 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const [showQuote, setShowQuote] = useState(false);
   const [showProposal, setShowProposal] = useState(false);
   const [proposal, setProposal] = useState<AdaProposalReviewData | null>(null);
+  const [proposalDelta, setProposalDelta] = useState<AdaProposalDelta | null>(null);
+  const [proposals, setProposals] = useState<AdaProposalReviewData[]>([]);
   const [showSheet, setShowSheet] = useState(false);
   const [revision, setRevision] = useState<any>(null);
   const [previousRevision, setPreviousRevision] = useState<any>(null);
@@ -49,7 +53,16 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const loadProposal = useCallback(async () => {
     const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals`);
     const result = await response.json().catch(() => ({}));
-    if (response.ok) setProposal((result.proposals ?? []).find((candidate: AdaProposalReviewData) => candidate.status === "pending") ?? result.proposals?.[0] ?? null);
+    if (response.ok) {
+      const rows = (result.proposals ?? []) as AdaProposalReviewData[];
+      setProposals(rows);
+      setProposal((current) => {
+        if (!current) return null;
+        const refreshed = rows.find((candidate) => candidate.id === current.id) ?? current;
+        setProposalDelta((currentDelta) => refreshed.proposalDelta ?? currentDelta);
+        return refreshed;
+      });
+    }
   }, [workspaceId]);
   useEffect(() => { void loadProposal(); }, [loadProposal]);
   useEffect(() => { setDraft(window.localStorage.getItem(draftKey) ?? ""); setOptimisticMessage(null); }, [draftKey]);
@@ -60,6 +73,8 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const loadSheetChanges = useCallback(async () => { if (!revision?.id) return; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions/${revision.id}/sheet/changes`); const result = await response.json().catch(() => ({})); setSheetChanges(response.ok ? result.changes ?? [] : []); }, [revision?.id, workspaceId]);
   useEffect(() => { if (showSheet) void loadSheetChanges(); else setSheetChanges([]); }, [loadSheetChanges, showSheet]);
   const messages = useMemo(() => detail?.messages ?? [], [detail]);
+  const proposalById = useMemo(() => new Map(proposals.map((candidate) => [candidate.id, candidate])), [proposals]);
+  const pendingProposals = useMemo(() => proposals.filter((candidate) => candidate.status === "pending"), [proposals]);
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submittedMessage = draft.trim();
@@ -112,6 +127,7 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
         return { ...current, messages: [...current.messages, ...incoming] };
       });
       if (result.revision) { setPreviousRevision(revision); setRevision(result.revision); }
+      if (result.proposal) setProposals((current) => [result!.proposal!, ...current.filter((candidate) => candidate.id !== result!.proposal!.id)]);
       retryRequestRef.current = null;
       setOptimisticMessage(null);
       setStreamedText("");
@@ -158,9 +174,58 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   function openQuoteEvidence(reference: string) { const match = reference.match(/^asset:([^:]+)(?::page:(\d+))?$/); if (!match) return; setSelectedEvidenceAssetId(match[1]); setSelectedEvidencePage(match[2] ? Number(match[2]) : null); setShowEvidence(true); }
   function openConversationCitation(citation: { sourceId: string; page?: number }) { if (citation.sourceId.startsWith("asset:")) openQuoteEvidence(citation.page ? `${citation.sourceId}:page:${citation.page}` : citation.sourceId); else setShowIntelligence(true); }
   async function acceptRevision() { if (!revision) return; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions/${revision.id}/accept`, { method: "POST" }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Ada could not accept this revision."); return; } await load(); }
-  async function acceptProposal(args: { proposalId: string; expectedRowVersion: number; dispositionIdempotencyKey: string }) { const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals/${args.proposalId}/accept`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(args) }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Ada could not accept this proposal."); return; } setProposal(result.proposal ?? null); setShowProposal(false); await load(); }
-  async function editAcceptProposal(args: { proposalId: string; expectedRowVersion: number; dispositionIdempotencyKey: string; quoteJson: unknown; assumptions: string[]; evidence: unknown[] }) { await acceptProposal({ ...args }); }
-  async function rejectProposal(args: { proposalId: string; expectedRowVersion: number; dispositionIdempotencyKey: string; reason: string }) { const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals/${args.proposalId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(args) }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Ada could not reject this proposal."); return; } setProposal(result.proposal ?? null); setShowProposal(false); }
+  async function acceptProposal(proposalId: string, request: ProposalAcceptanceRequest) {
+    const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals/${proposalId}/accept`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 409) {
+        await loadProposal();
+        const message = "This proposal changed. Its current status has been refreshed.";
+        setError(message);
+        throw new Error(message);
+      }
+      const message = result.error ?? "Ada could not accept this proposal.";
+      setError(message);
+      throw new Error(message);
+    }
+    const accepted = result.proposal as AdaProposalReviewData | undefined;
+    if (!accepted?.acceptedRevisionId) throw new Error("The accepted draft revision was not returned.");
+    setProposal(accepted);
+    setProposals((current) => [accepted, ...current.filter((candidate) => candidate.id !== accepted.id)]);
+    const revisionsResponse = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions`);
+    const revisionsResult = await revisionsResponse.json().catch(() => ({}));
+    if (!revisionsResponse.ok) throw new Error(revisionsResult.error ?? "The accepted draft revision could not be loaded.");
+    const revisions = revisionsResult.revisions ?? [];
+    const acceptedIndex = revisions.findIndex((candidate: { id?: string }) => candidate.id === accepted.acceptedRevisionId);
+    if (acceptedIndex < 0) throw new Error("The accepted draft revision could not be found.");
+    setRevision(revisions[acceptedIndex]);
+    setPreviousRevision(revisions[acceptedIndex + 1] ?? null);
+    await Promise.all([load(), loadProposal()]);
+    setShowProposal(false);
+    setShowQuote(true);
+  }
+  async function editAcceptProposal(proposalId: string, request: ProposalAcceptanceRequest) {
+    await acceptProposal(proposalId, request);
+  }
+  async function rejectProposal(proposalId: string, request: ProposalRejectionRequest) {
+    const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals/${proposalId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 409) {
+        await loadProposal();
+        const message = "This proposal changed. Its current status has been refreshed.";
+        setError(message);
+        throw new Error(message);
+      }
+      const message = result.error ?? "Ada could not reject this proposal.";
+      setError(message);
+      throw new Error(message);
+    }
+    const rejected = result.proposal as AdaProposalReviewData;
+    setProposal(rejected);
+    setProposals((current) => [rejected, ...current.filter((candidate) => candidate.id !== rejected.id)]);
+    await loadProposal();
+  }
   async function previewHandoff() { if (!revision) return null; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions/${revision.id}/handoff-preview`); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Accept this exact revision before previewing handoff."); return null; } return result as { proposedActions: string[]; previewOnly: boolean }; }
   async function saveQuoteRevision(quoteJson: unknown, assumptions: string[]) { if (!revision) return; const lines = (quoteJson as { lineItems?: Array<{ internalCost: number; clientPrice: number }> }).lineItems ?? []; const internalCost = lines.reduce((sum, line) => sum + line.internalCost, 0); const sellPrice = lines.reduce((sum, line) => sum + line.clientPrice, 0); const marginPct = sellPrice ? ((sellPrice - internalCost) / sellPrice) * 100 : 0; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quoteJson, internalCost, sellPrice, marginPct, assumptions, evidence: revision.evidence_json ?? [] }) }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Could not save quote revision."); return; } setPreviousRevision(revision); setRevision(result.revision); }
   async function reviseQuote(instruction: string) { if (!revision) return; setSaving(true); const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revise`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }) }); const result = await response.json().catch(() => ({})); setSaving(false); if (!response.ok) { setError(result.error ?? "Ada could not revise the quote."); return; } setPreviousRevision(revision); setRevision(result.revision); }
@@ -170,15 +235,46 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   async function applySheetChange(changeId: string) { if (!revision) return; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions/${revision.id}/sheet/changes/${changeId}/apply`, { method: "POST" }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Could not apply the sheet change."); return; } await Promise.all([loadSheetChanges(), loadWorkingSheet()]); }
   async function proposeSheetChange(instruction: string) { if (!revision) return; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions/${revision.id}/sheet/changes/propose`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }) }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Ada needs a more specific sheet instruction."); return; } await loadSheetChanges(); }
   async function checkSheetSync() { if (!revision) return; const response = await adaFetch(`/api/ada/workspaces/${workspaceId}/revisions/${revision.id}/sheet/sync`, { method: "POST" }); const result = await response.json().catch(() => ({})); if (!response.ok) { setError(result.error ?? "Ada could not check the working sheet."); return; } setWorkingSheet((current) => current ? { ...current, syncStatus: result.syncStatus, conflicts: result.conflicts } : current); }
+  function openProposalReview(nextProposal: AdaProposalReviewData, nextDelta: AdaProposalDelta | null = null) {
+    setProposal(nextProposal);
+    setProposalDelta(nextProposal.proposalDelta ?? nextDelta);
+    setShowProposal(true);
+    setShowEvidence(false);
+    setShowIntelligence(false);
+    setShowQuote(false);
+  }
   function renderMessageNode(message: Message) {
-    return <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${message.role === "user" ? "ml-auto bg-foreground text-background" : "border border-border bg-muted/45"}`}>{message.role === "assistant" ? <AdaMessageMarkdown content={message.content} /> : <p className="whitespace-pre-wrap">{message.content}</p>}{message.role === "assistant" && message.structured_payload_json?.citations?.length ? <div className="mt-2 flex flex-wrap gap-1">{message.structured_payload_json.citations.map((citation) => <button key={`${citation.sourceId}-${citation.page ?? ""}`} type="button" onClick={() => openConversationCitation(citation)} className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent">{citation.label}{citation.page ? ` · page ${citation.page}` : ""}</button>)}</div> : null}{message.role === "assistant" && message.structured_payload_json?.revision ? <div className="mt-3 rounded-lg border border-border bg-background/70 p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold">Quote updated · Revision {message.structured_payload_json.revision.revision_number}</p><p className="mt-1 text-xs text-muted-foreground">Sell change: {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(message.structured_payload_json.revisionDelta?.sellPriceDelta ?? 0)}</p></div><button type="button" onClick={() => { setPreviousRevision(revision); setRevision(message.structured_payload_json?.revision); setShowQuote(true); }} className="rounded border border-border px-2 py-1 text-xs font-medium hover:bg-accent">Open quote</button></div></div> : null}</div>;
+    const embeddedProposal = message.structured_payload_json?.proposal;
+    const liveProposal = embeddedProposal ? proposalById.get(embeddedProposal.id) ?? embeddedProposal : null;
+    const embeddedDelta = message.structured_payload_json?.proposalDelta ?? null;
+    return <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${message.role === "user" ? "ml-auto bg-foreground text-background" : "border border-border bg-muted/45"}`}>
+      {message.role === "assistant" ? <AdaMessageMarkdown content={message.content} /> : <p className="whitespace-pre-wrap">{message.content}</p>}
+      {message.role === "assistant" && message.structured_payload_json?.citations?.length ? <div className="mt-2 flex flex-wrap gap-1">{message.structured_payload_json.citations.map((citation) => <button key={`${citation.sourceId}-${citation.page ?? ""}`} type="button" onClick={() => openConversationCitation(citation)} className="rounded border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-accent">{citation.label}{citation.page ? ` · page ${citation.page}` : ""}</button>)}</div> : null}
+      {message.role === "assistant" && liveProposal ? <div className="mt-3 rounded-lg border border-border bg-background/70 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold">Quote proposal · {liveProposal.status}</p><p className="mt-1 text-xs text-muted-foreground">{(liveProposal.proposalDelta ?? embeddedDelta)?.added?.length ?? 0} added · {(liveProposal.proposalDelta ?? embeddedDelta)?.removed?.length ?? 0} removed · {(liveProposal.proposalDelta ?? embeddedDelta)?.changed?.length ?? 0} changed</p></div><button type="button" onClick={() => openProposalReview(liveProposal, liveProposal.proposalDelta ?? embeddedDelta)} className="min-h-9 rounded border border-border px-2 py-1 text-xs font-medium hover:bg-accent">Review proposal</button></div></div> : null}
+      {message.role === "assistant" && message.structured_payload_json?.revision ? <div className="mt-3 rounded-lg border border-border bg-background/70 p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold">Quote updated · Revision {message.structured_payload_json.revision.revision_number}</p><p className="mt-1 text-xs text-muted-foreground">Sell change: {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(message.structured_payload_json.revisionDelta?.sellPriceDelta ?? 0)}</p></div><button type="button" onClick={() => { setPreviousRevision(revision); setRevision(message.structured_payload_json?.revision); setShowQuote(true); }} className="rounded border border-border px-2 py-1 text-xs font-medium hover:bg-accent">Open quote</button></div></div> : null}
+    </div>;
   }
   const conversationItems: AdaScrollerItem[] = messages.map((message) => ({ id: message.id, role: message.role, content: message.content, node: renderMessageNode(message) }));
   if (conversationItems.length === 0 && !optimisticMessage) conversationItems.push({ id: "empty", role: "system", content: "", node: <p className="py-16 text-center text-sm text-muted-foreground">Start with a scope, a sketch, or a file.</p> });
   if (optimisticMessage) conversationItems.push({ id: optimisticMessage.id, role: "user", content: optimisticMessage.content, node: <div className="ml-auto max-w-[85%] rounded-2xl bg-foreground px-4 py-3 text-sm text-background"><p className="whitespace-pre-wrap">{optimisticMessage.content}</p></div> });
   if (saving || streamedText) conversationItems.push({ id: `stream-${optimisticMessage?.id ?? "active"}`, role: "assistant", content: streamedText, node: <div className="max-w-[85%] rounded-2xl border border-border bg-muted/45 px-4 py-3 text-sm">{streamedText ? <AdaMessageMarkdown content={streamedText} /> : <span className="text-muted-foreground">{streamStatus ?? "Ada is responding…"}</span>}{streamedText && streamStatus === "Updating quote…" ? <p className="mt-3 text-xs text-muted-foreground">Updating quote…</p> : null}</div> });
+  const pendingProposalBanner = pendingProposals.length ? (
+    <div className="mx-4 mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 sm:mx-6">
+      <div>
+        <p className="text-xs font-semibold">{pendingProposals.length} pending quote proposal{pendingProposals.length === 1 ? "" : "s"}</p>
+        <p className="text-xs text-muted-foreground">Review before creating a draft revision.</p>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {pendingProposals.map((pendingProposal, index) => (
+          <button key={pendingProposal.id} type="button" onClick={() => openProposalReview(pendingProposal, pendingProposal.proposalDelta ?? null)} className="min-h-10 rounded-lg border border-border bg-background px-3 py-2 text-left text-xs font-semibold hover:bg-accent">
+            Review proposal {index + 1} · {new Date(pendingProposal.createdAt).toLocaleDateString()}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
   if (loading) return <p className="p-6 text-sm text-muted-foreground">Loading chat…</p>;
   if (error && !detail) return <div className="p-6"><p className="font-medium">Ada needs setup attention</p><p className="mt-1 text-sm text-muted-foreground">{error}</p><button type="button" onClick={() => void load()} className="mt-3 rounded-md border border-border px-3 py-2 text-sm">Try again</button></div>;
   if (!detail) return null;
-  return <div className="flex h-full min-w-0 text-left">{showProposal && proposal ? <div className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-5"><AdaProposalReview proposal={proposal} onAccept={acceptProposal} onEditAccept={editAcceptProposal} onReject={rejectProposal} /></div> : null}{showEvidence && <AdaEvidenceViewer workspaceId={workspaceId} assets={detail.assets} initialAssetId={selectedEvidenceAssetId} initialPage={selectedEvidencePage} onAskInChat={(question) => { setDraft(question); setShowEvidence(false); }} onAssetUploaded={handleAssetUploaded} onChanged={load} onClose={() => setShowEvidence(false)} />}{showIntelligence && <AdaIntelligenceDrawer workspaceId={workspaceId} onClose={() => setShowIntelligence(false)} />}{showQuote && (showSheet ? <AdaSheetPane sheet={workingSheet} changes={sheetChanges} onClose={() => setShowSheet(false)} onCreate={createWorkingSheet} onOpen={openWorkingSheet} onCheckSync={checkSheetSync} onStageChange={stageSheetChange} onApplyChange={applySheetChange} onProposeChange={proposeSheetChange} /> : <AdaQuoteCanvas workspaceId={workspaceId} revision={revision} previousRevision={previousRevision} workingSheet={workingSheet} onClose={() => setShowQuote(false)} onSaveRevision={saveQuoteRevision} onNaturalLanguageRevision={reviseQuote} onCreateWorkingSheet={createWorkingSheet} onOpenWorkingSheet={openWorkingSheet} onOpenEvidenceRef={openQuoteEvidence} onAcceptRevision={acceptRevision} onPreviewHandoff={previewHandoff} />)}<section aria-label="Persistent conversation" className={`flex min-w-0 flex-1 flex-col ${showEvidence || showIntelligence || showQuote ? "max-md:hidden" : ""}`}><header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-6"><div className="min-w-0"><h2 className="truncate text-sm font-semibold">{detail.workspace.title}</h2><p className="truncate text-xs text-muted-foreground">{detail.workspace.client_name || "Client not set"}</p></div><div className="flex gap-1"><button disabled={saving} type="button" onClick={() => void generateQuote()} className="h-8 rounded-md border border-border px-2 text-xs font-medium hover:bg-accent disabled:opacity-50">{saving ? "Generating…" : "Generate quote"}</button><button type="button" aria-label="Open proposal review" title="Open proposal review" onClick={() => { void loadProposal(); setShowProposal(!showProposal); }} className="inline-flex h-8 items-center justify-center rounded-md border border-border px-2 text-xs font-medium text-muted-foreground hover:bg-accent">{proposal?.status === "pending" ? "Review proposal" : "Proposal"}</button><button type="button" aria-label="Open working sheet pane" title="Open working sheet pane" onClick={() => { setShowQuote(true); setShowSheet(!showSheet); }} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">▤</button><button type="button" aria-label="Open quote canvas" title="Open quote canvas" onClick={() => setShowQuote(!showQuote)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">▤</button><button type="button" aria-label="Open intelligence" title="Open intelligence" onClick={() => setShowIntelligence(!showIntelligence)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">✦</button><button type="button" aria-label="Open files" title="Open files" onClick={() => setShowEvidence(!showEvidence)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">▣</button></div></header>{assetWorkflowStatus ? <div role="status" className="mx-4 mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground sm:mx-6">{assetWorkflowStatus}</div> : null}{error ? <div role="alert" className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 sm:mx-6"><span>{error}</span><button type="button" onClick={() => setError(null)} className="rounded px-2 py-1 text-xs font-medium hover:bg-red-100">Dismiss</button></div> : null}<AdaConversationScroller workspaceId={workspaceId} items={conversationItems} anchorTurnId={optimisticMessage?.id ?? null} streaming={saving || Boolean(assetWorkflowStatus)} streamSignal={streamedText} streamStatus={streamStatus} /><form onSubmit={sendMessage} className="shrink-0 border-t border-border bg-background px-4 py-3 sm:px-6">{selectedEvidenceAsset ? <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground"><span>Discussing: {selectedEvidenceAsset.original_name}{selectedEvidencePage ? ` · page ${selectedEvidencePage}` : ""}</span><button type="button" onClick={() => { setSelectedEvidenceAssetId(null); setSelectedEvidencePage(null); }} className="rounded px-1 hover:bg-accent">Clear</button></div> : null}<div className="mx-auto grid max-w-3xl grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-border bg-muted/25 p-2 focus-within:ring-2 focus-within:ring-ring/30"><AdaFileUpload workspaceId={workspaceId} onUploaded={handleAssetUploaded} onUploadStart={() => setShowEvidence(true)} compact /><label className="sr-only" htmlFor="ada-message">Message Ada</label><textarea id="ada-message" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Let’s quote something..." rows={1} className="max-h-40 min-h-9 w-full resize-y bg-transparent px-2 py-1.5 text-sm outline-none" /><button aria-label="Send message" disabled={saving || !draft.trim()} type="submit" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-lg font-medium text-background disabled:opacity-50">↑</button></div></form></section></div>;
+  return <div className="flex h-full min-w-0 text-left">{showProposal && proposal ? <div className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-5"><AdaProposalReview proposal={proposal} proposalDelta={proposalDelta} onClose={() => setShowProposal(false)} onAccept={acceptProposal} onEditAccept={editAcceptProposal} onReject={rejectProposal} onOpenEvidence={(assetId, pageNumber) => { setSelectedEvidenceAssetId(assetId); setSelectedEvidencePage(pageNumber); setShowProposal(false); setShowEvidence(true); }} /></div> : null}{showEvidence && <AdaEvidenceViewer workspaceId={workspaceId} assets={detail.assets} initialAssetId={selectedEvidenceAssetId} initialPage={selectedEvidencePage} onAskInChat={(question) => { setDraft(question); setShowEvidence(false); }} onAssetUploaded={handleAssetUploaded} onChanged={load} onClose={() => setShowEvidence(false)} />}{showIntelligence && <AdaIntelligenceDrawer workspaceId={workspaceId} onClose={() => setShowIntelligence(false)} />}{showQuote && (showSheet ? <AdaSheetPane sheet={workingSheet} changes={sheetChanges} onClose={() => setShowSheet(false)} onCreate={createWorkingSheet} onOpen={openWorkingSheet} onCheckSync={checkSheetSync} onStageChange={stageSheetChange} onApplyChange={applySheetChange} onProposeChange={proposeSheetChange} /> : <AdaQuoteCanvas workspaceId={workspaceId} revision={revision} previousRevision={previousRevision} workingSheet={workingSheet} onClose={() => setShowQuote(false)} onSaveRevision={saveQuoteRevision} onNaturalLanguageRevision={reviseQuote} onCreateWorkingSheet={createWorkingSheet} onOpenWorkingSheet={openWorkingSheet} onOpenEvidenceRef={openQuoteEvidence} onAcceptRevision={acceptRevision} onPreviewHandoff={previewHandoff} />)}<section aria-label="Persistent conversation" className={`flex min-w-0 flex-1 flex-col ${showProposal || showEvidence || showIntelligence || showQuote ? "max-md:hidden" : ""}`}><header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-6"><div className="min-w-0"><h2 className="truncate text-sm font-semibold">{detail.workspace.title}</h2><p className="truncate text-xs text-muted-foreground">{detail.workspace.client_name || "Client not set"}</p></div><div className="flex gap-1"><button disabled={saving} type="button" onClick={() => void generateQuote()} className="h-8 rounded-md border border-border px-2 text-xs font-medium hover:bg-accent disabled:opacity-50">{saving ? "Generating…" : "Generate quote"}</button><button type="button" aria-label="Open working sheet pane" title="Open working sheet pane" onClick={() => { setShowQuote(true); setShowSheet(!showSheet); }} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">▤</button><button type="button" aria-label="Open quote canvas" title="Open quote canvas" onClick={() => setShowQuote(!showQuote)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">▤</button><button type="button" aria-label="Open intelligence" title="Open intelligence" onClick={() => setShowIntelligence(!showIntelligence)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">✦</button><button type="button" aria-label="Open files" title="Open files" onClick={() => setShowEvidence(!showEvidence)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent">▣</button></div></header>{assetWorkflowStatus ? <div role="status" className="mx-4 mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground sm:mx-6">{assetWorkflowStatus}</div> : null}{error ? <div role="alert" className="mx-4 mt-3 flex items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 sm:mx-6"><span>{error}</span><button type="button" onClick={() => setError(null)} className="rounded px-2 py-1 text-xs font-medium hover:bg-red-100">Dismiss</button></div> : null}{pendingProposalBanner}<AdaConversationScroller workspaceId={workspaceId} items={conversationItems} anchorTurnId={optimisticMessage?.id ?? null} streaming={saving || Boolean(assetWorkflowStatus)} streamSignal={streamedText} streamStatus={streamStatus} /><form onSubmit={sendMessage} className="shrink-0 border-t border-border bg-background px-4 py-3 sm:px-6">{selectedEvidenceAsset ? <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground"><span>Discussing: {selectedEvidenceAsset.original_name}{selectedEvidencePage ? ` · page ${selectedEvidencePage}` : ""}</span><button type="button" onClick={() => { setSelectedEvidenceAssetId(null); setSelectedEvidencePage(null); }} className="rounded px-1 hover:bg-accent">Clear</button></div> : null}<div className="mx-auto grid max-w-3xl grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-border bg-muted/25 p-2 focus-within:ring-2 focus-within:ring-ring/30"><AdaFileUpload workspaceId={workspaceId} onUploaded={handleAssetUploaded} onUploadStart={() => setShowEvidence(true)} compact /><label className="sr-only" htmlFor="ada-message">Message Ada</label><textarea id="ada-message" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Let’s quote something..." rows={1} className="max-h-40 min-h-9 w-full resize-y bg-transparent px-2 py-1.5 text-sm outline-none" /><button aria-label="Send message" disabled={saving || !draft.trim()} type="submit" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-lg font-medium text-background disabled:opacity-50">↑</button></div></form></section></div>;
 }

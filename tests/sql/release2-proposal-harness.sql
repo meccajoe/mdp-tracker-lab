@@ -43,7 +43,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.proposal_workspace_id')::uuid, 'owner@example.com', current_setting('test.proposal_create_version')::bigint, NULL,
-      '{"lineItems":[{"itemName":"Credential probe","buildItem":"Package","clientPrice":1,"internalCost":1,"lineType":"fabrication","api_key":"[REDACTED]"}]}'::jsonb, '[]', '[]', 'release2-sensitive-probe');
+      '{"lineItems":[{"itemName":"Credential probe","buildItem":"Package","clientPrice":1,"internalCost":1,"lineType":"material","api_key":"[REDACTED]"}]}'::jsonb, '[]', '[]', 'release2-sensitive-probe');
     RAISE EXCEPTION 'credential-shaped proposal unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '22023' OR SQLSTATE 'P0001' THEN NULL;
   END;
@@ -58,12 +58,12 @@ BEGIN
 END $$;
 SELECT (public.create_quote_proposal(
   current_setting('test.proposal_workspace_id')::uuid, 'owner@example.com', current_setting('test.proposal_create_version')::bigint, NULL,
-  '{"lineItems":[{"itemName":"Proposal reject line","buildItem":"Proposal package","clientPrice":300,"internalCost":100,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Proposal reject line","buildItem":"Proposal package","clientPrice":300,"internalCost":100,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-create-reject'
 )).id AS rejected_proposal_id \gset
 SELECT (public.create_quote_proposal(
   current_setting('test.proposal_workspace_id')::uuid, 'owner@example.com', current_setting('test.proposal_create_version')::bigint, NULL,
-  '{"lineItems":[{"itemName":"Proposal reject line","buildItem":"Proposal package","clientPrice":300,"internalCost":100,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Proposal reject line","buildItem":"Proposal package","clientPrice":300,"internalCost":100,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-create-reject'
 )).id AS retry_proposal_id \gset
 RESET ROLE;
@@ -149,7 +149,7 @@ SELECT row_version AS accept_create_version, current_revision_id AS accept_sourc
 SET ROLE authenticated;
 SELECT (public.create_quote_proposal(
   current_setting('test.proposal_workspace_id')::uuid, 'owner@example.com', :'accept_create_version', NULL,
-  '{"lineItems":[{"itemName":"Proposal accept line","buildItem":"Proposal package","clientPrice":400,"internalCost":150,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Proposal accept line","buildItem":"Proposal package","clientPrice":400,"internalCost":150,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-create-accept'
 )).id AS accepted_proposal_id \gset
 RESET ROLE;
@@ -205,7 +205,7 @@ BEGIN
 END $$;
 SET ROLE authenticated;
 SELECT (public.create_quote_proposal(current_setting('test.proposal_workspace_id')::uuid, 'owner@example.com', :'accept_create_version', NULL,
-  '{"lineItems":[{"itemName":"Proposal accept line","buildItem":"Proposal package","clientPrice":400,"internalCost":150,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Proposal accept line","buildItem":"Proposal package","clientPrice":400,"internalCost":150,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-create-accept')).id;
 RESET ROLE;
 SELECT row_version AS accepted_retry_version, current_revision_id AS accepted_retry_revision FROM public.ada_quote_workspaces WHERE id = current_setting('test.proposal_workspace_id')::uuid \gset
@@ -234,7 +234,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.accept_quote_proposal(current_setting('test.proposal_workspace_id')::uuid, current_setting('test.accepted_proposal_id')::uuid, 'owner@example.com', current_setting('test.accepted_retry_version')::bigint,
-      '{"lineItems":[{"itemName":"Conflicting","buildItem":"Conflicting","clientPrice":401,"internalCost":151,"lineType":"fabrication"}]}'::jsonb,
+      '{"lineItems":[{"itemName":"Conflicting","buildItem":"Conflicting","clientPrice":401,"internalCost":151,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
       '[]'::jsonb, '[]'::jsonb, 'approved', 'release2-accept-1');
     RAISE EXCEPTION 'conflicting disposition key unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '23505' THEN NULL;
@@ -335,15 +335,15 @@ SET ROLE authenticated;
 SELECT (public.create_quote_workspace('Release 2 edited fixture', NULL, 'Client', 'Contact', NULL)).id AS edited_workspace_id \gset
 SELECT set_config('test.edited_workspace_id', :'edited_workspace_id', false);
 SELECT public.create_ada_quote_revision(:'edited_workspace_id'::uuid, 'owner@example.com',
-  '{"lineItems":[{"itemName":"Source","buildItem":"Source package","clientPrice":450,"internalCost":180,"lineType":"fabrication","pricingBasis":"reviewed","evidenceRefs":[]}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Source","buildItem":"Source package","clientPrice":450,"internalCost":180,"lineType":"material","confidence":"high","pricingBasis":"expert_estimate","evidenceRefs":[]}]}'::jsonb,
   180, 450, 60, '[]'::jsonb, '[]'::jsonb);
 RESET ROLE;
 SELECT row_version AS edited_create_version, current_revision_id AS edited_source_revision FROM public.ada_quote_workspaces WHERE id = current_setting('test.edited_workspace_id')::uuid \gset
 SELECT set_config('test.edited_source_revision', current_revision_id::text, false) FROM public.ada_quote_workspaces WHERE id = current_setting('test.edited_workspace_id')::uuid;
 SET ROLE authenticated;
 SELECT (public.create_quote_proposal(current_setting('test.edited_workspace_id')::uuid, 'owner@example.com', :'edited_create_version', current_setting('test.edited_source_revision')::uuid,
-  '{"lineItems":[{"itemName":"Original","buildItem":"Original package","clientPrice":500,"internalCost":200,"lineType":"fabrication"}]}'::jsonb,
-  '[{"assumption":"original"}]'::jsonb, '[{"source":"original"}]'::jsonb, 'release2-edited-create')).id AS edited_proposal_id \gset
+  '{"lineItems":[{"itemName":"Original","buildItem":"Original package","clientPrice":500,"internalCost":200,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
+  '["original"]'::jsonb, '["original"]'::jsonb, 'release2-edited-create')).id AS edited_proposal_id \gset
 SELECT set_config('test.edited_proposal_id', :'edited_proposal_id', false);
 RESET ROLE;
 SELECT row_version AS edited_partial_version FROM public.ada_quote_workspaces WHERE id = current_setting('test.edited_workspace_id')::uuid \gset
@@ -356,7 +356,7 @@ SET ROLE authenticated;
 DO $$ BEGIN
   BEGIN
     PERFORM public.accept_quote_proposal(current_setting('test.edited_workspace_id')::uuid, current_setting('test.edited_proposal_id')::uuid, 'owner@example.com', current_setting('test.edited_partial_version')::bigint,
-      '{"lineItems":[{"itemName":"Edited","buildItem":"Edited package","clientPrice":800,"internalCost":300,"lineType":"fabrication"}]}'::jsonb, NULL, '[]'::jsonb, 'partial', 'release2-edited-partial');
+      '{"lineItems":[{"itemName":"Edited","buildItem":"Edited package","clientPrice":800,"internalCost":300,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, NULL, '[]'::jsonb, 'partial', 'release2-edited-partial');
     RAISE EXCEPTION 'partial edit unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
   END;
@@ -368,8 +368,8 @@ DO $$ BEGIN
 END $$;
 SET ROLE authenticated;
 SELECT public.accept_quote_proposal(current_setting('test.edited_workspace_id')::uuid, current_setting('test.edited_proposal_id')::uuid, 'owner@example.com', current_setting('test.edited_partial_version')::bigint,
-  '{"lineItems":[{"itemName":"Edited","buildItem":"Edited package","clientPrice":800,"internalCost":300,"lineType":"fabrication"}]}'::jsonb,
-  '[{"assumption":"edited"}]'::jsonb, '[{"source":"edited"}]'::jsonb, 'edited', 'release2-edited-accept');
+  '{"lineItems":[{"itemName":"Edited","buildItem":"Edited package","clientPrice":800,"internalCost":300,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
+  '["edited"]'::jsonb, '["edited"]'::jsonb, 'edited', 'release2-edited-accept');
 RESET ROLE;
 DO $$
 DECLARE p public.quote_proposals; r public.ada_quote_revisions; event_order text[]; event_versions bigint[];
@@ -391,7 +391,7 @@ SET ROLE authenticated;
 DO $$ BEGIN
   BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.edited_workspace_id')::uuid, 'owner@example.com', current_setting('test.stale_version')::bigint - 1, NULL,
-      '{"lineItems":[{"itemName":"Stale","buildItem":"Stale","clientPrice":10,"internalCost":5,"lineType":"fabrication"}]}'::jsonb, '[]', '[]', 'release2-stale-create');
+      '{"lineItems":[{"itemName":"Stale","buildItem":"Stale","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-stale-create');
     RAISE EXCEPTION 'stale create unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '40001' THEN NULL;
   END;
@@ -406,7 +406,7 @@ SET ROLE authenticated;
 DO $$ BEGIN
   BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.edited_workspace_id')::uuid, 'owner@example.com', current_setting('test.current_edited_version')::bigint, NULL,
-      '{"lineItems":[{"itemName":"Wrong source","buildItem":"Wrong source","clientPrice":10,"internalCost":5,"lineType":"fabrication"}]}'::jsonb, '[]', '[]', 'release2-current-wrong-source');
+      '{"lineItems":[{"itemName":"Wrong source","buildItem":"Wrong source","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-current-wrong-source');
     RAISE EXCEPTION 'current-version wrong source unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '23503' THEN NULL;
   END;
@@ -450,7 +450,7 @@ SELECT set_config('test.stale_disposition_workspace_id', :'stale_disposition_wor
 SELECT row_version AS stale_disposition_create_version FROM public.ada_quote_workspaces WHERE id = :'stale_disposition_workspace_id' \gset
 SET ROLE authenticated;
 SELECT (public.create_quote_proposal(:'stale_disposition_workspace_id'::uuid, 'owner@example.com', :'stale_disposition_create_version', NULL,
-  '{"lineItems":[{"itemName":"Stale disposition","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Stale disposition","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-stale-disposition-create')).id AS stale_disposition_proposal_id \gset
 RESET ROLE;
 SELECT set_config('test.stale_disposition_proposal_id', :'stale_disposition_proposal_id', false);
@@ -496,7 +496,7 @@ BEGIN
   END;
   BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.stale_disposition_workspace_id')::uuid, 'outsider@example.com', current_setting('test.stale_disposition_version')::bigint, NULL,
-      '{"lineItems":[{"itemName":"Outsider","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"fabrication"}]}'::jsonb, '[]', '[]', 'release2-outsider-create');
+      '{"lineItems":[{"itemName":"Outsider","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-outsider-create');
     RAISE EXCEPTION 'outsider create unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
   END;
@@ -509,7 +509,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.stale_disposition_workspace_id')::uuid, 'owner@example.com', current_setting('test.stale_disposition_version')::bigint, NULL,
-      '{"lineItems":[{"itemName":"Wrong UUID","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"fabrication"}]}'::jsonb, '[]', '[]', 'release2-wrong-uuid');
+      '{"lineItems":[{"itemName":"Wrong UUID","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-wrong-uuid');
     RAISE EXCEPTION 'same-email wrong auth uid unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
   END;
@@ -524,7 +524,7 @@ RESET ROLE;
 SELECT row_version AS archived_proposal_create_version FROM public.ada_quote_workspaces WHERE id = :'archived_proposal_workspace_id' \gset
 SET ROLE authenticated;
 SELECT (public.create_quote_proposal(:'archived_proposal_workspace_id'::uuid, 'owner@example.com', :'archived_proposal_create_version', NULL,
-  '{"lineItems":[{"itemName":"Archived proposal","buildItem":"Package","clientPrice":20,"internalCost":10,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Archived proposal","buildItem":"Package","clientPrice":20,"internalCost":10,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-archived-create')).id AS archived_proposal_id \gset
 RESET ROLE;
 SELECT row_version AS archived_row_version FROM public.ada_quote_workspaces WHERE id = :'archived_proposal_workspace_id' \gset
@@ -542,7 +542,7 @@ SELECT set_config('test.archived_before_events', :'archived_before_events', fals
 SELECT set_config('test.archived_before_revisions', :'archived_before_revisions', false);
 SET ROLE authenticated;
 SELECT (public.create_quote_proposal(:'archived_proposal_workspace_id'::uuid, 'owner@example.com', :'archived_proposal_create_version', NULL,
-  '{"lineItems":[{"itemName":"Archived proposal","buildItem":"Package","clientPrice":20,"internalCost":10,"lineType":"fabrication"}]}'::jsonb,
+  '{"lineItems":[{"itemName":"Archived proposal","buildItem":"Package","clientPrice":20,"internalCost":10,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb,
   '[]'::jsonb, '[]'::jsonb, 'release2-archived-create')).id AS archived_retry_id \gset
 SELECT set_config('test.archived_retry_id', :'archived_retry_id', false);
 DO $$
@@ -557,7 +557,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.archived_workspace_id')::uuid, 'owner@example.com', current_setting('test.archived_create_version')::bigint, NULL,
-      '{"lineItems":[{"itemName":"New after archive","buildItem":"Package","clientPrice":20,"internalCost":10,"lineType":"fabrication"}]}'::jsonb, '[]', '[]', 'release2-archived-new');
+      '{"lineItems":[{"itemName":"New after archive","buildItem":"Package","clientPrice":20,"internalCost":10,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-archived-new');
   EXCEPTION WHEN OTHERS THEN
     IF SQLSTATE <> '55000' THEN RAISE; END IF;
   END;
@@ -586,7 +586,7 @@ DO $$
 BEGIN
   BEGIN
     PERFORM public.create_quote_proposal('10000000-0000-0000-0000-000000000001', 'owner@example.com', current_setting('test.lifecycle_version')::bigint, current_setting('test.lifecycle_source')::uuid,
-      '{"lineItems":[{"itemName":"Lifecycle blocked","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"fabrication"}]}'::jsonb, '[]', '[]', 'release2-lifecycle-blocked');
+      '{"lineItems":[{"itemName":"Lifecycle blocked","buildItem":"Package","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-lifecycle-blocked');
     RAISE EXCEPTION 'commercially approved proposal unexpectedly succeeded';
   EXCEPTION WHEN SQLSTATE 'P0001' THEN NULL;
   END;
@@ -781,5 +781,304 @@ BEGIN
   IF p.id IS DISTINCT FROM s.id OR p.status IS DISTINCT FROM s.status OR p.proposed_manifest_hash IS DISTINCT FROM s.proposed_manifest_hash OR p.disposition_manifest_hash IS DISTINCT FROM s.disposition_manifest_hash OR p.accepted_revision_id IS DISTINCT FROM s.accepted_revision_id OR
      (SELECT count(*) FROM public.quote_proposals) <> s.proposal_count OR (SELECT count(*) FROM public.ada_quote_revisions) <> s.revision_count OR (SELECT count(*) FROM public.quote_workflow_events) <> s.event_count THEN RAISE EXCEPTION 'rerun changed durable proposal state'; END IF;
 END $$;
+
+-- Direct authenticated RPC attacks: every invalid snapshot and reason is rejected
+-- before proposal/event/revision/workspace row-version mutation.
+CREATE OR REPLACE FUNCTION public.test_proposal_attack_state(p_workspace_id uuid) RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object(
+    'proposals', (SELECT count(*) FROM public.quote_proposals),
+    'events', (SELECT count(*) FROM public.quote_workflow_events WHERE workspace_id = p_workspace_id),
+    'revisions', (SELECT count(*) FROM public.ada_quote_revisions WHERE workspace_id = p_workspace_id),
+    'version', (SELECT row_version FROM public.ada_quote_workspaces WHERE id = p_workspace_id)
+  )
+$$;
+GRANT EXECUTE ON FUNCTION public.test_proposal_attack_state(uuid) TO authenticated;
+SET ROLE authenticated;
+DO $$
+DECLARE ws uuid; v bigint; before_proposals integer; before_events integer; before_revisions integer; before_version bigint; bad jsonb; attack jsonb;
+BEGIN
+  SELECT (public.create_quote_workspace('Release 2 validator attacks', NULL, 'Client', 'Contact', NULL)).id INTO ws;
+  SELECT (public.test_proposal_attack_state(ws) ->> 'version')::bigint INTO v;
+  SELECT (public.test_proposal_attack_state(ws) ->> 'proposals')::integer INTO before_proposals;
+  SELECT (public.test_proposal_attack_state(ws) ->> 'events')::integer INTO before_events;
+  SELECT (public.test_proposal_attack_state(ws) ->> 'revisions')::integer INTO before_revisions;
+  SELECT (public.test_proposal_attack_state(ws) ->> 'version')::bigint INTO before_version;
+  FOREACH attack IN ARRAY ARRAY[
+    '{"lineItems":[{"itemName":"x","buildItem":"x","lineType":"fabrication","internalCost":1,"clientPrice":1,"confidence":"high","evidenceRefs":[]}]}'::jsonb,
+    '{"lineItems":[{"itemName":"x","buildItem":"x","lineType":"material","internalCost":1,"clientPrice":1,"confidence":"bogus","evidenceRefs":[]}]}'::jsonb,
+    '{"lineItems":[{"itemName":"x","buildItem":"x","lineType":"material","internalCost":1,"clientPrice":1,"confidence":"high","evidenceRefs":[1]}]}'::jsonb,
+    '{"lineItems":[{"itemName":"x","buildItem":"x","lineType":"material","internalCost":1,"clientPrice":1,"confidence":"high","evidenceRefs":[],"pricingBasis":"reviewed"}]}'::jsonb,
+    '{"lineItems":[{"itemName":"x","buildItem":"x","lineType":"material","internalCost":1,"clientPrice":1,"confidence":"high","evidenceRefs":[],"assumption":42}]}'::jsonb,
+    jsonb_build_object('lineItems', (SELECT jsonb_agg(jsonb_build_object('itemName','x','buildItem','x','lineType','material','internalCost',1,'clientPrice',1,'confidence','high','evidenceRefs','[]'::jsonb)) FROM generate_series(1,501))),
+    jsonb_build_object('lineItems', jsonb_build_array(jsonb_build_object('itemName',repeat('x',1048570),'buildItem','x','lineType','material','internalCost',1,'clientPrice',1,'confidence','high','evidenceRefs','[]'::jsonb)))
+  ] LOOP
+    IF jsonb_array_length(attack -> 'lineItems') = 1 AND attack -> 'lineItems' -> 0 ->> 'itemName' = 'x' THEN bad := attack; ELSE bad := attack; END IF;
+    BEGIN
+      PERFORM public.create_quote_proposal(ws, 'owner@example.com', v, NULL, bad, CASE WHEN bad = attack AND jsonb_array_length(bad -> 'lineItems') = 1 THEN '["ok"]'::jsonb ELSE '[]'::jsonb END, CASE WHEN jsonb_array_length(bad -> 'lineItems') = 1 THEN '[]'::jsonb ELSE (SELECT jsonb_agg('e'::text) FROM generate_series(1,501)) END, 'release2-attack-' || md5(attack::text));
+      RAISE EXCEPTION 'invalid proposal attack unexpectedly succeeded: %', attack;
+    EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+    END;
+  END LOOP;
+  IF (public.test_proposal_attack_state(ws) ->> 'proposals')::integer <> before_proposals OR (public.test_proposal_attack_state(ws) ->> 'events')::integer <> before_events OR (public.test_proposal_attack_state(ws) ->> 'revisions')::integer <> before_revisions OR (public.test_proposal_attack_state(ws) ->> 'version')::bigint <> before_version THEN RAISE EXCEPTION 'invalid snapshot attack changed state'; END IF;
+END $$;
+RESET ROLE;
+
+-- Atomic Ada chat persistence/finalization: replay, rollback, and actor governance.
+SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
+SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
+SELECT row_version AS chat_expected_version, current_revision_id AS chat_source_revision FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000003' \gset
+SET ROLE authenticated;
+SELECT (public.claim_ada_chat_turn('10000000-0000-0000-0000-000000000003', 'owner@example.com', '40000000-0000-0000-0000-000000000001', 'Make the package smaller')).turn_id AS chat_turn_id \gset
+SELECT set_config('test.chat_turn_id', :'chat_turn_id', false);
+SELECT public.ensure_ada_proposal_chat_user_message('10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 'Make the package smaller') \gset
+SELECT public.complete_ada_proposal_chat_turn(
+  '10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', :'chat_expected_version'::bigint, NULLIF(:'chat_source_revision', '')::uuid,
+  '{"lineItems":[{"itemName":"Package","buildItem":"Package","clientPrice":100,"internalCost":40,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]'::jsonb, '[]'::jsonb,
+  'ada-chat-turn:' || :'chat_turn_id', 'Proposal ready.', '{"quoteAction":"propose_revision"}'::jsonb, '{"items":[{"field":"clientPrice","from":120,"to":100}]}'::jsonb, 'in_review'
+) AS chat_response \gset
+SELECT public.complete_ada_proposal_chat_turn(
+  '10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 999999, NULL,
+  NULL, NULL, NULL, 'different-key', 'ignored', '{}'::jsonb, NULL, 'not_allowed'
+) AS chat_replay \gset
+SELECT set_config('test.chat_source_revision', :'chat_source_revision', false);
+SELECT set_config('test.chat_response', :'chat_response', false);
+SELECT set_config('test.chat_replay', :'chat_replay', false);
+-- RED: terminal replay must still enforce immutable actor ownership, not only
+-- the workspace and authenticated-email checks.
+RESET ROLE;
+UPDATE public.ada_chat_turns SET actor_email = 'outsider@example.com'
+WHERE id = current_setting('test.chat_turn_id')::uuid;
+SET ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.email', 'owner@example.com', false);
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid,
+      '11000000-0000-0000-0000-000000000003', 'owner@example.com', 999999, NULL,
+      NULL, NULL, NULL, 'different-key', 'ignored', '{}'::jsonb, NULL, 'not_allowed'
+    );
+    RAISE EXCEPTION 'owner replayed another actor completed turn';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+UPDATE public.ada_chat_turns SET actor_email = 'owner@example.com'
+WHERE id = current_setting('test.chat_turn_id')::uuid;
+SET ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.email', 'outsider@example.com', false);
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid,
+      '11000000-0000-0000-0000-000000000003', 'outsider@example.com', 999999, NULL,
+      NULL, NULL, NULL, 'different-key', 'ignored', '{}'::jsonb, NULL, 'not_allowed'
+    );
+    RAISE EXCEPTION 'outsider replayed another actor completed turn';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+UPDATE public.quote_workspace_members SET removed_at = now()
+WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND email_normalized = 'owner@example.com';
+SET ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.email', 'owner@example.com', false);
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid,
+      '11000000-0000-0000-0000-000000000003', 'owner@example.com', 999999, NULL,
+      NULL, NULL, NULL, 'different-key', 'ignored', '{}'::jsonb, NULL, 'not_allowed'
+    );
+    RAISE EXCEPTION 'removed member replayed completed chat turn';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+UPDATE public.quote_workspace_members SET removed_at = NULL
+WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND email_normalized = 'owner@example.com';
+
+DO $$
+DECLARE response jsonb; user_id uuid; assistant_id uuid; retry_response jsonb;
+BEGIN
+  response := current_setting('test.chat_response')::jsonb; retry_response := current_setting('test.chat_replay')::jsonb;
+  user_id := (response -> 'userMessage' ->> 'id')::uuid; assistant_id := (response -> 'assistantMessage' ->> 'id')::uuid;
+  IF user_id IS NULL OR assistant_id IS NULL OR (response -> 'proposal' ->> 'id') IS NULL THEN RAISE EXCEPTION 'atomic chat response omitted durable ids'; END IF;
+  IF retry_response -> 'assistantMessage' ->> 'id' <> assistant_id::text OR retry_response -> 'proposal' ->> 'id' <> response -> 'proposal' ->> 'id' THEN RAISE EXCEPTION 'completed chat retry changed durable ids'; END IF;
+  IF (SELECT count(*) FROM public.ada_quote_messages WHERE workspace_id = '10000000-0000-0000-0000-000000000003') <> 2 OR
+     (SELECT count(*) FROM public.quote_proposals WHERE workspace_id = '10000000-0000-0000-0000-000000000003') <> 3 OR
+     (SELECT count(*) FROM public.ada_quote_events WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND event_type = 'chat_turn_completed') <> 1 THEN
+    RAISE EXCEPTION 'atomic chat retry duplicated durable rows';
+  END IF;
+END $$;
+RESET ROLE;
+CREATE OR REPLACE FUNCTION public.test_chat_attack_state(p_workspace_id uuid) RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object(
+    'turns', (SELECT count(*) FROM public.ada_chat_turns),
+    'messages', (SELECT count(*) FROM public.ada_quote_messages),
+    'proposals', (SELECT count(*) FROM public.quote_proposals),
+    'events', (SELECT count(*) FROM public.ada_quote_events),
+    'rollback_status', (SELECT status FROM public.ada_chat_turns WHERE id = current_setting('test.rollback_turn_id')::uuid)
+  )
+$$;
+GRANT EXECUTE ON FUNCTION public.test_chat_attack_state(uuid) TO authenticated;
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
+SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
+SELECT (public.claim_ada_chat_turn('10000000-0000-0000-0000-000000000003', 'owner@example.com', '40000000-0000-0000-0000-000000000002', 'Try rollback')).turn_id AS rollback_turn_id \gset
+SELECT set_config('test.rollback_turn_id', :'rollback_turn_id', false);
+SELECT public.ensure_ada_proposal_chat_user_message('10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 'Try rollback');
+DO $$
+DECLARE before_state jsonb;
+BEGIN
+  before_state := public.test_chat_attack_state('10000000-0000-0000-0000-000000000003');
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000004', 'owner@example.com', 1, NULL,
+      '{"lineItems":[{"itemName":"Cross concept","buildItem":"Package","clientPrice":101,"internalCost":41,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]'::jsonb, '[]'::jsonb,
+      'cross-concept', 'Cross concept', '{}'::jsonb, NULL, NULL
+    );
+    RAISE EXCEPTION 'cross-concept finalization unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+  IF public.test_chat_attack_state('10000000-0000-0000-0000-000000000003') IS DISTINCT FROM before_state THEN
+    RAISE EXCEPTION 'cross-concept finalization leaked durable state';
+  END IF;
+END $$;
+RESET ROLE;
+CREATE OR REPLACE FUNCTION public.test_chat_attack_state(p_workspace_id uuid) RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT jsonb_build_object(
+    'turns', (SELECT count(*) FROM public.ada_chat_turns),
+    'messages', (SELECT count(*) FROM public.ada_quote_messages),
+    'proposals', (SELECT count(*) FROM public.quote_proposals),
+    'events', (SELECT count(*) FROM public.ada_quote_events),
+    'rollback_status', (SELECT status FROM public.ada_chat_turns WHERE id = current_setting('test.rollback_turn_id')::uuid)
+  )
+$$;
+GRANT EXECUTE ON FUNCTION public.test_chat_attack_state(uuid) TO authenticated;
+SET ROLE authenticated;
+DO $$
+DECLARE before_state jsonb;
+BEGIN
+  before_state := public.test_chat_attack_state('10000000-0000-0000-0000-000000000003');
+  BEGIN
+    PERFORM public.claim_ada_chat_turn('10000000-0000-0000-0000-000000000003', 'owner@example.com', '40000000-0000-0000-0000-000000000099', repeat('x', 20001));
+    RAISE EXCEPTION 'oversized claim unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.claim_ada_chat_turn('10000000-0000-0000-0000-000000000003', 'owner@example.com', '40000000-0000-0000-0000-000000000098', '   ');
+    RAISE EXCEPTION 'blank claim unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.ensure_ada_proposal_chat_user_message('10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', repeat('x', 20001));
+    RAISE EXCEPTION 'oversized ensure unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 1, NULL,
+      NULL, NULL, NULL, 'oversized-assistant', repeat('x', 100001), '{}'::jsonb, NULL, NULL
+    );
+    RAISE EXCEPTION 'oversized assistant unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 1, NULL,
+      NULL, NULL, NULL, 'bad-payload', 'ok', '[]'::jsonb, NULL, NULL
+    );
+    RAISE EXCEPTION 'array assistant payload unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 1, NULL,
+      NULL, NULL, NULL, 'bad-delta', 'ok', '{}'::jsonb, '[]'::jsonb, NULL
+    );
+    RAISE EXCEPTION 'array proposal delta unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 1, NULL,
+      NULL, NULL, NULL, 'oversized-combined', 'ok', jsonb_build_object('text', repeat('x', 1048576)), NULL, NULL
+    );
+    RAISE EXCEPTION 'oversized combined payload unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+  IF public.test_chat_attack_state('10000000-0000-0000-0000-000000000003') IS DISTINCT FROM before_state THEN
+    RAISE EXCEPTION 'chat bounds attack leaked durable state';
+  END IF;
+END $$;
+RESET ROLE;
+SELECT row_version AS rollback_expected_version FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000003' \gset
+SELECT set_config('test.rollback_turn_id', :'rollback_turn_id', false);
+SELECT set_config('test.rollback_expected_version', :'rollback_expected_version', false);
+SET ROLE authenticated;
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.complete_ada_proposal_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', current_setting('test.rollback_expected_version')::bigint, NULLIF(current_setting('test.chat_source_revision', true), '')::uuid,
+      '{"lineItems":[{"itemName":"Rollback","buildItem":"Package","clientPrice":101,"internalCost":41,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]'::jsonb, '[]'::jsonb,
+      'ada-chat-turn:' || current_setting('test.rollback_turn_id'), 'Rollback', '{}'::jsonb, NULL, 'not_allowed'
+    );
+    RAISE EXCEPTION 'invalid compatibility status unexpectedly committed';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.ada_quote_messages WHERE workspace_id = '10000000-0000-0000-0000-000000000003') <> 3 OR
+     (SELECT count(*) FROM public.quote_proposals WHERE workspace_id = '10000000-0000-0000-0000-000000000003') <> 3 OR
+     (SELECT count(*) FROM public.ada_quote_events WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND event_type = 'chat_turn_completed') <> 1 OR
+     (SELECT status FROM public.ada_chat_turns WHERE id = current_setting('test.rollback_turn_id')::uuid) <> 'pending' THEN
+    RAISE EXCEPTION 'finalizer rollback leaked assistant/proposal/event or changed turn';
+  END IF;
+END $$;
+UPDATE public.quote_workspace_members SET removed_at = now()
+WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND email_normalized = 'owner@example.com';
+SET ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.email', 'owner@example.com', false);
+  BEGIN
+    PERFORM public.fail_ada_chat_turn(
+      '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid,
+      'owner@example.com', 'attacker-controlled error'
+    );
+    RAISE EXCEPTION 'removed member mutated pending chat turn';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+UPDATE public.quote_workspace_members SET removed_at = NULL
+WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND email_normalized = 'owner@example.com';
+SET ROLE authenticated;
+SELECT public.complete_ada_proposal_chat_turn(
+  '10000000-0000-0000-0000-000000000003', current_setting('test.rollback_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', :'rollback_expected_version'::bigint, NULLIF(:'chat_source_revision', '')::uuid,
+  '{"lineItems":[{"itemName":"Rollback","buildItem":"Package","clientPrice":101,"internalCost":41,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]'::jsonb, '[]'::jsonb,
+  'ada-chat-turn:' || current_setting('test.rollback_turn_id'), 'Rollback', '{}'::jsonb, NULL, NULL
+);
+RESET ROLE;
+SET ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.email', 'outsider@example.com', false);
+  PERFORM set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000002', false);
+  BEGIN
+    PERFORM public.ensure_ada_proposal_chat_user_message('10000000-0000-0000-0000-000000000003', current_setting('test.chat_turn_id')::uuid, '11000000-0000-0000-0000-000000000003', 'owner@example.com', 'Make the package smaller');
+    RAISE EXCEPTION 'invalid actor unexpectedly ensured chat message';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
 
 SELECT 'release2_proposal_sql_harness_ok' AS marker;

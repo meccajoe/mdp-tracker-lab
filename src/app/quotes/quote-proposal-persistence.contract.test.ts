@@ -66,8 +66,12 @@ test("Release 2 disposition logic is deterministic, scoped, and hash-bound", () 
   assert.match(sql, /accepted_hash.*normalized_manifest_hash.*norm_hash/i);
   assert.match(sql, /existing\.disposition_manifest_hash = accepted_hash/);
   assert.match(sql, /normalized_reason\s+text/);
+  assert.match(sql, /p_reason text,\s*p_disposition_idempotency_key text\s*\)\s*RETURNS public\.quote_proposals/i);
   assert.match(sql, /normalized_reason := nullif\(btrim\(p_reason\), ''\)/);
   assert.match(sql, /existing\.reason IS NOT DISTINCT FROM normalized_reason/);
+  assert.match(sql, /p_edited_revision_json IS NOT NULL/);
+  assert.match(sql, /p_edited_assumptions_json IS NOT NULL/);
+  assert.match(sql, /p_edited_evidence_json IS NOT NULL/);
   assert.match(sql, /reason=normalized_reason/);
   for (const token of ["40001", "55000", "proposal-created:", "proposal-rejected:", "proposal-accepted:", "proposal-edited:", "proposal-revision-created:"]) assert.match(sql, new RegExp(token, "i"));
 });
@@ -127,4 +131,30 @@ test("Release 2 binds proposal evidence to deferred aggregate integrity and prov
   assert.match(sql, /NEW\.event_type = 'revision_created'[\s\S]{0,2600}NEW\.payload_json ->> 'edited' IS DISTINCT FROM \(/);
   assert.match(sql, /NEW\.event_type = 'proposal_rejected'[\s\S]{0,700}NEW\.payload_json ->> 'source_revision_id' IS DISTINCT FROM p\.source_revision_id::text/);
   assert.doesNotMatch(sql, /coalesce\(p\.source_revision_id::text, ''\)/);
+});
+
+test("Release 2 snapshot validator enforces exact line schema and transport bounds", () => {
+  const sql = migration();
+  for (const token of [
+    "jsonb_typeof(item -> 'itemName')",
+    "coalesce(item ->> 'lineType', '') NOT IN ('material', 'labor')",
+    "CASE WHEN jsonb_typeof(item -> 'internalCost') = 'number'",
+    "CASE WHEN jsonb_typeof(item -> 'clientPrice') = 'number'",
+    "coalesce(item ->> 'confidence', '') NOT IN ('high', 'medium', 'low')",
+    "jsonb_typeof(item -> 'evidenceRefs') IS DISTINCT FROM 'array'",
+    "jsonb_array_elements(item -> 'evidenceRefs')",
+    "coalesce(item ->> 'pricingBasis', '') NOT IN ('user_input', 'tracker_evidence', 'expert_estimate', 'blended')",
+    "jsonb_typeof(item -> 'assumption')",
+    "jsonb_array_elements(p_assumptions)",
+    "jsonb_array_length(p_revision -> 'lineItems') > 500",
+    "jsonb_array_length(p_assumptions) > 200",
+    "jsonb_array_length(p_evidence) > 500",
+    "octet_length(jsonb_build_object('revision', p_revision, 'assumptions', p_assumptions, 'evidence', p_evidence)::text) > 1048576",
+  ]) assert.ok(sql.includes(token), `missing SQL contract: ${token}`);
+});
+
+test("Release 2 normalizes and bounds disposition reasons before state mutation", () => {
+  const sql = migration();
+  assert.match(sql, /char_length\(normalized_reason\) > 2000/i);
+  assert.match(sql, /p_reason IS NOT NULL AND char_length\(btrim\(p_reason\)\) > 2000/i);
 });

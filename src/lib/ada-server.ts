@@ -7,6 +7,7 @@ import { canPerformQuoteAction, type QuoteAction, type QuoteActor } from "@/lib/
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const AUTHORIZATION_QUERY_ERROR = "Unable to verify Ada workspace access.";
 
 export async function requireAdaIdentity() {
   const cookieStore = await cookies();
@@ -27,17 +28,17 @@ export async function requireAdaIdentity() {
   if (!user?.email) return { ok: false as const, response: NextResponse.json({ error: "Authentication required" }, { status: 401 }) };
   const actorEmail = user.email.toLowerCase();
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: roleRow, error } = await supabase.from("user_roles").select("ada_access, role, pm_initials").eq("email", actorEmail).maybeSingle();
-  if (error) return { ok: false as const, response: NextResponse.json({ error: error.message }, { status: 500 }) };
+  const roleResult = await supabase.from("user_roles").select("ada_access, role, pm_initials").eq("email", actorEmail).maybeSingle();
+  if (roleResult.error) return { ok: false as const, response: NextResponse.json({ error: AUTHORIZATION_QUERY_ERROR }, { status: 500 }) };
   return {
     ok: true as const,
     supabase,
     actorSupabase,
     actorId: user.id,
     actorEmail,
-    actorRole: roleRow?.role ?? null,
-    pmInitials: roleRow?.pm_initials ?? null,
-    legacyAdaAccess: Boolean(roleRow?.ada_access),
+    actorRole: roleResult.data?.role ?? null,
+    pmInitials: roleResult.data?.pm_initials ?? null,
+    legacyAdaAccess: Boolean(roleResult.data?.ada_access),
   };
 }
 
@@ -75,7 +76,7 @@ export async function resolveQuoteWorkspaceAuthorization(
     .is("removed_at", null)
     .maybeSingle();
   if (membershipResult.error) {
-    return { ok: false as const, response: NextResponse.json({ error: membershipResult.error.message }, { status: 500 }) };
+    return { ok: false as const, response: NextResponse.json({ error: AUTHORIZATION_QUERY_ERROR }, { status: 500 }) };
   }
   if (!membershipResult.data) {
     return { ok: false as const, response: NextResponse.json({ error: "Ada chat not found." }, { status: 404 }) };
@@ -87,7 +88,7 @@ export async function resolveQuoteWorkspaceAuthorization(
     .eq("id", workspaceId)
     .maybeSingle();
   if (workspaceResult.error) {
-    return { ok: false as const, response: NextResponse.json({ error: workspaceResult.error.message }, { status: 500 }) };
+    return { ok: false as const, response: NextResponse.json({ error: AUTHORIZATION_QUERY_ERROR }, { status: 500 }) };
   }
   if (!workspaceResult.data) {
     return { ok: false as const, response: NextResponse.json({ error: "Ada chat not found." }, { status: 404 }) };
@@ -100,7 +101,7 @@ export async function resolveQuoteWorkspaceAuthorization(
     .eq("email_normalized", access.actorEmail)
     .is("revoked_at", null);
   if (capabilityResult.error) {
-    return { ok: false as const, response: NextResponse.json({ error: capabilityResult.error.message }, { status: 500 }) };
+    return { ok: false as const, response: NextResponse.json({ error: AUTHORIZATION_QUERY_ERROR }, { status: 500 }) };
   }
 
   const actor: QuoteActor = {
