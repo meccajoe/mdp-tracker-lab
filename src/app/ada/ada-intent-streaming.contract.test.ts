@@ -26,7 +26,7 @@ test("the authenticated message route returns typed NDJSON and persists only the
   assert.match(source, /type: "status"/);
   assert.match(source, /type: "delta"/);
   assert.match(source, /type: "final"/);
-  assert.match(source, /createAdaRevisionFromInstruction/);
+  assert.match(source, /generateAdaRevisionProposalFromInstruction/);
   assert.match(source, /response_json/);
   assert.doesNotMatch(source, /abortSignal: request\.signal/);
 });

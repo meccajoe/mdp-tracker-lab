@@ -4,20 +4,23 @@ import { join } from "node:path";
 import test from "node:test";
 
 const route = readFileSync(join(process.cwd(), "src/app/api/ada/workspaces/[workspaceId]/messages/route.ts"), "utf8");
-const detail = readFileSync(join(process.cwd(), "src/components/ada-workspace-detail.tsx"), "utf8");
 
-test("Ada turns an approved conversational quote action into a persisted revision", () => {
-  assert.match(route, /createAdaRevisionFromInstruction/);
-  assert.match(route, /quoteAction === "propose_revision"/);
-  assert.match(route, /revisionDelta/);
-  assert.match(route, /quote_revision_created_from_chat/);
-  assert.match(route, /revision_id/);
-  assert.match(route, /source_revision_id/);
+test("Ada turns propose_revision into a durable proposal without a canonical revision", () => {
+  assert.match(route, /complete_ada_proposal_chat_turn/);
+  assert.match(route, /generateAdaRevisionProposalFromInstruction/);
+  assert.match(route, /p_expected_row_version/);
+  assert.match(route, /current_revision_id/);
+  assert.match(route, /ada-chat-turn:\$\{turnId\}/);
+  assert.doesNotMatch(route, /createAdaRevisionFromInstruction/);
+  assert.doesNotMatch(route, /createAdaQuoteRevision/);
+  assert.doesNotMatch(route, /quote_revision_created_from_chat/);
+  assert.doesNotMatch(route, /\.delete\(\)/);
+  assert.doesNotMatch(route, /revision_id:\s*revisionAction/);
 });
 
-test("Ada renders the completed revision and price delta in conversation", () => {
-  assert.match(detail, /Quote updated/);
-  assert.match(detail, /revisionDelta/);
-  assert.match(detail, /sellPriceDelta/);
-  assert.match(detail, /Open quote/);
+test("Ada exposes a pending proposal and proposal delta, not a quote update", () => {
+  assert.match(route, /proposalDelta/);
+  assert.match(route, /proposalSnapshot/);
+  assert.match(route, /Proposal ready for review/);
+  assert.doesNotMatch(route, /Quote updated/);
 });
