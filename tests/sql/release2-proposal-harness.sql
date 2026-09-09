@@ -3,6 +3,8 @@
 \ir release1-foundation-harness.sql
 \ir ../../supabase/migrations/20260908152000_quote_proposals.sql
 \ir ../../supabase/migrations/20260908152000_quote_proposals.sql
+\ir ../../supabase/migrations/20260909221000_quote_proposal_chat_version_alignment.sql
+\ir ../../supabase/migrations/20260909221000_quote_proposal_chat_version_alignment.sql
 
 DO $$
 DECLARE
@@ -902,16 +904,33 @@ UPDATE public.quote_workspace_members SET removed_at = NULL
 WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND email_normalized = 'owner@example.com';
 
 DO $$
-DECLARE response jsonb; user_id uuid; assistant_id uuid; retry_response jsonb;
+DECLARE response jsonb; user_id uuid; assistant_id uuid; retry_response jsonb; proposal_id uuid; proposal_expected_version bigint; workspace_version bigint;
 BEGIN
   response := current_setting('test.chat_response')::jsonb; retry_response := current_setting('test.chat_replay')::jsonb;
   user_id := (response -> 'userMessage' ->> 'id')::uuid; assistant_id := (response -> 'assistantMessage' ->> 'id')::uuid;
+  proposal_id := (response -> 'proposal' ->> 'id')::uuid;
   IF user_id IS NULL OR assistant_id IS NULL OR (response -> 'proposal' ->> 'id') IS NULL THEN RAISE EXCEPTION 'atomic chat response omitted durable ids'; END IF;
   IF retry_response -> 'assistantMessage' ->> 'id' <> assistant_id::text OR retry_response -> 'proposal' ->> 'id' <> response -> 'proposal' ->> 'id' THEN RAISE EXCEPTION 'completed chat retry changed durable ids'; END IF;
   IF (SELECT count(*) FROM public.ada_quote_messages WHERE workspace_id = '10000000-0000-0000-0000-000000000003') <> 2 OR
      (SELECT count(*) FROM public.quote_proposals WHERE workspace_id = '10000000-0000-0000-0000-000000000003') <> 3 OR
      (SELECT count(*) FROM public.ada_quote_events WHERE workspace_id = '10000000-0000-0000-0000-000000000003' AND event_type = 'chat_turn_completed') <> 1 THEN
     RAISE EXCEPTION 'atomic chat retry duplicated durable rows';
+  END IF;
+  SELECT expected_row_version INTO proposal_expected_version FROM public.quote_proposals WHERE id = proposal_id;
+  SELECT row_version INTO workspace_version FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000003';
+  IF proposal_expected_version <> workspace_version THEN
+    RAISE EXCEPTION 'chat proposal disposition version drifted: proposal %, workspace %', proposal_expected_version, workspace_version;
+  END IF;
+  PERFORM public.reject_quote_proposal(
+    '10000000-0000-0000-0000-000000000003',
+    proposal_id,
+    'owner@example.com',
+    proposal_expected_version,
+    'Controlled chat proposal rejection regression.',
+    'chat-rejection-regression'
+  );
+  IF (SELECT status FROM public.quote_proposals WHERE id = proposal_id) <> 'rejected' THEN
+    RAISE EXCEPTION 'chat proposal rejection did not persist';
   END IF;
 END $$;
 RESET ROLE;
