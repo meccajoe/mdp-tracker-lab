@@ -5,10 +5,22 @@ import test from "node:test";
 
 const root = process.cwd();
 const migrationPath = join(root, "supabase/migrations/20260908152000_quote_proposals.sql");
+const retrySafetyMigrationPath = join(root, "supabase/migrations/20260910102500_quote_workflow_conflict_sqlstate.sql");
 const migration = () => {
   assert.ok(existsSync(migrationPath), "Release 2 proposal migration must exist");
   return readFileSync(migrationPath, "utf8");
 };
+
+test("workflow concurrency conflicts cannot trigger PostgREST serialization retries", () => {
+  assert.ok(existsSync(retrySafetyMigrationPath), "retry-safe workflow conflict migration must exist");
+  const sql = readFileSync(retrySafetyMigrationPath, "utf8");
+  for (const routine of ["create_quote_proposal", "reject_quote_proposal", "accept_quote_proposal", "append_quote_workflow_event"]) {
+    assert.match(sql, new RegExp(routine, "i"));
+  }
+  assert.match(sql, /PT409/);
+  assert.doesNotMatch(sql, /ERRCODE\s*=\s*'40001'/i);
+  assert.match(sql, /pg_get_functiondef/);
+});
 
 test("Release 2 persists governed proposal snapshots and scoped lineage", () => {
   const sql = migration();

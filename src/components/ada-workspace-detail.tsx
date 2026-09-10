@@ -20,6 +20,15 @@ type ProposalAcceptanceRequest = { expectedRowVersion: number; dispositionIdempo
 type ProposalRejectionRequest = { expectedRowVersion: number; dispositionIdempotencyKey: string; reason: string };
 type UploadedAsset = { id: string; original_name: string; analysis_status: string };
 
+const PROPOSAL_BROWSER_SESSION_KEY = "mdp:proposal-review:browser-session-id";
+function getProposalBrowserSessionId() {
+  const existing = window.sessionStorage.getItem(PROPOSAL_BROWSER_SESSION_KEY);
+  if (existing) return existing;
+  const created = crypto.randomUUID();
+  window.sessionStorage.setItem(PROPOSAL_BROWSER_SESSION_KEY, created);
+  return created;
+}
+
 export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [draft, setDraft] = useState("");
@@ -208,7 +217,11 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
     await acceptProposal(proposalId, request);
   }
   async function rejectProposal(proposalId: string, request: ProposalRejectionRequest) {
-    const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals/${proposalId}/reject`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) });
+    const requestId = crypto.randomUUID();
+    const browserSessionId = getProposalBrowserSessionId();
+    const sourceComponent = "AdaProposalReview";
+    console.info("[quote-proposal-reject]", JSON.stringify({ event: "quote_proposal_reject_ui_invoked", timestamp: new Date().toISOString(), workspaceId, proposalId, sourceComponent, requestId, browserSessionId }));
+    const response = await adaFetch(`/api/quote-workspaces/${workspaceId}/proposals/${proposalId}/reject`, { method: "POST", headers: { "Content-Type": "application/json", "X-MDP-Source": sourceComponent, "X-MDP-Request-ID": requestId, "X-MDP-Browser-Session-ID": browserSessionId }, body: JSON.stringify(request) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (response.status === 409) {

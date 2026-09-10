@@ -87,7 +87,7 @@ export function quoteProposalErrorStatus(error: unknown): number {
   const code = error instanceof QuoteProposalPersistenceError ? error.code : undefined;
   if (code === "P0002") return 404;
   if (code === "42501") return 403;
-  if (["40001", "55000", "23503", "23505", "P0001"].includes(code ?? "")) return 409;
+  if (["40001", "PT409", "55000", "23503", "23505", "P0001"].includes(code ?? "")) return 409;
   if (["22023", "22P02"].includes(code ?? "")) return 400;
   return 500;
 }
@@ -190,12 +190,23 @@ export async function createQuoteProposal(args: { supabase: SupabaseLike; worksp
   return { proposal };
 }
 
-export async function rejectQuoteProposal(args: { supabase: SupabaseLike; workspaceId: string; proposalId: string; actorEmail: string; expectedRowVersion: number; reason: string; dispositionIdempotencyKey: string }) {
+type RejectProposalDiagnostics = { actorUserId: string; workspaceId: string; proposalId: string; sourceComponent: string; requestId: string; browserSessionId: string; route: string };
+
+export async function rejectQuoteProposal(args: { supabase: SupabaseLike; workspaceId: string; proposalId: string; actorEmail: string; expectedRowVersion: number; reason: string; dispositionIdempotencyKey: string; diagnostics?: RejectProposalDiagnostics }) {
   const reason = parseRejectionReason(args.reason);
-  const proposal = await rpc(args.supabase, "reject_quote_proposal", {
-    p_workspace_id: args.workspaceId, p_proposal_id: args.proposalId, p_actor_email: args.actorEmail, p_expected_row_version: args.expectedRowVersion, p_reason: reason, p_disposition_idempotency_key: args.dispositionIdempotencyKey,
-  });
-  return { proposal };
+  const startedAt = Date.now();
+  const diagnosticFields = args.diagnostics ?? { actorUserId: "unavailable", workspaceId: args.workspaceId, proposalId: args.proposalId, sourceComponent: "unknown", requestId: "unavailable", browserSessionId: "unavailable", route: "unknown" };
+  console.info("[quote-proposal-reject]", JSON.stringify({ event: "quote_proposal_reject_rpc_started", timestamp: new Date().toISOString(), ...diagnosticFields }));
+  try {
+    const proposal = await rpc(args.supabase, "reject_quote_proposal", {
+      p_workspace_id: args.workspaceId, p_proposal_id: args.proposalId, p_actor_email: args.actorEmail, p_expected_row_version: args.expectedRowVersion, p_reason: reason, p_disposition_idempotency_key: args.dispositionIdempotencyKey,
+    });
+    console.info("[quote-proposal-reject]", JSON.stringify({ event: "quote_proposal_reject_rpc_completed", timestamp: new Date().toISOString(), durationMs: Date.now() - startedAt, ...diagnosticFields }));
+    return { proposal };
+  } catch (error) {
+    console.info("[quote-proposal-reject]", JSON.stringify({ event: "quote_proposal_reject_rpc_failed", timestamp: new Date().toISOString(), durationMs: Date.now() - startedAt, errorCode: error instanceof QuoteProposalPersistenceError ? error.code : "unknown", ...diagnosticFields }));
+    throw error;
+  }
 }
 
 export async function acceptQuoteProposal(args: { supabase: SupabaseLike; workspaceId: string; proposalId: string; actorEmail: string; expectedRowVersion: number; editedQuoteJson?: unknown; editedAssumptions?: unknown; editedEvidence?: unknown; reason?: string | null; dispositionIdempotencyKey: string }) {

@@ -5,6 +5,8 @@
 \ir ../../supabase/migrations/20260908152000_quote_proposals.sql
 \ir ../../supabase/migrations/20260909221000_quote_proposal_chat_version_alignment.sql
 \ir ../../supabase/migrations/20260909221000_quote_proposal_chat_version_alignment.sql
+\ir ../../supabase/migrations/20260910102500_quote_workflow_conflict_sqlstate.sql
+\ir ../../supabase/migrations/20260910102500_quote_workflow_conflict_sqlstate.sql
 
 DO $$
 DECLARE
@@ -386,7 +388,7 @@ BEGIN
   IF event_order <> ARRAY['proposal_created','proposal_edited','proposal_accepted','revision_created'] OR event_versions[2] <> event_versions[1] + 1 OR event_versions[3] <> event_versions[2] + 1 OR event_versions[4] <> event_versions[3] + 1 THEN RAISE EXCEPTION 'edited event order/version wrong: % / %', event_order, event_versions; END IF;
 END $$;
 
--- Stale creation and disposition are exact 40001 no-op transactions.
+-- Stale creation and disposition are exact retry-safe PT409 no-op transactions.
 SELECT row_version AS stale_version FROM public.ada_quote_workspaces WHERE id = current_setting('test.edited_workspace_id')::uuid \gset
 SELECT set_config('test.stale_version', :'stale_version', false);
 SET ROLE authenticated;
@@ -395,7 +397,7 @@ DO $$ BEGIN
     PERFORM public.create_quote_proposal(current_setting('test.edited_workspace_id')::uuid, 'owner@example.com', current_setting('test.stale_version')::bigint - 1, NULL,
       '{"lineItems":[{"itemName":"Stale","buildItem":"Stale","clientPrice":10,"internalCost":5,"lineType":"material","confidence":"high","evidenceRefs":[]}]}'::jsonb, '[]', '[]', 'release2-stale-create');
     RAISE EXCEPTION 'stale create unexpectedly succeeded';
-  EXCEPTION WHEN SQLSTATE '40001' THEN NULL;
+  EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;
   END;
 END $$;
 RESET ROLE;
@@ -442,7 +444,7 @@ DO $$ BEGIN
 END $$;
 RESET ROLE;
 
--- Pending stale disposition is a 40001 transaction with no observable writes.
+-- Pending stale disposition is a PT409 transaction with no observable writes.
 SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
 SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
 SET ROLE authenticated;
@@ -470,7 +472,7 @@ BEGIN
   BEGIN
     PERFORM public.reject_quote_proposal(current_setting('test.stale_disposition_workspace_id')::uuid, current_setting('test.stale_disposition_proposal_id')::uuid, 'owner@example.com', current_setting('test.stale_disposition_version')::bigint - 1, 'stale', 'release2-stale-disposition');
     RAISE EXCEPTION 'stale disposition unexpectedly succeeded';
-  EXCEPTION WHEN SQLSTATE '40001' THEN NULL;
+  EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;
   END;
 END $$;
 RESET ROLE;

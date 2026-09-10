@@ -41,7 +41,7 @@ test("Release 2 proposal routes exist and use authenticated capabilities", () =>
     const firstPropertyAccess = source.indexOf("body.expectedRowVersion");
     assert.ok(parser >= 0 && parser < firstPropertyAccess, "request object guard must precede body property access");
     assert.match(source, /parseProposalRequestObject\(await request\.json\(\)\)/);
-    assert.match(source, /catch \(error\) \{ return errorResponse\(error\); \}/);
+    assert.match(source, /catch \(error\) \{[\s\S]*return errorResponse\(error\);[\s\S]*\}/);
   }
   assert.match(accept, /try \{[\s\S]*const normalizedReason = parseAcceptanceReason\(body\.reason\);[\s\S]*acceptQuoteProposal/);
   assert.doesNotMatch(accept, /reason: parseAcceptanceReason\(body\.reason\)/);
@@ -66,4 +66,33 @@ test("proposal listing derives review deltas from exact source revisions", () =>
   assert.match(persistence, /attachProposalDeltas/);
   assert.match(persistence, /sourceRevisionId/);
   assert.match(persistence, /proposalDelta/);
+});
+
+test("proposal rejection emits bounded cross-layer invocation diagnostics", () => {
+  const reject = readFileSync(files.reject, "utf8");
+  const persistence = readFileSync(`${root}lib/quote-proposal-persistence.ts`, "utf8");
+  const workspace = readFileSync(`${root}components/ada-workspace-detail.tsx`, "utf8");
+
+  assert.match(workspace, /X-MDP-Source/);
+  assert.match(workspace, /AdaProposalReview/);
+  assert.match(workspace, /X-MDP-Request-ID/);
+  assert.match(workspace, /X-MDP-Browser-Session-ID/);
+  assert.match(workspace, /sessionStorage/);
+
+  assert.match(reject, /access\.actorId/);
+  assert.match(reject, /request\.headers\.get\("x-mdp-request-id"\)/);
+  assert.match(reject, /request\.headers\.get\("x-mdp-browser-session-id"\)/);
+  assert.match(reject, /request\.headers\.get\("x-mdp-source"\)/);
+  assert.match(reject, /quote_proposal_reject_api_received/);
+  assert.match(reject, /quote_proposal_reject_api_completed/);
+  assert.match(reject, /quote_proposal_reject_api_failed/);
+
+  assert.match(persistence, /quote_proposal_reject_rpc_started/);
+  assert.match(persistence, /quote_proposal_reject_rpc_completed/);
+  assert.match(persistence, /quote_proposal_reject_rpc_failed/);
+  assert.match(persistence, /durationMs/);
+
+  for (const source of [workspace, reject, persistence]) {
+    assert.doesNotMatch(source, /console\.(?:info|error)\([^\n]*(?:reason|authorization|token|cookie)/i);
+  }
 });

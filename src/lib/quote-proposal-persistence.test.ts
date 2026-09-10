@@ -106,6 +106,10 @@ test("maps malformed proposal input errors to deterministic HTTP 400", () => {
   assert.equal(quoteProposalErrorStatus(new QuoteProposalPersistenceError("Invalid JSON.", "22P02")), 400);
 });
 
+test("maps retry-safe workflow conflicts to HTTP 409", () => {
+  assert.equal(quoteProposalErrorStatus(new QuoteProposalPersistenceError("Stale Quote Workspace row version.", "PT409")), 409);
+});
+
 
 function fakeSupabase(result: unknown) {
   const calls: Array<{ name: string; args: unknown }> = [];
