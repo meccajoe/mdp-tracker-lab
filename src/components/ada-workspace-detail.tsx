@@ -136,7 +136,10 @@ export function AdaWorkspaceDetail({ workspaceId }: { workspaceId: string }) {
         return { ...current, messages: [...current.messages, ...incoming] };
       });
       if (result.revision) { setPreviousRevision(revision); setRevision(result.revision); }
-      if (result.proposal) setProposals((current) => [result!.proposal!, ...current.filter((candidate) => candidate.id !== result!.proposal!.id)]);
+      if (result.proposal) {
+        const nextProposal = { ...result.proposal, proposalDelta: result.proposal.proposalDelta ?? result.proposalDelta ?? null };
+        setProposals((current) => [nextProposal, ...current.filter((candidate) => candidate.id !== nextProposal.id)]);
+      }
       retryRequestRef.current = null;
       setOptimisticMessage(null);
       setStreamedText("");

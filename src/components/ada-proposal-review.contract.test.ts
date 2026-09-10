@@ -109,6 +109,12 @@ test("Ada workspace links proposals to their originating assistant messages and 
   assert.doesNotMatch(workspace, /Open proposal review/);
 });
 
+test("fresh chat proposals retain their delta in the pending review banner", () => {
+  const workspace = readFileSync(new URL("./ada-workspace-detail.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /proposalDelta\?: AdaProposalDelta \| null/);
+  assert.match(workspace, /result\.proposal\.proposalDelta \?\? result\.proposalDelta \?\? null/);
+});
+
 test("proposal detail renders immutable before/after line evidence with stable occurrence keys", () => {
   assert.match(source, /change\.line/);
   assert.match(source, /change\.before/);
