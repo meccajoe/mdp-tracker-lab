@@ -113,7 +113,10 @@ test("workspace membership permits ordinary collaboration but never grants privi
   assert.equal(canPerformQuoteAction(viewer, "edit_draft"), false);
   assert.equal(canPerformQuoteAction(viewer, "attach_evidence"), false);
   assert.equal(canPerformQuoteAction(commercialApprover, "archive_workspace"), false);
-  assert.equal(canPerformQuoteAction({ ...commercialApprover, capabilities: [...commercialApprover.capabilities, "archive_workspace"] }, "archive_workspace"), true);
+  assert.equal(canPerformQuoteAction(commercialApprover, "restore_workspace"), false);
+  const lifecycleAdministrator = { ...commercialApprover, capabilities: [...commercialApprover.capabilities, "archive_workspace" as const] };
+  assert.equal(canPerformQuoteAction(lifecycleAdministrator, "archive_workspace"), true);
+  assert.equal(canPerformQuoteAction(lifecycleAdministrator, "restore_workspace"), true);
 });
 
 test("commercial and operations authority remains separate and capability-driven", () => {

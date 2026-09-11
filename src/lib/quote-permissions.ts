@@ -28,6 +28,7 @@ export type QuoteAction =
   | "attach_evidence"
   | "submit_revision"
   | "archive_workspace"
+  | "restore_workspace"
   | "approve_commercial"
   | "request_publication"
   | "record_manual_acceptance"
@@ -53,6 +54,7 @@ export interface QuoteActor {
 const ordinaryRoles = new Set<QuoteWorkspaceRole>(["owner", "editor", "reviewer"]);
 const privilegedCapability: Partial<Record<QuoteAction, QuoteCapability>> = {
   archive_workspace: "archive_workspace",
+  restore_workspace: "archive_workspace",
   approve_commercial: "approve_commercial",
   request_publication: "request_publication",
   record_manual_acceptance: "record_manual_acceptance",

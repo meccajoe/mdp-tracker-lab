@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 
 function pageLabel(pathname: string) {
   if (pathname === "/") return "Dashboard";
+  if (pathname.startsWith("/quotes")) return "Quotes";
   if (pathname.startsWith("/projects")) return "Projects";
   if (pathname.startsWith("/expenses")) return "Expenses";
   if (pathname.startsWith("/line-item-search")) return "Search Items";

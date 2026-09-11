@@ -157,6 +157,7 @@ INSERT INTO public.ada_quote_revisions (id, workspace_id, revision_number, quote
 \ir ../../supabase/migrations/20260903101000_quote_workspace_memberships.sql
 \ir ../../supabase/migrations/20260903102000_quote_workflow_events_and_outbox.sql
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
+\ir ../../supabase/migrations/20260910143000_quote_workspace_restore.sql
 
 CREATE TEMP TABLE workspace_less_revision_child (
   id uuid PRIMARY KEY,
@@ -250,6 +251,33 @@ SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001
 SELECT id AS archive_workspace_id, row_version AS archive_row_version
 FROM public.ada_quote_workspaces WHERE title = 'Atomic creation test' \gset
 SELECT set_config('test.archive_workspace_id', :'archive_workspace_id', false);
+SET ROLE authenticated;
+SELECT public.rename_quote_workspace(:'archive_workspace_id', 'owner@example.com', 'Atomic creation test renamed');
+RESET ROLE;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_workspaces
+    WHERE id = current_setting('test.archive_workspace_id')::uuid
+      AND title = 'Atomic creation test renamed'
+      AND client_name = 'Client'
+      AND contact_name = 'Contact'
+      AND ada_project_id IS NULL
+  ) THEN RAISE EXCEPTION 'Title-only rename overwrote unrelated workspace metadata.'; END IF;
+END $$;
+SELECT row_version AS archive_row_version, status AS archive_previous_status
+FROM public.ada_quote_workspaces WHERE id = :'archive_workspace_id' \gset
+INSERT INTO public.quote_workspace_members (
+  workspace_id, user_id, email_normalized, workspace_role, added_by
+) VALUES (
+  :'archive_workspace_id', '30000000-0000-0000-0000-000000000002',
+  'outsider@example.com', 'editor', 'release-3-restore-test'
+);
+INSERT INTO public.quote_user_capabilities (
+  user_id, email_normalized, capability, granted_by, grant_reason
+) VALUES (
+  '30000000-0000-0000-0000-000000000002', 'outsider@example.com',
+  'archive_workspace', 'release-3-restore-test', 'Exercise current restore capability checks'
+);
 INSERT INTO public.ada_quote_assets (
   id, workspace_id, storage_path, original_name, mime_type, byte_size, analysis_status, created_by_email
 ) VALUES (
@@ -269,7 +297,7 @@ SELECT public.append_quote_workflow_event(
   'archived',
   'Operator archived workspace',
   '[]'::jsonb,
-  '{}'::jsonb,
+  jsonb_build_object('previous_status', :'archive_previous_status'),
   'test:workspace-archive:1'
 );
 RESET ROLE;
@@ -282,11 +310,11 @@ DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM public.quote_workflow_events e
     JOIN public.ada_quote_workspaces w ON w.id = e.workspace_id
-    WHERE w.title = 'Atomic creation test' AND e.event_type = 'workspace_archived'
+    WHERE w.title = 'Atomic creation test renamed' AND e.event_type = 'workspace_archived'
   ) THEN RAISE EXCEPTION 'Workspace archive omitted governed evidence.'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.ada_quote_workspaces
-    WHERE title = 'Atomic creation test'
+    WHERE title = 'Atomic creation test renamed'
       AND lifecycle_status = 'archived' AND status = 'archived' AND archived_at IS NOT NULL
   ) THEN RAISE EXCEPTION 'Workspace archive did not project canonical and compatibility state.'; END IF;
   BEGIN
@@ -314,6 +342,85 @@ DO $$ BEGIN
     RAISE EXCEPTION 'Workspace-less child reassignment escaped archived destination protection.';
   EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
   END;
+END $$;
+
+SELECT row_version AS restore_row_version
+FROM public.ada_quote_workspaces WHERE id = :'archive_workspace_id' \gset
+SELECT set_config('request.jwt.claim.email', 'outsider@example.com', false);
+SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000002', false);
+SET ROLE authenticated;
+SELECT (public.restore_quote_workspace(
+  :'archive_workspace_id', 'outsider@example.com', :'restore_row_version',
+  'Operator restored workspace', 'test:workspace-restore:1'
+)).event_id AS restored_event_id \gset
+SELECT (public.restore_quote_workspace(
+  :'archive_workspace_id', 'outsider@example.com', :'restore_row_version',
+  'Operator restored workspace', 'test:workspace-restore:1'
+)).event_id AS replayed_restore_event_id \gset
+RESET ROLE;
+SELECT set_config('test.restored_event_id', :'restored_event_id', false);
+SELECT set_config('test.replayed_restore_event_id', :'replayed_restore_event_id', false);
+SELECT set_config('test.restore_row_version', :'restore_row_version', false);
+DO $$ BEGIN
+  IF current_setting('test.restored_event_id') <> current_setting('test.replayed_restore_event_id') THEN
+    RAISE EXCEPTION 'Workspace restore replay did not return the original event.';
+  END IF;
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE workspace_id = current_setting('test.archive_workspace_id')::uuid AND event_type = 'workspace_restored') <> 1 THEN
+    RAISE EXCEPTION 'Workspace restore replay created duplicate evidence.';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_workspaces
+    WHERE id = current_setting('test.archive_workspace_id')::uuid
+      AND lifecycle_status = 'draft' AND status = 'in_review' AND archived_at IS NULL
+      AND row_version = current_setting('test.restore_row_version')::bigint + 1
+  ) THEN RAISE EXCEPTION 'Workspace restore did not recover exact pre-archive state.'; END IF;
+END $$;
+
+UPDATE public.quote_user_capabilities
+SET revoked_by = 'owner@example.com', revoked_at = now(), revoke_reason = 'Exercise replay authorization'
+WHERE user_id = '30000000-0000-0000-0000-000000000002'
+  AND capability = 'archive_workspace' AND revoked_at IS NULL;
+SET ROLE authenticated;
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.restore_quote_workspace(
+      current_setting('test.archive_workspace_id')::uuid,
+      'outsider@example.com', current_setting('test.restore_row_version')::bigint,
+      'Operator restored workspace', 'test:workspace-restore:1'
+    );
+    RAISE EXCEPTION 'Revoked lifecycle capability replayed a restore result.';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
+SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
+
+SELECT row_version AS rearchive_row_version, status AS rearchive_previous_status
+FROM public.ada_quote_workspaces WHERE id = :'archive_workspace_id' \gset
+SET ROLE authenticated;
+SELECT public.append_quote_workflow_event(
+  :'archive_workspace_id', NULL, 'workspace_archived', 'owner@example.com', 'owner',
+  'archive_workspace', :'rearchive_row_version', 'archived',
+  'Operator archived workspace again', '[]'::jsonb,
+  jsonb_build_object('previous_status', :'rearchive_previous_status'),
+  'test:workspace-archive:2'
+);
+RESET ROLE;
+SELECT set_config(
+  'test.archive_row_version',
+  (SELECT row_version::text FROM public.ada_quote_workspaces WHERE id = :'archive_workspace_id'),
+  false
+);
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE workspace_id = current_setting('test.archive_workspace_id')::uuid AND event_type = 'workspace_archived') <> 2 THEN
+    RAISE EXCEPTION 'Workspace could not be archived again after restore.';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.ada_quote_workspaces
+    WHERE id = current_setting('test.archive_workspace_id')::uuid
+      AND lifecycle_status = 'archived' AND status = 'archived' AND archived_at IS NOT NULL
+  ) THEN RAISE EXCEPTION 'Re-archive did not restore archived projection state.'; END IF;
 END $$;
 
 SELECT id, normalization_status, normalization_exception
@@ -673,6 +780,15 @@ DO $$ BEGIN
     RAISE EXCEPTION 'Service role executed the human workflow RPC.';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
+  BEGIN
+    PERFORM public.restore_quote_workspace(
+      current_setting('test.archive_workspace_id')::uuid,
+      'owner@example.com', current_setting('test.archive_row_version')::bigint,
+      'forbidden service restore', 'test:service-role-restore:1'
+    );
+    RAISE EXCEPTION 'Service role executed the workspace restore RPC.';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 END $$;
 RESET ROLE;
 
@@ -709,6 +825,7 @@ END $$;
 \ir ../../supabase/migrations/20260903101000_quote_workspace_memberships.sql
 \ir ../../supabase/migrations/20260903102000_quote_workflow_events_and_outbox.sql
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
+\ir ../../supabase/migrations/20260910143000_quote_workspace_restore.sql
 
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.work_packages) <> 4 OR

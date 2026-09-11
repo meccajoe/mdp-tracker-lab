@@ -37,7 +37,27 @@ export async function PATCH(
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const title = optionalText(body.title);
   const adaProjectId = optionalText(body.adaProjectId);
-  if (!title) return NextResponse.json({ error: "Chat title is required." }, { status: 400 });
+  if (!title) return NextResponse.json({ error: "Quote title is required." }, { status: 400 });
+
+  if (body.renameOnly === true) {
+    const { data, error } = await access.actorSupabase
+      .rpc("rename_quote_workspace", {
+        p_workspace_id: workspaceId,
+        p_actor_email: access.actorEmail,
+        p_title: title,
+      })
+      .single();
+    if (error) {
+      if (error.code === "55000" || error.code === "PT409") {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      if (error.code === "42501") return NextResponse.json({ error: error.message }, { status: 403 });
+      if (error.code === "P0002") return NextResponse.json({ error: error.message }, { status: 404 });
+      if (error.code === "22023") return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: "Quote Workspace could not be renamed." }, { status: 500 });
+    }
+    return NextResponse.json({ workspace: data });
+  }
 
   if (adaProjectId) {
     const { data: project, error: projectError } = await access.supabase.from("ada_quote_projects").select("id").eq("id", adaProjectId).eq("created_by_email", access.actorEmail).maybeSingle();
@@ -69,7 +89,7 @@ export async function DELETE(
   if (!access.ok) return access.response;
   const { data: workspace, error: workspaceError } = await access.supabase
     .from("ada_quote_workspaces")
-    .select("row_version, lifecycle_status")
+    .select("row_version, lifecycle_status, status")
     .eq("id", workspaceId)
     .maybeSingle();
   if (workspaceError) return NextResponse.json({ error: workspaceError.message }, { status: 500 });
@@ -86,10 +106,15 @@ export async function DELETE(
       p_resulting_state: "archived",
       p_reason: "Operator archived workspace",
       p_evidence_refs: [],
-      p_payload_json: {},
-      p_idempotency_key: `workspace-archive:${workspaceId}`,
+      p_payload_json: { previous_status: workspace.status },
+      p_idempotency_key: `workspace-archive:${workspaceId}:v${workspace.row_version}`,
     });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (error.code === "PT409" || error.code === "55000") {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      return NextResponse.json({ error: "Quote Workspace could not be archived." }, { status: 500 });
+    }
   }
   return NextResponse.json({ deletedWorkspaceId: workspaceId });
 }

@@ -57,7 +57,7 @@ export async function requireAdaWorkspaceAccess(workspaceId: string, action: Quo
   if (!canPerformQuoteAction(authorization.actor, action)) {
     return { ok: false as const, response: NextResponse.json({ error: "Quote Workspace access required." }, { status: 403 }) };
   }
-  if (action !== "view_workspace" && authorization.workspaceLifecycle === "archived") {
+  if (action !== "view_workspace" && action !== "restore_workspace" && authorization.workspaceLifecycle === "archived") {
     return { ok: false as const, response: NextResponse.json({ error: "Archived Quote Workspaces are read-only." }, { status: 409 }) };
   }
   return { ...access, quoteActor: authorization.actor, workspaceLifecycle: authorization.workspaceLifecycle };

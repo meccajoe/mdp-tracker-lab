@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
     .order("last_activity_at", { ascending: false })
     .limit(100);
 
-  if (isWorkspaceStatus(status)) query = query.eq("status", status);
+  if (status === "archived") query = query.eq("status", "archived");
+  else if (isWorkspaceStatus(status)) query = query.eq("status", status);
+  else query = query.neq("status", "archived");
   if (search) {
     const escaped = search.replace(/[,%]/g, " ");
     query = query.or(`title.ilike.%${escaped}%,client_name.ilike.%${escaped}%,contact_name.ilike.%${escaped}%,hubspot_deal_id.ilike.%${escaped}%`);

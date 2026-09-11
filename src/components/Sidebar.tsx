@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { adaFetch } from "@/lib/ada-client";
 import { PM_NAMES } from "@/lib/types";
 import { canSeeTeamBonuses } from "@/lib/bonus-access";
 
@@ -78,7 +79,7 @@ export default function Sidebar({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activePMs, setActivePMs] = useState<string[]>([]);
   const [actorEmail, setActorEmail] = useState<string | null>(null);
-  const [hasAdaAccess, setHasAdaAccess] = useState(false);
+  const [hasQuoteAccess, setHasQuoteAccess] = useState(false);
 
   useEffect(() => {
     function syncResponsiveCollapse() {
@@ -95,13 +96,16 @@ export default function Sidebar({
     async function loadRole(email: string) {
       const normalizedEmail = email.toLowerCase();
       setActorEmail(normalizedEmail);
-      const { data } = await supabase.from("user_roles").select("role, pm_initials, ada_access").eq("email", normalizedEmail).single();
+      const [{ data }, quoteAccessResponse] = await Promise.all([
+        supabase.from("user_roles").select("role, pm_initials").eq("email", normalizedEmail).single(),
+        adaFetch("/api/quotes/access").catch(() => null),
+      ]);
       const r = data?.role ?? null;
       setRole(r);
       setActualIsAdmin(r === "admin");
       setIsProduction(r === "production");
       setPmInitials(data?.pm_initials ?? null);
-      setHasAdaAccess(Boolean(data?.ada_access));
+      setHasQuoteAccess(Boolean(quoteAccessResponse?.ok));
     }
     // Load PMs eligible for bonus surfaces (role = pm)
     supabase.from("user_roles").select("pm_initials, role").eq("role", "pm").not("pm_initials", "is", null)
@@ -111,7 +115,7 @@ export default function Sidebar({
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.email) loadRole(session.user.email);
-      else { setActualIsAdmin(false); setPmInitials(null); setActorEmail(null); setHasAdaAccess(false); }
+      else { setActualIsAdmin(false); setPmInitials(null); setActorEmail(null); setHasQuoteAccess(false); }
     });
     return () => {
       window.removeEventListener("resize", syncResponsiveCollapse);
@@ -140,12 +144,11 @@ export default function Sidebar({
   const portfolioIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>;
   const lineItemIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
   const materialsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15l12-12 6 6-12 12H3v-6zM13 5l6 6M9 9l2 2m-5 1l2 2m-1 3l2 2" /></svg>;
-  const adaIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364-2.121 2.121M7.757 16.243l-2.121 2.121m12.728 0-2.121-2.121M7.757 7.757 5.636 5.636M12 8a4 4 0 100 8 4 4 0 000-8z" /></svg>;
+  const quoteIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2zm7 0v5h5M9 13h6M9 17h4" /></svg>;
   const reconcileIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
   const settingsIcon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
   const canSeeMissionControl = isMissionControlAllowedEmail(actorEmail);
-  const canSeeAda = hasAdaAccess;
   const canLogIssues = role === "admin" || role === "pm" || role === "production";
 
   const isMobile = variant === "mobile";
@@ -184,7 +187,7 @@ export default function Sidebar({
         {/* Core nav */}
         <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
-        {canSeeAda && <NavLink href="/ada" label="Ada" icon={adaIcon} collapsed={collapsed} exact={false} />}
+        {hasQuoteAccess && <NavLink href="/quotes" label="Quotes" icon={quoteIcon} collapsed={collapsed} exact={false} />}
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/admin/materials" label="Materials" icon={materialsIcon} collapsed={collapsed} exact={false} />

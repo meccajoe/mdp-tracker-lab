@@ -1236,6 +1236,8 @@ Apply schema only after remote prerequisite checks. Re-query tables, columns, co
 
 **Go gate:** Paul/estimators can understand current revision, exceptions, Build Items, and approval state without opening a spreadsheet or Ada-only route.
 
+**Release 3 Slice 1 implementation checkpoint — 2026-09-10:** The product-facing route foundation is live from `wip/quote-to-production-release-3`. Tracker now exposes a normalized-access-gated `/quotes` library and `/quotes/[workspaceId]` standalone workspace, a membership/capability-aware Quotes sidebar entry, member-scoped search and lifecycle filtering, responsive mobile rows and desktop table presentation, and pre-project quote creation through the existing governed `create_quote_workspace` RPC. `/api/quote-workspaces` provides compatibility aliases over the proven governed workspace handlers, while `/ada` and `/ada/[workspaceId]` preserve existing links by redirecting to the new product routes. The standalone workspace deliberately reuses the already-proven conversation, evidence, proposal, and immutable-revision editor; no approval, publication, project creation, provisioning, readiness, or release behavior changed. TDD captured a four-contract RED before implementation. Final gates passed 443/443 source tests, TypeScript, `git diff --check`, and a production build generating 52 pages; after restarting only PM2 `mdp-tracker`, local/public `/quotes` returned 200, unauthenticated normalized quote APIs returned 401, and all 19 referenced assets loaded from both origin and public hostname. Authenticated browser population/UI verification remains pending because the available browser session reached the Google login wall. Release 3 is not complete: rename plus governed archive/restore, persistent workspace switching, and table-based commercial lines, Build Items, Item × Type-of-Work labor allocations, revision history, exceptions, and approval state remain in subsequent slices before the go gate can pass.
+
 ### Release 4 — Commercial approval and HubSpot publication
 
 **Goal:** Publish only locked approved revisions and prove the resulting HubSpot quote.
@@ -1494,3 +1496,37 @@ The v1 program is complete only when all are true:
 - Post-mortems preserve immutable source evidence and completeness.
 - Ada retrieves only individually approved, source-linked, currently valid lessons.
 - All focused tests, full tests, build, migration verification, authenticated E2E, and real integration pilots pass.
+
+## Release 3 implementation checkpoint — product Quotes and workspace lifecycle
+
+Release 3 is in progress on `wip/quote-to-production-release-3`. Slices 1 and 2 are implemented and deployed; the table-based review surface remains the next product slice.
+
+Completed local slices:
+
+- Product-facing `/quotes` and `/quotes/[workspaceId]` routes with responsive listing, search, status filtering, pre-project workspace creation, governed conversation/revision reuse, and Ada compatibility redirects.
+- Persistent URL-backed workspace switching.
+- Workspace rename through an actor-bound title-only RPC so unrelated client/contact/project metadata is not resubmitted or overwritten.
+- Governed archive and restore with optimistic concurrency, immutable audit events, exact captured state recovery, idempotent retries, and current authorization checked before replay.
+- Archived workspaces hidden by default with an explicit Archived filter and restore action.
+- HTTP `409` handling for stale-version, lifecycle, and idempotency conflicts.
+
+Verified on the local Release 3 tree:
+
+- focused workspace-management contract: `5/5`;
+- full source suite: `448/448`;
+- TypeScript: pass;
+- `git diff --check`: pass;
+- disposable PostgreSQL 18 migration harness: exit `0`, exactly one `release1_sql_harness_ok` marker;
+- isolated Next.js production build with non-secret placeholder public Supabase values: pass, `52/52` pages generated.
+- live production build using `.env.local`: pass, `52/52` pages generated;
+- linked Supabase migration `20260910143000`: applied and recorded with local/remote history aligned;
+- remote read-back: restore and rename RPCs present, authenticated execution allowed, service-role execution denied, capability authorization ordered before replay, 8 workspaces / 8 workflow events / 0 restore events preserved;
+- PM2: only `mdp-tracker` restarted, online with zero unstable restarts;
+- local and public `/`, `/login`, and `/quotes`: HTTP 200; quote APIs: expected unauthenticated HTTP 401; `/quotes` assets: `19/19` local and `19/19` public.
+
+Open gates:
+
+- Authenticated browser E2E remains incomplete because no authenticated Tracker browser session is available.
+- No commercial approval, publication, customer acceptance, project creation, provisioning, production-readiness, operational-release approval, or operational release was exercised.
+
+Next product slice after these gates: the table-based review surface for commercial lines, Build Items, labor allocations, revisions/exceptions, and approval state.

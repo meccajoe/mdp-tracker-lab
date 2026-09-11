@@ -1,11 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useParams } from "next/navigation";
-
-import { AdaAccessGate } from "@/components/ada-access-gate";
-import { AdaWorkspaceShell } from "@/components/ada-workspace-shell";
-
-export default function AdaWorkspacePage() {
-  const params = useParams<{ workspaceId: string }>();
-  return <AdaAccessGate><AdaWorkspaceShell workspaceId={params.workspaceId} /></AdaAccessGate>;
+export default async function AdaWorkspacePage({ params }: { params: Promise<{ workspaceId: string }> }) {
+  const { workspaceId } = await params;
+  redirect(`/quotes/${workspaceId}`);
 }

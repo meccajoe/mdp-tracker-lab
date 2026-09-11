@@ -7,9 +7,11 @@ const root = process.cwd();
 const migrationDirectory = join(root, "supabase/migrations");
 const workspaceRoute = join(root, "src/app/api/ada/workspaces/route.ts");
 const adaPage = join(root, "src/app/ada/page.tsx");
-const workspacePage = join(root, "src/app/ada/[workspaceId]/page.tsx");
-const workspaceShell = join(root, "src/components/ada-workspace-shell.tsx");
-const workspaceSurface = join(root, "src/components/ada-workspace-surface.tsx");
+const adaWorkspacePage = join(root, "src/app/ada/[workspaceId]/page.tsx");
+const quoteLibraryPage = join(root, "src/app/quotes/page.tsx");
+const quoteWorkspacePage = join(root, "src/app/quotes/[workspaceId]/page.tsx");
+const quoteLibrary = join(root, "src/components/quote-library.tsx");
+const quoteWorkspace = join(root, "src/components/quote-workspace.tsx");
 const sidebar = join(root, "src/components/Sidebar.tsx");
 
 function getAdaMigrationSource() {
@@ -28,15 +30,18 @@ test("Ada foundation persists independent pre-project quote workspaces", () => {
   assert.doesNotMatch(migration, /project_id\s+text\s+not null/i, "a quote workspace must not require a downstream Tracker project");
 });
 
-test("Ada exposes a quote-library route, workspace route, and authorized create API", () => {
-  for (const path of [workspaceRoute, adaPage, workspacePage, workspaceShell, workspaceSurface]) {
+test("Tracker exposes first-class quote routes while preserving the authorized Ada backend", () => {
+  for (const path of [workspaceRoute, adaPage, adaWorkspacePage, quoteLibraryPage, quoteWorkspacePage, quoteLibrary, quoteWorkspace]) {
     assert.ok(existsSync(path), `${path.replace(`${root}/`, "")} should exist`);
   }
 
   const routeSource = readFileSync(workspaceRoute, "utf8");
-  const workspaceSource = readFileSync(workspacePage, "utf8");
-  const shellSource = readFileSync(workspaceShell, "utf8");
-  const surfaceSource = readFileSync(workspaceSurface, "utf8");
+  const adaPageSource = readFileSync(adaPage, "utf8");
+  const adaWorkspaceSource = readFileSync(adaWorkspacePage, "utf8");
+  const quoteLibraryPageSource = readFileSync(quoteLibraryPage, "utf8");
+  const quoteWorkspacePageSource = readFileSync(quoteWorkspacePage, "utf8");
+  const quoteLibrarySource = readFileSync(quoteLibrary, "utf8");
+  const quoteWorkspaceSource = readFileSync(quoteWorkspace, "utf8");
   const sidebarSource = readFileSync(sidebar, "utf8");
 
   assert.match(routeSource, /requireAdaIdentity\(/, "Ada create/list route should authenticate the actor before normalized authorization");
@@ -44,11 +49,13 @@ test("Ada exposes a quote-library route, workspace route, and authorized create 
   assert.match(routeSource, /create_quote_workspace/, "Ada creation should use the capability-gated workspace RPC");
   assert.doesNotMatch(routeSource, /requireAdaAccess\(/, "normalized quote authorization must not depend on the legacy Ada flag");
   assert.match(routeSource, /from\("ada_quote_workspaces"\)/);
-  assert.match(workspaceSource, /AdaWorkspaceShell/);
-  assert.match(shellSource, /AdaWorkspaceSurface/);
-  assert.match(surfaceSource, /Ada library/);
-  assert.match(surfaceSource, /New chat/);
-  assert.match(surfaceSource, /Recent/);
-  assert.match(surfaceSource, /Needs input/);
-  assert.match(sidebarSource, /href="\/ada"/);
+  assert.match(adaPageSource, /redirect\("\/quotes"\)/);
+  assert.match(adaWorkspaceSource, /redirect\(`\/quotes\/\$\{workspaceId\}`\)/);
+  assert.match(quoteLibraryPageSource, /QuoteLibrary/);
+  assert.match(quoteWorkspacePageSource, /QuoteWorkspace/);
+  assert.match(quoteLibrarySource, /New quote/);
+  assert.match(quoteLibrarySource, /Search quotes/);
+  assert.match(quoteLibrarySource, /Needs input/);
+  assert.match(quoteWorkspaceSource, /AdaWorkspaceDetail/);
+  assert.match(sidebarSource, /href="\/quotes"/);
 });

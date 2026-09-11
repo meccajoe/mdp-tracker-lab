@@ -1,6 +1,5 @@
-import { AdaAccessGate } from "@/components/ada-access-gate";
-import { AdaWorkspaceShell } from "@/components/ada-workspace-shell";
+import { redirect } from "next/navigation";
 
 export default function AdaPage() {
-  return <AdaAccessGate><AdaWorkspaceShell /></AdaAccessGate>;
+  redirect("/quotes");
 }
