@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
+import { requireQuoteProductWorkspaceAccess } from "@/lib/ada-server";
 
 function statusForRestoreError(code: string | undefined) {
   if (code === "42501") return 403;
@@ -15,7 +15,7 @@ export async function POST(
   context: { params: Promise<{ workspaceId: string }> },
 ) {
   const { workspaceId } = await context.params;
-  const access = await requireAdaWorkspaceAccess(workspaceId, "restore_workspace");
+  const access = await requireQuoteProductWorkspaceAccess(workspaceId, "restore_workspace");
   if (!access.ok) return access.response;
 
   const { data: workspace, error: workspaceError } = await access.supabase

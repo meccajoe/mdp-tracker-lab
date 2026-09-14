@@ -14,10 +14,10 @@ test("Release 2 proposal routes exist and use authenticated capabilities", () =>
   const list = readFileSync(files.list, "utf8");
   const accept = readFileSync(files.accept, "utf8");
   const reject = readFileSync(files.reject, "utf8");
-  assert.match(list, /requireAdaWorkspaceAccess\(workspaceId\)/);
-  assert.match(list, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
-  assert.match(accept, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
-  assert.match(reject, /requireAdaWorkspaceAccess\(workspaceId, "edit_draft"\)/);
+  assert.match(list, /requireQuoteProductWorkspaceAccess\(workspaceId\)/);
+  assert.match(list, /requireQuoteProductWorkspaceAccess\(workspaceId, "edit_draft"\)/);
+  assert.match(accept, /requireQuoteProductWorkspaceAccess\(workspaceId, "edit_draft"\)/);
+  assert.match(reject, /requireQuoteProductWorkspaceAccess\(workspaceId, "edit_draft"\)/);
   for (const source of [list, accept, reject]) {
     assert.match(source, /actorSupabase/);
     assert.match(source, /actorEmail/);

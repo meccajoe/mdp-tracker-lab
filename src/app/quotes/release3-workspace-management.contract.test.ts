@@ -48,7 +48,7 @@ test("workspace lifecycle routes preserve rename, repeatable archive, and restor
   assert.match(detailRoute, /select\("row_version, lifecycle_status, status"\)/);
   assert.match(detailRoute, /previous_status/);
   assert.match(detailRoute, /workspace-archive:\$\{workspaceId\}:v\$\{workspace\.row_version\}/);
-  assert.match(restoreRoute, /requireAdaWorkspaceAccess\(workspaceId, "restore_workspace"\)/);
+  assert.match(restoreRoute, /requireQuoteProductWorkspaceAccess\(workspaceId, "restore_workspace"\)/);
   assert.match(restoreRoute, /actorSupabase[\s\S]{0,60}\.rpc\("restore_quote_workspace"/);
   assert.match(restoreRoute, /workspace-restore:\$\{workspaceId\}:v\$\{workspace\.row_version\}/);
   assert.match(restoreRoute, /code === "23505"[\s\S]{0,80}return 409/);

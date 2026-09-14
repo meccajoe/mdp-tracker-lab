@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { canPerformQuoteAction, type QuoteAction, type QuoteActor } from "@/lib/quote-permissions";
+import { isQuoteProductAllowedEmail } from "@/lib/quote-product-access";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -47,6 +48,29 @@ export async function requireAdaAccess() {
   if (!access.ok) return access;
   if (!access.legacyAdaAccess) return { ok: false as const, response: NextResponse.json({ error: "Ada access is not enabled for this user." }, { status: 403 }) };
   return access;
+}
+
+export async function requireQuoteProductAccess() {
+  const access = await requireAdaIdentity();
+  if (!access.ok) return access;
+  if (!isQuoteProductAllowedEmail(access.actorEmail)) {
+    return { ok: false as const, response: NextResponse.json({ error: "Not found." }, { status: 404 }) };
+  }
+  return access;
+}
+
+export async function requireQuoteProductWorkspaceAccess(workspaceId: string, action: QuoteAction = "view_workspace") {
+  const access = await requireQuoteProductAccess();
+  if (!access.ok) return access;
+  const authorization = await resolveQuoteWorkspaceAuthorization(access, workspaceId);
+  if (!authorization.ok) return authorization;
+  if (!canPerformQuoteAction(authorization.actor, action)) {
+    return { ok: false as const, response: NextResponse.json({ error: "Quote Workspace access required." }, { status: 403 }) };
+  }
+  if (action !== "view_workspace" && action !== "restore_workspace" && authorization.workspaceLifecycle === "archived") {
+    return { ok: false as const, response: NextResponse.json({ error: "Archived Quote Workspaces are read-only." }, { status: 409 }) };
+  }
+  return { ...access, quoteActor: authorization.actor, workspaceLifecycle: authorization.workspaceLifecycle };
 }
 
 export async function requireAdaWorkspaceAccess(workspaceId: string, action: QuoteAction = "view_workspace") {

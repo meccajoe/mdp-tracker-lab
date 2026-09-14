@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
+import { requireQuoteProductWorkspaceAccess } from "@/lib/ada-server";
 import { isUuid, rejectQuoteProposal, parseProposalRequestObject, parseRejectionReason, QuoteProposalPersistenceError, quoteProposalErrorStatus } from "@/lib/quote-proposal-persistence";
 
 const boundedKey = (value: unknown) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= 200;
@@ -10,7 +10,7 @@ const logRejectInvocation = (event: string, fields: Record<string, unknown>) => 
 export async function POST(request: Request, context: { params: Promise<{ workspaceId: string; proposalId: string }> }) {
   const { workspaceId, proposalId } = await context.params;
   if (!isUuid(workspaceId) || !isUuid(proposalId)) return NextResponse.json({ error: "Invalid workspaceId or proposalId." }, { status: 400 });
-  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
+  const access = await requireQuoteProductWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
   const requestId = boundedDiagnosticHeader(request.headers.get("x-mdp-request-id"), crypto.randomUUID());
   const browserSessionId = boundedDiagnosticHeader(request.headers.get("x-mdp-browser-session-id"), "unavailable");
   const sourceComponent = boundedDiagnosticHeader(request.headers.get("x-mdp-source"), "unknown");

@@ -34,8 +34,8 @@ test("Quote Workspaces have an explicit permission boundary while legacy Ada rou
   assert.match(routeSource, /quote_workspace_members/);
   assert.match(routeSource, /create_quote_workspace/);
   assert.doesNotMatch(routeSource, /requireAdaAccess\(/);
-  assert.match(quoteAccessRouteSource, /requireAdaIdentity\(/);
-  assert.match(quoteAccessRouteSource, /quote_workspace_members/);
+  assert.match(quoteAccessRouteSource, /requireQuoteProductAccess\(/);
+  assert.doesNotMatch(quoteAccessRouteSource, /quote_workspace_members/);
   assert.match(quoteGateSource, /QuoteAccessGate/);
   assert.match(quotePageSource, /QuoteAccessGate/);
   assert.match(pageSource, /redirect\("\/quotes"\)/);

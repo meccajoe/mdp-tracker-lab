@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdaWorkspaceAccess } from "@/lib/ada-server";
+import { requireQuoteProductWorkspaceAccess } from "@/lib/ada-server";
 import { createQuoteProposal, isUuid, listQuoteProposals, parseOptionalSourceRevisionId, parseProposalRequestObject, quoteProposalErrorStatus, QuoteProposalPersistenceError } from "@/lib/quote-proposal-persistence";
 
 const boundedKey = (value: unknown) => typeof value === "string" && value.trim().length > 0 && value.trim().length <= 200;
@@ -12,7 +12,7 @@ const errorResponse = (error: unknown) => {
 export async function GET(_request: Request, context: { params: Promise<{ workspaceId: string }> }) {
   const { workspaceId } = await context.params;
   if (!isUuid(workspaceId)) return NextResponse.json({ error: "Invalid workspaceId." }, { status: 400 });
-  const access = await requireAdaWorkspaceAccess(workspaceId); if (!access.ok) return access.response;
+  const access = await requireQuoteProductWorkspaceAccess(workspaceId); if (!access.ok) return access.response;
   try { return NextResponse.json({ proposals: await listQuoteProposals({ supabase: access.actorSupabase, workspaceId }) }); }
   catch (error) { return errorResponse(error); }
 }
@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: { params: Promise<{ worksp
 export async function POST(request: Request, context: { params: Promise<{ workspaceId: string }> }) {
   const { workspaceId } = await context.params;
   if (!isUuid(workspaceId)) return NextResponse.json({ error: "Invalid workspaceId." }, { status: 400 });
-  const access = await requireAdaWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
+  const access = await requireQuoteProductWorkspaceAccess(workspaceId, "edit_draft"); if (!access.ok) return access.response;
   let body: Record<string, unknown>;
   try { body = parseProposalRequestObject(await request.json()); }
   catch (error) { return errorResponse(error instanceof SyntaxError ? new QuoteProposalPersistenceError("Invalid JSON request body.", "22P02") : error); }

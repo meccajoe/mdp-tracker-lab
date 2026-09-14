@@ -25,15 +25,15 @@ test("Release 3 exposes first-class quote routes and keeps Ada URLs as redirects
   assert.match(legacyWorkspacePage, /redirect\(`\/quotes\/\$\{workspaceId\}`\)/);
 });
 
-test("quote navigation and direct routes use normalized quote access rather than the legacy Ada flag", () => {
+test("quote navigation and direct routes enforce the Joe-only product preview gate", () => {
   const accessRoute = source("src/app/api/quotes/access/route.ts");
   const accessGate = source("src/components/quote-access-gate.tsx");
   const sidebar = source("src/components/Sidebar.tsx");
+  const server = source("src/lib/ada-server.ts");
 
-  assert.match(accessRoute, /requireAdaIdentity\(/);
-  assert.match(accessRoute, /quote_workspace_members/);
-  assert.match(accessRoute, /quote_user_capabilities/);
-  assert.match(accessRoute, /create_workspace/);
+  assert.match(accessRoute, /requireQuoteProductAccess\(/);
+  assert.match(server, /isQuoteProductAllowedEmail/);
+  assert.match(server, /requireQuoteProductWorkspaceAccess/);
   assert.doesNotMatch(accessRoute, /requireAdaAccess\(/);
   assert.match(accessGate, /\/api\/quotes\/access/);
   assert.match(accessGate, /Quote Workspace access required/);
