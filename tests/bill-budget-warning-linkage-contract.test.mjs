@@ -5,6 +5,6 @@ import path from 'node:path';
 
 const webhookSource = fs.readFileSync(path.resolve('src/app/api/webhooks/hubspot/route.ts'), 'utf8');
 
-test('webhook persists BILL linkage fields even when create returns created_with_member_warning', () => {
-  assert.match(webhookSource, /if \(seedResult\.status === "created" \|\| seedResult\.status === "created_with_member_warning"\)/, 'webhook should persist BILL linkage for warning-state creates too');
+test('webhook persists BILL linkage fields for every successful create-or-attach status, including roster warnings', () => {
+  assert.match(webhookSource, /if \(isBillBudgetLinkSuccess\(seedResult\.status\)\)/, 'webhook should persist BILL linkage for every centralized success status');
 });

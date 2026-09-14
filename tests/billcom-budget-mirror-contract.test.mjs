@@ -89,14 +89,14 @@ test('Bill budget description stays compact enough for BILL create requests whil
   assert.doesNotMatch(description, /Full project budget/i);
 });
 
-test('Bill budget seed helper skips zero budgets and avoids overwrite when a BILL budget already exists', () => {
+test('Bill budget seed helper includes zero-dollar placeholders and avoids overwrite when a BILL budget already exists', () => {
   assert.equal(
     shouldSeedBillBudget({
       bill_budget_uuid: null,
       budget_travel: 0,
       budget_props: 0,
     }),
-    false,
+    true,
   );
 
   assert.equal(
@@ -147,11 +147,10 @@ test('Bill budget helper adds PMs as unfunded members so project funds remain re
   assert.doesNotMatch(helperSource, /limit:\s*total,[\s\S]{0,80}recurringLimit:\s*total/);
 });
 
-test('Bill budget helper always reconciles Emily, David, Caleb/Rooster, and the assigned PM under Paul', () => {
+test('Bill budget helper reconciles David, Caleb/Rooster, and the assigned PM under Paul and Emily', () => {
   assert.deepEqual(
     buildBillBudgetMemberEmails('nick@meccadesign.com'),
     [
-      'emily@meccadesign.com',
       'production@meccadesign.com',
       'rooster@meccadesign.com',
       'nick@meccadesign.com',
@@ -160,7 +159,6 @@ test('Bill budget helper always reconciles Emily, David, Caleb/Rooster, and the 
   assert.deepEqual(
     buildBillBudgetMemberEmails('paul@meccadesign.com'),
     [
-      'emily@meccadesign.com',
       'production@meccadesign.com',
       'rooster@meccadesign.com',
     ],

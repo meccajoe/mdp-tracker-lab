@@ -9,6 +9,7 @@ import {
   buildBillBudgetViewUrl,
   calculateBillManagedBudgetTotal,
   getBillBudgetByUuid,
+  isBillBudgetLinkSuccess,
   resolveBillSpendMemberEmail,
   seedBillBudgetForProject,
   updateBillBudgetForProject,
@@ -293,7 +294,7 @@ export async function POST(
     bill_budget_last_sync_error: seedResult.error ?? null,
   };
 
-  if (seedResult.status === "created" || seedResult.status === "created_with_member_warning") {
+  if (isBillBudgetLinkSuccess(seedResult.status)) {
     updatePayload.bill_budget_uuid = seedResult.budgetUuid ?? project.bill_budget_uuid ?? null;
     updatePayload.bill_budget_name = seedResult.budgetName ?? billJobNameSnapshot;
     if (!syncingExistingBudget) {

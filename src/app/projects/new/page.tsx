@@ -13,6 +13,7 @@ import { BUDGET_FIELDS } from "@/lib/constants";
 import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
+import { ensureBillBudgetForProject } from "@/lib/bill-budget-client";
 import {
   Card,
   CardContent,
@@ -134,9 +135,8 @@ export default function NewProjectPage() {
     const payload = stripUnsupportedProjectFields(row);
     const { error } = await supabase.from("projects").insert(payload);
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       toast.error("Failed to create project: " + error.message);
       return;
     }
@@ -148,11 +148,22 @@ export default function NewProjectPage() {
       status,
     });
     if (portfolioSync.error) {
+      setSaving(false);
       toast.error("Project created, but PM portfolio sync failed: " + portfolioSync.error);
       return;
     }
 
-    toast.success("Project created successfully.");
+    try {
+      await ensureBillBudgetForProject(projectId.trim());
+    } catch (error) {
+      setSaving(false);
+      toast.error(`Project created, but BILL budget creation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      router.push(`/projects/${projectId.trim()}`);
+      return;
+    }
+
+    setSaving(false);
+    toast.success("Project and BILL budget created successfully.");
     router.push(`/projects/${projectId.trim()}`);
   }
 

@@ -4,19 +4,44 @@ const BILLCOM_SPEND_COMPANY_ID = process.env.BILLCOM_SPEND_COMPANY_ID ?? "Q29tcG
 const BILLCOM_API_TOKEN = process.env.BILLCOM_API_TOKEN ?? "";
 const BILLCOM_BUDGET_OWNER_UUID = process.env.BILLCOM_BUDGET_OWNER_UUID ?? "";
 const BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL = (process.env.BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL ?? "paul@meccadesign.com").trim().toLowerCase();
+const BILLCOM_BUDGET_OWNER_EMAILS = (
+  process.env.BILLCOM_BUDGET_OWNER_EMAILS
+  ?? "paul@meccadesign.com,emily@meccadesign.com"
+)
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 const BILLCOM_ALWAYS_MEMBER_EMAILS = (
   process.env.BILLCOM_ALWAYS_MEMBER_EMAILS
-  ?? "emily@meccadesign.com,production@meccadesign.com,rooster@meccadesign.com"
+  ?? "production@meccadesign.com,rooster@meccadesign.com"
 )
   .split(",")
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
 const BILL_SPEND_USERS_PAGE_LIMIT = 200;
 const BILL_SPEND_USERS_MAX_PAGES = 10;
+const BILL_SPEND_BUDGETS_PAGE_LIMIT = 200;
+const BILL_SPEND_BUDGETS_MAX_PAGES = 20;
+const BILL_SPEND_MIN_REQUEST_INTERVAL_MS = Number(process.env.BILLCOM_MIN_REQUEST_INTERVAL_MS ?? 1100);
+const BILL_SPEND_MAX_RETRY_ATTEMPTS = 5;
+let nextBillRequestAt = 0;
 
 export const BILL_DEFAULT_INCLUDED_BUDGET_KEYS = ["budget_travel", "budget_props"] as const;
 
-export type BillBudgetSeedStatus = "created" | "created_with_member_warning" | "skipped" | "error";
+export type BillBudgetSeedStatus =
+  | "created"
+  | "created_with_member_warning"
+  | "attached"
+  | "attached_with_member_warning"
+  | "skipped"
+  | "error";
+
+export function isBillBudgetLinkSuccess(status: BillBudgetSeedStatus): boolean {
+  return status === "created"
+    || status === "created_with_member_warning"
+    || status === "attached"
+    || status === "attached_with_member_warning";
+}
 export type BillBudgetMemberStatus =
   | "assigned"
   | "owner_already_covers_pm"
@@ -46,13 +71,24 @@ type BillSpendUsersResponse = {
   nextPage?: string | null;
 };
 
+type BillSpendBudget = {
+  id?: string;
+  uuid?: string;
+  name?: string | null;
+  retired?: boolean;
+};
+
+type BillSpendBudgetsResponse = {
+  results?: BillSpendBudget[];
+  nextPage?: string | null;
+};
+
 export function calculateBillManagedBudgetTotal(project: BillBudgetProjectLike): number {
   return Math.round((project.budget_travel ?? 0) + (project.budget_props ?? 0));
 }
 
 export function shouldSeedBillBudget(project: BillBudgetProjectLike): boolean {
-  if (project.bill_budget_uuid) return false;
-  return calculateBillManagedBudgetTotal(project) > 0;
+  return !project.bill_budget_uuid;
 }
 
 export function buildBillBudgetViewUrl({
@@ -84,7 +120,7 @@ export async function getBillBudgetByUuid(budgetUuid: string): Promise<BillBudge
     };
   }
 
-  const response = await fetch(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}`), {
+  const response = await fetchBillcom(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}`), {
     headers: {
       apiToken: BILLCOM_API_TOKEN,
       Accept: "application/json",
@@ -153,17 +189,73 @@ export function resolveBillSpendMemberEmail(user?: {
 
 export function buildBillBudgetMemberEmails(pmEmail?: string | null): string[] {
   const emails = [...BILLCOM_ALWAYS_MEMBER_EMAILS, normalizeEmail(pmEmail)]
-    .filter((email): email is string => Boolean(email) && email !== BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL);
+    .filter((email): email is string => Boolean(email))
+    .filter((email) => !BILLCOM_BUDGET_OWNER_EMAILS.includes(email));
   return [...new Set(emails)];
+}
+
+export function buildBillBudgetOwnerEmails(): string[] {
+  return [...new Set(BILLCOM_BUDGET_OWNER_EMAILS)];
 }
 
 function buildBillcomUrl(path: string): string {
   return `${BILLCOM_BASE_URL}${path}`;
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchBillcom(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  for (let attempt = 0; attempt < BILL_SPEND_MAX_RETRY_ATTEMPTS; attempt += 1) {
+    const throttleMs = Math.max(0, nextBillRequestAt - Date.now());
+    if (throttleMs > 0) await delay(throttleMs);
+    nextBillRequestAt = Date.now() + BILL_SPEND_MIN_REQUEST_INTERVAL_MS;
+
+    const response = await globalThis.fetch(input, init);
+    const retryable = response.status === 429 || (method !== "POST" && response.status >= 500);
+    if (!retryable || attempt === BILL_SPEND_MAX_RETRY_ATTEMPTS - 1) return response;
+
+    const retryAfterSeconds = Number(response.headers.get("retry-after"));
+    const retryMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+      ? retryAfterSeconds * 1000
+      : Math.min(30_000, 2 ** attempt * 2_000);
+    await delay(retryMs);
+  }
+  throw new Error("billcom_request_retry_exhausted");
+}
+
 async function readBillcomError(response: Response): Promise<string> {
   const text = await response.text();
   return text.slice(0, 300);
+}
+
+export async function findBillBudgetByExactName(budgetName: string): Promise<BillSpendBudget | null> {
+  const matches: BillSpendBudget[] = [];
+  let nextPage: string | null = null;
+  const normalizedName = budgetName.trim().toLowerCase();
+
+  for (let page = 0; page < BILL_SPEND_BUDGETS_MAX_PAGES; page += 1) {
+    const url = nextPage
+      ? `${buildBillcomUrl("/v3/spend/budgets")}?nextPage=${encodeURIComponent(nextPage)}`
+      : `${buildBillcomUrl("/v3/spend/budgets")}?limit=${BILL_SPEND_BUDGETS_PAGE_LIMIT}`;
+    const response = await fetchBillcom(url, {
+      headers: { apiToken: BILLCOM_API_TOKEN, Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`billcom_budgets_lookup_failed:${response.status}:${await readBillcomError(response)}`);
+    }
+    const data = (await response.json()) as BillSpendBudgetsResponse;
+    matches.push(...(data.results ?? []).filter((budget) =>
+      !budget.retired && budget.name?.trim().toLowerCase() === normalizedName));
+    nextPage = data.nextPage ?? null;
+    if (!nextPage) break;
+  }
+
+  if (nextPage) throw new Error("billcom_budgets_lookup_failed:pagination_limit");
+  if (matches.length > 1) throw new Error(`billcom_budget_name_ambiguous:${budgetName}`);
+  return matches[0] ?? null;
 }
 
 async function listBillSpendUsers(): Promise<BillSpendUser[]> {
@@ -177,7 +269,7 @@ async function listBillSpendUsers(): Promise<BillSpendUser[]> {
       ? `${buildBillcomUrl("/v3/spend/users")}?nextPage=${encodeURIComponent(nextPage)}`
       : `${buildBillcomUrl("/v3/spend/users")}?limit=${BILL_SPEND_USERS_PAGE_LIMIT}`;
 
-    const response = await fetch(url, {
+    const response = await fetchBillcom(url, {
       headers: {
         apiToken: BILLCOM_API_TOKEN,
         Accept: "application/json",
@@ -204,26 +296,19 @@ function findBillSpendUser(users: BillSpendUser[], email?: string | null): BillS
   return users.find((user) => normalizeEmail(user.email) === normalizedEmail) ?? null;
 }
 
-async function resolveBillBudgetOwner(users: BillSpendUser[]): Promise<{ uuid: string | null; email: string | null }> {
-  const ownerUser = findBillSpendUser(users, BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL);
-  if (ownerUser?.uuid) {
-    return {
-      uuid: ownerUser.uuid,
-      email: normalizeEmail(ownerUser.email),
-    };
+async function resolveBillBudgetOwners(users: BillSpendUser[]): Promise<{
+  ownerUuids: string[];
+  missingEmail: string | null;
+}> {
+  const ownerUuids: string[] = [];
+  for (const email of buildBillBudgetOwnerEmails()) {
+    const ownerUser = findBillSpendUser(users, email);
+    const fallbackUuid = email === BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL ? BILLCOM_BUDGET_OWNER_UUID : "";
+    const uuid = ownerUser?.uuid ?? fallbackUuid;
+    if (!uuid) return { ownerUuids: [], missingEmail: email };
+    ownerUuids.push(uuid);
   }
-
-  if (BILLCOM_BUDGET_OWNER_UUID) {
-    return {
-      uuid: BILLCOM_BUDGET_OWNER_UUID,
-      email: BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL,
-    };
-  }
-
-  return {
-    uuid: null,
-    email: BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL,
-  };
+  return { ownerUuids: [...new Set(ownerUuids)], missingEmail: null };
 }
 
 function buildMemberAssignmentWarning(status: BillBudgetMemberStatus, pmEmail?: string | null, detail?: string): string | null {
@@ -249,7 +334,14 @@ type BillBudgetMemberReconciliation = {
 };
 
 type BillBudgetMembersResponse = {
-  results?: Array<{ userUuid?: string | null }>;
+  results?: Array<{
+    userUuid?: string | null;
+    budgetRole?: string | null;
+    retired?: boolean;
+    limit?: number | null;
+    recurringLimit?: number | null;
+    shareBudgetFunds?: boolean | null;
+  }>;
 };
 
 async function assignBillBudgetMember({
@@ -259,7 +351,7 @@ async function assignBillBudgetMember({
   budgetUuid: string;
   memberUuid: string;
 }): Promise<{ status: BillBudgetMemberStatus; detail?: string }> {
-  const response = await fetch(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}/members/${memberUuid}`), {
+  const response = await fetchBillcom(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}/members/${memberUuid}`), {
     method: "PUT",
     headers: {
       apiToken: BILLCOM_API_TOKEN,
@@ -285,7 +377,16 @@ async function assignBillBudgetMember({
 }
 
 async function listBillBudgetMemberUuids(budgetUuid: string): Promise<Set<string>> {
-  const response = await fetch(
+  const members = await listBillBudgetMembers(budgetUuid);
+  return new Set(
+    members
+      .map((member) => member.userUuid)
+      .filter((uuid): uuid is string => Boolean(uuid)),
+  );
+}
+
+async function listBillBudgetMembers(budgetUuid: string): Promise<NonNullable<BillBudgetMembersResponse["results"]>> {
+  const response = await fetchBillcom(
     buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}/members?limit=${BILL_SPEND_USERS_PAGE_LIMIT}`),
     {
       headers: {
@@ -300,11 +401,47 @@ async function listBillBudgetMemberUuids(budgetUuid: string): Promise<Set<string
   }
 
   const data = (await response.json()) as BillBudgetMembersResponse;
-  return new Set(
-    (data.results ?? [])
+  return data.results ?? [];
+}
+
+async function reconcileBillBudgetOwners({
+  budgetUuid,
+  ownerUuids,
+}: {
+  budgetUuid: string;
+  ownerUuids: string[];
+}): Promise<string | null> {
+  for (const ownerUuid of ownerUuids) {
+    const response = await fetchBillcom(buildBillcomUrl(`/v3/spend/budgets/${budgetUuid}/members/${ownerUuid}`), {
+      method: "PUT",
+      headers: {
+        apiToken: BILLCOM_API_TOKEN,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        limit: 0,
+        recurringLimit: 0,
+        role: "OWNER",
+        shareBudgetFunds: false,
+      }),
+    });
+    if (!response.ok) {
+      return `billcom_budget_owner_assign_failed:${response.status}:${await readBillcomError(response)}`;
+    }
+  }
+
+  try {
+    const members = await listBillBudgetMembers(budgetUuid);
+    const verifiedOwners = new Set(members
+      .filter((member) => !member.retired && member.budgetRole?.toUpperCase() === "OWNER")
       .map((member) => member.userUuid)
-      .filter((uuid): uuid is string => Boolean(uuid)),
-  );
+      .filter((uuid): uuid is string => Boolean(uuid)));
+    const missingOwner = ownerUuids.find((uuid) => !verifiedOwners.has(uuid));
+    return missingOwner ? `billcom_budget_owner_missing_after_assign:${missingOwner}` : null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "billcom_budget_owner_readback_failed";
+  }
 }
 
 async function reconcileBillBudgetMembers({
@@ -337,9 +474,9 @@ async function reconcileBillBudgetMembers({
     });
   }
 
-  let verifiedMemberUuids: Set<string>;
+  let verifiedMembers: NonNullable<BillBudgetMembersResponse["results"]>;
   try {
-    verifiedMemberUuids = await listBillBudgetMemberUuids(budgetUuid);
+    verifiedMembers = await listBillBudgetMembers(budgetUuid);
   } catch (error) {
     const detail = error instanceof Error ? error.message : "billcom_budget_members_readback_failed";
     return results.map((result) => result.status === "assigned"
@@ -347,15 +484,20 @@ async function reconcileBillBudgetMembers({
       : result);
   }
 
-  return results.map((result) => (
-    result.status === "assigned" && result.uuid && !verifiedMemberUuids.has(result.uuid)
-      ? {
-          ...result,
-          status: "assign_failed" as const,
-          detail: `billcom_budget_member_missing_after_assign:${result.email}`,
-        }
-      : result
-  ));
+  return results.map((result) => {
+    if (result.status !== "assigned" || !result.uuid) return result;
+    const verified = verifiedMembers.find((member) => member.userUuid === result.uuid && !member.retired);
+    const valid = verified
+      && verified.budgetRole?.toUpperCase() === "MEMBER"
+      && Number(verified.limit ?? 0) === 0
+      && Number(verified.recurringLimit ?? 0) === 0
+      && verified.shareBudgetFunds === false;
+    return valid ? result : {
+      ...result,
+      status: "assign_failed" as const,
+      detail: `billcom_budget_member_missing_after_assign:${result.email}`,
+    };
+  });
 }
 
 function summarizeMemberReconciliation(
@@ -367,7 +509,7 @@ function summarizeMemberReconciliation(
   warning: string | null;
 } {
   const normalizedPmEmail = normalizeEmail(pmEmail);
-  const pmResult = normalizedPmEmail === BILLCOM_DEFAULT_BUDGET_OWNER_EMAIL
+  const pmResult = normalizedPmEmail && BILLCOM_BUDGET_OWNER_EMAILS.includes(normalizedPmEmail)
     ? { status: "owner_already_covers_pm" as const, uuid: null }
     : normalizedPmEmail
       ? results.find((result) => result.email === normalizedPmEmail)
@@ -430,6 +572,7 @@ export interface BillBudgetSeedResult {
   error?: string;
   description?: string;
   ownerUuid?: string | null;
+  ownerUuids?: string[];
   memberStatus?: BillBudgetMemberStatus;
   memberEmail?: string | null;
   memberUuid?: string | null;
@@ -456,11 +599,12 @@ export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { 
     };
   }
 
-  const owner = await resolveBillBudgetOwner(users);
-  if (!owner.uuid) {
+  const owners = await resolveBillBudgetOwners(users);
+  const ownerUuids = owners.ownerUuids;
+  if (owners.missingEmail) {
     return {
       status: "error",
-      error: "missing_billcom_budget_owner",
+      error: `missing_billcom_budget_owner:${owners.missingEmail}`,
       budgetTotal: total,
     };
   }
@@ -480,7 +624,7 @@ export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { 
     seededAt: new Date().toISOString().slice(0, 10),
   });
 
-  const response = await fetch(buildBillcomUrl(`/v3/spend/budgets/${input.budgetUuid}`), {
+  const response = await fetchBillcom(buildBillcomUrl(`/v3/spend/budgets/${input.budgetUuid}`), {
     method: "PATCH",
     headers: {
       apiToken: BILLCOM_API_TOKEN,
@@ -503,15 +647,18 @@ export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { 
       budgetName,
       budgetTotal: total,
       description,
-      ownerUuid: owner.uuid,
+      ownerUuid: ownerUuids[0] ?? null,
+      ownerUuids,
     };
   }
 
   const data = (await response.json()) as { uuid?: string; id?: string; name?: string };
   const budgetUuid = data.uuid ?? data.id ?? input.budgetUuid;
+  const ownerWarning = await reconcileBillBudgetOwners({ budgetUuid, ownerUuids });
   const pmEmail = normalizeEmail(input.pmEmail);
   const memberResults = await reconcileBillBudgetMembers({ budgetUuid, users, pmEmail });
-  const { memberStatus, memberUuid, warning } = summarizeMemberReconciliation(memberResults, pmEmail);
+  const { memberStatus, memberUuid, warning: memberWarning } = summarizeMemberReconciliation(memberResults, pmEmail);
+  const warning = [ownerWarning, memberWarning].filter(Boolean).join(";") || null;
 
   return {
     status: warning ? "created_with_member_warning" : "created",
@@ -519,7 +666,8 @@ export async function updateBillBudgetForProject(input: BillBudgetSeedInput & { 
     budgetName: data.name ?? budgetName,
     budgetTotal: total,
     description,
-    ownerUuid: owner.uuid,
+    ownerUuid: ownerUuids[0] ?? null,
+    ownerUuids,
     memberStatus,
     memberEmail: pmEmail,
     memberUuid,
@@ -533,12 +681,26 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
     budget_props: input.budgetProps,
   });
 
-  if (total <= 0) {
-    return { status: "skipped", error: "no_bill_managed_budget_default", budgetTotal: total };
-  }
-
   if (!BILLCOM_API_TOKEN) {
     return { status: "error", error: "missing_billcom_budget_config", budgetTotal: total };
+  }
+
+  const budgetName = buildBillBudgetName({
+    billJobName: input.billJobName,
+    jobNumber: input.jobNumber,
+    projectName: input.projectName,
+  });
+
+  let existingBudget: BillSpendBudget | null = null;
+  try {
+    existingBudget = await findBillBudgetByExactName(budgetName);
+  } catch (error) {
+    return {
+      status: "error",
+      error: error instanceof Error ? error.message : "billcom_budgets_lookup_failed",
+      budgetName,
+      budgetTotal: total,
+    };
   }
 
   let users: BillSpendUser[] = [];
@@ -548,24 +710,21 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
     return {
       status: "error",
       error: error instanceof Error ? error.message : "billcom_users_lookup_failed",
+      budgetName,
       budgetTotal: total,
     };
   }
 
-  const owner = await resolveBillBudgetOwner(users);
-  if (!owner.uuid) {
+  const owners = await resolveBillBudgetOwners(users);
+  const ownerUuids = owners.ownerUuids;
+  if (owners.missingEmail) {
     return {
       status: "error",
-      error: "missing_billcom_budget_owner",
+      error: `missing_billcom_budget_owner:${owners.missingEmail}`,
+      budgetName,
       budgetTotal: total,
     };
   }
-
-  const budgetName = buildBillBudgetName({
-    billJobName: input.billJobName,
-    jobNumber: input.jobNumber,
-    projectName: input.projectName,
-  });
 
   const description = buildBillBudgetDescription({
     projectId: input.projectId,
@@ -575,8 +734,30 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
     total,
     seededAt: new Date().toISOString().slice(0, 10),
   });
+  const pmEmail = normalizeEmail(input.pmEmail);
+  const existingBudgetUuid = existingBudget?.uuid ?? existingBudget?.id;
 
-  const response = await fetch(buildBillcomUrl("/v3/spend/budgets"), {
+  if (existingBudgetUuid) {
+    const ownerWarning = await reconcileBillBudgetOwners({ budgetUuid: existingBudgetUuid, ownerUuids });
+    const memberResults = await reconcileBillBudgetMembers({ budgetUuid: existingBudgetUuid, users, pmEmail });
+    const { memberStatus, memberUuid, warning: memberWarning } = summarizeMemberReconciliation(memberResults, pmEmail);
+    const warning = [ownerWarning, memberWarning].filter(Boolean).join(";") || null;
+    return {
+      status: warning ? "attached_with_member_warning" : "attached",
+      budgetUuid: existingBudgetUuid,
+      budgetName: existingBudget?.name ?? budgetName,
+      budgetTotal: total,
+      description,
+      ownerUuid: ownerUuids[0] ?? null,
+      ownerUuids,
+      memberStatus,
+      memberEmail: pmEmail,
+      memberUuid,
+      error: warning ?? undefined,
+    };
+  }
+
+  const response = await fetchBillcom(buildBillcomUrl("/v3/spend/budgets"), {
     method: "POST",
     headers: {
       apiToken: BILLCOM_API_TOKEN,
@@ -586,7 +767,7 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
     body: JSON.stringify({
       name: budgetName,
       description,
-      owners: [owner.uuid],
+      owners: ownerUuids,
       recurringInterval: "NONE",
       limit: total,
     }),
@@ -599,13 +780,16 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
       budgetName,
       budgetTotal: total,
       description,
-      ownerUuid: owner.uuid,
+      ownerUuid: ownerUuids[0] ?? null,
+      ownerUuids,
     };
   }
 
   const data = (await response.json()) as { uuid?: string; id?: string; name?: string };
   const budgetUuid = data.uuid ?? data.id;
-  const pmEmail = normalizeEmail(input.pmEmail);
+  const ownerWarning = budgetUuid
+    ? await reconcileBillBudgetOwners({ budgetUuid, ownerUuids })
+    : "billcom_budget_owner_assign_failed:missing_budget_uuid";
   const memberResults = budgetUuid
     ? await reconcileBillBudgetMembers({ budgetUuid, users, pmEmail })
     : buildBillBudgetMemberEmails(pmEmail).map((email) => ({
@@ -614,7 +798,8 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
         status: "assign_failed" as const,
         detail: "billcom_budget_member_assign_failed:missing_budget_uuid",
       }));
-  const { memberStatus, memberUuid, warning } = summarizeMemberReconciliation(memberResults, pmEmail);
+  const { memberStatus, memberUuid, warning: memberWarning } = summarizeMemberReconciliation(memberResults, pmEmail);
+  const warning = [ownerWarning, memberWarning].filter(Boolean).join(";") || null;
 
   return {
     status: warning ? "created_with_member_warning" : "created",
@@ -622,7 +807,8 @@ export async function seedBillBudgetForProject(input: BillBudgetSeedInput): Prom
     budgetName: data.name ?? budgetName,
     budgetTotal: total,
     description,
-    ownerUuid: owner.uuid,
+    ownerUuid: ownerUuids[0] ?? null,
+    ownerUuids,
     memberStatus,
     memberEmail: pmEmail,
     memberUuid,

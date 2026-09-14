@@ -18,7 +18,7 @@ import { parseLineItems, type ParsedQuote, type CalculatedBudgets } from "@/lib/
 import { syncPmStartingPortfolioMembership } from "@/lib/project-auto-portfolio-membership";
 import { HARDCODED_DEFAULT_PCTS } from "@/lib/budget-formula";
 import { buildHubspotQuoteSyncFields, stripUnsupportedProjectFields } from "@/lib/project-rebaseline";
-import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, resolveBillSpendMemberEmail, seedBillBudgetForProject, shouldSeedBillBudget, updateBillBudgetForProject } from "@/lib/billcom-budget";
+import { buildBillBudgetDescription, buildBillBudgetName, calculateBillManagedBudgetTotal, isBillBudgetLinkSuccess, resolveBillSpendMemberEmail, seedBillBudgetForProject, shouldSeedBillBudget, updateBillBudgetForProject } from "@/lib/billcom-budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -579,7 +579,7 @@ export async function POST(req: NextRequest) {
           bill_budget_last_sync_error: seedResult.error ?? null,
         };
 
-        if (seedResult.status === "created" || seedResult.status === "created_with_member_warning") {
+        if (isBillBudgetLinkSuccess(seedResult.status)) {
           updatePayload.bill_budget_uuid = seedResult.budgetUuid ?? null;
           updatePayload.bill_budget_name = seedResult.budgetName ?? billJobNameSnapshot;
           updatePayload.bill_budget_seeded_at = new Date().toISOString();

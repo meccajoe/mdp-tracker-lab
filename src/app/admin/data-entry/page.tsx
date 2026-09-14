@@ -15,6 +15,7 @@ import { ProjectLookupStatus } from "@/components/project-lookup-status";
 import { Button } from "@/components/ui/button";
 import { BUDGET_FIELDS } from "@/lib/constants";
 import { todayCentral } from "@/lib/date-utils";
+import { ensureBillBudgetForProject } from "@/lib/bill-budget-client";
 
 type EditableProject = Project & { _isNew?: boolean };
 
@@ -607,7 +608,6 @@ export default function DataEntryPage() {
     if (isNew) {
       const { error } = await supabase.from("projects").insert(payload);
       if (error) { toast.error("Failed to create project: " + error.message); setSaving(false); return; }
-      toast.success(`Created project ${projectId}`);
     } else {
       const { id: _id, ...updatePayload } = payload;
       const { error } = await supabase.from("projects").update(updatePayload).eq("id", projectId);
@@ -625,6 +625,17 @@ export default function DataEntryPage() {
       toast.error(`Project saved, but PM portfolio sync failed: ${portfolioSync.error}`);
       setSaving(false);
       return;
+    }
+
+    if (isNew) {
+      try {
+        await ensureBillBudgetForProject(projectId);
+        toast.success(`Created project ${projectId} and its BILL budget`);
+      } catch (error) {
+        toast.error(`Project created, but BILL budget creation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+        setSaving(false);
+        return;
+      }
     }
 
     // Save actuals
