@@ -178,6 +178,35 @@ test("keeps the idempotency key stable while changing the payload hash", () => {
   assert.notEqual(first.payloadHash, second.payloadHash);
 });
 
+test("keeps distinct colon-containing identity tuples on distinct idempotency keys", () => {
+  const first = prepareQuotePublication({
+    ...baseInput(),
+    workspaceId: "workspace:revision:one",
+    requestedRevisionId: "revision-two",
+    commercialApprovedRevisionId: "revision-two",
+  });
+  const second = prepareQuotePublication({
+    ...baseInput(),
+    workspaceId: "workspace",
+    requestedRevisionId: "one:revision:revision-two",
+    commercialApprovedRevisionId: "one:revision:revision-two",
+  });
+  assert.notEqual(first.idempotencyKey, second.idempotencyKey);
+});
+
+test("rejects a null root input with QuotePublicationValidationError", () => {
+  assert.throws(
+    () => prepareQuotePublication(null as unknown as QuotePublicationInput),
+    QuotePublicationValidationError,
+  );
+});
+
+test("rejects a null normalized commercial line with QuotePublicationValidationError", () => {
+  const input = baseInput();
+  input.normalizedCommercialLines = [null as unknown as QuotePublicationInput["normalizedCommercialLines"][number]];
+  assert.throws(() => prepareQuotePublication(input), QuotePublicationValidationError);
+});
+
 test("does not share mutable input and output state", () => {
   const input = baseInput();
   const command = prepareQuotePublication(input);

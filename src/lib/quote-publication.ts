@@ -97,6 +97,8 @@ function sha256(value: unknown): string {
 }
 
 export function prepareQuotePublication(input: QuotePublicationInput): QuotePublicationCommand {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) fail("publication input must be an object");
+
   const workspaceId = requiredText(input.workspaceId, "workspaceId");
   const revisionId = requiredText(input.requestedRevisionId, "requestedRevisionId");
   const approvedRevisionId = requiredText(input.commercialApprovedRevisionId, "commercialApprovedRevisionId");
@@ -114,6 +116,7 @@ export function prepareQuotePublication(input: QuotePublicationInput): QuotePubl
   const sortOrders = new Set<number>();
   let summedAmount = 0;
   const lines = input.normalizedCommercialLines.map((line, index): QuotePublicationLine => {
+    if (line === null || typeof line !== "object" || Array.isArray(line)) fail(`line ${index} must be an object`);
     if (!Number.isInteger(line.sortOrder) || line.sortOrder < 0 || sortOrders.has(line.sortOrder)) fail(`line ${index} has invalid sortOrder`);
     sortOrders.add(line.sortOrder);
     const lineId = requiredText(line.lineId, `line ${index} lineId`);
@@ -158,6 +161,6 @@ export function prepareQuotePublication(input: QuotePublicationInput): QuotePubl
   return {
     ...payload,
     payloadHash: sha256(payload),
-    idempotencyKey: `hubspot:quote_workspace:${workspaceId}:revision:${revisionId}:publish_quote:deal:${dealId}`,
+    idempotencyKey: `hubspot:quote_workspace:${encodeURIComponent(workspaceId)}:revision:${encodeURIComponent(revisionId)}:publish_quote:deal:${encodeURIComponent(dealId)}`,
   };
 }
