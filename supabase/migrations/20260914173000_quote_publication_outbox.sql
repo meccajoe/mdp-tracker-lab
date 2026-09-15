@@ -33,25 +33,30 @@ CREATE INDEX IF NOT EXISTS idx_integration_outbox_publication_revision
 CREATE OR REPLACE FUNCTION public.protect_integration_outbox_identity()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
-  IF (NEW.aggregate_type, NEW.aggregate_id, NEW.destination, NEW.operation, NEW.idempotency_key, NEW.payload_json, NEW.payload_hash, NEW.revision_id)
+  IF (NEW.aggregate_type, NEW.aggregate_id, NEW.destination, NEW.operation, NEW.idempotency_key, NEW.payload_json, NEW.payload_hash)
      IS DISTINCT FROM
-     (OLD.aggregate_type, OLD.aggregate_id, OLD.destination, OLD.operation, OLD.idempotency_key, OLD.payload_json, OLD.payload_hash, OLD.revision_id) THEN
+     (OLD.aggregate_type, OLD.aggregate_id, OLD.destination, OLD.operation, OLD.idempotency_key, OLD.payload_json, OLD.payload_hash) THEN
     RAISE EXCEPTION 'Integration outbox command identity and payload are immutable.' USING ERRCODE = '55000';
   END IF;
-  IF OLD.external_identity IS NOT NULL AND NEW.external_identity IS DISTINCT FROM OLD.external_identity THEN
-    RAISE EXCEPTION 'Integration outbox external identity is write-once.' USING ERRCODE = '55000';
-  END IF;
-  IF OLD.external_readback_json IS NOT NULL AND NEW.external_readback_json IS DISTINCT FROM OLD.external_readback_json THEN
-    RAISE EXCEPTION 'Integration outbox read-back evidence is write-once.' USING ERRCODE = '55000';
-  END IF;
-  IF OLD.external_readback_hash IS NOT NULL AND NEW.external_readback_hash IS DISTINCT FROM OLD.external_readback_hash THEN
-    RAISE EXCEPTION 'Integration outbox read-back hash is write-once.' USING ERRCODE = '55000';
-  END IF;
-  IF OLD.reconciliation_status <> 'pending' AND
-     (NEW.reconciliation_status, NEW.reconciled_at, NEW.status, NEW.completed_at, NEW.last_error_code, NEW.last_error_message)
-     IS DISTINCT FROM
-     (OLD.reconciliation_status, OLD.reconciled_at, OLD.status, OLD.completed_at, OLD.last_error_code, OLD.last_error_message) THEN
-    RAISE EXCEPTION 'Integration outbox reconciliation is immutable.' USING ERRCODE = '55000';
+  IF NEW.aggregate_type = 'quote_workspace' AND NEW.destination = 'hubspot' AND NEW.operation = 'publish_quote' THEN
+    IF NEW.revision_id IS DISTINCT FROM OLD.revision_id THEN
+      RAISE EXCEPTION 'Integration outbox publication revision is immutable.' USING ERRCODE = '55000';
+    END IF;
+    IF OLD.external_identity IS NOT NULL AND NEW.external_identity IS DISTINCT FROM OLD.external_identity THEN
+      RAISE EXCEPTION 'Integration outbox external identity is write-once.' USING ERRCODE = '55000';
+    END IF;
+    IF OLD.external_readback_json IS NOT NULL AND NEW.external_readback_json IS DISTINCT FROM OLD.external_readback_json THEN
+      RAISE EXCEPTION 'Integration outbox read-back evidence is write-once.' USING ERRCODE = '55000';
+    END IF;
+    IF OLD.external_readback_hash IS NOT NULL AND NEW.external_readback_hash IS DISTINCT FROM OLD.external_readback_hash THEN
+      RAISE EXCEPTION 'Integration outbox read-back hash is write-once.' USING ERRCODE = '55000';
+    END IF;
+    IF OLD.reconciliation_status <> 'pending' AND
+       (NEW.reconciliation_status, NEW.reconciled_at, NEW.status, NEW.completed_at, NEW.last_error_code, NEW.last_error_message)
+       IS DISTINCT FROM
+       (OLD.reconciliation_status, OLD.reconciled_at, OLD.status, OLD.completed_at, OLD.last_error_code, OLD.last_error_message) THEN
+      RAISE EXCEPTION 'Integration outbox reconciliation is immutable.' USING ERRCODE = '55000';
+    END IF;
   END IF;
   NEW.updated_at := now();
   RETURN NEW;
