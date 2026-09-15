@@ -25,7 +25,7 @@ ALTER TABLE public.integration_outbox
   CHECK (
     NOT (aggregate_type = 'quote_workspace' AND destination = 'hubspot' AND operation = 'publish_quote') OR
     (reconciliation_status = 'pending' AND external_identity IS NULL AND external_readback_json IS NULL AND external_readback_hash IS NULL AND reconciled_at IS NULL) OR
-    (reconciliation_status IN ('verified','drifted') AND nullif(btrim(external_identity), '') IS NOT NULL AND jsonb_typeof(external_readback_json) = 'object' AND external_readback_hash ~ '^[0-9a-f]{64}$' AND reconciled_at IS NOT NULL)
+    (reconciliation_status IN ('verified','drifted') AND nullif(btrim(external_identity), '') IS NOT NULL AND jsonb_typeof(external_readback_json) = 'object' AND NOT public.jsonb_contains_sensitive_material(external_readback_json) AND external_readback_hash ~ '^[0-9a-f]{64}$' AND reconciled_at IS NOT NULL)
   );
 
 CREATE OR REPLACE FUNCTION public.quote_publication_reconciliation_event(

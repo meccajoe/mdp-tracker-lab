@@ -123,4 +123,43 @@ BEGIN
   END;
 END $$;
 
+-- Direct SQL writes must not be able to persist credentials in terminal
+-- publication read-back evidence, even when bypassing the RPC validator.
+INSERT INTO public.integration_outbox (
+  aggregate_type, aggregate_id, destination, operation, idempotency_key,
+  payload_json, payload_hash
+) VALUES (
+  'quote_workspace', 'publication-sensitive-aggregate', 'hubspot', 'publish_quote',
+  'release4-publication-sensitive-direct', '{}'::jsonb, repeat('f', 64)
+);
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.integration_outbox
+    SET external_identity = 'publication-sensitive-external',
+        external_readback_json = '{"access_token":"secret-token"}'::jsonb,
+        external_readback_hash = repeat('f', 64),
+        reconciliation_status = 'verified',
+        reconciled_at = now(),
+        status = 'succeeded',
+        completed_at = now()
+    WHERE idempotency_key = 'release4-publication-sensitive-direct';
+    RAISE EXCEPTION 'unsafe publication evidence unexpectedly succeeded';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+END $$;
+
+DO $$
+BEGIN
+  IF (SELECT external_identity FROM public.integration_outbox WHERE idempotency_key = 'release4-publication-sensitive-direct') IS NOT NULL
+     OR (SELECT external_readback_json FROM public.integration_outbox WHERE idempotency_key = 'release4-publication-sensitive-direct') IS NOT NULL
+     OR (SELECT external_readback_hash FROM public.integration_outbox WHERE idempotency_key = 'release4-publication-sensitive-direct') IS NOT NULL
+     OR (SELECT reconciliation_status FROM public.integration_outbox WHERE idempotency_key = 'release4-publication-sensitive-direct') IS DISTINCT FROM 'pending'
+     OR (SELECT status FROM public.integration_outbox WHERE idempotency_key = 'release4-publication-sensitive-direct') IS DISTINCT FROM 'pending' THEN
+    RAISE EXCEPTION 'unsafe publication evidence changed the row';
+  END IF;
+END $$;
+
+SELECT 'release4_publication_sensitive_readback_rejected' AS marker;
 SELECT 'release4_outbox_immutability_harness_ok' AS marker;
