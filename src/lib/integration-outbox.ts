@@ -44,22 +44,38 @@ function containsCredentialMaterial(value: unknown): boolean {
   return false;
 }
 
+function isJsonCompatible(value: unknown): boolean {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(isJsonCompatible);
+  if (typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return (prototype === Object.prototype || prototype === null) &&
+    Object.entries(value).every(([key, child]) => key !== "__proto__" && isJsonCompatible(child));
+}
+
 export function preparePublicationReconciliationUpdate(
   input: PublicationReconciliationInput,
 ): PublicationReconciliationUpdate {
   if (
     input === null || typeof input !== "object" ||
     input.currentStatus !== "processing" ||
-    typeof input.currentLeaseOwner !== "string" || input.currentLeaseOwner.trim() === "" ||
-    typeof input.expectedLeaseOwner !== "string" || input.expectedLeaseOwner.trim() === "" ||
+    typeof input.currentLeaseOwner !== "string" || input.currentLeaseOwner.trim() === "" || input.currentLeaseOwner !== input.currentLeaseOwner.trim() ||
+    typeof input.expectedLeaseOwner !== "string" || input.expectedLeaseOwner.trim() === "" || input.expectedLeaseOwner !== input.expectedLeaseOwner.trim() ||
     input.currentLeaseOwner !== input.expectedLeaseOwner ||
     !SHA256.test(input.payloadHash) || !SHA256.test(input.readbackHash) ||
-    typeof input.externalIdentity !== "string" || input.externalIdentity.trim() === "" ||
+    typeof input.externalIdentity !== "string" || input.externalIdentity.trim() === "" || input.externalIdentity !== input.externalIdentity.trim() ||
     input.readbackJson === null || typeof input.readbackJson !== "object" || Array.isArray(input.readbackJson) ||
+    !isJsonCompatible(input.readbackJson) ||
     containsCredentialMaterial(input.readbackJson)
   ) invalid();
 
-  const readback = structuredClone(input.readbackJson) as Record<string, unknown>;
+  let readback: Record<string, unknown>;
+  try {
+    readback = structuredClone(input.readbackJson) as Record<string, unknown>;
+  } catch {
+    invalid();
+  }
   const matches = input.payloadHash === input.readbackHash;
   return {
     status: matches ? "succeeded" : "terminal_failed",

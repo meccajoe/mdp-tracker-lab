@@ -27,6 +27,10 @@ test("release 4 publication outbox migration exposes durable evidence and govern
     "readback_verified",
     "conrelid = 'public.integration_outbox'::regclass",
     "integration_outbox_quote_publication_terminal_evidence_check",
+    "FOR UPDATE",
+    "PUBLICATION_APPROVAL_STATE_DRIFT",
+    "p_approval_current",
+    "IF verified THEN",
   ]) assert.ok(hardeningMigration.includes(fragment), `missing hardening contract: ${fragment}`);
 });
 

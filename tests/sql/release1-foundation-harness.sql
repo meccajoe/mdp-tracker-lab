@@ -952,6 +952,10 @@ BEGIN
     RAISE EXCEPTION 'generic_job read-back added publication evidence or projected workspace state';
   END IF;
 END $$;
+SELECT to_jsonb(w) AS identity_mismatch_workspace_before
+FROM public.ada_quote_workspaces w
+WHERE w.id = '10000000-0000-0000-0000-000000000001' \gset
+SELECT set_config('test.identity_mismatch_workspace_before', :'identity_mismatch_workspace_before', false);
 INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash)
 VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:identity-mismatch', current_setting('test.publication_revision_id')::uuid,
   jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1'))), repeat('a',64))
@@ -1017,8 +1021,7 @@ BEGIN
   IF (SELECT reconciliation_status FROM public.integration_outbox WHERE id = current_setting('test.identity_mismatch_outbox_id')::uuid) <> 'drifted' OR
      (SELECT status FROM public.integration_outbox WHERE id = current_setting('test.identity_mismatch_outbox_id')::uuid) <> 'terminal_failed' THEN RAISE EXCEPTION 'deal identity mismatch with matching hash was verified'; END IF;
   IF (SELECT count(*) FROM public.quote_workflow_events WHERE event_type = 'publication_drift_detected' AND payload_json ->> 'outbox_id' = current_setting('test.identity_mismatch_outbox_id')) <> 1 THEN RAISE EXCEPTION 'identity mismatch did not append exactly one drift event'; END IF;
-  IF (SELECT lifecycle_status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> 'commercial_approved' OR
-     (SELECT hubspot_published_revision_id FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') IS NOT NULL THEN RAISE EXCEPTION 'identity mismatch projected publication'; END IF;
+  IF (SELECT to_jsonb(w)::text FROM public.ada_quote_workspaces w WHERE w.id = '10000000-0000-0000-0000-000000000001') <> current_setting('test.identity_mismatch_workspace_before') THEN RAISE EXCEPTION 'identity mismatch projected publication'; END IF;
 END $$;
 RESET ROLE;
 DO $$
@@ -1031,9 +1034,9 @@ BEGIN
   END;
 END $$;
 RESET ROLE;
-SET ROLE service_role;
+SET session_replication_role = replica;
 UPDATE public.ada_quote_workspaces SET lifecycle_status = 'commercial_approved', hubspot_published_revision_id = NULL WHERE id = '10000000-0000-0000-0000-000000000001';
-RESET ROLE;
+SET session_replication_role = origin;
 INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash)
 VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:mismatch', current_setting('test.publication_revision_id')::uuid,
   '{"destination":"hubspot","operation":"publish_quote","workspaceId":"10000000-0000-0000-0000-000000000001","revisionId":"mismatch","dealId":"deal-release4-001","currency":"USD","lines":[{"sku":"SKU-1"}]}'::jsonb, repeat('c',64))
@@ -1126,6 +1129,57 @@ BEGIN
   END;
 END $$;
 RESET ROLE;
+
+-- RED: a valid claimed publication must not project stale evidence after the
+-- workspace approval state changes before read-back.
+RESET ROLE;
+UPDATE public.ada_quote_revisions
+SET source_manifest_hash = coalesce(source_manifest_hash, repeat('a',64)),
+    manifest_hash = coalesce(manifest_hash, repeat('b',64)),
+    normalization_status = 'normalized',
+    locked_at = coalesce(locked_at, now())
+WHERE id = current_setting('test.publication_revision_id')::uuid;
+INSERT INTO public.integration_outbox (
+  aggregate_type, aggregate_id, destination, operation, idempotency_key,
+  revision_id, payload_json, payload_hash, status, lease_owner, lease_expires_at
+) VALUES (
+  'quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote',
+  'r4:approval-state-drift', current_setting('test.publication_revision_id')::uuid,
+  jsonb_build_object('dealId','deal-release4-001'), repeat('a',64), 'pending',
+  NULL, NULL
+) RETURNING id AS approval_state_drift_outbox_id \gset
+SELECT id FROM public.claim_integration_outbox('release4-approval-drift-worker', 30)
+WHERE id = :'approval_state_drift_outbox_id' \gset
+SELECT set_config('test.approval_state_drift_outbox_id', :'approval_state_drift_outbox_id', false);
+RESET ROLE;
+UPDATE public.ada_quote_workspaces
+SET lifecycle_status = 'draft',
+    commercial_approved_revision_id = NULL
+WHERE id = '10000000-0000-0000-0000-000000000001';
+SELECT to_jsonb(w) AS approval_drift_workspace_before
+FROM public.ada_quote_workspaces w
+WHERE w.id = '10000000-0000-0000-0000-000000000001' \gset
+SELECT set_config('test.approval_drift_workspace_before', :'approval_drift_workspace_before', false);
+SET ROLE service_role;
+SELECT public.record_quote_publication_readback(
+  :'approval_state_drift_outbox_id'::uuid, 'release4-approval-drift-worker',
+  'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('a',64)
+);
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT status FROM public.integration_outbox WHERE id = current_setting('test.approval_state_drift_outbox_id')::uuid) <> 'terminal_failed'
+     OR (SELECT reconciliation_status FROM public.integration_outbox WHERE id = current_setting('test.approval_state_drift_outbox_id')::uuid) <> 'drifted'
+     OR (SELECT last_error_code FROM public.integration_outbox WHERE id = current_setting('test.approval_state_drift_outbox_id')::uuid) <> 'PUBLICATION_APPROVAL_STATE_DRIFT' THEN
+    RAISE EXCEPTION 'approval-state drift did not terminalize with deterministic error';
+  END IF;
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE event_type = 'publication_drift_detected' AND payload_json ->> 'outbox_id' = current_setting('test.approval_state_drift_outbox_id')) <> 1 THEN
+    RAISE EXCEPTION 'approval-state drift did not append exactly one drift event';
+  END IF;
+  IF (SELECT to_jsonb(w)::text FROM public.ada_quote_workspaces w WHERE w.id = '10000000-0000-0000-0000-000000000001') <> current_setting('test.approval_drift_workspace_before') THEN
+    RAISE EXCEPTION 'approval-state drift projected stale workspace state';
+  END IF;
+END $$;
 
 -- The marker is intentionally the final successful statement.
 SELECT 'release4_publication_outbox_sql_harness_ok' AS result;

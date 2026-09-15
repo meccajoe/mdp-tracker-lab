@@ -52,3 +52,26 @@ test("reconciliation rejects unsafe or incomplete state without echoing values",
     );
   }
 });
+
+test("reconciliation rejects surrounding whitespace in identifiers and SHA inputs", () => {
+  for (const patch of [
+    { currentLeaseOwner: " worker-a" },
+    { expectedLeaseOwner: "worker-a " },
+    { externalIdentity: " deal-123" },
+    { payloadHash: ` ${"a".repeat(64)}` },
+    { readbackHash: `${"a".repeat(64)} ` },
+  ]) {
+    assert.throws(
+      () => preparePublicationReconciliationUpdate({ ...base, ...patch } as typeof base),
+      (error: unknown) => error instanceof PublicationReconciliationValidationError,
+    );
+  }
+});
+
+test("uncloneable read-back evidence uses the domain validation error", () => {
+  const readbackJson = { id: "deal-123", callback: () => "not JSON" };
+  assert.throws(
+    () => preparePublicationReconciliationUpdate({ ...base, readbackJson }),
+    (error: unknown) => error instanceof PublicationReconciliationValidationError && !(error instanceof DOMException),
+  );
+});

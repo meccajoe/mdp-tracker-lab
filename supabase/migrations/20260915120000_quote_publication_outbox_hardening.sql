@@ -31,24 +31,33 @@ ALTER TABLE public.integration_outbox
 CREATE OR REPLACE FUNCTION public.quote_publication_reconciliation_event(
   p_outbox public.integration_outbox,
   p_revision public.ada_quote_revisions,
-  p_matches boolean
+  p_matches boolean,
+  p_approval_current boolean,
+  p_current_lifecycle text
 )
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE event_key text := 'quote-publication-reconciliation:' || p_outbox.id::text;
+DECLARE verified boolean := p_matches AND p_approval_current;
+DECLARE event_reason text := CASE
+  WHEN verified THEN 'Verified HubSpot publication read-back.'
+  WHEN NOT p_approval_current THEN 'Publication read-back matched external evidence, but workspace approval state or revision drifted before reconciliation.'
+  ELSE 'HubSpot publication read-back identity or hash drift detected.'
+END;
 BEGIN
   IF EXISTS (SELECT 1 FROM public.quote_workflow_events WHERE idempotency_key = event_key) THEN
     RETURN;
   END IF;
 
   PERFORM public.validate_quote_event_evidence(
-    CASE WHEN p_matches THEN 'publication_succeeded' ELSE 'publication_drift_detected' END,
+    CASE WHEN verified THEN 'publication_succeeded' ELSE 'publication_drift_detected' END,
     p_outbox.revision_id,
-    CASE WHEN p_matches THEN 'Verified HubSpot publication read-back.' ELSE 'HubSpot publication read-back identity or hash drift detected.' END,
+    event_reason,
     jsonb_build_array(jsonb_build_object('type','integration_outbox','outbox_id',p_outbox.id::text)),
     jsonb_build_object(
       'outbox_id', p_outbox.id,
-      'readback_verified', p_matches,
+      'readback_verified', verified,
+      'approval_state_current', p_approval_current,
       'manifest_hash', p_revision.manifest_hash,
       'external_identity', p_outbox.external_identity
     )
@@ -59,21 +68,24 @@ BEGIN
     prior_state, resulting_state, reason, evidence_refs, payload_json, idempotency_key
   ) VALUES (
     p_outbox.aggregate_id::uuid, p_outbox.revision_id,
-    CASE WHEN p_matches THEN 'publication_succeeded' ELSE 'publication_drift_detected' END,
+    CASE WHEN verified THEN 'publication_succeeded' ELSE 'publication_drift_detected' END,
     'service_role@internal', 'service', 'verify_publication',
-    'commercial_approved', CASE WHEN p_matches THEN 'published_verified' ELSE 'commercial_approved' END,
-    CASE WHEN p_matches THEN 'Verified HubSpot publication read-back.' ELSE 'HubSpot publication read-back identity or hash drift detected.' END,
+    CASE WHEN verified THEN 'commercial_approved' ELSE p_current_lifecycle END,
+    CASE WHEN verified THEN 'published_verified' ELSE p_current_lifecycle END,
+    event_reason,
     jsonb_build_array(jsonb_build_object('type','integration_outbox','outbox_id',p_outbox.id::text)),
-    jsonb_build_object('outbox_id',p_outbox.id, 'readback_verified',p_matches, 'manifest_hash',p_revision.manifest_hash, 'external_identity',p_outbox.external_identity),
+    jsonb_build_object('outbox_id',p_outbox.id, 'readback_verified',verified, 'approval_state_current',p_approval_current, 'manifest_hash',p_revision.manifest_hash, 'external_identity',p_outbox.external_identity),
     event_key
   );
 
-  UPDATE public.ada_quote_workspaces
-  SET lifecycle_status = CASE WHEN p_matches THEN 'published_verified' ELSE 'commercial_approved' END,
-      hubspot_published_revision_id = CASE WHEN p_matches THEN p_outbox.revision_id ELSE NULL END,
-      row_version = row_version + 1,
-      last_activity_at = now()
-  WHERE id = p_outbox.aggregate_id::uuid;
+  IF verified THEN
+    UPDATE public.ada_quote_workspaces
+    SET lifecycle_status = 'published_verified',
+        hubspot_published_revision_id = p_outbox.revision_id,
+        row_version = row_version + 1,
+        last_activity_at = now()
+    WHERE id = p_outbox.aggregate_id::uuid;
+  END IF;
 END;
 $$;
 
@@ -161,7 +173,7 @@ CREATE OR REPLACE FUNCTION public.record_quote_publication_readback(
 )
 RETURNS public.integration_outbox
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE row public.integration_outbox; result public.integration_outbox; revision_row public.ada_quote_revisions; matches boolean;
+DECLARE row public.integration_outbox; result public.integration_outbox; revision_row public.ada_quote_revisions; workspace_row public.ada_quote_workspaces; matches boolean; approval_current boolean; verified boolean;
 BEGIN
   IF p_outbox_id IS NULL OR p_lease_owner IS NULL OR p_external_identity IS NULL OR p_readback_json IS NULL OR p_readback_sha256 IS NULL OR
      nullif(btrim(p_lease_owner), '') IS NULL OR nullif(btrim(p_external_identity), '') IS NULL OR
@@ -180,22 +192,26 @@ BEGIN
   IF row.status <> 'processing' OR row.lease_owner IS NULL OR row.lease_owner <> p_lease_owner OR row.lease_expires_at IS NULL OR row.lease_expires_at <= now() THEN
     RAISE EXCEPTION 'Publication lease is not held by the supplied worker.' USING ERRCODE = '42501';
   END IF;
+  SELECT * INTO workspace_row FROM public.ada_quote_workspaces WHERE id = row.aggregate_id::uuid FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote Workspace not found.' USING ERRCODE = 'P0002'; END IF;
   SELECT * INTO revision_row FROM public.ada_quote_revisions WHERE id = row.revision_id;
+  approval_current := workspace_row.lifecycle_status = 'commercial_approved' AND workspace_row.commercial_approved_revision_id = row.revision_id;
   matches := (row.payload_json ->> 'dealId') IS NOT DISTINCT FROM p_external_identity AND row.payload_hash IS NOT DISTINCT FROM p_readback_sha256;
+  verified := matches AND approval_current;
   UPDATE public.integration_outbox SET
     external_identity = p_external_identity, external_readback_json = p_readback_json, external_readback_hash = p_readback_sha256,
-    reconciliation_status = CASE WHEN matches THEN 'verified' ELSE 'drifted' END, reconciled_at = now(),
-    status = CASE WHEN matches THEN 'succeeded' ELSE 'terminal_failed' END, lease_owner = NULL, lease_expires_at = NULL,
-    completed_at = CASE WHEN matches THEN now() ELSE NULL END, next_attempt_at = NULL,
-    last_error_code = CASE WHEN matches THEN NULL WHEN (row.payload_json ->> 'dealId') IS DISTINCT FROM p_external_identity THEN 'PUBLICATION_READBACK_IDENTITY_MISMATCH' ELSE 'PUBLICATION_READBACK_HASH_MISMATCH' END,
-    last_error_message = CASE WHEN matches THEN NULL ELSE 'Publication read-back did not match the prepared command identity or payload hash.' END
+    reconciliation_status = CASE WHEN verified THEN 'verified' ELSE 'drifted' END, reconciled_at = now(),
+    status = CASE WHEN verified THEN 'succeeded' ELSE 'terminal_failed' END, lease_owner = NULL, lease_expires_at = NULL,
+    completed_at = CASE WHEN verified THEN now() ELSE NULL END, next_attempt_at = NULL,
+    last_error_code = CASE WHEN verified THEN NULL WHEN NOT approval_current THEN 'PUBLICATION_APPROVAL_STATE_DRIFT' WHEN (row.payload_json ->> 'dealId') IS DISTINCT FROM p_external_identity THEN 'PUBLICATION_READBACK_IDENTITY_MISMATCH' ELSE 'PUBLICATION_READBACK_HASH_MISMATCH' END,
+    last_error_message = CASE WHEN verified THEN NULL WHEN NOT approval_current THEN 'Publication read-back matched external evidence, but workspace approval state or revision drifted before reconciliation.' ELSE 'Publication read-back did not match the prepared command identity or payload hash.' END
   WHERE id = p_outbox_id RETURNING * INTO result;
-  PERFORM public.quote_publication_reconciliation_event(result, revision_row, matches);
+  PERFORM public.quote_publication_reconciliation_event(result, revision_row, matches, approval_current, workspace_row.lifecycle_status);
   RETURN result;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.quote_publication_reconciliation_event(public.integration_outbox, public.ada_quote_revisions, boolean) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.quote_publication_reconciliation_event(public.integration_outbox, public.ada_quote_revisions, boolean, boolean, text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.request_quote_publication(uuid, uuid, text, bigint, jsonb, text, text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.record_quote_publication_readback(uuid, text, text, jsonb, text) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.request_quote_publication(uuid, uuid, text, bigint, jsonb, text, text) TO authenticated;
