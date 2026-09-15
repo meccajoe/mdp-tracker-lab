@@ -132,6 +132,9 @@ BEGIN
        existing.payload_json IS DISTINCT FROM p_prepared_command THEN
       RAISE EXCEPTION 'Publication idempotency key conflicts with an existing command.' USING ERRCODE = '23505';
     END IF;
+    IF w.row_version <> p_expected_row_version THEN
+      RAISE EXCEPTION 'Stale Quote Workspace row version.' USING ERRCODE = 'PT409';
+    END IF;
     RETURN existing;
   END IF;
 

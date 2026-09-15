@@ -866,18 +866,31 @@ SELECT (public.request_quote_publication(
 )).id AS publication_outbox_id \gset
 RESET ROLE;
 SELECT set_config('test.publication_outbox_id', :'publication_outbox_id', false);
+SELECT row_version AS publication_replay_row_version
+FROM public.ada_quote_workspaces
+WHERE id = '10000000-0000-0000-0000-000000000001' \gset
+SELECT set_config('test.publication_replay_row_version', :'publication_replay_row_version', false);
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.integration_outbox WHERE id = current_setting('test.publication_outbox_id')::uuid AND status = 'pending' AND destination = 'hubspot' AND operation = 'publish_quote') <> 1 THEN RAISE EXCEPTION 'valid publication command was not pending'; END IF;
   IF (SELECT count(*) FROM public.quote_workflow_events WHERE idempotency_key LIKE 'quote-publication-request:%:r4:publication:1') <> 1 THEN RAISE EXCEPTION 'publication request evidence count is not one'; END IF;
 END $$;
 SET ROLE authenticated;
-SELECT (public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', 1,
+SELECT (public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', current_setting('test.publication_replay_row_version')::bigint,
   jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey','r4:publication:1'), repeat('a',64), 'r4:publication:1')).id AS replayed_publication_outbox_id \gset
 RESET ROLE;
 SELECT set_config('test.replayed_publication_outbox_id', :'replayed_publication_outbox_id', false);
 DO $$ BEGIN
   IF current_setting('test.publication_outbox_id') <> current_setting('test.replayed_publication_outbox_id') THEN RAISE EXCEPTION 'publication retry changed outbox id'; END IF;
   IF (SELECT count(*) FROM public.quote_workflow_events WHERE idempotency_key LIKE 'quote-publication-request:%:r4:publication:1') <> 1 THEN RAISE EXCEPTION 'publication retry appended duplicate evidence'; END IF;
+END $$;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', current_setting('test.publication_replay_row_version')::bigint - 1,
+      jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey','r4:publication:1'), repeat('a',64), 'r4:publication:1');
+    RAISE EXCEPTION 'stale exact replay unexpectedly returned';
+  EXCEPTION WHEN sqlstate 'PT409' THEN NULL;
+  END;
 END $$;
 SET ROLE service_role;
 SELECT id FROM public.claim_integration_outbox('release4-publication-worker', 30) WHERE id = current_setting('test.publication_outbox_id')::uuid \gset

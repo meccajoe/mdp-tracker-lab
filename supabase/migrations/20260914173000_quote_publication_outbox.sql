@@ -8,20 +8,20 @@ ALTER TABLE public.integration_outbox
   ADD COLUMN IF NOT EXISTS reconciled_at timestamptz;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'integration_outbox_revision_fk') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.integration_outbox'::regclass AND conname = 'integration_outbox_revision_fk') THEN
     ALTER TABLE public.integration_outbox ADD CONSTRAINT integration_outbox_revision_fk
       FOREIGN KEY (revision_id) REFERENCES public.ada_quote_revisions(id) ON DELETE RESTRICT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'integration_outbox_reconciliation_status_check') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.integration_outbox'::regclass AND conname = 'integration_outbox_reconciliation_status_check') THEN
     ALTER TABLE public.integration_outbox ADD CONSTRAINT integration_outbox_reconciliation_status_check
       CHECK (reconciliation_status IN ('pending','verified','drifted'));
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'integration_outbox_reconciliation_evidence_check') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.integration_outbox'::regclass AND conname = 'integration_outbox_reconciliation_evidence_check') THEN
     ALTER TABLE public.integration_outbox ADD CONSTRAINT integration_outbox_reconciliation_evidence_check
       CHECK ((reconciliation_status = 'pending' AND reconciled_at IS NULL) OR
              (reconciliation_status IN ('verified','drifted') AND reconciled_at IS NOT NULL));
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'integration_outbox_readback_hash_check') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.integration_outbox'::regclass AND conname = 'integration_outbox_readback_hash_check') THEN
     ALTER TABLE public.integration_outbox ADD CONSTRAINT integration_outbox_readback_hash_check
       CHECK (external_readback_hash IS NULL OR external_readback_hash ~ '^[0-9a-f]{64}$');
   END IF;

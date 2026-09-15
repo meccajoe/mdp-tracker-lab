@@ -29,3 +29,12 @@ test("release 4 publication outbox migration exposes durable evidence and govern
     "integration_outbox_quote_publication_terminal_evidence_check",
   ]) assert.ok(hardeningMigration.includes(fragment), `missing hardening contract: ${fragment}`);
 });
+
+test("initial outbox constraint guards are scoped to integration_outbox", () => {
+  const constraintGuards = [...migration.matchAll(/IF NOT EXISTS \(SELECT 1 FROM pg_constraint WHERE ([^)]*)\)/g)]
+    .map((match) => match[1]);
+  assert.equal(constraintGuards.length, 4, "expected four initial outbox constraint guards");
+  for (const guard of constraintGuards) {
+    assert.match(guard, /conrelid\s*=\s*'public\.integration_outbox'::regclass/);
+  }
+});
