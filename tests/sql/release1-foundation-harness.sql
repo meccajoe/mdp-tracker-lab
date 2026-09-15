@@ -158,6 +158,7 @@ INSERT INTO public.ada_quote_revisions (id, workspace_id, revision_number, quote
 \ir ../../supabase/migrations/20260903102000_quote_workflow_events_and_outbox.sql
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
 \ir ../../supabase/migrations/20260910143000_quote_workspace_restore.sql
+\ir ../../supabase/migrations/20260914173000_quote_publication_outbox.sql
 
 CREATE TEMP TABLE workspace_less_revision_child (
   id uuid PRIMARY KEY,
@@ -826,6 +827,7 @@ END $$;
 \ir ../../supabase/migrations/20260903102000_quote_workflow_events_and_outbox.sql
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
 \ir ../../supabase/migrations/20260910143000_quote_workspace_restore.sql
+\ir ../../supabase/migrations/20260914173000_quote_publication_outbox.sql
 
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.work_packages) <> 4 OR
@@ -838,4 +840,84 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-SELECT 'release1_sql_harness_ok' AS result;
+-- Release 4 publication outbox executable proof.
+UPDATE public.ada_quote_workspaces SET hubspot_deal_id = 'deal-release4-001' WHERE id = '10000000-0000-0000-0000-000000000001';
+INSERT INTO public.quote_user_capabilities (user_id, email_normalized, capability, granted_by, grant_reason)
+VALUES ('30000000-0000-0000-0000-000000000001', 'owner@example.com', 'request_publication', 'release-4-test', 'Disposable publication proof')
+ON CONFLICT DO NOTHING;
+SELECT current_revision_id AS publication_revision_id, row_version AS publication_row_version FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001' \gset
+SELECT set_config('test.publication_revision_id', :'publication_revision_id', false);
+SELECT set_config('test.publication_row_version', :'publication_row_version', false);
+SELECT set_config('request.jwt.claim.email', 'owner@example.com', false);
+SELECT set_config('request.jwt.claim.sub', '30000000-0000-0000-0000-000000000001', false);
+SET ROLE authenticated;
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'outsider@example.com', current_setting('test.publication_row_version')::bigint, '{"destination":"hubspot","operation":"publish_quote"}'::jsonb, repeat('a',64), 'r4:unauthorized');
+    RAISE EXCEPTION 'wrong actor publication request succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+SELECT (public.request_quote_publication(
+  '10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', current_setting('test.publication_row_version')::bigint,
+  jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey','r4:publication:1'), repeat('a',64), 'r4:publication:1'
+)).id AS publication_outbox_id \gset
+RESET ROLE;
+SELECT set_config('test.publication_outbox_id', :'publication_outbox_id', false);
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.integration_outbox WHERE id = current_setting('test.publication_outbox_id')::uuid AND status = 'pending' AND destination = 'hubspot' AND operation = 'publish_quote') <> 1 THEN RAISE EXCEPTION 'valid publication command was not pending'; END IF;
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE idempotency_key LIKE 'quote-publication-request:%:r4:publication:1') <> 1 THEN RAISE EXCEPTION 'publication request evidence count is not one'; END IF;
+END $$;
+SET ROLE authenticated;
+SELECT (public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', 1,
+  jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey','r4:publication:1'), repeat('a',64), 'r4:publication:1')).id AS replayed_publication_outbox_id \gset
+RESET ROLE;
+SELECT set_config('test.replayed_publication_outbox_id', :'replayed_publication_outbox_id', false);
+DO $$ BEGIN
+  IF current_setting('test.publication_outbox_id') <> current_setting('test.replayed_publication_outbox_id') THEN RAISE EXCEPTION 'publication retry changed outbox id'; END IF;
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE idempotency_key LIKE 'quote-publication-request:%:r4:publication:1') <> 1 THEN RAISE EXCEPTION 'publication retry appended duplicate evidence'; END IF;
+END $$;
+SET ROLE service_role;
+SELECT id FROM public.claim_integration_outbox('release4-publication-worker', 30) WHERE id = current_setting('test.publication_outbox_id')::uuid \gset
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.record_quote_publication_readback(current_setting('test.publication_outbox_id')::uuid, 'wrong-worker', 'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('a',64));
+    RAISE EXCEPTION 'wrong lease read-back succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+SELECT public.record_quote_publication_readback(current_setting('test.publication_outbox_id')::uuid, 'release4-publication-worker', 'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('a',64));
+SELECT public.record_quote_publication_readback(current_setting('test.publication_outbox_id')::uuid, 'release4-publication-worker', 'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('a',64));
+RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.integration_outbox WHERE id = current_setting('test.publication_outbox_id')::uuid AND status = 'succeeded' AND reconciliation_status = 'verified' AND lease_owner IS NULL) <> 1 THEN RAISE EXCEPTION 'matching read-back did not verify'; END IF;
+END $$;
+INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash)
+VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:mismatch', current_setting('test.publication_revision_id')::uuid,
+  '{"destination":"hubspot","operation":"publish_quote","workspaceId":"10000000-0000-0000-0000-000000000001","revisionId":"mismatch","dealId":"deal-release4-001","currency":"USD","lines":[{"sku":"SKU-1"}]}'::jsonb, repeat('c',64))
+RETURNING id AS mismatch_outbox_id \gset
+SELECT set_config('test.mismatch_outbox_id', :'mismatch_outbox_id', false);
+SET ROLE service_role;
+SELECT id FROM public.claim_integration_outbox('release4-mismatch-worker', 30) WHERE id = current_setting('test.mismatch_outbox_id')::uuid \gset
+SELECT public.record_quote_publication_readback(current_setting('test.mismatch_outbox_id')::uuid, 'release4-mismatch-worker', 'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('b',64));
+RESET ROLE;
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.integration_outbox WHERE id = current_setting('test.mismatch_outbox_id')::uuid AND status = 'terminal_failed' AND reconciliation_status = 'drifted' AND next_attempt_at IS NULL AND last_error_code = 'PUBLICATION_READBACK_HASH_MISMATCH' AND completed_at IS NULL) <> 1 THEN RAISE EXCEPTION 'mismatch fixture was not terminal drifted'; END IF;
+END $$;
+SET ROLE service_role;
+DO $$ BEGIN
+  BEGIN
+    PERFORM public.record_quote_publication_readback(current_setting('test.mismatch_outbox_id')::uuid, 'release4-mismatch-worker', 'different-deal', '{"id":"different-deal"}'::jsonb, repeat('d',64));
+    RAISE EXCEPTION 'conflicting evidence succeeded';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
+DO $$ BEGIN
+  BEGIN
+    UPDATE public.integration_outbox SET payload_json = '{}'::jsonb;
+    RAISE EXCEPTION 'direct service-role outbox mutation succeeded';
+  EXCEPTION WHEN insufficient_privilege OR object_not_in_prerequisite_state THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+SELECT 'release4_publication_outbox_sql_harness_ok' AS result;
