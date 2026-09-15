@@ -159,6 +159,7 @@ INSERT INTO public.ada_quote_revisions (id, workspace_id, revision_number, quote
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
 \ir ../../supabase/migrations/20260910143000_quote_workspace_restore.sql
 \ir ../../supabase/migrations/20260914173000_quote_publication_outbox.sql
+\ir ../../supabase/migrations/20260915120000_quote_publication_outbox_hardening.sql
 
 CREATE TEMP TABLE workspace_less_revision_child (
   id uuid PRIMARY KEY,
@@ -828,6 +829,7 @@ END $$;
 \ir ../../supabase/migrations/20260903103000_quote_normalized_backfill.sql
 \ir ../../supabase/migrations/20260910143000_quote_workspace_restore.sql
 \ir ../../supabase/migrations/20260914173000_quote_publication_outbox.sql
+\ir ../../supabase/migrations/20260915120000_quote_publication_outbox_hardening.sql
 
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.work_packages) <> 4 OR
@@ -891,7 +893,43 @@ SELECT public.record_quote_publication_readback(current_setting('test.publicatio
 RESET ROLE;
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.integration_outbox WHERE id = current_setting('test.publication_outbox_id')::uuid AND status = 'succeeded' AND reconciliation_status = 'verified' AND lease_owner IS NULL) <> 1 THEN RAISE EXCEPTION 'matching read-back did not verify'; END IF;
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE event_type = 'publication_succeeded' AND payload_json ->> 'outbox_id' = current_setting('test.publication_outbox_id')) <> 1 THEN RAISE EXCEPTION 'matching reconciliation did not append exactly one success event'; END IF;
+  IF (SELECT lifecycle_status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> 'published_verified' OR
+     (SELECT hubspot_published_revision_id FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001')::text <> current_setting('test.publication_revision_id') THEN RAISE EXCEPTION 'matching reconciliation did not project exact published revision'; END IF;
 END $$;
+RESET ROLE;
+INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash)
+VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:identity-mismatch', current_setting('test.publication_revision_id')::uuid,
+  jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1'))), repeat('a',64))
+RETURNING id AS identity_mismatch_outbox_id \gset
+SELECT set_config('test.identity_mismatch_outbox_id', :'identity_mismatch_outbox_id', false);
+SET ROLE service_role;
+SELECT id FROM public.claim_integration_outbox('release4-identity-worker', 30) WHERE id = current_setting('test.identity_mismatch_outbox_id')::uuid \gset
+SELECT public.record_quote_publication_readback(current_setting('test.identity_mismatch_outbox_id')::uuid, 'release4-identity-worker', 'different-deal', '{"id":"different-deal"}'::jsonb, repeat('a',64));
+SELECT public.record_quote_publication_readback(current_setting('test.identity_mismatch_outbox_id')::uuid, 'release4-identity-worker', 'different-deal', '{"id":"different-deal"}'::jsonb, repeat('a',64));
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT reconciliation_status FROM public.integration_outbox WHERE id = current_setting('test.identity_mismatch_outbox_id')::uuid) <> 'drifted' OR
+     (SELECT status FROM public.integration_outbox WHERE id = current_setting('test.identity_mismatch_outbox_id')::uuid) <> 'terminal_failed' THEN RAISE EXCEPTION 'deal identity mismatch with matching hash was verified'; END IF;
+  IF (SELECT count(*) FROM public.quote_workflow_events WHERE event_type = 'publication_drift_detected' AND payload_json ->> 'outbox_id' = current_setting('test.identity_mismatch_outbox_id')) <> 1 THEN RAISE EXCEPTION 'identity mismatch did not append exactly one drift event'; END IF;
+  IF (SELECT lifecycle_status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> 'commercial_approved' OR
+     (SELECT hubspot_published_revision_id FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') IS NOT NULL THEN RAISE EXCEPTION 'identity mismatch projected publication'; END IF;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash, reconciliation_status)
+    VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:invalid-terminal', current_setting('test.publication_revision_id')::uuid, '{}', repeat('a',64), 'verified');
+    RAISE EXCEPTION 'terminal evidence constraint unexpectedly accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+SET ROLE service_role;
+UPDATE public.ada_quote_workspaces SET lifecycle_status = 'commercial_approved', hubspot_published_revision_id = NULL WHERE id = '10000000-0000-0000-0000-000000000001';
+RESET ROLE;
 INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash)
 VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:mismatch', current_setting('test.publication_revision_id')::uuid,
   '{"destination":"hubspot","operation":"publish_quote","workspaceId":"10000000-0000-0000-0000-000000000001","revisionId":"mismatch","dealId":"deal-release4-001","currency":"USD","lines":[{"sku":"SKU-1"}]}'::jsonb, repeat('c',64))
@@ -920,4 +958,54 @@ DO $$ BEGIN
   END;
 END $$;
 RESET ROLE;
+-- Release 4 Slice 2 specification regressions (RED before implementation).
+SET ROLE authenticated;
+DO $$
+DECLARE cmd jsonb := jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'changed',true,'payloadHash',repeat('a',64),'idempotencyKey','r4:publication:1');
+BEGIN
+  BEGIN
+    PERFORM public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', 1, cmd, repeat('a',64), 'r4:publication:1');
+    RAISE EXCEPTION 'changed prepared command unexpectedly replayed';
+  EXCEPTION WHEN unique_violation THEN NULL;
+  END;
+END $$;
+SET ROLE service_role;
+UPDATE public.ada_quote_workspaces SET hubspot_deal_id = NULL WHERE id = '10000000-0000-0000-0000-000000000001';
+SET ROLE authenticated;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', 2,
+      jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey','r4:publication:1'), repeat('a',64), 'r4:publication:1');
+    RAISE EXCEPTION 'ineligible replay unexpectedly returned';
+  EXCEPTION WHEN check_violation OR raise_exception THEN
+    IF SQLERRM NOT LIKE 'Quote Workspace is not eligible%' THEN RAISE; END IF;
+  END;
+END $$;
+SET ROLE service_role;
+UPDATE public.ada_quote_workspaces SET hubspot_deal_id = 'deal-release4-001' WHERE id = '10000000-0000-0000-0000-000000000001';
+SET ROLE authenticated;
+DO $$
+BEGIN
+  BEGIN PERFORM public.request_quote_publication(NULL, NULL, NULL, NULL, NULL, NULL, NULL); RAISE EXCEPTION 'NULL request inputs accepted'; EXCEPTION WHEN sqlstate '22023' THEN NULL; END;
+END $$;
+SET ROLE service_role;
+DO $$
+BEGIN
+  BEGIN PERFORM public.record_quote_publication_readback(NULL, NULL, NULL, NULL, NULL); RAISE EXCEPTION 'NULL readback inputs accepted'; EXCEPTION WHEN sqlstate '22023' THEN NULL; END;
+END $$;
+SET ROLE authenticated;
+DO $$
+DECLARE stale_key text := 'r4:stale:' || gen_random_uuid()::text;
+BEGIN
+  BEGIN
+    PERFORM public.request_quote_publication('10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid, 'owner@example.com', 1,
+      jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey',stale_key), repeat('a',64), stale_key);
+    RAISE EXCEPTION 'stale row version unexpectedly accepted';
+  EXCEPTION WHEN sqlstate 'PT409' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+
+-- The marker is intentionally the final successful statement.
 SELECT 'release4_publication_outbox_sql_harness_ok' AS result;
