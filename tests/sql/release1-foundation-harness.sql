@@ -962,6 +962,56 @@ SELECT id FROM public.claim_integration_outbox('release4-identity-worker', 30) W
 SELECT public.record_quote_publication_readback(current_setting('test.identity_mismatch_outbox_id')::uuid, 'release4-identity-worker', 'different-deal', '{"id":"different-deal"}'::jsonb, repeat('a',64));
 SELECT public.record_quote_publication_readback(current_setting('test.identity_mismatch_outbox_id')::uuid, 'release4-identity-worker', 'different-deal', '{"id":"different-deal"}'::jsonb, repeat('a',64));
 RESET ROLE;
+-- RED: a matching worker owner must not reconcile a publication after its
+-- lease expires. The row, evidence, event stream, and workspace projection
+-- must remain unchanged.
+INSERT INTO public.integration_outbox (
+  aggregate_type, aggregate_id, destination, operation, idempotency_key,
+  revision_id, payload_json, payload_hash, status, lease_owner, lease_expires_at
+) VALUES (
+  'quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote',
+  'r4:expired-publication-lease', current_setting('test.publication_revision_id')::uuid,
+  jsonb_build_object('dealId','deal-release4-001'), repeat('a',64), 'processing',
+  'release4-expired-worker', now() - interval '1 second'
+)
+RETURNING id AS expired_lease_outbox_id \gset
+SELECT set_config('test.expired_lease_outbox_id', :'expired_lease_outbox_id', false);
+SELECT lifecycle_status AS expired_lease_lifecycle_before,
+       row_version AS expired_lease_row_version_before
+FROM public.ada_quote_workspaces
+WHERE id = '10000000-0000-0000-0000-000000000001' \gset
+SELECT set_config('test.expired_lease_lifecycle_before', :'expired_lease_lifecycle_before', false);
+SELECT set_config('test.expired_lease_row_version_before', :'expired_lease_row_version_before', false);
+SELECT count(*) AS expired_lease_events_before
+FROM public.quote_workflow_events \gset
+SELECT set_config('test.expired_lease_events_before', :'expired_lease_events_before', false);
+SET ROLE service_role;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.record_quote_publication_readback(
+      current_setting('test.expired_lease_outbox_id')::uuid,
+      'release4-expired-worker', 'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('a',64)
+    );
+    RAISE EXCEPTION 'expired lease publication read-back unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT status FROM public.integration_outbox WHERE id = current_setting('test.expired_lease_outbox_id')::uuid) <> 'processing'
+     OR (SELECT lease_owner FROM public.integration_outbox WHERE id = current_setting('test.expired_lease_outbox_id')::uuid) <> 'release4-expired-worker'
+     OR (SELECT external_readback_json FROM public.integration_outbox WHERE id = current_setting('test.expired_lease_outbox_id')::uuid) IS NOT NULL
+     OR (SELECT reconciliation_status FROM public.integration_outbox WHERE id = current_setting('test.expired_lease_outbox_id')::uuid) <> 'pending'
+     OR (SELECT count(*) FROM public.quote_workflow_events) <> current_setting('test.expired_lease_events_before')::bigint
+     OR (SELECT lifecycle_status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> current_setting('test.expired_lease_lifecycle_before')
+     OR (SELECT row_version FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> current_setting('test.expired_lease_row_version_before')::bigint THEN
+    RAISE EXCEPTION 'expired lease rejection mutated publication evidence or workspace projection';
+  END IF;
+END $$;
+DELETE FROM public.integration_outbox
+WHERE id = current_setting('test.expired_lease_outbox_id')::uuid;
 DO $$
 BEGIN
   IF (SELECT reconciliation_status FROM public.integration_outbox WHERE id = current_setting('test.identity_mismatch_outbox_id')::uuid) <> 'drifted' OR

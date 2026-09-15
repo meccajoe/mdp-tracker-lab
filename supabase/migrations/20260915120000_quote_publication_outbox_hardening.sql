@@ -177,7 +177,7 @@ BEGIN
     IF row.external_identity = p_external_identity AND row.external_readback_json = p_readback_json AND row.external_readback_hash = p_readback_sha256 THEN RETURN row; END IF;
     RAISE EXCEPTION 'Publication read-back evidence conflicts with completed evidence.' USING ERRCODE = '23505';
   END IF;
-  IF row.status <> 'processing' OR row.lease_owner IS NULL OR row.lease_owner <> p_lease_owner THEN
+  IF row.status <> 'processing' OR row.lease_owner IS NULL OR row.lease_owner <> p_lease_owner OR row.lease_expires_at IS NULL OR row.lease_expires_at <= now() THEN
     RAISE EXCEPTION 'Publication lease is not held by the supplied worker.' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO revision_row FROM public.ada_quote_revisions WHERE id = row.revision_id;
