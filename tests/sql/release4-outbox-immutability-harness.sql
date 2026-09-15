@@ -15,6 +15,36 @@ INSERT INTO public.integration_outbox (
   'release4-generic-immutability', '{}'::jsonb, repeat('a', 64)
 );
 
+-- RED: a non-HubSpot publication-shaped command must not inherit the
+-- HubSpot-only terminal evidence rule. Before the destination-scoped fix,
+-- this pending row with ordinary evidence fails with check_violation.
+INSERT INTO public.integration_outbox (
+  aggregate_type, aggregate_id, destination, operation, idempotency_key,
+  external_identity, external_readback_json, external_readback_hash,
+  reconciliation_status, reconciled_at, payload_json, payload_hash
+) VALUES (
+  'quote_workspace', 'publication-qbt-aggregate', 'qbt', 'publish_quote',
+  'release4-qbt-publication-evidence', 'qbt-external-1', '{"version":1}'::jsonb,
+  repeat('b', 64), 'pending', NULL, '{}'::jsonb, repeat('a', 64)
+);
+
+UPDATE public.integration_outbox
+SET external_identity = 'qbt-external-2',
+    external_readback_json = '{"version":2}'::jsonb,
+    external_readback_hash = repeat('c', 64),
+    reconciliation_status = 'drifted',
+    reconciled_at = now(),
+    status = 'terminal_failed'
+WHERE idempotency_key = 'release4-qbt-publication-evidence';
+
+DO $$
+BEGIN
+  IF (SELECT external_identity FROM public.integration_outbox WHERE idempotency_key = 'release4-qbt-publication-evidence') <> 'qbt-external-2'
+     OR (SELECT external_readback_json FROM public.integration_outbox WHERE idempotency_key = 'release4-qbt-publication-evidence') <> '{"version":2}'::jsonb THEN
+    RAISE EXCEPTION 'non-HubSpot publication evidence was not generic and mutable';
+  END IF;
+END $$;
+
 -- Publication-related columns are ordinary mutable worker state for a
 -- non-publication command. This must remain valid under the general checks.
 UPDATE public.integration_outbox

@@ -15,20 +15,18 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'public.integration_outbox'::regclass
-      AND conname = 'integration_outbox_quote_publication_terminal_evidence_check'
-  ) THEN
-    ALTER TABLE public.integration_outbox ADD CONSTRAINT integration_outbox_quote_publication_terminal_evidence_check
-      CHECK (
-        NOT (aggregate_type = 'quote_workspace' AND operation = 'publish_quote') OR
-        (reconciliation_status = 'pending' AND external_identity IS NULL AND external_readback_json IS NULL AND external_readback_hash IS NULL AND reconciled_at IS NULL) OR
-        (reconciliation_status IN ('verified','drifted') AND nullif(btrim(external_identity), '') IS NOT NULL AND jsonb_typeof(external_readback_json) = 'object' AND external_readback_hash ~ '^[0-9a-f]{64}$' AND reconciled_at IS NOT NULL)
-      );
-  END IF;
-END $$;
+-- This constraint existed in the previous hardening release without a
+-- destination predicate. Always replace this named constraint so rerunning
+-- the migration corrects already-deployed databases as well as fresh ones.
+ALTER TABLE public.integration_outbox
+  DROP CONSTRAINT IF EXISTS integration_outbox_quote_publication_terminal_evidence_check;
+ALTER TABLE public.integration_outbox
+  ADD CONSTRAINT integration_outbox_quote_publication_terminal_evidence_check
+  CHECK (
+    NOT (aggregate_type = 'quote_workspace' AND destination = 'hubspot' AND operation = 'publish_quote') OR
+    (reconciliation_status = 'pending' AND external_identity IS NULL AND external_readback_json IS NULL AND external_readback_hash IS NULL AND reconciled_at IS NULL) OR
+    (reconciliation_status IN ('verified','drifted') AND nullif(btrim(external_identity), '') IS NOT NULL AND jsonb_typeof(external_readback_json) = 'object' AND external_readback_hash ~ '^[0-9a-f]{64}$' AND reconciled_at IS NOT NULL)
+  );
 
 CREATE OR REPLACE FUNCTION public.quote_publication_reconciliation_event(
   p_outbox public.integration_outbox,
@@ -108,7 +106,7 @@ BEGIN
     RAISE EXCEPTION 'Quote Workspace is not eligible for publication.' USING ERRCODE = 'P0001';
   END IF;
   SELECT * INTO r FROM public.ada_quote_revisions WHERE id = p_revision_id AND workspace_id = p_workspace_id;
-  IF NOT FOUND OR r.normalization_status <> 'normalized' OR r.locked_at IS NULL OR nullif(btrim(r.source_manifest_hash), '') IS NULL THEN
+  IF NOT FOUND OR r.normalization_status <> 'normalized' OR r.locked_at IS NULL OR nullif(btrim(r.source_manifest_hash), '') IS NULL OR nullif(btrim(r.manifest_hash), '') IS NULL THEN
     RAISE EXCEPTION 'Quote revision is not a stable normalized locked revision.' USING ERRCODE = 'P0001';
   END IF;
   IF (p_prepared_command ->> 'destination') IS DISTINCT FROM 'hubspot' OR
@@ -174,7 +172,7 @@ BEGIN
   END IF;
   SELECT * INTO row FROM public.integration_outbox WHERE id = p_outbox_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Integration outbox command not found.' USING ERRCODE = 'P0002'; END IF;
-  IF row.destination <> 'hubspot' OR row.operation <> 'publish_quote' THEN RAISE EXCEPTION 'Outbox command is not a quote publication.' USING ERRCODE = '22023'; END IF;
+  IF row.aggregate_type <> 'quote_workspace' OR row.destination <> 'hubspot' OR row.operation <> 'publish_quote' THEN RAISE EXCEPTION 'Outbox command is not a quote publication.' USING ERRCODE = '22023'; END IF;
   IF row.status IN ('succeeded','terminal_failed') AND row.external_readback_json IS NOT NULL THEN
     IF row.external_identity = p_external_identity AND row.external_readback_json = p_readback_json AND row.external_readback_hash = p_readback_sha256 THEN RETURN row; END IF;
     RAISE EXCEPTION 'Publication read-back evidence conflicts with completed evidence.' USING ERRCODE = '23505';

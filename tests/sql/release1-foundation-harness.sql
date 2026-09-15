@@ -911,6 +911,47 @@ DO $$ BEGIN
      (SELECT hubspot_published_revision_id FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001')::text <> current_setting('test.publication_revision_id') THEN RAISE EXCEPTION 'matching reconciliation did not project exact published revision'; END IF;
 END $$;
 RESET ROLE;
+-- RED: read-back reconciliation must reject a generic_job even when its
+-- destination and operation look like a HubSpot publication. The aggregate
+-- id deliberately points at the real workspace to prove no projection leak.
+INSERT INTO public.integration_outbox (
+  aggregate_type, aggregate_id, destination, operation, idempotency_key,
+  revision_id, payload_json, payload_hash, status, lease_owner, lease_expires_at
+) VALUES (
+  'generic_job', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote',
+  'r4:generic-publication-readback', current_setting('test.publication_revision_id')::uuid,
+  jsonb_build_object('dealId','deal-release4-001'), repeat('a',64), 'processing',
+  'release4-generic-worker', now() + interval '30 minutes'
+);
+SELECT id AS generic_readback_outbox_id
+FROM public.integration_outbox
+WHERE idempotency_key = 'r4:generic-publication-readback' \gset
+SELECT set_config('test.generic_readback_outbox_id', :'generic_readback_outbox_id', false);
+SELECT lifecycle_status AS generic_readback_lifecycle_before
+FROM public.ada_quote_workspaces
+WHERE id = '10000000-0000-0000-0000-000000000001' \gset
+SELECT set_config('test.generic_readback_lifecycle_before', :'generic_readback_lifecycle_before', false);
+SET ROLE service_role;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.record_quote_publication_readback(
+      current_setting('test.generic_readback_outbox_id')::uuid,
+      'release4-generic-worker', 'deal-release4-001', '{"id":"deal-release4-001"}'::jsonb, repeat('a',64)
+    );
+    RAISE EXCEPTION 'generic_job publication read-back unexpectedly succeeded';
+  EXCEPTION WHEN sqlstate '22023' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.quote_workflow_events
+      WHERE payload_json ->> 'outbox_id' = (SELECT id::text FROM public.integration_outbox WHERE idempotency_key = 'r4:generic-publication-readback')) <> 0
+     OR (SELECT lifecycle_status FROM public.ada_quote_workspaces WHERE id = '10000000-0000-0000-0000-000000000001') <> current_setting('test.generic_readback_lifecycle_before') THEN
+    RAISE EXCEPTION 'generic_job read-back added publication evidence or projected workspace state';
+  END IF;
+END $$;
 INSERT INTO public.integration_outbox (aggregate_type, aggregate_id, destination, operation, idempotency_key, revision_id, payload_json, payload_hash)
 VALUES ('quote_workspace', '10000000-0000-0000-0000-000000000001', 'hubspot', 'publish_quote', 'r4:identity-mismatch', current_setting('test.publication_revision_id')::uuid,
   jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1'))), repeat('a',64))
@@ -1016,6 +1057,22 @@ BEGIN
       jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey',stale_key), repeat('a',64), stale_key);
     RAISE EXCEPTION 'stale row version unexpectedly accepted';
   EXCEPTION WHEN sqlstate 'PT409' THEN NULL;
+  END;
+END $$;
+RESET ROLE;
+UPDATE public.ada_quote_revisions SET manifest_hash = NULL
+WHERE id = current_setting('test.publication_revision_id')::uuid;
+SET ROLE authenticated;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.request_quote_publication(
+      '10000000-0000-0000-0000-000000000001', current_setting('test.publication_revision_id')::uuid,
+      'owner@example.com', 2,
+      jsonb_build_object('destination','hubspot','operation','publish_quote','workspaceId','10000000-0000-0000-0000-000000000001','revisionId',current_setting('test.publication_revision_id'),'dealId','deal-release4-001','currency','USD','lines',jsonb_build_array(jsonb_build_object('sku','SKU-1')),'payloadHash',repeat('a',64),'idempotencyKey','r4:blank-manifest'), repeat('a',64), 'r4:blank-manifest'
+    );
+    RAISE EXCEPTION 'blank normalized manifest unexpectedly accepted';
+  EXCEPTION WHEN sqlstate 'P0001' THEN NULL;
   END;
 END $$;
 RESET ROLE;
