@@ -303,7 +303,6 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
 function canonicalFingerprintPayload(row: FinancialReconciliationRow) {
   return {
     contractVersion: row.contractVersion,
-    asOfDate: row.asOfDate,
     projectId: row.project.id,
     category: row.category,
     queueStatus: row.queueStatus,

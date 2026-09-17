@@ -20,9 +20,11 @@ Replace `/admin/reconciliation` with an authenticated operational queue using QB
 - Architecture and operator-UX reviews completed read-only.
 - Implementation plan: `docs/plans/2026-09-17-accounting-review-slices-1-3.md`.
 - Slice 1 metric contract implemented with strict RED/GREEN in `src/lib/financial-reconciliation.ts`.
-- Focused metric tests pass 7/7; TypeScript and `git diff --check` pass.
-- No production schema or runtime service has been changed.
-- Next step: RED schema contracts for durable reconciliation cases, audit events, canonical labor summary, and transactional RPCs.
+- Focused metric tests pass 7/7; fingerprints ignore date/timestamp-only refreshes but change with material values.
+- Slice 2 migration adds governed case/event tables, canonical labor completeness view, and transactional observe/transition RPCs.
+- Schema contracts pass 4/4. Disposable PostgreSQL 18 migration apply, second idempotent apply, and behavioral SQL harness all pass (`financial_reconciliation_harness_ok`).
+- TypeScript and `git diff --check` pass. No production schema or runtime service has been changed.
+- Next step: RED API/server contracts and the responsive Accounting Review queue.
 
 ## Safety boundary
 

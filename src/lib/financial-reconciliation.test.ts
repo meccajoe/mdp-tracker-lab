@@ -126,6 +126,11 @@ test("fingerprint ignores source timestamps but changes with material metrics", 
     qbo: { ...row.qbo, syncedAt: "2026-09-15T18:00:00.000Z" },
     tracker: { ...row.tracker, evidenceUpdatedAt: "2026-09-15T19:00:00.000Z" },
   });
+  const reviewDateOnly = buildReconciliationFingerprint({
+    ...row,
+    asOfDate: "2026-09-16",
+    freshness: { ...row.freshness, qboAsOfDate: "2026-09-16" },
+  });
   const changed = buildReconciliationFingerprint({
     ...row,
     qbo: { ...row.qbo, totalCostToDate: (row.qbo.totalCostToDate ?? 0) + 1000 },
@@ -134,5 +139,6 @@ test("fingerprint ignores source timestamps but changes with material metrics", 
 
   assert.match(first, /^[0-9a-f]{64}$/);
   assert.equal(timestampOnly, first);
+  assert.equal(reviewDateOnly, first);
   assert.notEqual(changed, first);
 });
