@@ -16,18 +16,20 @@ Replace `/admin/reconciliation` with an authenticated operational queue using QB
 
 ## Current state
 
-- Slices 1–3 are deployed at commit `279f40f` on `origin/main`; primary checkout is `release/accounting-review-20260917` and local `main` points to the same commit.
+- Accounting Review UX v2 is deployed at commit `f8fcd02` on `origin/main`; primary checkout is `release/accounting-review-20260917` and local `main` points to the same commit.
+- The first screen now follows the familiar Projects pattern: one full-width desktop table (mobile cards below `lg`) with Project, PM, Review status, What needs attention, What it likely means, Assigned to, and Review project columns/actions.
+- Raw QBO-versus-Tracker evidence is secondary and expands inline. Every review now includes a plain-English explanation, explicitly hypothetical common checks, a recommended next step, separately defined QBO accounting and Tracker project-evidence blocks, and the governed assignment/status/history workflow.
+- Guidance covers QBO-higher cost, Tracker-higher cost, contract-versus-billings revenue differences, missing QBO totals, stale QBO data, missing Tracker contract, missing labor rates, and within-tolerance rows. Missing rates and stale data block premature conclusions.
+- Async workflow hardening prevents a slow case-history request from appearing under another project and isolates queue-load/refresh request generations so a date change cannot leave refresh stuck.
 - Dormant quote-publication/provider work remains preserved on `wip/quote-to-production-release-4-provider` at `cbd8076` and was not shipped.
-- Production Supabase migration `20260917123000` is applied and recorded. Live read-back confirms zero cases/events, one active case per project, serialized project observations, immutable category identity, service-role-only workflow access, and denied anonymous table reads.
-- PM2 `mdp-tracker` was rebuilt with `.env.local`, restarted, and serves the new route. Local `/admin/reconciliation` returns 200, all 19 referenced assets return 200, and unauthenticated `/api/admin/reconciliation` returns 401.
-- Public browser reaches the Tracker Google login boundary. Authenticated visual sign-off remains pending because Joe's Google account is signed out and the automation session cannot unlock 1Password.
-- Read-only deployed payload audit for 2026-09-15: 176 projects, 152 computed needs-action, 11 waiting for fresh QBO, 13 ready, 95 with missing-rate hours, and 0 durable cases until an admin explicitly runs `Refresh QBO & review`.
-- Project 26154 read-back: QBO cost `$75,103.79`, Tracker operational cost `$28,168.30`, cost variance `$46,935.49`, missing-rate labor `21.28` hours, category `missing_labor_rate`, fresh source, no case yet.
-- Verification: 493/493 tests across 197 files, TypeScript, diff checks, full 52/52-page production build, two consecutive disposable PostgreSQL migration applies, and behavioral SQL harness.
+- Production Supabase migration `20260917123000` remains applied and recorded. No migration changed in UX v2.
+- PM2 `mdp-tracker` was rebuilt with `.env.local` and restarted. Local `/admin/reconciliation` returns 200, all 19 referenced assets return 200, and unauthenticated `/api/admin/reconciliation` returns 401. Public browser reaches the Tracker Google login boundary.
+- Verification: 504/504 tests, 17/17 focused UX/API/mobile/guidance tests, TypeScript, diff checks, independent blocking review, and the full 52/52-page production build.
+- No scan was run and no reconciliation cases, audit events, QBO records, or Tracker financial records were changed by this UX rollout.
 
 ## Next controlled action
 
-- Joe or another Tracker admin signs in, opens `/admin/reconciliation`, verifies desktop/mobile layout, then intentionally runs `Refresh QBO & review` to create the initial durable queue. This is the first workflow write and was deliberately not executed during deployment.
+- Joe or another Tracker admin signs in and reviews the live table/explanation flow. Do not run `Refresh QBO & review` until the redesigned queue is understood and accepted; that remains the first workflow write.
 
 ## Safety boundary
 
