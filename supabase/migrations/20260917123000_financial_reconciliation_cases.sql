@@ -310,7 +310,50 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.supersede_financial_reconciliation_cases(
+  p_project_id text,
+  p_actor_email text,
+  p_reason text DEFAULT 'The latest complete scan found no actionable reconciliation condition.'
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_case public.financial_reconciliation_cases;
+  v_count integer := 0;
+BEGIN
+  FOR v_case IN
+    SELECT *
+    FROM public.financial_reconciliation_cases
+    WHERE project_id = p_project_id
+      AND status NOT IN ('resolved', 'superseded')
+    FOR UPDATE
+  LOOP
+    UPDATE public.financial_reconciliation_cases
+    SET status = 'superseded',
+        resolved_at = now(),
+        resolved_by = p_actor_email,
+        resolution_code = 'condition_cleared',
+        resolution_notes = p_reason,
+        row_version = row_version + 1,
+        updated_at = now()
+    WHERE id = v_case.id;
+
+    INSERT INTO public.financial_reconciliation_case_events
+      (case_id, event_type, actor_email, from_status, to_status, fingerprint, payload)
+    VALUES
+      (v_case.id, 'superseded', p_actor_email, v_case.status, 'superseded', v_case.fingerprint, jsonb_build_object('reason', p_reason));
+    v_count := v_count + 1;
+  END LOOP;
+  RETURN v_count;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.observe_financial_reconciliation_case(text, date, text, text, text, text, text, text, jsonb, jsonb, jsonb, text, boolean, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.transition_financial_reconciliation_case(uuid, integer, text, text, text, text, text, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.supersede_financial_reconciliation_cases(text, text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.observe_financial_reconciliation_case(text, date, text, text, text, text, text, text, jsonb, jsonb, jsonb, text, boolean, boolean) TO service_role;
 GRANT EXECUTE ON FUNCTION public.transition_financial_reconciliation_case(uuid, integer, text, text, text, text, text, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.supersede_financial_reconciliation_cases(text, text, text) TO service_role;

@@ -1,364 +1,139 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
-import { formatCurrency } from "@/lib/constants";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { formatDateTimeCentral } from "@/lib/date-utils";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PageShell } from "@/components/ui/page-shell";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { formatCurrency } from "@/lib/constants";
+import { formatDateTimeCentral } from "@/lib/date-utils";
+import type { FinancialReconciliationPayload, FinancialReconciliationQueueRow } from "@/lib/financial-reconciliation-server";
+import { supabase } from "@/lib/supabase";
 
-// Variance thresholds
-const VARIANCE_PCT_THRESHOLD = 5;   // flag if >5% apart
-const VARIANCE_ABS_THRESHOLD = 500; // flag if >$500 apart
+type QueueFilter = "all" | "needs_action" | "waiting_for_fresh_qbo" | "ready";
+type CaseDetail = { reconciliationCase: Record<string, unknown>; events: Array<Record<string, unknown>> };
+type CaseDraft = { status: string; ownerEmail: string; category: string; comment: string; resolutionCode: string; resolutionNotes: string };
 
-interface ReconciliationRow {
-  project_id: string;
-  name: string;
-  status: string;
-  contract_amount: number | null;
-  // Tracker side
-  tracker_expenses: number;
-  tracker_labor: number;
-  tracker_total_cost: number;
-  tracker_gp: number | null;
-  // QBO side
-  qbo_income: number | null;
-  qbo_expenses: number | null;
-  qbo_net_income: number | null;
-  qbo_synced_at: string | null;
-  // Computed
-  delta: number | null;
-  delta_pct: number | null;
-  flagged: boolean;
+const CATEGORY_LABELS: Record<string, string> = {
+  stale_qbo_data: "Stale QBO data", missing_qbo_actuals: "Missing QBO actuals", missing_tracker_contract: "Missing Tracker contract",
+  missing_labor_rate: "Missing labor-rate coverage", revenue_variance: "Revenue variance", cost_variance: "Cost variance", within_tolerance: "Within tolerance",
+};
+const STATUS_LABELS: Record<string, string> = {
+  new: "New", assigned: "Assigned", investigating: "Investigating", waiting_on_pm: "Waiting on PM", waiting_on_accounting: "Waiting on accounting",
+  resolved: "Resolved", needs_action: "Needs action", waiting_for_fresh_qbo: "Waiting for fresh QBO data", ready: "Ready",
+};
+
+function todayCentral(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+function signedCurrency(value: number | null): string { return value == null ? "Unavailable" : `${value > 0 ? "+" : ""}${formatCurrency(value)}`; }
+function freshnessLabel(row: FinancialReconciliationQueueRow): string { return row.freshness.status === "never_synced" ? "Never synced" : row.freshness.status === "stale" ? "Stale" : "Fresh"; }
+function rowStatus(row: FinancialReconciliationQueueRow): string { return row.caseState?.status ?? row.queueStatus; }
+function statusBadgeClass(status: string): string {
+  if (["needs_action", "new", "investigating"].includes(status)) return "border-red-200 bg-red-50 text-red-800";
+  if (["waiting_for_fresh_qbo", "waiting_on_pm", "waiting_on_accounting"].includes(status)) return "border-amber-200 bg-amber-50 text-amber-800";
+  if (["ready", "resolved"].includes(status)) return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  return "border-border bg-muted text-foreground";
 }
 
 export default function ReconciliationPage() {
   const router = useRouter();
-  const [rows, setRows] = useState<ReconciliationRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [syncing, setSyncing] = useState<string | null>(null); // projectId or "all"
-  const [statusFilter, setStatusFilter] = useState<"all" | "flagged">("all");
-  const [projectFilter, setProjectFilter] = useState<"all" | "Active" | "Completed">("Active");
+  const requestIdRef = useRef(0);
+  const [payload, setPayload] = useState<FinancialReconciliationPayload | null>(null);
+  const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [saving, setSaving] = useState(false); const [authorized, setAuthorized] = useState(false);
+  const [asOfDate, setAsOfDate] = useState(todayCentral()); const [search, setSearch] = useState(""); const [queueFilter, setQueueFilter] = useState<QueueFilter>("needs_action");
+  const [projectStatus, setProjectStatus] = useState("Active"); const [category, setCategory] = useState("all"); const [owner, setOwner] = useState("all"); const [materialOnly, setMaterialOnly] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null); const [mobileDetailOpen, setMobileDetailOpen] = useState(false); const [caseDetail, setCaseDetail] = useState<CaseDetail | null>(null);
+  const [draft, setDraft] = useState<CaseDraft>({ status: "new", ownerEmail: "", category: "cost_variance", comment: "", resolutionCode: "", resolutionNotes: "" });
 
-  const checkAdmin = useCallback(async () => {
+  const authenticatedFetch = useCallback(async (url: string, init: RequestInit = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user?.email) { router.replace("/login"); return; }
-    const { data } = await supabase.from("user_roles").select("role").eq("email", session.user.email).single();
-    if (data?.role !== "admin") { router.replace("/"); return; }
-    setIsAdmin(true);
-  }, [router]);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const [projectsRes, pnlRes] = await Promise.all([
-      supabase.from("project_summary").select("id, name, status, contract_amount, total_spent, qbo_labor_cost, qbo_project_id"),
-      supabase.from("qbo_project_pnl").select("*"),
-    ]);
-
-    const pnlMap = new Map<string, { qbo_income: number; qbo_expenses: number; qbo_net_income: number; synced_at: string }>();
-    for (const p of pnlRes.data ?? []) {
-      pnlMap.set(p.project_id, p);
-    }
-
-    const built: ReconciliationRow[] = (projectsRes.data ?? [])
-      .filter((p) => p.qbo_project_id) // only projects with QBO link
-      .map((p) => {
-        const pnl = pnlMap.get(p.id) ?? pnlMap.get(String(p.qbo_project_id));
-        const trackerExpenses = p.total_spent ?? 0;
-        const trackerLabor = p.qbo_labor_cost ?? 0;
-        const trackerTotalCost = trackerExpenses + trackerLabor;
-        const trackerGP = p.contract_amount != null ? p.contract_amount - trackerTotalCost : null;
-        const qboNetIncome = pnl?.qbo_net_income ?? null;
-
-        let delta: number | null = null;
-        let deltaPct: number | null = null;
-        let flagged = false;
-
-        if (trackerGP != null && qboNetIncome != null) {
-          delta = qboNetIncome - trackerGP;
-          deltaPct = trackerGP !== 0 ? (Math.abs(delta) / Math.abs(trackerGP)) * 100 : null;
-          flagged = Math.abs(delta) > VARIANCE_ABS_THRESHOLD || (deltaPct != null && deltaPct > VARIANCE_PCT_THRESHOLD);
-        }
-
-        return {
-          project_id: p.id,
-          name: p.name,
-          status: p.status,
-          contract_amount: p.contract_amount,
-          tracker_expenses: trackerExpenses,
-          tracker_labor: trackerLabor,
-          tracker_total_cost: trackerTotalCost,
-          tracker_gp: trackerGP,
-          qbo_income: pnl?.qbo_income ?? null,
-          qbo_expenses: pnl?.qbo_expenses ?? null,
-          qbo_net_income: qboNetIncome,
-          qbo_synced_at: pnl?.synced_at ?? null,
-          delta,
-          delta_pct: deltaPct,
-          flagged,
-        };
-      });
-
-    // Sort: flagged first, then by abs delta desc
-    built.sort((a, b) => {
-      if (a.flagged !== b.flagged) return a.flagged ? -1 : 1;
-      return Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0);
-    });
-
-    setRows(built);
-    setLoading(false);
+    if (!session?.access_token) throw new Error("Authentication required");
+    return fetch(url, { ...init, credentials: "include", cache: "no-store", headers: { ...init.headers, Authorization: "Bearer " + session.access_token } });
   }, []);
 
-  useEffect(() => {
-    checkAdmin().then(() => fetchData());
-  }, [checkAdmin, fetchData]);
-
-  async function syncProject(projectId: string | "all") {
-    setSyncing(projectId);
+  const loadQueue = useCallback(async (date: string) => {
+    const requestId = ++requestIdRef.current; setLoading(true);
     try {
-      const body = projectId === "all" ? {} : { projectId };
-      const res = await fetch("/api/qbo/project-pnl", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = await res.json() as { synced?: number; error?: string };
-      if (!res.ok || result.error) {
-        toast.error("Sync failed: " + (result.error ?? "unknown error"));
-      } else {
-        toast.success(`Synced ${result.synced} project(s) from QBO`);
-        await fetchData();
-      }
-    } catch (err) {
-      toast.error("Sync request failed: " + String(err));
-    }
-    setSyncing(null);
+      const response = await authenticatedFetch(`/api/admin/reconciliation?asOfDate=${encodeURIComponent(date)}`); const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Could not load Accounting Review."); if (requestId !== requestIdRef.current) return; setPayload(result as FinancialReconciliationPayload);
+    } finally { if (requestId === requestIdRef.current) setLoading(false); }
+  }, [authenticatedFetch]);
+
+  useEffect(() => { (async () => {
+    const { data: { session } } = await supabase.auth.getSession(); if (!session?.user?.email) { router.replace("/login"); return; }
+    const { data } = await supabase.from("user_roles").select("role").eq("email", session.user.email.toLowerCase()).maybeSingle(); if (data?.role !== "admin") { router.replace("/"); return; } setAuthorized(true);
+  })().catch(() => router.replace("/login")); }, [router]);
+  useEffect(() => { if (authorized) loadQueue(asOfDate).catch((error) => toast.error(error instanceof Error ? error.message : "Could not load Accounting Review.")); }, [asOfDate, authorized, loadQueue]);
+
+  const filteredRows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (payload?.rows ?? []).filter((row) => {
+      const status = rowStatus(row); if (queueFilter !== "all" && status !== queueFilter && row.queueStatus !== queueFilter) return false;
+      if (projectStatus !== "all" && row.project.status !== projectStatus) return false; if (category !== "all" && row.category !== category) return false;
+      if (owner !== "all" && (row.caseState?.ownerEmail ?? row.project.owner ?? "unassigned") !== owner) return false;
+      if (materialOnly && !row.revenueVariance.material && !row.costVariance.material) return false;
+      const haystack = [row.project.id, row.project.jobNumber, row.project.name, row.project.client, row.project.owner].filter(Boolean).join(" ").toLowerCase(); return !needle || haystack.includes(needle);
+    });
+  }, [category, materialOnly, owner, payload, projectStatus, queueFilter, search]);
+  const selectedRow = useMemo(() => payload?.rows.find((row) => row.project.id === selectedProjectId) ?? null, [payload, selectedProjectId]);
+
+  useEffect(() => {
+    if (!selectedRow) { setCaseDetail(null); return; }
+    setDraft({ status: selectedRow.caseState?.status ?? "new", ownerEmail: selectedRow.caseState?.ownerEmail ?? "", category: selectedRow.caseState?.category ?? selectedRow.category, comment: "", resolutionCode: selectedRow.caseState?.resolutionCode ?? "", resolutionNotes: selectedRow.caseState?.resolutionNotes ?? "" });
+    if (!selectedRow.caseState?.id) { setCaseDetail(null); return; }
+    authenticatedFetch(`/api/admin/reconciliation/cases/${selectedRow.caseState.id}`).then(async (response) => { const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error ?? "Could not load review history."); setCaseDetail(result as CaseDetail); }).catch((error) => toast.error(error instanceof Error ? error.message : "Could not load review history."));
+  }, [authenticatedFetch, selectedRow]);
+
+  async function refreshQboAndReview() {
+    setRefreshing(true); const requestId = ++requestIdRef.current;
+    try {
+      const qboResponse = await authenticatedFetch(`/api/reports/wip/live?asOfDate=${encodeURIComponent(asOfDate)}&forceRefresh=1`); const qboResult = await qboResponse.json().catch(() => ({})); if (!qboResponse.ok) throw new Error(qboResult.error ?? "Could not refresh QBO actuals.");
+      const scanResponse = await authenticatedFetch("/api/admin/reconciliation/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ asOfDate }) }); const scanResult = await scanResponse.json().catch(() => ({})); if (!scanResponse.ok) throw new Error(scanResult.error ?? "Could not refresh the review queue.");
+      if (requestId !== requestIdRef.current) return; setPayload(scanResult as FinancialReconciliationPayload); toast.success(`Review refreshed for ${scanResult.scan?.scanned ?? 0} projects.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not refresh Accounting Review."); } finally { if (requestId === requestIdRef.current) setRefreshing(false); }
   }
+  async function saveCase() {
+    if (!selectedRow?.caseState) return; setSaving(true);
+    try {
+      const response = await authenticatedFetch(`/api/admin/reconciliation/cases/${selectedRow.caseState.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rowVersion: selectedRow.caseState.rowVersion, status: draft.status, ownerEmail: draft.ownerEmail, category: draft.category, comment: draft.comment, resolutionCode: draft.status === "resolved" ? draft.resolutionCode : undefined, resolutionNotes: draft.status === "resolved" ? draft.resolutionNotes : undefined }) });
+      const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error ?? "Could not save the review item."); await loadQueue(asOfDate); toast.success("Review item saved.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not save the review item."); } finally { setSaving(false); }
+  }
+  function openDetail(row: FinancialReconciliationQueueRow) { setSelectedProjectId(row.project.id); setMobileDetailOpen(true); }
+  function resetFilters() { setSearch(""); setQueueFilter("all"); setProjectStatus("Active"); setCategory("all"); setOwner("all"); setMaterialOnly(false); }
+  if (!authorized) return null;
 
-  if (!isAdmin) return null;
+  return <PageShell>
+    <header className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Accounting review</p><h1 className="mt-1 text-2xl font-semibold tracking-tight">Accounting Review</h1><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Review differences between QBO accounting actuals and Tracker operational evidence, then assign the next action.</p></div><div className="flex flex-wrap items-end gap-2"><label className="space-y-1 text-xs text-muted-foreground"><span>As of date</span><Input type="date" value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} className="w-40" /></label><Button onClick={refreshQboAndReview} disabled={refreshing || loading}>{refreshing ? "Refreshing from QBO…" : "Refresh QBO & review"}</Button></div></header>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border py-3 text-sm"><span><b>{payload?.counts.total ?? 0}</b> projects</span><span className="text-red-800"><b>{payload?.counts.needsAction ?? 0}</b> need action</span><span><b>{payload?.counts.waitingForFreshQbo ?? 0}</b> waiting for QBO</span><span><b>{payload?.counts.missingRate ?? 0}</b> missing rate coverage</span><span className="ml-auto text-xs text-muted-foreground">QBO source: {payload?.sourceFreshness.latestQboSyncAt ? formatDateTimeCentral(payload.sourceFreshness.latestQboSyncAt) : "not yet available"}</span></div>
+    <section className="space-y-3 border-b border-border py-4"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6"><label className="space-y-1 text-xs text-muted-foreground xl:col-span-2"><span>Search</span><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Project, job number, client" /></label><FilterSelect label="Review status" value={queueFilter} onChange={(value) => setQueueFilter(value as QueueFilter)} options={[["needs_action","Needs action"],["waiting_for_fresh_qbo","Waiting for QBO"],["ready","Ready"],["all","All"]]} /><FilterSelect label="Project status" value={projectStatus} onChange={setProjectStatus} options={[["Active","Active"],["Completed","Completed"],["On Hold","On Hold"],["all","All"]]} /><FilterSelect label="Category" value={category} onChange={setCategory} options={[["all","All categories"], ...Object.entries(CATEGORY_LABELS)]} /><FilterSelect label="Owner" value={owner} onChange={setOwner} options={[["all","All owners"],["unassigned","Unassigned"], ...(payload?.ownerOptions.map((option) => [option.email, option.name] as [string,string]) ?? [])]} /></div><div className="flex flex-wrap items-center justify-between gap-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={materialOnly} onChange={(event) => setMaterialOnly(event.target.checked)} /> Only material variances</label><Button type="button" variant="ghost" size="sm" onClick={resetFilters}>Reset filters</Button></div></section>
+    <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
+      <section className={`min-w-0 overflow-hidden border border-border bg-background ${mobileDetailOpen ? "hidden lg:block" : "block"}`}><div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold">Reconciliation queue</h2><p className="text-xs text-muted-foreground">Showing {filteredRows.length} of {payload?.rows.length ?? 0} projects</p></div><span className="text-xs text-muted-foreground">Freshness is reviewed before variance</span></div>{loading ? <p className="py-16 text-center text-sm text-muted-foreground">Loading Accounting Review…</p> : filteredRows.length === 0 ? <p className="py-16 text-center text-sm text-muted-foreground">No projects match these filters.</p> : <QueueList rows={filteredRows} selectedProjectId={selectedProjectId} openDetail={openDetail} />}</section>
+      <aside className={`min-w-0 border border-border bg-background p-4 sm:p-5 ${mobileDetailOpen ? "block" : "hidden lg:block"}`}>{!selectedRow ? <div className="py-16 text-center text-sm text-muted-foreground">Select a queue item to review its evidence and next action.</div> : <ReviewDetail row={selectedRow} payload={payload} draft={draft} setDraft={setDraft} caseDetail={caseDetail} saving={saving} saveCase={saveCase} back={() => setMobileDetailOpen(false)} />}</aside>
+    </div>
+  </PageShell>;
+}
 
-  const filtered = rows.filter((r) => {
-    if (statusFilter === "flagged" && !r.flagged) return false;
-    if (projectFilter !== "all" && r.status !== projectFilter) return false;
-    return true;
-  });
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<[string,string]> }) {
+  return <label className="space-y-1 text-xs text-muted-foreground"><span>{label}</span><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={value} onChange={(event) => onChange(event.target.value)}>{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></label>;
+}
 
-  const flaggedCount = rows.filter((r) => r.flagged).length;
-  const unsyncedCount = rows.filter((r) => !r.qbo_synced_at).length;
+function QueueList({ rows, selectedProjectId, openDetail }: { rows: FinancialReconciliationQueueRow[]; selectedProjectId: string | null; openDetail: (row: FinancialReconciliationQueueRow) => void }) {
+  return <><div data-slot="reconciliation-mobile-list" className="divide-y lg:hidden">{rows.map((row) => <button key={row.project.id} type="button" onClick={() => openDetail(row)} className="block w-full min-w-0 space-y-3 p-4 text-left hover:bg-muted/40"><div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><div className="break-words font-medium">{row.project.jobNumber ?? row.project.id} · {row.project.name}</div><div className="text-xs text-muted-foreground">{row.project.client} · {row.project.owner ?? "Unassigned"}</div></div><Badge variant="outline" className={statusBadgeClass(rowStatus(row))}>{STATUS_LABELS[rowStatus(row)] ?? rowStatus(row)}</Badge></div><div><p className="text-sm font-medium">{CATEGORY_LABELS[row.category]}</p><p className="mt-1 text-sm text-muted-foreground">{row.reason}</p></div><div className="grid grid-cols-2 gap-2 text-xs"><div><span className="text-muted-foreground">Cost variance</span><div>{signedCurrency(row.costVariance.amount)}</div></div><div><span className="text-muted-foreground">Freshness</span><div>{freshnessLabel(row)}</div></div></div>{row.laborCoverage.missingRateHours > 0 && <p className="text-xs text-red-800">Missing-rate hours: {row.laborCoverage.missingRateHours.toFixed(2)}</p>}<span className="inline-block text-sm font-medium underline underline-offset-2">Review item</span></button>)}</div><div className="hidden overflow-x-auto lg:block"><Table><TableHeader><TableRow><TableHead>Project</TableHead><TableHead>Owner</TableHead><TableHead>Review status</TableHead><TableHead>Category</TableHead><TableHead className="text-right">Revenue variance</TableHead><TableHead className="text-right">Cost variance</TableHead><TableHead>Freshness</TableHead><TableHead></TableHead></TableRow></TableHeader><TableBody>{rows.map((row) => <TableRow key={row.project.id} className={selectedProjectId === row.project.id ? "bg-muted/60" : ""}><TableCell className="max-w-64"><div className="min-w-0 break-words font-medium">{row.project.jobNumber ?? row.project.id} · {row.project.name}</div><div className="text-xs text-muted-foreground">{row.project.client} · {row.project.status}</div></TableCell><TableCell className="text-sm">{row.caseState?.ownerEmail ?? row.project.owner ?? "Unassigned"}</TableCell><TableCell><Badge variant="outline" className={statusBadgeClass(rowStatus(row))}>{STATUS_LABELS[rowStatus(row)] ?? rowStatus(row)}</Badge></TableCell><TableCell><div className="text-sm">{CATEGORY_LABELS[row.category]}</div>{row.laborCoverage.missingRateHours > 0 && <div className="text-xs text-red-800">{row.laborCoverage.missingRateHours.toFixed(2)} hrs missing</div>}</TableCell><TableCell className="text-right font-mono text-sm">{signedCurrency(row.revenueVariance.amount)}</TableCell><TableCell className="text-right font-mono text-sm">{signedCurrency(row.costVariance.amount)}</TableCell><TableCell><div className="text-sm">{freshnessLabel(row)}</div><div className="whitespace-nowrap text-xs text-muted-foreground">{row.qbo.syncedAt ? formatDateTimeCentral(row.qbo.syncedAt) : "Never"}</div></TableCell><TableCell><Button size="sm" variant="outline" onClick={() => openDetail(row)}>Review</Button></TableCell></TableRow>)}</TableBody></Table></div></>;
+}
 
-  return (
-    <PageShell>
-      <div className="rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-800 px-4 py-3 flex items-start gap-3">
-        <span className="text-xl mt-0.5">🚧</span>
-        <div>
-          <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Under Development</p>
-          <p className="text-sm text-yellow-700 dark:text-yellow-400">This page is a work in progress and has not been reviewed yet. Data may be incomplete or inaccurate.</p>
-        </div>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">QBO Reconciliation</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Compare tracker P&amp;L vs QuickBooks actuals
-          </p>
-        </div>
-        <Button
-          onClick={() => syncProject("all")}
-          disabled={syncing !== null}
-          size="sm"
-        >
-          {syncing === "all" ? "Syncing all…" : "Sync All from QBO"}
-        </Button>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Projects with QBO link</CardTitle></CardHeader>
-          <CardContent><p className="text-3xl font-bold">{rows.length}</p></CardContent>
-        </Card>
-        <Card className={flaggedCount > 0 ? "border-yellow-300" : ""}>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Flagged variances</CardTitle></CardHeader>
-          <CardContent>
-            <p className={`text-3xl font-bold ${flaggedCount > 0 ? "text-yellow-600" : "text-green-600"}`}>{flaggedCount}</p>
-            <p className="text-xs text-muted-foreground mt-1">&gt;{VARIANCE_PCT_THRESHOLD}% or &gt;${VARIANCE_ABS_THRESHOLD} diff</p>
-          </CardContent>
-        </Card>
-        <Card className={unsyncedCount > 0 ? "border-orange-200" : ""}>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Not yet synced</CardTitle></CardHeader>
-          <CardContent><p className={`text-3xl font-bold ${unsyncedCount > 0 ? "text-orange-600" : "text-green-600"}`}>{unsyncedCount}</p></CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-md border overflow-hidden">
-          {(["flagged", "all"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setStatusFilter(f)}
-              className={`px-3 py-1.5 text-sm transition-colors ${statusFilter === f ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent"}`}
-            >
-              {f === "flagged" ? `⚠️ Flagged (${flaggedCount})` : "All"}
-            </button>
-          ))}
-        </div>
-        <div className="flex rounded-md border overflow-hidden">
-          {(["all", "Active", "Completed"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setProjectFilter(f)}
-              className={`px-3 py-1.5 text-sm transition-colors ${projectFilter === f ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-accent"}`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <p className="text-muted-foreground py-12 text-center text-sm">Loading…</p>
-          ) : filtered.length === 0 ? (
-            <p className="text-muted-foreground py-12 text-center text-sm">
-              {statusFilter === "flagged" ? "No flagged variances 🎉" : "No projects with QBO links found."}
-            </p>
-          ) : (
-            <>
-            <div data-slot="reconciliation-mobile-list" className="divide-y lg:hidden">
-              {filtered.map((row) => (
-                <article key={row.project_id} className={`space-y-3 p-4 ${row.flagged ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""}`}>
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <Link href={`/projects/${row.project_id}`} className="block break-words font-medium text-blue-600 hover:underline">{row.name}</Link>
-                      <p className="mt-1 text-xs text-muted-foreground">{row.contract_amount != null ? formatCurrency(row.contract_amount) : "No contract amount"}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2"><Badge variant={row.status === "Active" ? "default" : "secondary"}>{row.status}</Badge>{row.flagged && <span title="Variance exceeds threshold">⚠️</span>}</div>
-                  </div>
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <div><dt className="text-muted-foreground">Tracker GP</dt><dd>{row.tracker_gp != null ? formatCurrency(row.tracker_gp) : "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">QBO net income</dt><dd>{row.qbo_net_income != null ? formatCurrency(row.qbo_net_income) : "Not synced"}</dd></div>
-                    <div><dt className="text-muted-foreground">Delta</dt><dd>{row.delta != null ? `${row.delta >= 0 ? "+" : ""}${formatCurrency(row.delta)}` : "—"}</dd></div>
-                    <div><dt className="text-muted-foreground">Delta %</dt><dd>{row.delta_pct != null ? `${row.delta_pct.toFixed(1)}%` : "—"}</dd></div>
-                    <div className="col-span-2"><dt className="text-muted-foreground">Last synced</dt><dd>{row.qbo_synced_at ? formatDateTimeCentral(row.qbo_synced_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never"}</dd></div>
-                  </dl>
-                  <Button size="sm" variant="outline" disabled={syncing !== null} onClick={() => syncProject(row.project_id)}>{syncing === row.project_id ? "Syncing…" : "Sync project"}</Button>
-                </article>
-              ))}
-            </div>
-            <div className="hidden lg:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Tracker GP</TableHead>
-                  <TableHead className="text-right">QBO Net Income</TableHead>
-                  <TableHead className="text-right">Delta</TableHead>
-                  <TableHead className="text-right">Delta %</TableHead>
-                  <TableHead className="text-center">Flag</TableHead>
-                  <TableHead>Last Synced</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((row) => (
-                  <TableRow key={row.project_id} className={row.flagged ? "bg-yellow-50/50 dark:bg-yellow-950/20" : ""}>
-                    <TableCell className="font-medium">
-                      <Link href={`/projects/${row.project_id}`} className="text-blue-600 hover:underline">
-                        {row.name}
-                      </Link>
-                      {row.contract_amount && (
-                        <div className="text-xs text-muted-foreground">{formatCurrency(row.contract_amount)}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={row.status === "Active" ? "default" : "secondary"}>{row.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {row.tracker_gp != null ? (
-                        <span className={row.tracker_gp >= 0 ? "text-green-600" : "text-red-600"}>
-                          {formatCurrency(row.tracker_gp)}
-                        </span>
-                      ) : "—"}
-                      {row.tracker_gp != null && (
-                        <div className="text-xs text-muted-foreground">
-                          {formatCurrency(row.tracker_expenses)} exp + {formatCurrency(row.tracker_labor)} labor
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {row.qbo_net_income != null ? (
-                        <span className={row.qbo_net_income >= 0 ? "text-green-600" : "text-red-600"}>
-                          {formatCurrency(row.qbo_net_income)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground italic text-xs">not synced</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {row.delta != null ? (
-                        <span className={Math.abs(row.delta) > VARIANCE_ABS_THRESHOLD ? "text-yellow-600 font-semibold" : "text-muted-foreground"}>
-                          {row.delta >= 0 ? "+" : ""}{formatCurrency(row.delta)}
-                        </span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {row.delta_pct != null ? (
-                        <span className={row.delta_pct > VARIANCE_PCT_THRESHOLD ? "text-yellow-600 font-semibold" : "text-muted-foreground"}>
-                          {row.delta_pct.toFixed(1)}%
-                        </span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {row.flagged ? (
-                        <span title="Variance exceeds threshold">⚠️</span>
-                      ) : row.qbo_synced_at ? (
-                        <span className="text-green-500" title="Within tolerance">✓</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {row.qbo_synced_at
-                        ? formatDateTimeCentral(row.qbo_synced_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
-                        : "Never"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        disabled={syncing !== null}
-                        onClick={() => syncProject(row.project_id)}
-                      >
-                        {syncing === row.project_id ? "…" : "Sync"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <p className="text-xs text-muted-foreground">
-        Flags when delta exceeds {VARIANCE_PCT_THRESHOLD}% or ${VARIANCE_ABS_THRESHOLD}. Tracker GP = contract − (expenses + labor). QBO Net Income = income − all expenses per job in QuickBooks.
-      </p>
-    </PageShell>
-  );
+function ReviewDetail({ row, payload, draft, setDraft, caseDetail, saving, saveCase, back }: { row: FinancialReconciliationQueueRow; payload: FinancialReconciliationPayload | null; draft: CaseDraft; setDraft: (draft: CaseDraft) => void; caseDetail: CaseDetail | null; saving: boolean; saveCase: () => void; back: () => void }) {
+  return <div className="space-y-5"><button type="button" className="text-sm font-medium underline underline-offset-2 lg:hidden" onClick={back}>← Back to queue</button><div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-lg font-semibold">{row.project.jobNumber ?? row.project.id} · {row.project.name}</h2><p className="text-sm text-muted-foreground">{row.project.client} · {row.project.owner ?? "Unassigned"}</p></div><Link href={`/projects/${row.project.id}`} className="shrink-0 text-sm font-medium underline underline-offset-2">Open project</Link></div><section className="space-y-2 border-t pt-4"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className={statusBadgeClass(rowStatus(row))}>{STATUS_LABELS[rowStatus(row)] ?? rowStatus(row)}</Badge><Badge variant="secondary">{CATEGORY_LABELS[row.category]}</Badge></div><p className="text-sm font-medium">{row.reason}</p><div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Next action</p><p className="mt-1 text-sm">{row.nextAction}</p></div></section><section className="space-y-2 border-t pt-4"><h3 className="text-sm font-semibold">Freshness</h3><p className="text-sm">QBO actuals: <b>{freshnessLabel(row)}</b></p><p className="text-xs text-muted-foreground">{row.qbo.syncedAt ? `Last QBO sync ${formatDateTimeCentral(row.qbo.syncedAt)}` : "QBO has never been synced for this review date."}</p>{row.freshness.status !== "fresh" && <p className="text-sm text-amber-800">Refresh before deciding whether this variance is real.</p>}</section><section className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><Evidence title="Tracker operational evidence" rows={[["Contract", row.tracker.contractAmount],["Imported expenses",row.tracker.expenses],["Verified direct wages",row.tracker.verifiedDirectWages],["Operational cost",row.tracker.operationalCost]]} /><Evidence title="QBO accounting actuals" rows={[["Income",row.qbo.totalBilledToDate],["Cost",row.qbo.totalCostToDate],["Net income",row.qbo.netIncome]]} /></section><section className="space-y-2 border-t pt-4"><h3 className="text-sm font-semibold">Separate comparisons</h3><div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-muted-foreground">Revenue variance</p><p className="font-mono font-medium">{signedCurrency(row.revenueVariance.amount)}</p></div><div><p className="text-xs text-muted-foreground">Cost variance</p><p className="font-mono font-medium">{signedCurrency(row.costVariance.amount)}</p></div></div></section><section className="space-y-2 border-t pt-4"><h3 className="text-sm font-semibold">Labor-rate coverage</h3><div className="grid grid-cols-3 gap-2 text-sm"><Metric label="Total hours" value={row.laborCoverage.totalHours.toFixed(2)} /><Metric label="Verified hours" value={row.laborCoverage.verifiedRateHours.toFixed(2)} /><Metric label="Missing-rate hours" value={row.laborCoverage.missingRateHours.toFixed(2)} danger={row.laborCoverage.missingRateHours > 0} /></div>{row.laborCoverage.missingRateHours > 0 && <p className="text-xs text-muted-foreground">Tracker labor cost excludes labor hours that do not have a verified QBO Time pay rate.</p>}</section><Workflow row={row} payload={payload} draft={draft} setDraft={setDraft} saving={saving} saveCase={saveCase} />{caseDetail?.events?.length ? <section className="space-y-2 border-t pt-4"><h3 className="text-sm font-semibold">Review history</h3>{caseDetail.events.slice(0,8).map((event) => <div key={String(event.id)} className="border-l-2 border-border pl-3 text-xs"><p className="font-medium">{String(event.event_type).replaceAll("_", " ")}</p><p className="text-muted-foreground">{event.actor_email ? String(event.actor_email) : "System"} · {event.created_at ? formatDateTimeCentral(String(event.created_at)) : ""}</p></div>)}</section> : null}</div>;
+}
+function Evidence({ title, rows }: { title: string; rows: Array<[string,number|null]> }) { return <div><h3 className="text-sm font-semibold">{title}</h3><dl className="mt-2 space-y-1 text-sm">{rows.map(([label,value], index) => <div key={label} className={`flex justify-between gap-3 ${index === rows.length - 1 ? "font-medium" : ""}`}><dt>{label}</dt><dd>{value == null ? "Unavailable" : formatCurrency(value)}</dd></div>)}</dl></div>; }
+function Metric({ label, value, danger=false }: { label: string; value: string; danger?: boolean }) { return <div><p className="text-xs text-muted-foreground">{label}</p><p className={danger ? "text-red-800" : ""}>{value}</p></div>; }
+function Workflow({ row, payload, draft, setDraft, saving, saveCase }: { row: FinancialReconciliationQueueRow; payload: FinancialReconciliationPayload | null; draft: CaseDraft; setDraft: (draft: CaseDraft) => void; saving: boolean; saveCase: () => void }) {
+  return <section className="space-y-3 border-t pt-4"><h3 className="text-sm font-semibold">Review workflow</h3>{!row.caseState ? <p className="text-sm text-muted-foreground">Refresh QBO & review to open a durable review item.</p> : <><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"><FilterSelect label="Review status" value={draft.status} onChange={(status) => setDraft({...draft,status})} options={["new","assigned","investigating","waiting_on_pm","waiting_on_accounting","resolved"].map((value) => [value,STATUS_LABELS[value]])} /><FilterSelect label="Owner" value={draft.ownerEmail} onChange={(ownerEmail) => setDraft({...draft,ownerEmail})} options={[["","Unassigned"], ...(payload?.ownerOptions.map((option) => [option.email,option.name] as [string,string]) ?? [])]} /></div><FilterSelect label="Category" value={draft.category} onChange={(nextCategory) => setDraft({...draft,category:nextCategory})} options={Object.entries(CATEGORY_LABELS).filter(([value]) => value !== "within_tolerance")} /><label className="space-y-1 text-xs text-muted-foreground"><span>Review note</span><Textarea value={draft.comment} onChange={(event) => setDraft({...draft,comment:event.target.value})} placeholder="What was checked or what is needed next?" /></label>{draft.status === "resolved" && <><FilterSelect label="Resolution type" value={draft.resolutionCode} onChange={(resolutionCode) => setDraft({...draft,resolutionCode})} options={[["","Select resolution"],["expected_difference","Expected difference"],["corrected_in_qbo","Corrected in QBO"],["corrected_in_tracker","Corrected in Tracker"],["mapping_fixed","Mapping fixed"],["timing_difference","Timing/cutoff difference"],["other","Other"]]} /><label className="space-y-1 text-xs text-muted-foreground"><span>Resolution notes</span><Textarea value={draft.resolutionNotes} onChange={(event) => setDraft({...draft,resolutionNotes:event.target.value})} /></label></>}<Button onClick={saveCase} disabled={saving}>{saving ? "Saving…" : "Save review"}</Button></>}</section>;
 }

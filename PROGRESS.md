@@ -24,7 +24,9 @@ Replace `/admin/reconciliation` with an authenticated operational queue using QB
 - Slice 2 migration adds governed case/event tables, canonical labor completeness view, and transactional observe/transition RPCs.
 - Schema contracts pass 4/4. Disposable PostgreSQL 18 migration apply, second idempotent apply, and behavioral SQL harness all pass (`financial_reconciliation_harness_ok`).
 - TypeScript and `git diff --check` pass. No production schema or runtime service has been changed.
-- Next step: RED API/server contracts and the responsive Accounting Review queue.
+- Slice 3 adds admin-authenticated queue/scan/case APIs, a server-normalized read model, and the responsive Accounting Review operator queue.
+- Focused reconciliation/API/UI/mobile contracts pass; the full repository regression suite passes 486/486 across 195 test files.
+- Next step: commit Slice 3, rebase onto the current primary checkout, run the production build and read-only live data/schema audit.
 
 ## Safety boundary
 
