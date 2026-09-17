@@ -46,3 +46,18 @@ test("Accounting Review keeps dense evidence and workflow in an on-demand expand
   assert.ok(page.includes("Hide review"));
   assert.ok(page.includes("Review project"));
 });
+
+test("Accounting Review isolates asynchronous queue, refresh, and case-history requests", () => {
+  for (const required of [
+    "queueRequestIdRef",
+    "refreshRequestIdRef",
+    "caseDetailRequestIdRef",
+    "new AbortController()",
+    "controller.abort()",
+    "disabled={refreshing}",
+  ]) {
+    assert.ok(page.includes(required), `missing async safety contract: ${required}`);
+  }
+
+  assert.ok(!page.includes("const requestIdRef = useRef(0)"), "queue and refresh must not share one request generation");
+});

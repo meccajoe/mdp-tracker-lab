@@ -47,7 +47,9 @@ function severityLabel(row: FinancialReconciliationQueueRow): string { return ro
 
 export default function ReconciliationPage() {
   const router = useRouter();
-  const requestIdRef = useRef(0);
+  const queueRequestIdRef = useRef(0);
+  const refreshRequestIdRef = useRef(0);
+  const caseDetailRequestIdRef = useRef(0);
   const [payload, setPayload] = useState<FinancialReconciliationPayload | null>(null);
   const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [saving, setSaving] = useState(false); const [authorized, setAuthorized] = useState(false);
   const [asOfDate, setAsOfDate] = useState(todayCentral()); const [search, setSearch] = useState(""); const [queueFilter, setQueueFilter] = useState<QueueFilter>("needs_action");
@@ -62,11 +64,11 @@ export default function ReconciliationPage() {
   }, []);
 
   const loadQueue = useCallback(async (date: string) => {
-    const requestId = ++requestIdRef.current; setLoading(true);
+    const requestId = ++queueRequestIdRef.current; setLoading(true);
     try {
       const response = await authenticatedFetch(`/api/admin/reconciliation?asOfDate=${encodeURIComponent(date)}`); const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error ?? "Could not load Accounting Review."); if (requestId !== requestIdRef.current) return; setPayload(result as FinancialReconciliationPayload);
-    } finally { if (requestId === requestIdRef.current) setLoading(false); }
+      if (!response.ok) throw new Error(result.error ?? "Could not load Accounting Review."); if (requestId !== queueRequestIdRef.current) return; setPayload(result as FinancialReconciliationPayload);
+    } finally { if (requestId === queueRequestIdRef.current) setLoading(false); }
   }, [authenticatedFetch]);
 
   useEffect(() => { (async () => {
@@ -89,19 +91,30 @@ export default function ReconciliationPage() {
   const expandedRow = useMemo(() => payload?.rows.find((row) => row.project.id === expandedProjectId) ?? null, [expandedProjectId, payload]);
 
   useEffect(() => {
-    if (!expandedRow) { setCaseDetail(null); return; }
+    const requestId = ++caseDetailRequestIdRef.current;
+    const controller = new AbortController();
+    setCaseDetail(null);
+    if (!expandedRow) return () => controller.abort();
     setDraft({ status: expandedRow.caseState?.status ?? "new", ownerEmail: expandedRow.caseState?.ownerEmail ?? "", comment: "", resolutionCode: expandedRow.caseState?.resolutionCode ?? "", resolutionNotes: expandedRow.caseState?.resolutionNotes ?? "" });
-    if (!expandedRow.caseState?.id) { setCaseDetail(null); return; }
-    authenticatedFetch(`/api/admin/reconciliation/cases/${expandedRow.caseState.id}`).then(async (response) => { const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error ?? "Could not load review history."); setCaseDetail(result as CaseDetail); }).catch((error) => toast.error(error instanceof Error ? error.message : "Could not load review history."));
+    if (!expandedRow.caseState?.id) return () => controller.abort();
+    authenticatedFetch(`/api/admin/reconciliation/cases/${expandedRow.caseState.id}`, { signal: controller.signal }).then(async (response) => {
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Could not load review history.");
+      if (requestId === caseDetailRequestIdRef.current) setCaseDetail(result as CaseDetail);
+    }).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error(error instanceof Error ? error.message : "Could not load review history.");
+    });
+    return () => controller.abort();
   }, [authenticatedFetch, expandedRow]);
 
   async function refreshQboAndReview() {
-    setRefreshing(true); const requestId = ++requestIdRef.current;
+    setRefreshing(true); const requestId = ++refreshRequestIdRef.current;
     try {
       const qboResponse = await authenticatedFetch(`/api/reports/wip/live?asOfDate=${encodeURIComponent(asOfDate)}&forceRefresh=1`); const qboResult = await qboResponse.json().catch(() => ({})); if (!qboResponse.ok) throw new Error(qboResult.error ?? "Could not refresh QBO actuals.");
       const scanResponse = await authenticatedFetch("/api/admin/reconciliation/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ asOfDate }) }); const scanResult = await scanResponse.json().catch(() => ({})); if (!scanResponse.ok) throw new Error(scanResult.error ?? "Could not refresh the review queue.");
-      if (requestId !== requestIdRef.current) return; setPayload(scanResult as FinancialReconciliationPayload); toast.success(`Review refreshed for ${scanResult.scan?.scanned ?? 0} projects.`);
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not refresh Accounting Review."); } finally { if (requestId === requestIdRef.current) setRefreshing(false); }
+      if (requestId !== refreshRequestIdRef.current) return; setPayload(scanResult as FinancialReconciliationPayload); toast.success(`Review refreshed for ${scanResult.scan?.scanned ?? 0} projects.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not refresh Accounting Review."); } finally { if (requestId === refreshRequestIdRef.current) setRefreshing(false); }
   }
   async function saveCase() {
     if (!expandedRow?.caseState) return; setSaving(true);
@@ -115,7 +128,7 @@ export default function ReconciliationPage() {
   if (!authorized) return null;
 
   return <PageShell>
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold">Accounting Review</h1><p className="mt-1 text-base font-medium text-foreground">Projects that need a financial check</p><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Start with the explanation and recommended next step. Open a project only when you need the numbers behind the review.</p></div><div className="flex flex-wrap items-end gap-2"><label className="space-y-1 text-xs text-muted-foreground"><span>Review through</span><Input type="date" value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} className="w-40" /></label><Button onClick={refreshQboAndReview} disabled={refreshing || loading}>{refreshing ? "Refreshing from QBO…" : "Refresh QBO & review"}</Button></div></header>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold">Accounting Review</h1><p className="mt-1 text-base font-medium text-foreground">Projects that need a financial check</p><p className="mt-1 max-w-3xl text-sm text-muted-foreground">Start with the explanation and recommended next step. Open a project only when you need the numbers behind the review.</p></div><div className="flex flex-wrap items-end gap-2"><label className="space-y-1 text-xs text-muted-foreground"><span>Review through</span><Input type="date" value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} disabled={refreshing} className="w-40" /></label><Button onClick={refreshQboAndReview} disabled={refreshing || loading}>{refreshing ? "Refreshing from QBO…" : "Refresh QBO & review"}</Button></div></header>
 
     <section className="grid gap-0 overflow-hidden rounded-md border bg-muted/20 md:grid-cols-3"><SourceLesson step="1 · Accounting record" title="QBO is the accounting record">It holds the billed revenue and accounting costs used for financial reporting.</SourceLesson><SourceLesson step="2 · Project evidence" title="Tracker explains the project activity behind it">It shows contract value, imported expenses, hours, and verified direct wages.</SourceLesson><SourceLesson step="3 · Review the reason" title="These numbers are expected to differ sometimes">The row explains what the gap likely means and the first check to make. A difference alone is not an accounting error.</SourceLesson></section>
 

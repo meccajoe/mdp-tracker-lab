@@ -83,3 +83,32 @@ test("stale QBO data blocks interpretation instead of explaining a possibly old 
   assert.equal(guidance.likelyCauses.length, 0);
   assert.match(guidance.recommendedAction, /refresh QBO/i);
 });
+
+test("missing Tracker contract limits contract progress without hiding QBO accounting profit", () => {
+  const guidance = buildReconciliationGuidance(row({
+    category: "missing_tracker_contract",
+    tracker: { ...row().tracker, contractAmount: null, operationalGrossProfit: null },
+  }));
+
+  assert.match(guidance.explanation, /revenue progress against the approved contract cannot be assessed/i);
+  assert.match(guidance.explanation, /QBO accounting profit remains available separately/i);
+  assert.doesNotMatch(guidance.explanation, /profit and revenue progress will be incomplete/i);
+});
+
+test("common reasons are explicitly presented as checks rather than known causes", () => {
+  for (const categoryRow of [
+    row(),
+    row({ category: "missing_qbo_actuals", qbo: { ...row().qbo, totalBilledToDate: null, totalCostToDate: null } }),
+    row({ category: "missing_tracker_contract", tracker: { ...row().tracker, contractAmount: null, operationalGrossProfit: null } }),
+    row({ category: "missing_labor_rate", laborCoverage: { totalHours: 10, verifiedRateHours: 8, missingRateHours: 2, status: "missing_rate" } }),
+    row({
+      category: "revenue_variance",
+      revenueVariance: { amount: -12500, percent: 8.76, material: true, direction: "tracker_higher" },
+      costVariance: { amount: 0, percent: 0, material: false, direction: "even" },
+    }),
+  ]) {
+    const guidance = buildReconciliationGuidance(categoryRow);
+    assert.ok(guidance.likelyCauses.length > 0);
+    for (const cause of guidance.likelyCauses) assert.match(cause, /^Check whether /i);
+  }
+});
