@@ -16,20 +16,18 @@ Replace `/admin/reconciliation` with an authenticated operational queue using QB
 
 ## Current state
 
-- 2026-09-17 audit completed and recorded in project memory.
-- Architecture and operator-UX reviews completed read-only.
-- Implementation plan: `docs/plans/2026-09-17-accounting-review-slices-1-3.md`.
-- Slice 1 metric contract implemented with strict RED/GREEN in `src/lib/financial-reconciliation.ts`.
-- Focused metric tests pass 7/7; fingerprints ignore date/timestamp-only refreshes but change with material values.
-- Slice 2 migration adds governed case/event tables, canonical labor completeness view, and transactional observe/transition RPCs.
-- Schema contracts pass 4/4. Disposable PostgreSQL 18 migration apply, second idempotent apply, and behavioral SQL harness all pass (`financial_reconciliation_harness_ok`).
-- TypeScript and `git diff --check` pass. No production schema or runtime service has been changed.
-- Slice 3 adds admin-authenticated queue/scan/case APIs, a server-normalized read model, and the responsive Accounting Review operator queue.
-- Focused reconciliation/API/UI/mobile contracts pass; the full repository regression suite passes 493/493 across 197 test files after independent review fixes.
-- Independent review blockers resolved: one serialized active case per project, immutable fingerprint category, active-case selection, freshness/owner filtering, and visible review comments.
-- Revised migration passes two consecutive disposable PostgreSQL applies and the behavioral SQL harness, including cross-category supersession.
-- Live schema v1 was applied directly and verified empty; the revised empty-schema hardening migration still needs reapplied before app rollout.
-- Next step: commit review fixes, update live schema, repair migration history after branch integration, run the environment-backed production build, and restart/probe the service.
+- Slices 1–3 are deployed at commit `279f40f` on `origin/main`; primary checkout is `release/accounting-review-20260917` and local `main` points to the same commit.
+- Dormant quote-publication/provider work remains preserved on `wip/quote-to-production-release-4-provider` at `cbd8076` and was not shipped.
+- Production Supabase migration `20260917123000` is applied and recorded. Live read-back confirms zero cases/events, one active case per project, serialized project observations, immutable category identity, service-role-only workflow access, and denied anonymous table reads.
+- PM2 `mdp-tracker` was rebuilt with `.env.local`, restarted, and serves the new route. Local `/admin/reconciliation` returns 200, all 19 referenced assets return 200, and unauthenticated `/api/admin/reconciliation` returns 401.
+- Public browser reaches the Tracker Google login boundary. Authenticated visual sign-off remains pending because Joe's Google account is signed out and the automation session cannot unlock 1Password.
+- Read-only deployed payload audit for 2026-09-15: 176 projects, 152 computed needs-action, 11 waiting for fresh QBO, 13 ready, 95 with missing-rate hours, and 0 durable cases until an admin explicitly runs `Refresh QBO & review`.
+- Project 26154 read-back: QBO cost `$75,103.79`, Tracker operational cost `$28,168.30`, cost variance `$46,935.49`, missing-rate labor `21.28` hours, category `missing_labor_rate`, fresh source, no case yet.
+- Verification: 493/493 tests across 197 files, TypeScript, diff checks, full 52/52-page production build, two consecutive disposable PostgreSQL migration applies, and behavioral SQL harness.
+
+## Next controlled action
+
+- Joe or another Tracker admin signs in, opens `/admin/reconciliation`, verifies desktop/mobile layout, then intentionally runs `Refresh QBO & review` to create the initial durable queue. This is the first workflow write and was deliberately not executed during deployment.
 
 ## Safety boundary
 
