@@ -19,8 +19,10 @@ Replace `/admin/reconciliation` with an authenticated operational queue using QB
 - 2026-09-17 audit completed and recorded in project memory.
 - Architecture and operator-UX reviews completed read-only.
 - Implementation plan: `docs/plans/2026-09-17-accounting-review-slices-1-3.md`.
-- No reconciliation application code or production schema has been changed yet.
-- Next step: RED tests for `src/lib/financial-reconciliation.ts`.
+- Slice 1 metric contract implemented with strict RED/GREEN in `src/lib/financial-reconciliation.ts`.
+- Focused metric tests pass 7/7; TypeScript and `git diff --check` pass.
+- No production schema or runtime service has been changed.
+- Next step: RED schema contracts for durable reconciliation cases, audit events, canonical labor summary, and transactional RPCs.
 
 ## Safety boundary
 
