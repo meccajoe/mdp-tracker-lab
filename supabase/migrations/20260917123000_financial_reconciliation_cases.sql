@@ -40,8 +40,10 @@ CREATE INDEX IF NOT EXISTS financial_reconciliation_cases_queue_idx
   ON public.financial_reconciliation_cases (status, severity, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS financial_reconciliation_cases_project_idx
   ON public.financial_reconciliation_cases (project_id, as_of_date DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS financial_reconciliation_cases_active_category_uidx
-  ON public.financial_reconciliation_cases (project_id, category)
+DROP INDEX IF EXISTS public.financial_reconciliation_cases_active_category_uidx;
+DROP INDEX IF EXISTS public.financial_reconciliation_cases_active_project_uidx;
+CREATE UNIQUE INDEX financial_reconciliation_cases_active_project_uidx
+  ON public.financial_reconciliation_cases (project_id)
   WHERE status NOT IN ('resolved', 'superseded');
 
 CREATE TABLE IF NOT EXISTS public.financial_reconciliation_case_events (
@@ -129,6 +131,10 @@ BEGIN
     RAISE EXCEPTION 'Invalid reconciliation snapshots' USING ERRCODE = '22023';
   END IF;
 
+  -- Serialize all observations for one project so concurrent scans cannot
+  -- race between supersession and the one-active-case constraint.
+  PERFORM pg_advisory_xact_lock(hashtextextended('financial_reconciliation:' || p_project_id, 0));
+
   SELECT * INTO v_case
   FROM public.financial_reconciliation_cases
   WHERE fingerprint = p_fingerprint
@@ -183,7 +189,7 @@ BEGIN
       SELECT *
       FROM public.financial_reconciliation_cases
       WHERE project_id = p_project_id
-        AND category = p_category
+        AND fingerprint <> p_fingerprint
         AND status NOT IN ('resolved', 'superseded')
       FOR UPDATE
     LOOP
@@ -261,8 +267,8 @@ BEGIN
   IF v_to_status NOT IN ('new', 'assigned', 'investigating', 'waiting_on_pm', 'waiting_on_accounting', 'resolved') THEN
     RAISE EXCEPTION 'Invalid reconciliation status' USING ERRCODE = '22023';
   END IF;
-  IF p_category IS NOT NULL AND p_category NOT IN ('stale_qbo_data', 'missing_qbo_actuals', 'missing_tracker_contract', 'missing_labor_rate', 'revenue_variance', 'cost_variance') THEN
-    RAISE EXCEPTION 'Invalid reconciliation category' USING ERRCODE = '22023';
+  IF p_category IS NOT NULL AND p_category <> v_case.category THEN
+    RAISE EXCEPTION 'Reconciliation category is derived from the metric fingerprint and cannot be changed' USING ERRCODE = '22023';
   END IF;
   IF v_to_status = 'resolved' AND (NULLIF(btrim(COALESCE(p_resolution_code, '')), '') IS NULL OR NULLIF(btrim(COALESCE(p_resolution_notes, '')), '') IS NULL) THEN
     RAISE EXCEPTION 'Resolution code and notes are required' USING ERRCODE = '22023';
@@ -271,7 +277,6 @@ BEGIN
   UPDATE public.financial_reconciliation_cases
   SET status = v_to_status,
       owner_email = CASE WHEN p_owner_email IS NULL THEN owner_email ELSE NULLIF(btrim(p_owner_email), '') END,
-      category = COALESCE(p_category, category),
       resolution_code = CASE WHEN v_to_status = 'resolved' THEN p_resolution_code ELSE NULL END,
       resolution_notes = CASE WHEN v_to_status = 'resolved' THEN btrim(p_resolution_notes) ELSE '' END,
       resolved_at = CASE WHEN v_to_status = 'resolved' THEN now() ELSE NULL END,
@@ -283,7 +288,7 @@ BEGIN
 
   v_event_type := CASE
     WHEN v_to_status = 'resolved' THEN 'resolved'
-    WHEN p_comment IS NOT NULL AND v_to_status = v_from_status AND p_owner_email IS NULL AND p_category IS NULL THEN 'commented'
+    WHEN p_comment IS NOT NULL AND v_to_status = v_from_status AND p_owner_email IS NULL THEN 'commented'
     WHEN p_owner_email IS NOT NULL AND v_to_status = v_from_status THEN 'assigned'
     ELSE 'status_changed'
   END;
@@ -299,7 +304,6 @@ BEGIN
     v_case.fingerprint,
     jsonb_strip_nulls(jsonb_build_object(
       'owner_email', p_owner_email,
-      'category', p_category,
       'resolution_code', p_resolution_code,
       'resolution_notes', p_resolution_notes,
       'comment', p_comment
@@ -324,6 +328,7 @@ DECLARE
   v_case public.financial_reconciliation_cases;
   v_count integer := 0;
 BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('financial_reconciliation:' || p_project_id, 0));
   FOR v_case IN
     SELECT *
     FROM public.financial_reconciliation_cases

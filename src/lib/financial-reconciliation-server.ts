@@ -21,6 +21,7 @@ export type FinancialReconciliationCaseState = {
 
 export type FinancialReconciliationQueueRow = FinancialReconciliationRow & {
   fingerprint: string;
+  projectOwnerEmail: string | null;
   caseState: FinancialReconciliationCaseState | null;
 };
 
@@ -138,16 +139,23 @@ export function assembleFinancialReconciliationPayload(input: AssembleFinancialR
   const ownerByInitials = new Map(
     input.roleRows
       .filter((row) => row.pm_initials && row.full_name)
-      .map((row) => [String(row.pm_initials).toUpperCase(), String(row.full_name)]),
+      .map((row) => [String(row.pm_initials).toUpperCase(), row]),
   );
   const casesByProject = new Map<string, CaseRow>();
-  for (const row of [...input.cases].sort((left, right) => String(right.last_seen_at).localeCompare(String(left.last_seen_at)))) {
+  const sortedCases = [...input.cases].sort((left, right) => {
+    const leftActive = !["resolved", "superseded"].includes(left.status);
+    const rightActive = !["resolved", "superseded"].includes(right.status);
+    if (leftActive !== rightActive) return leftActive ? -1 : 1;
+    return String(right.last_seen_at).localeCompare(String(left.last_seen_at));
+  });
+  for (const row of sortedCases) {
     if (!casesByProject.has(String(row.project_id))) casesByProject.set(String(row.project_id), row);
   }
 
   const rows = input.projects.map<FinancialReconciliationQueueRow>((project) => {
     const qbo = qboByProject.get(String(project.id));
     const labor = laborByProject.get(String(project.id));
+    const projectOwner = project.pm ? ownerByInitials.get(project.pm.toUpperCase()) : undefined;
     const metricRow = buildFinancialReconciliationRow({
       asOfDate: input.asOfDate,
       project: {
@@ -155,7 +163,7 @@ export function assembleFinancialReconciliationPayload(input: AssembleFinancialR
         projectName: project.name,
         jobNumber: project.job_number,
         client: project.client,
-        owner: project.pm ? ownerByInitials.get(project.pm.toUpperCase()) ?? project.pm : null,
+        owner: projectOwner?.full_name ?? project.pm ?? null,
         projectStatus: project.status,
         contractAmount: numberOrNull(project.contract_amount),
         trackerExpenses: numberOrNull(project.total_spent) ?? 0,
@@ -183,6 +191,7 @@ export function assembleFinancialReconciliationPayload(input: AssembleFinancialR
     return {
       ...metricRow,
       fingerprint: buildReconciliationFingerprint(metricRow),
+      projectOwnerEmail: projectOwner?.email ?? null,
       caseState: caseState(casesByProject.get(String(project.id))),
     };
   });

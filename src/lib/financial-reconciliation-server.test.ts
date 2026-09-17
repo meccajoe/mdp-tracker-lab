@@ -61,12 +61,27 @@ test("assembles accounting actuals, operational evidence, owner names, and case 
 
   assert.equal(payload.rows.length, 1);
   assert.equal(payload.rows[0].project.owner, "Paul Manager");
+  assert.equal(payload.rows[0].projectOwnerEmail, "paul@meccadesign.com");
   assert.equal(payload.rows[0].qbo.totalCostToDate, 77016.36);
   assert.equal(payload.rows[0].tracker.operationalCost, 28168.30);
   assert.equal(payload.rows[0].caseState?.status, "assigned");
   assert.equal(payload.sourceFreshness.latestQboSyncAt, "2026-09-15T04:44:51Z");
   assert.equal(payload.counts.needsAction, 1);
   assert.equal(payload.counts.missingRate, 1);
+});
+
+test("prefers an active case over a newer resolved case for the same project", () => {
+  const baseCase = {
+    id: "resolved-newer", project_id: "26154", category: "cost_variance", severity: "high", status: "resolved",
+    owner_email: null, reason: "Resolved", next_action: "None", row_version: 3, fingerprint: "b".repeat(64),
+    last_seen_at: "2026-09-16T13:00:00Z", resolution_code: "expected_difference", resolution_notes: "Reviewed",
+  };
+  const payload = assembleFinancialReconciliationPayload({
+    asOfDate: "2026-09-15", projects: [project], qboMetrics: [qbo], laborSummaries: [labor], roleRows: [],
+    cases: [baseCase, { ...baseCase, id: "active-older", status: "investigating", category: "missing_labor_rate", last_seen_at: "2026-09-15T13:00:00Z", fingerprint: "c".repeat(64), resolution_code: null, resolution_notes: "" }],
+  });
+  assert.equal(payload.rows[0].caseState?.id, "active-older");
+  assert.equal(payload.rows[0].caseState?.status, "investigating");
 });
 
 test("keeps projects without QBO or labor rows visible as explicit exceptions", () => {

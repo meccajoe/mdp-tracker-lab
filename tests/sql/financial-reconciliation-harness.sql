@@ -77,8 +77,8 @@ BEGIN
   END IF;
 
   PERFORM public.observe_financial_reconciliation_case(
-    'test-recon-1', '2026-09-17', 'cost_variance', 'critical', '2026-09-17.v1', repeat('b', 64),
-    'QBO cost changed materially.', 'Review changed costs.', '[{"code":"cost_variance"}]'::jsonb,
+    'test-recon-1', '2026-09-17', 'revenue_variance', 'critical', '2026-09-17.v1', repeat('b', 64),
+    'QBO revenue changed materially.', 'Review changed revenue.', '[{"code":"revenue_variance"}]'::jsonb,
     '{"costVariance":{"amount":20000}}'::jsonb, '{"qboSource":"ProjectProfitabilitySummary"}'::jsonb,
     'harness@meccadesign.com', true, false
   );
@@ -89,6 +89,16 @@ BEGIN
   IF (SELECT count(*) FROM public.financial_reconciliation_cases WHERE project_id = 'test-recon-1' AND status NOT IN ('resolved', 'superseded')) <> 1 THEN
     RAISE EXCEPTION 'expected one active case';
   END IF;
+
+  SELECT * INTO v_case FROM public.financial_reconciliation_cases WHERE fingerprint = repeat('b', 64);
+  BEGIN
+    PERFORM public.transition_financial_reconciliation_case(
+      v_case.id, v_case.row_version, 'harness@meccadesign.com', NULL, NULL, 'cost_variance', NULL, NULL, NULL
+    );
+    RAISE EXCEPTION 'category mutation unexpectedly succeeded';
+  EXCEPTION WHEN SQLSTATE '22023' THEN
+    NULL;
+  END;
 END;
 $$;
 

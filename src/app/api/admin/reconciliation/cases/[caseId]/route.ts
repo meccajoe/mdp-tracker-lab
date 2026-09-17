@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireProjectAdmin } from "@/lib/project-portfolio-server";
 
 const ALLOWED_STATUSES = new Set(["new", "assigned", "investigating", "waiting_on_pm", "waiting_on_accounting", "resolved"]);
-const ALLOWED_CATEGORIES = new Set(["stale_qbo_data", "missing_qbo_actuals", "missing_tracker_contract", "missing_labor_rate", "revenue_variance", "cost_variance"]);
 
 export async function GET(request: NextRequest, context: { params: Promise<{ caseId: string }> }) {
   const admin = await requireProjectAdmin(request);
@@ -28,7 +27,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ c
     rowVersion?: number;
     status?: string;
     ownerEmail?: string | null;
-    category?: string;
     resolutionCode?: string;
     resolutionNotes?: string;
     comment?: string;
@@ -40,13 +38,10 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ c
   if (body.status && !ALLOWED_STATUSES.has(body.status)) {
     return NextResponse.json({ error: "Invalid review status." }, { status: 400 });
   }
-  if (body.category && !ALLOWED_CATEGORIES.has(body.category)) {
-    return NextResponse.json({ error: "Invalid reconciliation category." }, { status: 400 });
-  }
   if (body.status === "resolved" && (!body.resolutionCode?.trim() || !body.resolutionNotes?.trim())) {
     return NextResponse.json({ error: "Resolution type and notes are required." }, { status: 400 });
   }
-  if (!body.status && body.ownerEmail === undefined && !body.category && !body.comment?.trim()) {
+  if (!body.status && body.ownerEmail === undefined && !body.comment?.trim()) {
     return NextResponse.json({ error: "No supported case changes supplied." }, { status: 400 });
   }
 
@@ -56,7 +51,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ c
     p_actor_email: admin.actorEmail,
     p_status: body.status ?? null,
     p_owner_email: body.ownerEmail === undefined ? null : body.ownerEmail ?? "",
-    p_category: body.category ?? null,
     p_resolution_code: body.resolutionCode?.trim() || null,
     p_resolution_notes: body.resolutionNotes?.trim() || null,
     p_comment: body.comment?.trim() || null,

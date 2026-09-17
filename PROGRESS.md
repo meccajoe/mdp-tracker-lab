@@ -25,8 +25,11 @@ Replace `/admin/reconciliation` with an authenticated operational queue using QB
 - Schema contracts pass 4/4. Disposable PostgreSQL 18 migration apply, second idempotent apply, and behavioral SQL harness all pass (`financial_reconciliation_harness_ok`).
 - TypeScript and `git diff --check` pass. No production schema or runtime service has been changed.
 - Slice 3 adds admin-authenticated queue/scan/case APIs, a server-normalized read model, and the responsive Accounting Review operator queue.
-- Focused reconciliation/API/UI/mobile contracts pass; the full repository regression suite passes 486/486 across 195 test files.
-- Next step: commit Slice 3, rebase onto the current primary checkout, run the production build and read-only live data/schema audit.
+- Focused reconciliation/API/UI/mobile contracts pass; the full repository regression suite passes 493/493 across 197 test files after independent review fixes.
+- Independent review blockers resolved: one serialized active case per project, immutable fingerprint category, active-case selection, freshness/owner filtering, and visible review comments.
+- Revised migration passes two consecutive disposable PostgreSQL applies and the behavioral SQL harness, including cross-category supersession.
+- Live schema v1 was applied directly and verified empty; the revised empty-schema hardening migration still needs reapplied before app rollout.
+- Next step: commit review fixes, update live schema, repair migration history after branch integration, run the environment-backed production build, and restart/probe the service.
 
 ## Safety boundary
 

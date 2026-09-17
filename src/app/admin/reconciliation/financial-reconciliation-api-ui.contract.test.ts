@@ -27,6 +27,7 @@ test("admin reconciliation APIs enforce project-admin authentication and avoid t
   assert.match(scan, /observe_financial_reconciliation_case/);
   assert.match(scan, /supersede_financial_reconciliation_cases/);
   assert.match(cases, /transition_financial_reconciliation_case/);
+  assert.doesNotMatch(cases, /p_category/);
 });
 
 test("operator page is an authenticated action queue with responsive detail", () => {
@@ -43,6 +44,8 @@ test("operator page is an authenticated action queue with responsive detail", ()
     "Owner",
     "Review status",
     "Freshness",
+    "Freshness filter",
+    "event.payload?.comment",
     'data-slot="reconciliation-mobile-list"',
     "Back to queue",
     "Refresh QBO & review",
@@ -79,4 +82,6 @@ test("queue API provides filters, source freshness, case state, and event histor
   assert.match(queue, /projectStatus/);
   assert.match(queue, /queueStatus/);
   assert.match(queue, /category/);
+  assert.match(queue, /freshness/);
+  assert.match(queue, /projectOwnerEmail/);
 });

@@ -44,6 +44,7 @@ test("migration makes scan observation and operator transitions transactional", 
     "create or replace function public.observe_financial_reconciliation_case",
     "p_fingerprint text",
     "p_reopen_resolved boolean default false",
+    "pg_advisory_xact_lock",
     "for update",
     "reopen_count = reopen_count + 1",
     "create or replace function public.transition_financial_reconciliation_case",
@@ -56,6 +57,14 @@ test("migration makes scan observation and operator transitions transactional", 
     "grant execute on function public.observe_financial_reconciliation_case",
     "grant execute on function public.transition_financial_reconciliation_case",
   ]) assert.ok(source.includes(required), `missing RPC contract: ${required}`);
+});
+
+test("migration enforces one serialized active case per project and immutable category identity", () => {
+  const source = sql();
+  assert.ok(source.includes("create unique index financial_reconciliation_cases_active_project_uidx on public.financial_reconciliation_cases (project_id)"));
+  assert.ok(source.includes("pg_advisory_xact_lock"));
+  assert.ok(source.includes("where project_id = p_project_id") && source.includes("fingerprint <> p_fingerprint"));
+  assert.ok(!source.includes("category = coalesce(p_category, category)"));
 });
 
 test("migration prevents partial scans from superseding unrelated active cases", () => {
