@@ -35,13 +35,15 @@ test("operator page is an authenticated action queue with responsive detail", ()
 
   for (const required of [
     "Accounting Review",
-    "QBO accounting actuals",
-    "Tracker operational evidence",
+    "QBO is the accounting record",
+    "Tracker explains the project activity behind it",
+    "QBO accounting",
+    "Tracker project evidence",
     "Revenue variance",
     "Cost variance",
     "Missing-rate hours",
-    "Next action",
-    "Owner",
+    "Recommended next step",
+    "Assigned to",
     "Review status",
     "Freshness",
     "Freshness filter",
@@ -55,7 +57,8 @@ test("operator page is an authenticated action queue with responsive detail", ()
 
   assert.match(page, /useRef\(/);
   assert.match(page, /requestId/);
-  assert.match(page, /hidden lg:block/);
+  assert.match(page, /data-slot="reconciliation-desktop-table"/);
+  assert.match(page, /lg:block/);
   assert.match(page, /lg:hidden/);
   assert.match(page, /min-w-0/);
   assert.doesNotMatch(page, /Under Development/);
