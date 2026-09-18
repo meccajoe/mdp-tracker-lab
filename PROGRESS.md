@@ -2,53 +2,76 @@
 
 ## Active workstream
 
-**Accounting Review — labor-rate integrity and payroll authority**
+**Accounting Review — Tracker vs. QuickBooks project comparison**
 
 - Owner: Ferris
-- Branch: `ferris/labor-rate-root-cause`
-- Worktree: `/tmp/mdp-labor-rate-root-cause`
-- Baseline: deployed Accounting Review UX v2 continuity commit `fb22afc`
-- Production remains unchanged; dormant quote-publication/provider work remains preserved.
+- Release branch: `release/accounting-review-20260917`
+- Feature branch: `ferris/labor-rate-root-cause`
+- Live URL: `https://projects.meccadesign.com/admin/reconciliation`
+- Release merge: `3b70ce3`
 
-## Goal
+## Deployed behavior
 
-Resolve the dominant “hours with no verified pay rate” exception without treating an unproven positive value as verified, valuing missing labor at zero, rewriting immutable QBO Time history, or conflating QBO accounting actuals with Tracker operational labor cost.
+Accounting Review now compares Tracker and QuickBooks at the project level instead of leading with a missing-rate exception queue.
 
-## Current state
+- Tracker revenue: project contract value.
+- Tracker project cost: imported project expenses plus approved direct project labor.
+- Tracker gross profit: contract value less Tracker project cost.
+- QuickBooks revenue, project cost, and profit remain the accounting actuals.
+- Differences are presented as QuickBooks minus Tracker.
+- Unavailable QBO values remain unavailable rather than being shown as zero.
 
-- Read-only audit found `4,802.54` unverified canonical QBO Time hours across `37` affected worker profiles and `99` projects under the strict provenance rule.
-- Root causes are missing hourly/contractor cost rates, salaried allocation-policy gaps, deleted/duplicate profiles, three unclassified contractor designers, and legacy positive rates lacking approved provenance.
-- Joe supplied `FRIDAY PAYROLL RATES _1_.xlsx`; workbook metadata says modified `2026-08-14T16:21:36Z`, header baseline is `2025-02-10`, and SHA-256 is `610f84a5f2022735e61daa0da21cf2f708516a4c16caac38d0d50fba6cbf040b`.
-- A verified durable local copy is stored outside Git at `~/.local/share/archie/mdp-tracker/payroll/FRIDAY_PAYROLL_RATES_2026-08-14.xlsx`.
-- Preview generated `76` effective-dated authority records from `84` positive-rate workbook rows. It reports an explicit outcome for every named workbook row, including missing/nonpositive rates, terminated rows, duplicate supersession, invalid classifications, and imports; active duplicate rows beat terminated duplicates; source-row identity is preserved; explicit hire/rehire and rate-change dates are respected; Juan Sanchez is `$22` from his first observed covered work through `2026-03-01` and `$24` from `2026-03-02`; Adam Gonzalez remains blocked because the sheet marks him terminated while QBO Time contains later work.
-- Joe confirmed Rodrigo L, Marcelo T, and Mariam H are contractor designers. The import preview records that classification but does not invent rates.
-- Projected safe recovery: the effective-dated payroll sheet covers `4,453.34` hours / `$113,236.14` base labor cost, or `92.73%` of currently unverified hours. Where both sources exist, the approved payroll interval wins by work date; a trusted QBO Time rate is only the fallback when the active payroll authority has no applicable interval.
-- Remaining after the controlled import: `349.20` hours — Rodrigo L `108.11`, Marcelo T `104.71`, Mariam H `93.44`, Adam Gonzalez `20.36`, Paul M. Mecca `18.53`, Emily D Kuhl `4.05`; the zero-hour legacy Larry Newman profile has no financial effect.
-- Implementation does not rewrite QBO Time rows to apply payroll rates; it joins approved payroll authority by normalized worker identity and work date. Authority rows belong to an approved source manifest, are append-only, and retain source hash, workbook/row identity, effective dates, approval, supersession, and revocation evidence.
-- TSheets sync preserves previously verified historical rates, does not preserve unproven legacy defaults, retains immutable QBO Time user IDs/salaried status, and no longer has two identical nightly jobs.
-- Accounting Review guidance now identifies affected worker profiles and distinguishes hourly, salaried, contractor, and deleted/duplicate-profile causes.
-- Preview artifact: `/tmp/mdp-payroll-rate-import-preview.json`; impact projection: `/tmp/mdp-authority-projection.json`.
+Approved labor-cost policies:
 
-## Verification completed
+- Rodrigo L, Marcelo T, and Mariam H: `$41/hour` fixed design cost.
+- Adam Gonzalez: `$375` per distinct worked project day.
+- Paul M. Mecca and Emily D Kuhl: salaried hours remain visible but are excluded from direct project cost because their compensation falls below gross profit.
 
-- Payroll authority helper: `8/8` tests passed.
-- Full regression: `622/622` tests passed.
-- TypeScript and `git diff --check` passed.
-- Production build passed all `52/52` static pages with the real environment loaded.
-- Disposable PostgreSQL 18.3 verification passed: replacement of the existing reconciliation view without changing its original column order, migration apply, effective-dated payroll-over-QBO precedence, atomic authority-plus-classification import, idempotent retry, authenticated read-only enforcement, service-role direct-write denial, append-only authority enforcement, revocation exclusion, explicit atomic supersession, invalid-classification rollback, and preservation of the prior active authority after a failed replacement.
-- No production migration, payroll import, QBO mutation, Tracker source-row rewrite, broad reconciliation scan, case creation, or PM2 restart has occurred.
+These policies change reconciliation valuation only. They do not rewrite historical QBO Time source rows.
 
-## Next controlled action
+## Production rollout
 
-1. Confirm the hourly/cost rates for Rodrigo L, Marcelo T, and Mariam H.
-2. Confirm whether Adam Gonzalez’s post-termination QBO Time entries represent a valid rehire and whether `$37.50` applies.
-3. Decide the salaried labor allocation basis for Paul M. Mecca and Emily D Kuhl.
-4. After those decisions—or approval to leave them explicit exceptions—commit/push the branch, run full regression/build review, deploy the schema/code, run the hash-confirmed payroll import, read back the imported authority/classification records, run the controlled labor sync, and re-audit coverage before any Accounting Review queue scan.
+- Feature implementation commit: `02b3d8a`.
+- Release merge commit: `3b70ce3`.
+- Both branches were pushed to GitHub.
+- Migration `20260918100000_labor_rate_integrity.sql` was applied directly through `supabase db query --linked` to avoid applying unrelated historical local-only migrations.
+- Production schema verification confirmed:
+  - `labor_rate_imports` exists;
+  - `labor_worker_rate_authority` exists;
+  - `labor_worker_cost_policies` exists with six active policy rows;
+  - `project_labor_reconciliation_summary.excluded_project_cost_hours` exists.
+- Migration history was repaired only after schema verification; local and remote now both record `20260918100000` as applied.
+- Payroll workbook SHA-256 `610f84a5f2022735e61daa0da21cf2f708516a4c16caac38d0d50fba6cbf040b` was hash-confirmed and imported under Joe Mecca's approval.
+- Production import manifest: `dbd1c580-841b-4491-ba0f-1b4366933c3b`.
+- Exact read-back confirmed `76` authority records and the three contractor-designer classifications.
+- PM2 app `mdp-tracker` was restarted with `--update-env` from `/Users/archie/projects/mdp-tracker`.
+
+## Verification
+
+- Full regression: `623/623` tests passed.
+- TypeScript passed.
+- `git diff --check` passed.
+- Production build passed all `52/52` static pages.
+- Disposable PostgreSQL migration/policy harness passed.
+- Production post-import audit:
+  - projects with labor: `136`;
+  - total hours: `54,232.00`;
+  - verified direct-cost hours: `54,209.42`;
+  - salaried hours excluded from direct project cost: `22.58`;
+  - missing-rate hours: `0`;
+  - verified direct wages: `$1,433,051.01`.
+- Local login route: HTTP `200`.
+- Public login route: HTTP `200`.
+- Public Accounting Review route: HTTP `200`; unauthenticated browser correctly redirected to Google sign-in.
+- PM2 read-back confirmed `mdp-tracker` online after restart.
+
+## Remaining maintenance
+
+Historical Supabase migration drift still exists outside this release. Do not run a broad `supabase db push --include-all`. Audit each local-only migration against production schema and classify it as already present, genuinely missing, or obsolete before repairing history. Also move non-SQL contract tests out of `supabase/migrations` and resolve the duplicate `20260812170000` migration version.
 
 ## Safety boundary
 
 - QBO remains authoritative for accounting income, cost, profit, and margin.
-- Tracker labor authority affects operational direct-labor evidence only.
-- The import is preview-first and hash-confirmed; it inserts auditable authority records instead of overwriting QBO Time source rows.
-- Unknown contractor rates and salaried allocation costs remain explicit missing-rate exceptions.
-- Do not deploy or import until the remaining policy decisions are confirmed or explicitly accepted as unresolved exceptions.
+- Tracker labor authority affects operational direct-project-cost evidence only.
+- No QBO transaction or QBO Time source row was mutated.
+- No broad Accounting Review scan or case-generation mutation was run during rollout.
