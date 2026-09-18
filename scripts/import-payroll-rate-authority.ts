@@ -118,7 +118,7 @@ async function main() {
     classification: "contractor",
     roster_snapshot_date: "2026-09-18",
     source: "joe_confirmation",
-    notes: "Contractor designer; rate not supplied in the payroll workbook.",
+    notes: "Contractor designer; direct project cost uses Joe-approved fixed design rate policy.",
   }));
 
   if (apply) {

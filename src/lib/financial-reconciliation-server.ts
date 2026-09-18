@@ -55,6 +55,7 @@ type LaborSummaryRow = {
   verified_rate_hours: number | string | null;
   missing_rate_hours: number | string | null;
   verified_direct_wages: number | string | null;
+  excluded_project_cost_hours?: number | string | null;
   missing_rate_workers?: string[] | null;
 };
 
@@ -175,6 +176,7 @@ export function assembleFinancialReconciliationPayload(input: AssembleFinancialR
         verifiedRateHours: numberOrNull(labor?.verified_rate_hours) ?? 0,
         missingRateHours: numberOrNull(labor?.missing_rate_hours) ?? 0,
         verifiedDirectWages: numberOrNull(labor?.verified_direct_wages) ?? 0,
+        excludedProjectCostHours: numberOrNull(labor?.excluded_project_cost_hours) ?? 0,
         missingRateWorkers: labor?.missing_rate_workers ?? [],
       },
       qbo: qbo
@@ -239,7 +241,7 @@ export async function loadFinancialReconciliationPayload(
   const [projects, qboMetrics, laborSummaries, roleRows, cases] = await Promise.all([
     supabase.from("project_summary").select("id,name,job_number,client,pm,status,contract_amount,total_spent,updated_at").order("id"),
     supabase.from("qbo_project_wip_metrics").select("project_id,as_of_date,total_billed_to_date,total_cost_to_date,current_year_total_billings,current_year_costs,billing_source,cost_source,synced_at").eq("as_of_date", asOfDate),
-    supabase.from("project_labor_reconciliation_summary").select("project_id,total_hours,verified_rate_hours,missing_rate_hours,verified_direct_wages,missing_rate_workers"),
+    supabase.from("project_labor_reconciliation_summary").select("project_id,total_hours,verified_rate_hours,missing_rate_hours,verified_direct_wages,missing_rate_workers,excluded_project_cost_hours"),
     supabase.from("user_roles").select("pm_initials,full_name,email"),
     supabase.from("financial_reconciliation_cases").select("id,project_id,category,severity,status,owner_email,reason,next_action,row_version,fingerprint,last_seen_at,resolution_code,resolution_notes").neq("status", "superseded").order("last_seen_at", { ascending: false }),
   ]);

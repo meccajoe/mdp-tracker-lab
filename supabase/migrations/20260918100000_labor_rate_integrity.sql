@@ -289,29 +289,91 @@ $$;
 REVOKE ALL ON FUNCTION public.normalize_labor_worker_name(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.normalize_labor_worker_name(text) TO service_role;
 
--- Approved payroll-sheet authority is joined by identity and work date. QBO Time rates
--- with trusted provenance retain precedence; positive legacy defaults remain unverified.
+-- Joe-approved direct project cost policies that are not payroll-sheet hourly wages.
+-- These policies affect reconciliation calculations only; source QBO Time rows remain unchanged.
+CREATE TABLE IF NOT EXISTS public.labor_worker_cost_policies (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  normalized_name text NOT NULL,
+  display_name text NOT NULL,
+  cost_basis text NOT NULL CHECK (cost_basis IN ('hourly', 'daily', 'excluded')),
+  rate_amount numeric(10, 2),
+  effective_start_date date NOT NULL,
+  effective_end_date date,
+  source text NOT NULL,
+  approved_by text NOT NULL,
+  approved_at timestamptz NOT NULL DEFAULT now(),
+  notes text NOT NULL DEFAULT '',
+  CONSTRAINT labor_worker_cost_policy_rate CHECK (
+    (cost_basis = 'excluded' AND rate_amount IS NULL)
+    OR (cost_basis IN ('hourly', 'daily') AND rate_amount > 0)
+  ),
+  CONSTRAINT labor_worker_cost_policy_date_order
+    CHECK (effective_end_date IS NULL OR effective_end_date >= effective_start_date),
+  CONSTRAINT labor_worker_cost_policy_no_overlap
+    EXCLUDE USING gist (
+      normalized_name WITH =,
+      daterange(effective_start_date, COALESCE(effective_end_date, 'infinity'::date), '[]') WITH &&
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_labor_worker_cost_policy_lookup
+  ON public.labor_worker_cost_policies(normalized_name, effective_start_date, effective_end_date);
+
+CREATE OR REPLACE FUNCTION public.prevent_labor_worker_cost_policy_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'labor worker cost policies are append-only; add an effective-dated replacement by migration';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS labor_worker_cost_policy_immutable ON public.labor_worker_cost_policies;
+CREATE TRIGGER labor_worker_cost_policy_immutable
+  BEFORE UPDATE OR DELETE ON public.labor_worker_cost_policies
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_labor_worker_cost_policy_mutation();
+
+ALTER TABLE public.labor_worker_cost_policies ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.labor_worker_cost_policies FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.labor_worker_cost_policies FROM service_role;
+GRANT SELECT ON TABLE public.labor_worker_cost_policies TO service_role;
+
+INSERT INTO public.labor_worker_cost_policies(
+  normalized_name, display_name, cost_basis, rate_amount, effective_start_date,
+  effective_end_date, source, approved_by, notes
+)
+VALUES
+  ('rodrigo l', 'Rodrigo L', 'hourly', 41, '1900-01-01', NULL, 'fixed_design_rate', 'Joe Mecca', 'Contractor designer; approved Tracker internal design cost rate.'),
+  ('marcelo t', 'Marcelo T', 'hourly', 41, '1900-01-01', NULL, 'fixed_design_rate', 'Joe Mecca', 'Contractor designer; approved Tracker internal design cost rate.'),
+  ('mariam h', 'Mariam H', 'hourly', 41, '1900-01-01', NULL, 'fixed_design_rate', 'Joe Mecca', 'Contractor designer; approved Tracker internal design cost rate.'),
+  ('adam gonzalez', 'Adam Gonzalez', 'daily', 375, '1900-01-01', NULL, 'approved_daily_rate', 'Joe Mecca', 'One direct project cost per distinct worked project day, regardless of row count.'),
+  ('paul m mecca', 'Paul M. Mecca', 'excluded', NULL, '1900-01-01', NULL, 'salary_below_gross_profit', 'Joe Mecca', 'Salaried leadership wages fall below gross profit and do not hit direct project cost.'),
+  ('emily d kuhl', 'Emily D Kuhl', 'excluded', NULL, '1900-01-01', NULL, 'salary_below_gross_profit', 'Joe Mecca', 'Salaried leadership wages fall below gross profit and do not hit direct project cost.')
+ON CONFLICT DO NOTHING;
+
+-- Resolve direct project labor by approved worker/date policy first, then payroll authority,
+-- then trusted QBO Time rates. Salaried leadership is explicitly excluded from project cost.
 CREATE OR REPLACE VIEW public.project_labor_reconciliation_summary
 WITH (security_invoker = true)
 AS
-WITH valued AS (
+WITH resolved AS (
   SELECT
     labor.*,
-    CASE
-      WHEN authority.base_hourly_rate > 0 THEN authority.base_hourly_rate
-      WHEN COALESCE(labor.hourly_rate, 0) > 0
-        AND COALESCE(labor.rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched')
-        THEN labor.hourly_rate
-      ELSE NULL
-    END AS effective_hourly_rate,
-    CASE
-      WHEN authority.base_hourly_rate > 0 THEN 'payroll_rate_sheet'
-      WHEN COALESCE(labor.hourly_rate, 0) > 0
-        AND COALESCE(labor.rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched')
-        THEN labor.rate_source
-      ELSE NULL
-    END AS effective_rate_source
+    public.normalize_labor_worker_name(labor.employee_name) AS normalized_worker_name,
+    policy.cost_basis,
+    policy.rate_amount AS policy_rate,
+    policy.source AS policy_source,
+    authority.base_hourly_rate AS payroll_hourly_rate
   FROM public.qbo_labor_entries labor
+  LEFT JOIN LATERAL (
+    SELECT worker_policy.cost_basis, worker_policy.rate_amount, worker_policy.source
+    FROM public.labor_worker_cost_policies worker_policy
+    WHERE worker_policy.normalized_name = public.normalize_labor_worker_name(labor.employee_name)
+      AND labor.date >= worker_policy.effective_start_date
+      AND (worker_policy.effective_end_date IS NULL OR labor.date <= worker_policy.effective_end_date)
+    ORDER BY worker_policy.effective_start_date DESC
+    LIMIT 1
+  ) policy ON true
   LEFT JOIN LATERAL (
     SELECT rate.base_hourly_rate
     FROM public.labor_worker_rate_authority rate
@@ -325,20 +387,86 @@ WITH valued AS (
     LIMIT 1
   ) authority ON true
   WHERE labor.qbo_entry_id LIKE 'ts_%'
+), valued AS (
+  SELECT
+    resolved.*,
+    CASE
+      WHEN cost_basis = 'excluded' THEN 'salary_below_gross_profit'
+      WHEN cost_basis = 'hourly' AND policy_rate > 0 THEN policy_source
+      WHEN cost_basis = 'daily' AND policy_rate > 0 THEN policy_source
+      WHEN payroll_hourly_rate > 0 THEN 'payroll_rate_sheet'
+      WHEN COALESCE(hourly_rate, 0) > 0
+        AND COALESCE(rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched')
+        THEN rate_source
+      ELSE NULL
+    END AS effective_rate_source,
+    CASE
+      WHEN cost_basis = 'hourly' AND policy_rate > 0 THEN policy_rate
+      WHEN cost_basis IN ('daily', 'excluded') THEN NULL
+      WHEN payroll_hourly_rate > 0 THEN payroll_hourly_rate
+      WHEN COALESCE(hourly_rate, 0) > 0
+        AND COALESCE(rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched')
+        THEN hourly_rate
+      ELSE NULL
+    END AS effective_hourly_rate,
+    CASE
+      WHEN cost_basis = 'daily' THEN ROW_NUMBER() OVER (
+        PARTITION BY project_id, normalized_worker_name, date
+        ORDER BY id
+      )
+      ELSE NULL
+    END AS daily_cost_row
+  FROM resolved
+), costed AS (
+  SELECT
+    valued.*,
+    CASE
+      WHEN cost_basis = 'excluded' THEN 0
+      WHEN cost_basis = 'daily' AND daily_cost_row = 1 THEN policy_rate
+      WHEN cost_basis = 'daily' THEN 0
+      WHEN COALESCE(effective_hourly_rate, 0) > 0
+        THEN (COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) * effective_hourly_rate
+      ELSE NULL
+    END AS effective_labor_cost
+  FROM valued
 )
 SELECT
   project_id,
   ROUND(SUM(COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0))::numeric, 2) AS total_hours,
-  ROUND((SUM(COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) FILTER (WHERE COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet')))::numeric, 2) AS verified_rate_hours,
-  ROUND((SUM(COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) FILTER (WHERE NOT (COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet'))))::numeric, 2) AS missing_rate_hours,
-  ROUND((SUM((COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) * effective_hourly_rate) FILTER (WHERE COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet')))::numeric, 2) AS verified_direct_wages,
+  ROUND((SUM(COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet', 'fixed_design_rate', 'approved_daily_rate')
+  ))::numeric, 2) AS verified_rate_hours,
+  ROUND((SUM(COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IS NULL
+  ))::numeric, 2) AS missing_rate_hours,
+  ROUND((SUM(effective_labor_cost) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet', 'fixed_design_rate', 'approved_daily_rate')
+  ))::numeric, 2) AS verified_direct_wages,
   COUNT(*) AS source_row_count,
-  COUNT(*) FILTER (WHERE COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet')) AS verified_rate_row_count,
-  COUNT(*) FILTER (WHERE NOT (COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet'))) AS missing_rate_row_count,
+  COUNT(*) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet', 'fixed_design_rate', 'approved_daily_rate')
+  ) AS verified_rate_row_count,
+  COUNT(*) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IS NULL
+  ) AS missing_rate_row_count,
   MAX(synced_at) AS labor_synced_at,
-  COUNT(DISTINCT employee_name) FILTER (WHERE NOT (COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet'))) AS missing_rate_worker_count,
-  COALESCE(ARRAY_AGG(DISTINCT employee_name ORDER BY employee_name) FILTER (WHERE NOT (COALESCE(effective_hourly_rate, 0) > 0 AND COALESCE(effective_rate_source, '') IN ('qbo_time_users', 'qbo_time_users_matched', 'payroll_rate_sheet'))), ARRAY[]::text[]) AS missing_rate_workers
-FROM valued
+  COUNT(DISTINCT employee_name) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IS NULL
+  ) AS missing_rate_worker_count,
+  COALESCE(ARRAY_AGG(DISTINCT employee_name ORDER BY employee_name) FILTER (
+    WHERE cost_basis IS DISTINCT FROM 'excluded'
+      AND effective_rate_source IS NULL
+  ), ARRAY[]::text[]) AS missing_rate_workers,
+  ROUND((SUM(COALESCE(reg_hours, 0) + COALESCE(ot_hours, 0)) FILTER (
+    WHERE cost_basis = 'excluded'
+  ))::numeric, 2) AS excluded_project_cost_hours
+FROM costed
 GROUP BY project_id;
 
 REVOKE ALL ON TABLE public.project_labor_reconciliation_summary FROM anon, authenticated;

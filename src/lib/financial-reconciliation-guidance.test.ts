@@ -9,9 +9,9 @@ function row(overrides: Partial<FinancialReconciliationQueueRow> = {}): Financia
     contractVersion: "2026-09-17.v1",
     asOfDate: "2026-09-15",
     project: { id: "26154", name: "Fossil Activation", jobNumber: "26154", client: "Omnicom", owner: "Paul", status: "Active" },
-    tracker: { contractAmount: 142755, expenses: 14379.11, verifiedDirectWages: 13789.19, operationalCost: 28168.30, operationalGrossProfit: 114586.70, evidenceUpdatedAt: "2026-09-15T12:00:00Z", sourceLabel: "Tracker operational evidence" },
+    tracker: { contractAmount: 142755, expenses: 14379.11, verifiedDirectWages: 13789.19, projectLaborCost: 13789.19, operationalCost: 28168.30, projectCost: 28168.30, operationalGrossProfit: 114586.70, grossProfit: 114586.70, evidenceUpdatedAt: "2026-09-15T12:00:00Z", sourceLabel: "Tracker operational evidence" },
     qbo: { totalBilledToDate: 142755, totalCostToDate: 75103.79, netIncome: 67651.21, currentYearBillings: 142755, currentYearCosts: 75103.79, syncedAt: "2026-09-15T13:00:00Z", sourceLabel: "QBO Project Profitability Summary", billingSource: "qbo", costSource: "qbo" },
-    laborCoverage: { totalHours: 534.03, verifiedRateHours: 512.75, missingRateHours: 0, missingRateWorkers: [], status: "complete" },
+    laborCoverage: { totalHours: 534.03, verifiedRateHours: 512.75, missingRateHours: 0, excludedProjectCostHours: 0, missingRateWorkers: [], status: "complete" },
     revenueVariance: { amount: 0, percent: 0, material: false, direction: "even" },
     costVariance: { amount: 46935.49, percent: 166.63, material: true, direction: "qbo_higher" },
     freshness: { status: "fresh", qboAsOfDate: "2026-09-15", qboSyncedAt: "2026-09-15T13:00:00Z" },
@@ -54,7 +54,7 @@ test("explains a Tracker-higher cost difference as likely timing or mapping work
 test("puts incomplete labor rates ahead of a misleading cost conclusion", () => {
   const guidance = buildReconciliationGuidance(row({
     category: "missing_labor_rate",
-    laborCoverage: { totalHours: 534.03, verifiedRateHours: 512.75, missingRateHours: 21.28, missingRateWorkers: ["Joshua Beam (deleted)", "Tremaine Fung (deleted)"], status: "missing_rate" },
+    laborCoverage: { totalHours: 534.03, verifiedRateHours: 512.75, missingRateHours: 21.28, excludedProjectCostHours: 0, missingRateWorkers: ["Joshua Beam (deleted)", "Tremaine Fung (deleted)"], status: "missing_rate" },
   }));
 
   assert.equal(guidance.headline, "Tracker labor cost is incomplete");
@@ -102,7 +102,7 @@ test("common reasons are explicitly presented as checks rather than known causes
     row(),
     row({ category: "missing_qbo_actuals", qbo: { ...row().qbo, totalBilledToDate: null, totalCostToDate: null } }),
     row({ category: "missing_tracker_contract", tracker: { ...row().tracker, contractAmount: null, operationalGrossProfit: null } }),
-    row({ category: "missing_labor_rate", laborCoverage: { totalHours: 10, verifiedRateHours: 8, missingRateHours: 2, missingRateWorkers: ["Worker A"], status: "missing_rate" } }),
+    row({ category: "missing_labor_rate", laborCoverage: { totalHours: 10, verifiedRateHours: 8, missingRateHours: 2, excludedProjectCostHours: 0, missingRateWorkers: ["Worker A"], status: "missing_rate" } }),
     row({
       category: "revenue_variance",
       revenueVariance: { amount: -12500, percent: 8.76, material: true, direction: "tracker_higher" },

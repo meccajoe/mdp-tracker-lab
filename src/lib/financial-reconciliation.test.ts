@@ -59,7 +59,25 @@ test("keeps missing-rate labor explicit instead of valuing it at zero", () => {
   assert.deepEqual(row.laborCoverage.missingRateWorkers, ["Joshua Beam (deleted)", "Tremaine Fung (deleted)"]);
   assert.equal(row.laborCoverage.status, "missing_rate");
   assert.ok(row.reviewReasons.some((reason) => reason.code === "missing_labor_rate"));
-  assert.match(row.nextAction, /verified QBO Time pay rate/i);
+  assert.match(row.nextAction, /authoritative.*project labor cost/i);
+});
+
+test("keeps approved daily and fixed-rate labor in project cost while excluding salaried leadership hours", () => {
+  const row = buildFinancialReconciliationRow({
+    ...baseInput,
+    labor: {
+      ...baseInput.labor,
+      verifiedDirectWages: 14914.19,
+      excludedProjectCostHours: 22.58,
+      missingRateHours: 0,
+      verifiedRateHours: 511.45,
+    },
+  });
+
+  assert.equal(row.tracker.projectLaborCost, 14914.19);
+  assert.equal(row.tracker.projectCost, 29293.30);
+  assert.equal(row.laborCoverage.excludedProjectCostHours, 22.58);
+  assert.equal(row.laborCoverage.status, "complete");
 });
 
 test("does not turn missing QBO actuals into a zero variance", () => {
