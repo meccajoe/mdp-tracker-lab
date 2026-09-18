@@ -24,6 +24,7 @@ const baseInput = {
     verifiedRateHours: 512.75,
     missingRateHours: 21.28,
     verifiedDirectWages: 13789.19,
+    missingRateWorkers: ["Joshua Beam (deleted)", "Tremaine Fung (deleted)"],
   },
   qbo: {
     asOfDate: "2026-09-15",
@@ -55,6 +56,7 @@ test("keeps missing-rate labor explicit instead of valuing it at zero", () => {
   assert.equal(row.laborCoverage.totalHours, 534.03);
   assert.equal(row.laborCoverage.verifiedRateHours, 512.75);
   assert.equal(row.laborCoverage.missingRateHours, 21.28);
+  assert.deepEqual(row.laborCoverage.missingRateWorkers, ["Joshua Beam (deleted)", "Tremaine Fung (deleted)"]);
   assert.equal(row.laborCoverage.status, "missing_rate");
   assert.ok(row.reviewReasons.some((reason) => reason.code === "missing_labor_rate"));
   assert.match(row.nextAction, /verified QBO Time pay rate/i);

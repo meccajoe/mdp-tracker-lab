@@ -34,6 +34,7 @@ type LaborInput = {
   verifiedRateHours: number;
   missingRateHours: number;
   verifiedDirectWages: number;
+  missingRateWorkers?: string[];
 };
 
 type QboInput = {
@@ -94,6 +95,7 @@ export type FinancialReconciliationRow = {
     totalHours: number;
     verifiedRateHours: number;
     missingRateHours: number;
+    missingRateWorkers?: string[];
     status: "complete" | "missing_rate" | "no_labor";
   };
   revenueVariance: ReconciliationVariance;
@@ -283,7 +285,13 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
       billingSource: input.qbo?.billingSource ?? null,
       costSource: input.qbo?.costSource ?? null,
     },
-    laborCoverage: { totalHours, verifiedRateHours, missingRateHours, status: laborStatus },
+    laborCoverage: {
+      totalHours,
+      verifiedRateHours,
+      missingRateHours,
+      missingRateWorkers: input.labor.missingRateWorkers ?? [],
+      status: laborStatus,
+    },
     revenueVariance,
     costVariance,
     freshness: {
