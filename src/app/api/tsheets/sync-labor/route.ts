@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeLaborServiceItem } from "@/lib/labor-service-item";
+import { resolveLaborRateForSync } from "@/lib/labor-rate-source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -280,6 +281,8 @@ export async function POST(request: NextRequest) {
         const rateVerifiedAt = new Date().toISOString();
         return {
           project_id: projectId,
+          qbo_time_user_id: s.user_id,
+          qbo_time_salaried: userRate?.salaried ?? null,
           employee_name: userRate?.name ?? users[String(s.user_id)] ?? `User ${s.user_id}`,
           date: s.date,
           reg_hours: s.type === "regular" ? totalHours : 0,
@@ -294,6 +297,8 @@ export async function POST(request: NextRequest) {
       })
       .filter(Boolean) as Array<{
         project_id: string;
+        qbo_time_user_id: number;
+        qbo_time_salaried: boolean | null;
         employee_name: string;
         date: string;
         reg_hours: number;
@@ -309,26 +314,26 @@ export async function POST(request: NextRequest) {
     let totalSynced = 0;
     for (let i = 0; i < rows.length; i += 100) {
       const batch = rows.slice(i, i + 100);
+      const entryIds = batch.map((row) => row.qbo_entry_id);
+      const { data: existingRows, error: existingError } = await supabase
+        .from("qbo_labor_entries")
+        .select("qbo_entry_id,hourly_rate,rate_source,rate_verified_at")
+        .in("qbo_entry_id", entryIds);
+      if (existingError) throw new Error(`Existing rate lookup failed: ${existingError.message}`);
+      const existingByEntryId = new Map((existingRows ?? []).map((row) => [row.qbo_entry_id, row]));
+      const resolvedBatch = batch.map((row) => ({
+        ...row,
+        ...resolveLaborRateForSync(existingByEntryId.get(row.qbo_entry_id), {
+          hourly_rate: row.hourly_rate,
+          rate_source: row.rate_source,
+          rate_verified_at: row.rate_verified_at,
+        }),
+      }));
       const { error: upsertErr } = await supabase
         .from("qbo_labor_entries")
-        .upsert(batch, { onConflict: "qbo_entry_id" });
+        .upsert(resolvedBatch, { onConflict: "qbo_entry_id" });
       if (upsertErr) throw new Error(`Upsert failed: ${upsertErr.message}`);
-      totalSynced += batch.length;
-    }
-
-    // Older canonical rows predate explicit provenance. Mark them verified only
-    // when their stored rate exactly matches the employee's current QBO Time rate.
-    const matchedRateVerifiedAt = new Date().toISOString();
-    for (const user of userRates.values()) {
-      if (!(Number(user.pay_rate) > 0)) continue;
-      const { error: provenanceErr } = await supabase
-        .from("qbo_labor_entries")
-        .update({ rate_source: "qbo_time_users_matched", rate_verified_at: matchedRateVerifiedAt })
-        .like("qbo_entry_id", "ts_%")
-        .eq("employee_name", user.name)
-        .eq("hourly_rate", user.pay_rate)
-        .is("rate_source", null);
-      if (provenanceErr) throw new Error(`Rate provenance backfill failed: ${provenanceErr.message}`);
+      totalSynced += resolvedBatch.length;
     }
 
     return NextResponse.json({

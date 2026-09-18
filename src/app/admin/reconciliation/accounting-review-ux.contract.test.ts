@@ -4,45 +4,47 @@ import test from "node:test";
 
 const page = readFileSync("src/app/admin/reconciliation/page.tsx", "utf8");
 
-test("Accounting Review follows the Projects-style full-width row and column pattern", () => {
+test("Accounting Review is a direct Tracker versus QuickBooks project comparison", () => {
   for (const required of [
-    "Projects that need a financial check",
-    "What needs attention",
-    "What it likely means",
-    "Recommended next step",
-    "Assigned to",
-    "Review status",
-    "Review project",
+    "Tracker vs. QuickBooks",
+    "Tracker revenue",
+    "QBO revenue",
+    "Revenue difference",
+    "Tracker project cost",
+    "QBO project cost",
+    "Cost difference",
+    "Project financial comparison",
+    "Gross profit",
     'data-slot="reconciliation-desktop-table"',
   ]) {
-    assert.ok(page.includes(required), `missing Accounting Review UX contract: ${required}`);
+    assert.ok(page.includes(required), `missing comparison-first Accounting Review contract: ${required}`);
   }
 
   assert.match(page, /<Table>/);
   assert.match(page, /<TableHeader>/);
   assert.match(page, /<TableRow/);
-  assert.doesNotMatch(page, /lg:grid-cols-\[minmax\(0,1\.45fr\)_minmax\(340px,0\.75fr\)\]/);
-  assert.doesNotMatch(page, /Reconciliation queue/);
+  assert.doesNotMatch(page, /Projects that need a financial check/);
+  assert.doesNotMatch(page, /Start with the explanation and recommended next step/);
 });
 
-test("Accounting Review teaches the source distinction before showing comparison details", () => {
+test("Accounting Review states the exact source contracts without a teaching-card preamble", () => {
   for (const required of [
-    "QBO is the accounting record",
-    "Tracker explains the project activity behind it",
-    "These numbers are expected to differ sometimes",
-    "Plain-English explanation",
-    "Common reasons this happens",
-    "Numbers behind this review",
-    "QBO accounting",
-    "Tracker project evidence",
+    "Tracker uses contract value, imported project expenses, and approved direct project labor",
+    "QuickBooks uses billed revenue and costs posted to the project",
+    "QBO minus Tracker",
+    "Salaried leadership hours are excluded from Tracker project cost",
   ]) {
-    assert.ok(page.includes(required), `missing explanatory copy: ${required}`);
+    assert.ok(page.includes(required), `missing comparison source contract: ${required}`);
   }
+
+  assert.doesNotMatch(page, /<SourceLesson/);
+  assert.doesNotMatch(page, /Plain-English explanation/);
+  assert.doesNotMatch(page, /Common reasons this happens/);
 });
 
 test("Accounting Review keeps dense evidence and workflow in an on-demand expanded row", () => {
   assert.ok(page.includes("expandedProjectId"));
-  assert.ok(page.includes("colSpan={7}"));
+  assert.ok(page.includes("colSpan={9}"));
   assert.ok(page.includes("Hide review"));
   assert.ok(page.includes("Review project"));
 });

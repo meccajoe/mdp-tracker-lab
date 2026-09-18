@@ -34,6 +34,8 @@ type LaborInput = {
   verifiedRateHours: number;
   missingRateHours: number;
   verifiedDirectWages: number;
+  excludedProjectCostHours?: number;
+  missingRateWorkers?: string[];
 };
 
 type QboInput = {
@@ -74,8 +76,11 @@ export type FinancialReconciliationRow = {
     contractAmount: number | null;
     expenses: number;
     verifiedDirectWages: number;
+    projectLaborCost: number;
     operationalCost: number;
+    projectCost: number;
     operationalGrossProfit: number | null;
+    grossProfit: number | null;
     evidenceUpdatedAt: string | null;
     sourceLabel: "Tracker operational evidence";
   };
@@ -94,6 +99,8 @@ export type FinancialReconciliationRow = {
     totalHours: number;
     verifiedRateHours: number;
     missingRateHours: number;
+    excludedProjectCostHours: number;
+    missingRateWorkers?: string[];
     status: "complete" | "missing_rate" | "no_labor";
   };
   revenueVariance: ReconciliationVariance;
@@ -188,6 +195,7 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
   const missingRateHours = quantity(Math.max(0, Number(input.labor.missingRateHours) || 0));
   const totalHours = quantity(Math.max(0, Number(input.labor.totalHours) || 0));
   const verifiedRateHours = quantity(Math.max(0, Number(input.labor.verifiedRateHours) || 0));
+  const excludedProjectCostHours = quantity(Math.max(0, Number(input.labor.excludedProjectCostHours) || 0));
   const laborStatus = totalHours === 0 ? "no_labor" : missingRateHours > 0 ? "missing_rate" : "complete";
   const freshnessStatus: ReconciliationFreshness = !input.qbo?.syncedAt
     ? "never_synced"
@@ -206,7 +214,7 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
     reviewReasons.push({ code: "missing_tracker_contract", message: "Tracker does not have a contract amount for this project." });
   }
   if (missingRateHours > 0) {
-    reviewReasons.push({ code: "missing_labor_rate", message: `${missingRateHours.toFixed(2)} labor hours do not have a verified QBO Time pay rate.` });
+    reviewReasons.push({ code: "missing_labor_rate", message: `${missingRateHours.toFixed(2)} labor hours do not have an approved direct project cost basis.` });
   }
   if (revenueVariance.material) {
     reviewReasons.push({ code: "revenue_variance", message: reasonForVariance("Revenue", revenueVariance) });
@@ -238,8 +246,8 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
   } else if (missingRateHours > 0) {
     category = "missing_labor_rate";
     queueStatus = "needs_action";
-    reason = `${missingRateHours.toFixed(2)} labor hours do not have a verified QBO Time pay rate.`;
-    nextAction = "Resolve the verified QBO Time pay rate before relying on Tracker labor cost.";
+    reason = `${missingRateHours.toFixed(2)} labor hours do not have an approved direct project cost basis.`;
+    nextAction = "Attach the authoritative worker cost policy before relying on Tracker project labor cost.";
   } else if (costVariance.material && (!revenueVariance.material || Math.abs(costVariance.amount ?? 0) >= Math.abs(revenueVariance.amount ?? 0))) {
     category = "cost_variance";
     queueStatus = "needs_action";
@@ -267,8 +275,11 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
       contractAmount: input.project.contractAmount,
       expenses,
       verifiedDirectWages: directWages,
+      projectLaborCost: directWages,
       operationalCost,
+      projectCost: operationalCost,
       operationalGrossProfit,
+      grossProfit: operationalGrossProfit,
       evidenceUpdatedAt: input.project.trackerEvidenceUpdatedAt,
       sourceLabel: "Tracker operational evidence",
     },
@@ -283,7 +294,14 @@ export function buildFinancialReconciliationRow(input: FinancialReconciliationIn
       billingSource: input.qbo?.billingSource ?? null,
       costSource: input.qbo?.costSource ?? null,
     },
-    laborCoverage: { totalHours, verifiedRateHours, missingRateHours, status: laborStatus },
+    laborCoverage: {
+      totalHours,
+      verifiedRateHours,
+      missingRateHours,
+      excludedProjectCostHours,
+      missingRateWorkers: input.labor.missingRateWorkers ?? [],
+      status: laborStatus,
+    },
     revenueVariance,
     costVariance,
     freshness: {

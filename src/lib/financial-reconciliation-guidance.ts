@@ -66,14 +66,21 @@ export function buildReconciliationGuidance(row: FinancialReconciliationQueueRow
 
   if (category === "missing_labor_rate") {
     const missingHours = row.laborCoverage.missingRateHours.toFixed(2);
+    const workers = row.laborCoverage.missingRateWorkers ?? [];
+    const displayedWorkers = workers.slice(0, 3).join(", ");
+    const workerSummary = workers.length === 0
+      ? "The affected worker profiles are not identified in this snapshot."
+      : `Affected worker profiles: ${displayedWorkers}${workers.length > 3 ? `, plus ${workers.length - 3} more` : ""}.`;
     return {
       headline: "Tracker labor cost is incomplete",
-      explanation: `${missingHours} hours have no verified pay rate. Tracker can count those hours, but it cannot value them correctly, so the cost difference is provisional.`,
+      explanation: `${missingHours} hours have no verified labor cost rate. ${workerSummary} This is a rate setup issue on those worker profiles, not project coding. Tracker can count the hours, but it cannot value them correctly, so the cost difference is provisional.`,
       likelyCauses: [
-        "Check whether an employee or time-entry rate is missing from the verified QBO Time rate source.",
-        "Check whether a recent employee or rate change has not been mapped yet.",
+        "Check whether an hourly employee is missing a current QBO Time pay rate.",
+        "Check whether a salaried worker needs a separate allocation policy instead of an hourly rate.",
+        "Check whether a contractor should use an approved contractor cost rate or matched vendor bill.",
+        "Check whether a deleted or duplicate QBO Time profile is still receiving time entries.",
       ],
-      recommendedAction: "Assign verified pay rates to the missing hours, then recalculate the Tracker cost before investigating the remaining difference.",
+      recommendedAction: "Classify each worker as hourly, salaried, or contractor, then attach the authoritative cost basis and recalculate Tracker labor before investigating the remaining difference.",
       differenceLabel: "Cost comparison is provisional",
       differenceAmount: row.costVariance.amount,
     };
