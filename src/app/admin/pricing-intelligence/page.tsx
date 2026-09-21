@@ -5,18 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { supabase } from "@/lib/supabase";
+import { loadPricingProjects, type PricingProject } from "@/lib/pricing-projects-client";
 import { Button } from "@/components/ui/button";
-
-type PricingProject = {
-  id: string;
-  name: string | null;
-  client: string | null;
-  project_type: string | null;
-  close_date: string | null;
-  contract_amount: number | null;
-  quote_materials: number | null;
-  total_spent: number | null;
-};
 
 const PROJECT_TYPES = ["Trade Show", "Corporate Event", "Event Activation", "Pop-Up", "Retail", "Permanent", "Other"];
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -31,13 +21,14 @@ export default function PricingIntelligencePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("project_pricing_index")
-      .select("id, name, client, project_type, close_date, contract_amount, quote_materials, total_spent")
-      .order("close_date", { ascending: false, nullsFirst: false });
-    if (error) toast.error(`Could not load pricing data: ${error.message}`);
-    else setProjects((data ?? []) as PricingProject[]);
-    setLoading(false);
+    try {
+      setProjects(await loadPricingProjects());
+    } catch (error) {
+      setProjects([]);
+      toast.error(`Could not load pricing data: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
