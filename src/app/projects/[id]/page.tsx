@@ -87,6 +87,12 @@ import { QUOTED_LABOR_RATE_PER_HR } from "@/lib/budget-formula";
 import { canonicalLaborCostQueryFilter } from "@/lib/labor-rate-source";
 import { buildProjectOverviewSummary } from "@/lib/project-overview-summary";
 import {
+  DESIGN_BUDGET_COST_RATE,
+  SHOP_BUDGET_COST_RATE,
+  buildProjectBudgetLaborSplit,
+  isDesignLaborCode,
+} from "@/lib/project-budget-labor-split";
+import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
   stripUnsupportedProjectFields,
@@ -191,6 +197,12 @@ const BUDGET_TO_CATEGORY_MAP: Record<string, string[]> = {
     "Graphics",                          // HubSpot 400800 / COGS 500600
   ],
 };
+
+const BUDGET_DETAIL_FIELDS = BUDGET_FIELDS.map((field) => {
+  if (field.key === "budget_hrs") return { ...field, label: "Shop Hours", isHours: true, laborKind: "shop" as const };
+  if (field.key === "budget_design") return { ...field, label: "Designer Hours", isHours: true, laborKind: "design" as const };
+  return { ...field, laborKind: null };
+});
 
 function getStatusVariant(
   status: string
@@ -603,7 +615,11 @@ export default function ProjectDetailPage() {
 
   // Allocation is the production source of truth for allowed hours. Actuals
   // remain project-level until labor/expense entries can be assigned to quote lines.
-  const allocationLaborBudgetHours = quoteAllocationRows.length > 0 ? quoteAllocationTotals.labor_hours : null;
+  const allocationShopBudgetHours = quoteAllocationRows.length > 0
+    ? quoteAllocationRows
+      .filter((row) => row.formula_type !== "design")
+      .reduce((sum, row) => sum + row.labor_hours, 0)
+    : null;
   const allocationLaborActualHours = getActualForBudgetField("budget_hrs") + (savedActuals["Labor Hours"] ?? 0);
   const allocationLaborActualCost = qboLaborEntries.reduce(
     (sum, entry) => sum + (entry.reg_hours + entry.ot_hours) * entry.hourly_rate,
@@ -832,6 +848,17 @@ export default function ProjectDetailPage() {
       </div>
     );
   }
+
+  const laborSplit = buildProjectBudgetLaborSplit({
+    quotedDesignDollars: buildBudgetBreakdownTotal(project, "budget_design"),
+    shopBudgetHours: allocationShopBudgetHours ?? project.budget_hrs,
+    qboEntries: qboLaborEntries,
+    manualEntries: [
+      ...laborEntries,
+      { labor_type: "Production Labor", hours: savedActuals["Shop Hours"] ?? savedActuals["Labor Hours"] ?? 0 },
+      { labor_type: "Design Labor", hours: savedActuals["Designer Hours"] ?? 0 },
+    ],
+  });
 
   const overviewSummary = quoteAllocationRows.length > 0
     ? buildProjectOverviewSummary({
@@ -1266,15 +1293,16 @@ export default function ProjectDetailPage() {
         {showBudgetBreakdown && (
           <CardContent data-slot="project-budget-table" className="min-w-0 max-w-full overflow-x-auto">
           <div data-slot="project-budget-mobile" className="space-y-3 lg:hidden">
-            {BUDGET_FIELDS.map((field) => {
+            {BUDGET_DETAIL_FIELDS.map((field) => {
+              const laborBucket = field.laborKind ? laborSplit[field.laborKind] : null;
               const storedVal = project[field.key as keyof ProjectSummary] as number | null;
-              const fallback = storedVal ?? (field.key === "budget_materials" ? Math.round((project.contract_amount ?? 0) * 0.25) : field.key === "budget_hrs" ? Math.round((project.contract_amount ?? 0) * 0.25 / LABOR_RATE) : 0);
-              const budgeted = field.key === "budget_hrs" && allocationLaborBudgetHours != null
-                ? allocationLaborBudgetHours
-                : fallback;
-              const actual = ["budget_design", "budget_pm"].includes(field.key) && savedActuals[field.label] == null ? budgeted : getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0);
+              const fallback = storedVal ?? (field.key === "budget_materials" ? Math.round((project.contract_amount ?? 0) * 0.25) : 0);
+              const budgeted = laborBucket?.budgetHours ?? fallback;
+              const actual = laborBucket?.actualHours
+                ?? (field.key === "budget_pm" && savedActuals[field.label] == null ? budgeted : getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0));
               const variance = budgeted - actual;
-              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div className="font-medium">{field.label}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? `${formatNumber(budgeted)} hrs` : formatCurrency(budgeted)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? `${formatNumber(actual)} hrs` : formatCurrency(actual)}</div></div></div>;
+              const formulaNote = field.laborKind === "design" ? "Design sell: $125/hr · budget cost: $25/hr" : null;
+              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div><div className="font-medium">{field.label}</div>{formulaNote && <div className="mt-0.5 text-xs text-muted-foreground">{formulaNote}</div>}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? <>{formatNumber(budgeted)} hrs <span className="text-xs text-muted-foreground">({formatCurrency(laborBucket?.budgetCost ?? 0)})</span></> : formatCurrency(budgeted)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? <>{formatNumber(actual)} hrs <span className="text-xs text-muted-foreground">({formatCurrency(laborBucket?.actualCost ?? 0)})</span></> : formatCurrency(actual)}</div></div></div>;
             })}
           </div>
           <div className="hidden lg:block">
@@ -1290,7 +1318,9 @@ export default function ProjectDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {BUDGET_FIELDS.map((field) => {
+              {BUDGET_DETAIL_FIELDS.map((field) => {
+                const laborBucket = field.laborKind ? laborSplit[field.laborKind] : null;
+                const laborBudgetRate = field.laborKind === "design" ? DESIGN_BUDGET_COST_RATE : SHOP_BUDGET_COST_RATE;
                 // Use stored value; if null, fall back to derived value from contract amount (for legacy spreadsheet-synced projects)
                 const storedVal = project[field.key as keyof ProjectSummary] as number | null;
                 const fallbackVal = (() => {
@@ -1300,20 +1330,20 @@ export default function ProjectDetailPage() {
                   if (field.key === "budget_hrs") return Math.round(project.contract_amount * 0.25 / QUOTED_LABOR_RATE_PER_HR);
                   return 0;
                 })();
-                const calculatedBudgeted = field.key === "budget_hrs" && allocationLaborBudgetHours != null
-                  ? allocationLaborBudgetHours
-                  : fallbackVal;
-                const budgeted = editingBudget && budgetEdits[field.key] !== undefined
+                const calculatedBudgeted = laborBucket?.budgetHours ?? fallbackVal;
+                const canEditBudget = field.laborKind !== "design";
+                const budgeted = canEditBudget && editingBudget && budgetEdits[field.key] !== undefined
                   ? (budgetEdits[field.key] === "" ? 0 : Number(budgetEdits[field.key]))
                   : calculatedBudgeted;
-                const expenseActual = getActualForBudgetField(field.key);
-                const manualOverride = savedActuals[field.label] ?? 0;
-                // Design and PM always default to 100% of budget unless manually overridden
-                const AUTO_FULL_FIELDS = ["budget_design", "budget_pm"];
+                const expenseActual = laborBucket ? 0 : getActualForBudgetField(field.key);
+                const manualOverride = laborBucket ? 0 : (savedActuals[field.label] ?? 0);
+                // PM defaults to 100% of budget unless manually overridden.
+                const AUTO_FULL_FIELDS = ["budget_pm"];
                 const hasManualOverride = savedActuals[field.label] != null;
-                const actual = AUTO_FULL_FIELDS.includes(field.key) && !hasManualOverride
-                  ? budgeted
-                  : expenseActual + manualOverride;
+                const actual = laborBucket?.actualHours
+                  ?? (AUTO_FULL_FIELDS.includes(field.key) && !hasManualOverride
+                    ? budgeted
+                    : expenseActual + manualOverride);
                 const total = buildBudgetBreakdownTotal(project, field.key);
                 const variance = budgeted - actual;
                 const varianceColor = variance < 0 ? "text-red-600" : "text-green-600";
@@ -1333,24 +1363,32 @@ export default function ProjectDetailPage() {
                       );
                     })();
 
-                // Actual labor cost using per-entry rates (QBO) or $30/hr fallback (manual)
-                const actualLaborDollars = field.isHours
-                  ? qboLaborEntries.reduce((sum, e) => sum + (e.reg_hours + e.ot_hours) * e.hourly_rate, 0)
-                    + laborEntries.reduce((sum, e) => sum + e.hours * LABOR_RATE, 0)
-                  : 0;
+                const actualLaborDollars = laborBucket?.actualCost ?? 0;
+                const laborBudgetDollars = laborBucket ? budgeted * laborBudgetRate : 0;
+                const qboLaborForRow = field.laborKind
+                  ? qboLaborEntries.filter((entry) => field.laborKind === "design"
+                    ? isDesignLaborCode(entry.service_item)
+                    : !isDesignLaborCode(entry.service_item))
+                  : [];
+                const manualLaborForRow = field.laborKind
+                  ? laborEntries.filter((entry) => field.laborKind === "design"
+                    ? isDesignLaborCode(entry.labor_type)
+                    : !isDesignLaborCode(entry.labor_type))
+                  : [];
+                const manualLaborRate = laborBudgetRate;
 
                 const drillLaborEntries = field.isHours
-                  ? [...qboLaborEntries.map((e) => ({
+                  ? [...qboLaborForRow.map((e) => ({
                       date: e.date,
                       description: e.employee_name,
                       amount: (e.reg_hours + e.ot_hours) * e.hourly_rate,
-                      detail: `${(e.reg_hours + e.ot_hours).toFixed(1)} hrs @ $${e.hourly_rate}/hr`,
+                      detail: `${e.service_item ?? "Uncoded labor"} · ${(e.reg_hours + e.ot_hours).toFixed(1)} hrs @ $${e.hourly_rate}/hr`,
                     })),
-                    ...laborEntries.map((e) => ({
+                    ...manualLaborForRow.map((e) => ({
                       date: e.date,
                       description: e.person ?? "Manual",
-                      amount: e.hours * LABOR_RATE,
-                      detail: `${e.hours} hrs (manual @ $${LABOR_RATE}/hr)`,
+                      amount: e.hours * manualLaborRate,
+                      detail: `${e.hours} hrs (manual @ $${manualLaborRate}/hr)`,
                     }))]
                   : [];
 
@@ -1369,16 +1407,21 @@ export default function ProjectDetailPage() {
                       }}
                     >
                       <TableCell className="font-medium">
-                        <span className="inline-flex items-center gap-1">
-                          {hasDrillItems ? (
-                            isExpanded
-                              ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          ) : (
-                            <span className="w-3.5 shrink-0" />
+                        <div>
+                          <span className="inline-flex items-center gap-1">
+                            {hasDrillItems ? (
+                              isExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            ) : (
+                              <span className="w-3.5 shrink-0" />
+                            )}
+                            {field.label}
+                          </span>
+                          {field.laborKind === "design" && (
+                            <div className="ml-[18px] mt-0.5 text-xs font-normal text-muted-foreground">Design sell: $125/hr · budget cost: $25/hr</div>
                           )}
-                          {field.label}
-                        </span>
+                        </div>
                       </TableCell>
                       {effectiveIsAdmin && (
                         <TableCell className="text-right">
@@ -1388,7 +1431,7 @@ export default function ProjectDetailPage() {
                         </TableCell>
                       )}
                       <TableCell className="text-right">
-                        {editingBudget ? (
+                        {editingBudget && canEditBudget ? (
                           <Input
                             type="number"
                             step={field.isHours ? "0.5" : "1"}
@@ -1400,7 +1443,7 @@ export default function ProjectDetailPage() {
                         ) : field.isHours ? (
                           <span>
                             <span className="font-mono">{formatNumber(budgeted)} hrs</span>
-                            <span className="text-muted-foreground text-xs ml-1">({formatCurrency(budgeted * LABOR_RATE)})</span>
+                            <span className="text-muted-foreground text-xs ml-1">({formatCurrency(laborBudgetDollars)})</span>
                           </span>
                         ) : formatCurrency(budgeted)}
                       </TableCell>
@@ -1417,9 +1460,13 @@ export default function ProjectDetailPage() {
                           <Input
                             type="number"
                             step="1"
-                            placeholder="Manual $"
+                            placeholder={field.isHours ? "Manual hrs" : "Manual $"}
                             className="w-28 text-right ml-auto h-7 text-sm"
-                            value={manualActuals[field.label] ?? (savedActuals[field.label] != null ? String(savedActuals[field.label]) : "")}
+                            value={manualActuals[field.label] ?? (savedActuals[field.label] != null
+                              ? String(savedActuals[field.label])
+                              : field.laborKind === "shop" && savedActuals["Labor Hours"] != null
+                                ? String(savedActuals["Labor Hours"])
+                                : "")}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => setManualActuals((prev) => ({ ...prev, [field.label]: e.target.value }))}
                           />
@@ -1429,7 +1476,7 @@ export default function ProjectDetailPage() {
                         {field.isHours ? (
                           <span>
                             <span>{variance >= 0 ? "+" : ""}{formatNumber(variance)} hrs</span>
-                            <span className="text-xs ml-1">({variance >= 0 ? "+" : ""}{formatCurrency(budgeted * LABOR_RATE - actualLaborDollars)})</span>
+                            <span className="text-xs ml-1">({laborBudgetDollars - actualLaborDollars >= 0 ? "+" : ""}{formatCurrency(laborBudgetDollars - actualLaborDollars)})</span>
                           </span>
                         ) : `${variance >= 0 ? "+" : ""}${formatCurrency(variance)}`}
                       </TableCell>
@@ -1516,11 +1563,12 @@ export default function ProjectDetailPage() {
           {showCharts && (() => {
             const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#6366f1"];
 
-            const AUTO_FULL_FIELDS_CHART = ["budget_design", "budget_pm"];
-            // Actual labor dollars using per-entry rates for charts
-            const chartLaborDollars = qboLaborEntries.reduce((sum, e) => sum + (e.reg_hours + e.ot_hours) * e.hourly_rate, 0)
-              + laborEntries.reduce((sum, e) => sum + e.hours * LABOR_RATE, 0);
-            const barData = BUDGET_FIELDS.map((field) => {
+            const AUTO_FULL_FIELDS_CHART = ["budget_pm"];
+            const getChartDollars = (field: (typeof BUDGET_DETAIL_FIELDS)[number]) => {
+              if (field.laborKind) {
+                const bucket = laborSplit[field.laborKind];
+                return { budgeted: bucket.budgetCost, actual: bucket.actualCost };
+              }
               const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
               const expenseActual = getActualForBudgetField(field.key);
               const manualOverride = savedActuals[field.label] ?? 0;
@@ -1528,47 +1576,34 @@ export default function ProjectDetailPage() {
               const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
                 ? budgeted
                 : expenseActual + manualOverride;
-              const budgetedDollars = field.isHours ? budgeted * LABOR_RATE : budgeted;
-              const actualDollars = field.isHours ? chartLaborDollars : actual;
+              return { budgeted, actual };
+            };
+            const barData = BUDGET_DETAIL_FIELDS.map((field) => {
+              const dollars = getChartDollars(field);
               return {
-                name: field.label.replace("Labor Hours", "Labor Hrs"),
-                Budgeted: budgetedDollars,
-                Actual: actualDollars,
+                name: field.label,
+                Budgeted: dollars.budgeted,
+                Actual: dollars.actual,
               };
             });
 
-            const pieData = BUDGET_FIELDS
+            const pieData = BUDGET_DETAIL_FIELDS
               .map((field, i) => {
-                const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
-                const expenseActual = getActualForBudgetField(field.key);
-                const manualOverride = savedActuals[field.label] ?? 0;
-                const hasManualOverride = savedActuals[field.label] != null;
-                const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
-                  ? budgeted
-                  : expenseActual + manualOverride;
-                const dollars = field.isHours ? chartLaborDollars : actual;
-                return { name: field.label.replace("Labor Hours", "Labor Hrs"), value: dollars, color: PIE_COLORS[i % PIE_COLORS.length] };
+                const dollars = getChartDollars(field).actual;
+                return { name: field.label, value: dollars, color: PIE_COLORS[i % PIE_COLORS.length] };
               })
               .filter((d) => d.value > 0);
 
             const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
-            const healthData = BUDGET_FIELDS.map((field) => {
-              const budgeted = (project[field.key as keyof ProjectSummary] as number) ?? 0;
-              const expenseActual = getActualForBudgetField(field.key);
-              const manualOverride = savedActuals[field.label] ?? 0;
-              const hasManualOverride = savedActuals[field.label] != null;
-              const actual = AUTO_FULL_FIELDS_CHART.includes(field.key) && !hasManualOverride
-                ? budgeted
-                : expenseActual + manualOverride;
-              const budgetedVal = field.isHours ? budgeted * LABOR_RATE : budgeted;
-              const actualVal = field.isHours ? chartLaborDollars : actual;
-              const pct = budgetedVal > 0 ? (actualVal / budgetedVal) * 100 : 0;
+            const healthData = BUDGET_DETAIL_FIELDS.map((field) => {
+              const dollars = getChartDollars(field);
+              const pct = dollars.budgeted > 0 ? (dollars.actual / dollars.budgeted) * 100 : 0;
               return {
-                name: field.label.replace("Labor Hours", "Labor Hrs"),
+                name: field.label,
                 pct,
-                actual: actualVal,
-                budgeted: budgetedVal,
+                actual: dollars.actual,
+                budgeted: dollars.budgeted,
               };
             });
 

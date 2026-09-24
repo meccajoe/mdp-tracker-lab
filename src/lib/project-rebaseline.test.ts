@@ -345,8 +345,11 @@ test("buildQuoteLineBudgetAllocationRows splits fabrication into labor/material 
   assert.equal(rows[1].budget_category_label, "Shipping");
   assert.equal(rows[2].non_lm_budget, 300);
   assert.equal(rows[2].budget_category_label, "Storage");
-  assert.equal(rows[3].non_lm_budget, 500);
-  assert.equal(rows[3].budget_category_label, "Design");
+  assert.equal(rows[3].formula_type, "design");
+  assert.equal(rows[3].budget_category_label, "Design · Sell ÷ 125");
+  assert.equal(rows[3].labor_hours, 8);
+  assert.equal(rows[3].labor_budget, 200);
+  assert.equal(rows[3].non_lm_budget, 0);
 });
 
 test("buildBudgetBreakdownTotal exposes quote-basis totals for each budget row", () => {

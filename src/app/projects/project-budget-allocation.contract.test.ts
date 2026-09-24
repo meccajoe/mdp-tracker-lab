@@ -16,9 +16,10 @@ test("quote allocation surfaces actual labor, materials, and purchase/other cost
   assert.match(source, /allocationNonLmActual/);
 });
 
-test("budget detail uses the quote-allocation labor-hours formula when available", () => {
-  assert.match(source, /const allocationLaborBudgetHours = quoteAllocationRows\.length > 0 \? quoteAllocationTotals\.labor_hours : null/);
-  assert.match(source, /field\.key === "budget_hrs" && allocationLaborBudgetHours != null\s*\? allocationLaborBudgetHours/);
+test("budget detail uses the quote-allocation shop-hours formula when available", () => {
+  assert.match(source, /const allocationShopBudgetHours = quoteAllocationRows\.length > 0/);
+  assert.match(source, /\.filter\(\(row\) => row\.formula_type !== "design"\)/);
+  assert.match(source, /shopBudgetHours: allocationShopBudgetHours \?\? project\.budget_hrs/);
 });
 
 test("budget detail does not label quote-allocation hours with a stale labor rate", () => {

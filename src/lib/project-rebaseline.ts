@@ -1,4 +1,5 @@
 import { HARDCODED_DEFAULT_PCTS, LABOR_RATE_PER_HR } from "@/lib/budget-formula";
+import { DESIGN_BUDGET_COST_RATE, DESIGN_SELL_RATE } from "@/lib/project-budget-labor-split";
 
 export type QuoteBackedProject = {
   [key: string]: number | string | null | undefined;
@@ -37,7 +38,7 @@ export type QuoteLineBudgetAllocationSource = {
 
 export type QuoteLineBudgetAllocationRow = QuoteLineBudgetAllocationSource & {
   budget_category_label: string;
-  formula_type: "fabrication" | "graphics" | "bematrix" | "standard";
+  formula_type: "fabrication" | "graphics" | "bematrix" | "design" | "standard";
   formula_status: "ready" | "needs_sqft";
   labor_hours: number;
   labor_budget: number;
@@ -235,6 +236,11 @@ export function buildQuoteLineBudgetAllocationRows(
     if (lineItem.mapped_category === "fabrication") {
       const laborHours = lineItem.line_total / 210;
       return { ...lineItem, budget_category_label: "Fabrication · Sell ÷ 210", formula_type: "fabrication", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * INTERNAL_LABOR_COST_PER_HOUR), material_budget: Math.round(lineItem.line_total / 4), non_lm_budget: 0 };
+    }
+
+    if (lineItem.mapped_category === "design" || lineItem.sku === "400700" || lineItem.sku === "400701") {
+      const laborHours = lineItem.line_total / DESIGN_SELL_RATE;
+      return { ...lineItem, budget_category_label: "Design · Sell ÷ 125", formula_type: "design", formula_status: "ready", labor_hours: laborHours, labor_budget: Math.round(laborHours * DESIGN_BUDGET_COST_RATE), material_budget: 0, non_lm_budget: 0 };
     }
 
     const normalizedCategory = lineItem.mapped_category as SupportedCategoryKey | null;
