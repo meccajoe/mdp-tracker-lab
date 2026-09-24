@@ -90,8 +90,12 @@ import {
   DESIGN_BUDGET_COST_RATE,
   SHOP_BUDGET_COST_RATE,
   buildProjectBudgetLaborSplit,
-  isDesignLaborCode,
 } from "@/lib/project-budget-labor-split";
+import {
+  getLaborWorkGroup,
+  listLaborServiceItemTags,
+  matchesLaborServiceItemTag,
+} from "@/lib/labor-service-item";
 import {
   buildBudgetBreakdownTotal,
   getSkuChipClassName,
@@ -354,8 +358,9 @@ export default function ProjectDetailPage() {
   const [qboLaborEntries, setQboLaborEntries] = useState<QboLaborEntry[]>([]);
   const [laborSyncing, setLaborSyncing] = useState(false);
   const [completionSubmitting, setCompletionSubmitting] = useState(false);
-  const [laborView, setLaborView] = useState<"employee" | "date">("employee");
+  const [laborView, setLaborView] = useState<"employee" | "date" | "serviceItem">("employee");
   const [laborDateFilter, setLaborDateFilter] = useState<"all" | "week" | "month" | "custom">("all");
+  const [laborServiceItemFilter, setLaborServiceItemFilter] = useState("all");
   const [laborCustomStart, setLaborCustomStart] = useState("");
   const [laborCustomEnd, setLaborCustomEnd] = useState("");
   const [expandedLaborRows, setExpandedLaborRows] = useState<Set<string>>(new Set());
@@ -604,13 +609,27 @@ export default function ProjectDetailPage() {
     }
     const categoryMatches = BUDGET_TO_CATEGORY_MAP[key];
     if (!categoryMatches) return 0;
-    return expenses
+    const expenseActual = expenses
       .filter((exp) =>
         categoryMatches.some(
           (cat) => exp.category?.toLowerCase() === cat.toLowerCase()
         )
       )
       .reduce((sum, exp) => sum + exp.amount, 0);
+    if (key !== "budget_id_labor") return expenseActual;
+    const qboInstallDismantleCost = qboLaborEntries
+      .filter((entry) => {
+        const group = getLaborWorkGroup(entry.service_item);
+        return group === "install" || group === "dismantle";
+      })
+      .reduce((sum, entry) => sum + (entry.reg_hours + entry.ot_hours) * entry.hourly_rate, 0);
+    const manualInstallDismantleCost = laborEntries
+      .filter((entry) => {
+        const group = getLaborWorkGroup(entry.labor_type);
+        return group === "install" || group === "dismantle";
+      })
+      .reduce((sum, entry) => sum + entry.hours * SHOP_BUDGET_COST_RATE, 0);
+    return expenseActual + qboInstallDismantleCost + manualInstallDismantleCost;
   }
 
   // Allocation is the production source of truth for allowed hours. Actuals
@@ -811,6 +830,7 @@ export default function ProjectDetailPage() {
   function getFilteredQboLabor(): QboLaborEntry[] {
     const now = new Date();
     return qboLaborEntries.filter((e) => {
+      if (!matchesLaborServiceItemTag(e.service_item, laborServiceItemFilter)) return false;
       if (laborDateFilter === "all") return true;
       const d = new Date(e.date);
       if (laborDateFilter === "week") {
@@ -1292,6 +1312,11 @@ export default function ProjectDetailPage() {
         </CardHeader>
         {showBudgetBreakdown && (
           <CardContent data-slot="project-budget-table" className="min-w-0 max-w-full overflow-x-auto">
+          {laborSplit.unclassified.actualHours > 0 && (
+            <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              Unclassified labor: {formatNumber(laborSplit.unclassified.actualHours)} hrs ({formatCurrency(laborSplit.unclassified.actualCost)}). Excluded from category variances until the QBO Time service item is corrected.
+            </div>
+          )}
           <div data-slot="project-budget-mobile" className="space-y-3 lg:hidden">
             {BUDGET_DETAIL_FIELDS.map((field) => {
               const laborBucket = field.laborKind ? laborSplit[field.laborKind] : null;
@@ -1302,7 +1327,7 @@ export default function ProjectDetailPage() {
                 ?? (field.key === "budget_pm" && savedActuals[field.label] == null ? budgeted : getActualForBudgetField(field.key) + (savedActuals[field.label] ?? 0));
               const variance = budgeted - actual;
               const formulaNote = field.laborKind === "design" ? "Design sell: $125/hr · budget cost: $25/hr" : null;
-              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div><div className="font-medium">{field.label}</div>{formulaNote && <div className="mt-0.5 text-xs text-muted-foreground">{formulaNote}</div>}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? <>{formatNumber(budgeted)} hrs <span className="text-xs text-muted-foreground">({formatCurrency(laborBucket?.budgetCost ?? 0)})</span></> : formatCurrency(budgeted)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? <>{formatNumber(actual)} hrs <span className="text-xs text-muted-foreground">({formatCurrency(laborBucket?.actualCost ?? 0)})</span></> : formatCurrency(actual)}</div></div></div>;
+              return <div key={field.key} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><div><div className="font-medium">{field.label}</div>{formulaNote && <div className="mt-0.5 text-xs text-muted-foreground">{formulaNote}</div>}</div><div className={variance < 0 ? "text-red-600" : "text-green-600"}>{variance >= 0 ? "+" : ""}{field.isHours ? `${formatNumber(variance)} hrs` : formatCurrency(variance)}</div></div><div className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><span className="block text-xs text-muted-foreground">Budgeted</span>{field.isHours ? <>{formatNumber(budgeted)} hrs <span className="text-xs text-muted-foreground">({formatCurrency(laborBucket?.budgetCost ?? 0)})</span></> : formatCurrency(budgeted)}</div><div><span className="block text-xs text-muted-foreground">Actual</span>{field.isHours ? <>{formatNumber(actual)} hrs <span className="text-xs text-muted-foreground">({formatCurrency(laborBucket?.actualCost ?? 0)})</span></> : <>{formatCurrency(actual)}{field.key === "budget_id_labor" && <span className="ml-1 text-xs text-muted-foreground">({formatNumber(laborSplit.install.actualHours + laborSplit.dismantle.actualHours)} hrs)</span>}</>}</div></div></div>;
             })}
           </div>
           <div className="hidden lg:block">
@@ -1366,14 +1391,10 @@ export default function ProjectDetailPage() {
                 const actualLaborDollars = laborBucket?.actualCost ?? 0;
                 const laborBudgetDollars = laborBucket ? budgeted * laborBudgetRate : 0;
                 const qboLaborForRow = field.laborKind
-                  ? qboLaborEntries.filter((entry) => field.laborKind === "design"
-                    ? isDesignLaborCode(entry.service_item)
-                    : !isDesignLaborCode(entry.service_item))
+                  ? qboLaborEntries.filter((entry) => getLaborWorkGroup(entry.service_item) === field.laborKind)
                   : [];
                 const manualLaborForRow = field.laborKind
-                  ? laborEntries.filter((entry) => field.laborKind === "design"
-                    ? isDesignLaborCode(entry.labor_type)
-                    : !isDesignLaborCode(entry.labor_type))
+                  ? laborEntries.filter((entry) => getLaborWorkGroup(entry.labor_type) === field.laborKind)
                   : [];
                 const manualLaborRate = laborBudgetRate;
 
@@ -1453,7 +1474,7 @@ export default function ProjectDetailPage() {
                             <span className="font-mono">{formatNumber(actual)} hrs</span>
                             <span className="text-muted-foreground text-xs ml-1">({formatCurrency(actualLaborDollars)})</span>
                           </span>
-                        ) : formatCurrency(actual)}
+                        ) : <>{formatCurrency(actual)}{field.key === "budget_id_labor" && <span className="ml-1 text-xs text-muted-foreground">({formatNumber(laborSplit.install.actualHours + laborSplit.dismantle.actualHours)} hrs)</span>}</>}
                       </TableCell>
                       {editingBudget && (
                         <TableCell className="text-right">
@@ -1578,21 +1599,33 @@ export default function ProjectDetailPage() {
                 : expenseActual + manualOverride;
               return { budgeted, actual };
             };
-            const barData = BUDGET_DETAIL_FIELDS.map((field) => {
-              const dollars = getChartDollars(field);
-              return {
-                name: field.label,
-                Budgeted: dollars.budgeted,
-                Actual: dollars.actual,
-              };
-            });
+            const barData = [
+              ...BUDGET_DETAIL_FIELDS.map((field) => {
+                const dollars = getChartDollars(field);
+                return {
+                  name: field.label,
+                  Budgeted: dollars.budgeted,
+                  Actual: dollars.actual,
+                };
+              }),
+              ...(laborSplit.unclassified.actualCost > 0 ? [{
+                name: "Unclassified Labor",
+                Budgeted: 0,
+                Actual: laborSplit.unclassified.actualCost,
+              }] : []),
+            ];
 
-            const pieData = BUDGET_DETAIL_FIELDS
-              .map((field, i) => {
+            const pieData = [
+              ...BUDGET_DETAIL_FIELDS.map((field, i) => {
                 const dollars = getChartDollars(field).actual;
                 return { name: field.label, value: dollars, color: PIE_COLORS[i % PIE_COLORS.length] };
-              })
-              .filter((d) => d.value > 0);
+              }),
+              ...(laborSplit.unclassified.actualCost > 0 ? [{
+                name: "Unclassified Labor",
+                value: laborSplit.unclassified.actualCost,
+                color: "#991b1b",
+              }] : []),
+            ].filter((d) => d.value > 0);
 
             const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
@@ -2205,7 +2238,7 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
 
-                  {/* Date filter + View toggle */}
+                  {/* Date/service-item filters + View toggle */}
                   <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b">
                     <div className="flex gap-1">
                       {(["all", "week", "month", "custom"] as const).map((f) => (
@@ -2227,9 +2260,21 @@ export default function ProjectDetailPage() {
                         <Input type="date" className="h-7 text-xs w-36" value={laborCustomEnd} onChange={(e) => setLaborCustomEnd(e.target.value)} />
                       </div>
                     )}
+                    <Select value={laborServiceItemFilter} onValueChange={(value) => setLaborServiceItemFilter(value ?? "all")}>
+                      <SelectTrigger className="h-7 w-52 text-xs">
+                        <SelectValue placeholder="Service item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Service item: All</SelectItem>
+                        {listLaborServiceItemTags(qboLaborEntries).map((tag) => (
+                          <SelectItem key={tag.value} value={tag.value}>{tag.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <div className="ml-auto flex gap-1">
                       <Button size="sm" variant={laborView === "employee" ? "default" : "ghost"} onClick={() => { setLaborView("employee"); setExpandedLaborRows(new Set()); }} className="text-xs h-7">By Employee</Button>
                       <Button size="sm" variant={laborView === "date" ? "default" : "ghost"} onClick={() => { setLaborView("date"); setExpandedLaborRows(new Set()); }} className="text-xs h-7">By Date</Button>
+                      <Button size="sm" variant={laborView === "serviceItem" ? "default" : "ghost"} onClick={() => { setLaborView("serviceItem"); setExpandedLaborRows(new Set()); }} className="text-xs h-7">By Service Item</Button>
                     </div>
                   </div>
 

@@ -38,18 +38,23 @@ test("separates designer and shop hours while preserving verified QBO Time actua
   });
 });
 
-test("normalizes design coding and treats uncoded/non-design labor as shop labor", () => {
+test("keeps install, dismantle, and unclassified time out of shop hours", () => {
   const split = buildProjectBudgetLaborSplit({
     quotedDesignDollars: 0,
     shopBudgetHours: null,
     qboEntries: [
       { service_item: " design   labor ", reg_hours: 2, ot_hours: 0, hourly_rate: 35 },
+      { service_item: "INSTALL LABOR", reg_hours: 4, ot_hours: 0, hourly_rate: 30 },
+      { service_item: "STRIKE LABOR", reg_hours: 5, ot_hours: 0, hourly_rate: 32 },
       { service_item: null, reg_hours: 3, ot_hours: 0, hourly_rate: 20 },
     ],
-    manualEntries: [],
+    manualEntries: [{ labor_type: "I&D Labor", hours: 1 }],
   });
 
   assert.equal(split.design.actualHours, 2);
-  assert.equal(split.shop.actualHours, 3);
+  assert.equal(split.shop.actualHours, 0);
+  assert.equal(split.install.actualHours, 5);
+  assert.equal(split.dismantle.actualHours, 5);
+  assert.equal(split.unclassified.actualHours, 3);
   assert.equal(split.shop.budgetHours, 0);
 });

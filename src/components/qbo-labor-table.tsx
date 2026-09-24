@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { QboLaborEntry } from "@/lib/types";
 import { formatCurrency } from "@/lib/constants";
+import { getLaborServiceItemTag } from "@/lib/labor-service-item";
 import {
   Table,
   TableBody,
@@ -14,7 +15,7 @@ import {
 
 interface QboLaborTableProps {
   entries: QboLaborEntry[];
-  view: "employee" | "date";
+  view: "employee" | "date" | "serviceItem";
   expandedRows: Set<string>;
   onToggleRow: (key: string) => void;
 }
@@ -33,6 +34,9 @@ export function QboLaborTable({ entries, view, expandedRows, onToggleRow }: QboL
 
   if (view === "employee") {
     return <ByEmployeeView entries={entries} expandedRows={expandedRows} onToggleRow={onToggleRow} />;
+  }
+  if (view === "serviceItem") {
+    return <ByServiceItemView entries={entries} expandedRows={expandedRows} onToggleRow={onToggleRow} />;
   }
 
   return <ByDateView entries={entries} expandedRows={expandedRows} onToggleRow={onToggleRow} />;
@@ -83,7 +87,8 @@ function ByEmployeeView({ entries, expandedRows, onToggleRow }: Omit<QboLaborTab
               <TableRow key={entry.id} className="bg-muted/20">
                 <TableCell></TableCell>
                 <TableCell className="text-muted-foreground text-sm">
-                  {new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  <div>{new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                  <ServiceItemTag serviceItem={entry.service_item} />
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">{entry.reg_hours.toFixed(1)}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{entry.ot_hours.toFixed(1)}</TableCell>
@@ -150,6 +155,77 @@ function ByDateView({ entries, expandedRows, onToggleRow }: Omit<QboLaborTablePr
               <TableRow key={entry.id} className="bg-muted/20">
                 <TableCell></TableCell>
                 <TableCell></TableCell>
+                <TableCell className="text-sm">
+                  <div>{entry.employee_name}</div>
+                  <ServiceItemTag serviceItem={entry.service_item} />
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">{entry.reg_hours.toFixed(1)}</TableCell>
+                <TableCell className="text-right font-mono text-sm">{entry.ot_hours.toFixed(1)}</TableCell>
+                <TableCell className="text-right font-mono text-sm">{(entry.reg_hours + entry.ot_hours).toFixed(1)}</TableCell>
+                <TableCell className="text-right font-mono text-sm">{formatCurrency((entry.reg_hours + entry.ot_hours) * entry.hourly_rate)}</TableCell>
+              </TableRow>
+            ))}
+          </Fragment>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function ServiceItemTag({ serviceItem }: { serviceItem: string | null | undefined }) {
+  const tag = getLaborServiceItemTag(serviceItem);
+  const tone = tag.group === "design"
+    ? "bg-blue-50 text-blue-700 border-blue-200"
+    : tag.group === "install" || tag.group === "dismantle"
+      ? "bg-amber-50 text-amber-800 border-amber-200"
+      : tag.group === "unclassified"
+        ? "bg-red-50 text-red-700 border-red-200"
+        : "bg-slate-50 text-slate-700 border-slate-200";
+  return <span className={`mt-1 inline-flex rounded border px-1.5 py-0.5 text-[10px] font-medium ${tone}`}>{tag.label}</span>;
+}
+
+function ByServiceItemView({ entries, expandedRows, onToggleRow }: Omit<QboLaborTableProps, "view">) {
+  const byServiceItem = new Map<string, { label: string; entries: QboLaborEntry[] }>();
+  for (const entry of entries) {
+    const tag = getLaborServiceItemTag(entry.service_item);
+    const group = byServiceItem.get(tag.value) ?? { label: tag.label, entries: [] };
+    group.entries.push(entry);
+    byServiceItem.set(tag.value, group);
+  }
+  const groups = [...byServiceItem.entries()]
+    .map(([key, group]) => ({
+      key,
+      label: group.label,
+      entries: group.entries.sort((a, b) => b.date.localeCompare(a.date)),
+      employees: new Set(group.entries.map((entry) => entry.employee_name)).size,
+      reg: group.entries.reduce((sum, entry) => sum + entry.reg_hours, 0),
+      ot: group.entries.reduce((sum, entry) => sum + entry.ot_hours, 0),
+      total: group.entries.reduce((sum, entry) => sum + entry.reg_hours + entry.ot_hours, 0),
+      cost: group.entries.reduce((sum, entry) => sum + (entry.reg_hours + entry.ot_hours) * entry.hourly_rate, 0),
+    }))
+    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow><TableHead className="w-8"></TableHead><TableHead>Service Item</TableHead><TableHead>Employees</TableHead><TableHead className="text-right">Reg Hrs</TableHead><TableHead className="text-right">OT Hrs</TableHead><TableHead className="text-right">Total Hrs</TableHead><TableHead className="text-right">Cost</TableHead></TableRow>
+      </TableHeader>
+      <TableBody>
+        {groups.map((group) => (
+          <Fragment key={group.key}>
+            <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => onToggleRow(group.key)}>
+              <TableCell className="text-center text-muted-foreground">{expandedRows.has(group.key) ? "\u25BE" : "\u25B8"}</TableCell>
+              <TableCell className="font-medium"><ServiceItemTag serviceItem={group.key === "UNCLASSIFIED" ? null : group.key} /></TableCell>
+              <TableCell className="text-muted-foreground">{group.employees} employee{group.employees !== 1 ? "s" : ""}</TableCell>
+              <TableCell className="text-right font-mono">{group.reg.toFixed(1)}</TableCell>
+              <TableCell className="text-right font-mono">{group.ot.toFixed(1)}</TableCell>
+              <TableCell className="text-right font-mono font-medium">{group.total.toFixed(1)}</TableCell>
+              <TableCell className="text-right font-mono">{formatCurrency(group.cost)}</TableCell>
+            </TableRow>
+            {expandedRows.has(group.key) && group.entries.map((entry) => (
+              <TableRow key={entry.id} className="bg-muted/20">
+                <TableCell></TableCell>
+                <TableCell className="text-sm text-muted-foreground">{new Date(entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</TableCell>
                 <TableCell className="text-sm">{entry.employee_name}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{entry.reg_hours.toFixed(1)}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{entry.ot_hours.toFixed(1)}</TableCell>
