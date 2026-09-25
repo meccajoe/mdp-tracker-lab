@@ -25,6 +25,42 @@ Migration history reports 51 entries. The source repository has additional migra
 Do not apply the bootstrap to the hosted lab until the disposable restore is verified. No production writes, restart, deployment, credential rotation, outgoing messages or integration activity.
 Reference data and sample quotes will be seeded separately. Do not clone production business rows as a shortcut.
 
+## Verified schema bootstrap, 2026-09-25
+
+The schema-only catalog export, PostgreSQL 17 restore, and semantic parity
+comparison are complete. Use only:
+
+- `supabase/bootstrap/20260925_production_public_schema.sql`
+- `docs/lab/SCHEMA_BOOTSTRAP_REVIEW.md`
+- `scripts/lab/verify-schema-bootstrap.sh`
+- `scripts/lab/compare-schema-bootstrap.sh`
+- `tools/lab/`
+
+The reviewed bootstrap declares `pgcrypto`, `uuid-ossp`, and `btree_gist`, then
+preserves the exported public schema. It contains no production table data.
+Do not substitute the historical migration directory.
+
+Repeat the disposable verification from the repository root:
+
+```bash
+bash scripts/lab/verify-schema-bootstrap.sh
+```
+
+To regenerate through a transaction forced read-only and compare all semantic
+catalog signatures against a fresh PostgreSQL 17 restore:
+
+```bash
+bash scripts/lab/compare-schema-bootstrap.sh
+```
+
+The local restore uses isolated auth compatibility stubs because Docker Desktop
+could not provide a local Supabase stack. It validates schema only; it does not
+validate authentication, JWTs, role switching, policy outcomes, or runtime RLS.
+The stub prelude is tooling and must never be applied to a hosted project.
+
+The hosted lab remains untouched. Applying this bootstrap to the hosted lab
+requires separate authorization and the preflight in the review document.
+
 ## Deployment prerequisites
 - Verify runtime environment points exclusively to the lab project.
 - Current checks reject known integration environment prefixes and known outbound API paths, with browser connect-src restricted to the lab.
