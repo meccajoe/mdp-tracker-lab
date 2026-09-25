@@ -2,7 +2,7 @@
 
 Target repository: `meccajoe/mdp-tracker-lab`, branch `main`.
 Vercel team: Meccanics (`team_EEoCcHOGaLxcpWCZACyMGC54`).
-Create a new project named `mdp-tracker-lab`; do not reuse `mdp-tracker` or import its settings.
+Configured project: `mdp-tracker-lab` (`prj_H6frjmh8wPjYXFzK4aBHRjd7VhmF`). Do not reuse `mdp-tracker` or import its settings.
 Framework: Next.js; root: repository root; install from existing lockfile; build: npm run build.
 
 Configure only credentials obtained from Supabase project `gkvaeqlqrthztobxitvn`, organization `cqyvrbacdmbytzmoakag`:
@@ -17,4 +17,6 @@ After project creation, record its exact project ID and deployment URL. Configur
 
 Verify signed-out denial, actual Joe/Paul login, workspace permissions, blocked integrations, and save/reopen against the lab before loading samples or handing over. Review remaining SECURITY DEFINER exposure. Do not claim successful login from catalog checks.
 
-Current blocker: exposed Vercel tools cannot create a project or configure environment variables. An unparameterized deployment was rejected by automatic approval review. Obtain user approval for browser fallback to create/configure this exact project; secure sign-in may require user handoff. Never request credentials in chat.
+Project creation and first deployment completed using user-approved browser access. First READY deployment: dpl_DPYGEKoSDtjS4WvD8Xs6kwU9iue8 at source 20af07ac792b386c51e63e429555d604f52cce15. Verified login page: https://mdp-tracker-lab-meccanics.vercel.app/login.
+
+Authentication remains the next gate. Cloud browser URL policy blocked the Google transition and direct guard-route browsing; do not interpret those blocks as application responses. Verify lab provider/redirect configuration and actual login through an authorized supported path. No sample rows or user permissions were created during deployment.

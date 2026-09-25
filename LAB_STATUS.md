@@ -12,7 +12,7 @@
 - Reviewed bootstrap, repeatable exporter/verifier, and 1,722-signature source/local parity check are recorded in `supabase/bootstrap/20260925_production_public_schema.sql`, `scripts/lab/`, `tools/lab/`, and `docs/lab/SCHEMA_BOOTSTRAP_REVIEW.md`.
 
 ## Next work
-1. Create the dedicated Vercel project and configure only lab credentials.
+1. Dedicated Vercel project created and first deployment READY; finish live authentication and authorization verification.
 2. Configure authentication and verify Joe/Paul login and workspace permissions.
 3. Review inherited view/function exposure and verify real auth/RLS behavior before loading samples or opening access.
 4. Load approved sample data, then reproduce Fonroche.
@@ -32,7 +32,7 @@
 - App checks: lab safety 9/9, TypeScript pass, clean placeholder build pass. Direct ESLint reports 150 existing errors and 16 warnings; the configured `next lint` command is obsolete under Next.js 16.
 
 ## Not yet ready
-Hosted database bootstrap is complete; see docs/lab/HOSTED_BOOTSTRAP_VERIFICATION.md. No application deployment, auth-user creation, live data refresh, or completed quote implementation is claimed.
+Hosted database bootstrap is complete; see docs/lab/HOSTED_BOOTSTRAP_VERIFICATION.md. First application deployment is READY. Auth-user creation, successful login, live data refresh, and completed quote implementation remain unverified/not completed.
 The original production credential reported by Hermes has not been rotated as part of this task. Coordinate that separately.
 
 ## Session reporting
@@ -45,3 +45,12 @@ Update this file with completed changes, validation evidence, current blockers, 
 - Remaining advisors: 20 RLS-enabled tables without client policies, two anon-executable and 20 authenticated-executable SECURITY DEFINER functions. These remain review items, not a clean security certification.
 - Attempted authenticated role probe was denied by the management connection; no role grants were changed to bypass this. Real JWT/RLS and browser tests remain pending.
 - Vercel project creation/environment configuration are unavailable in the exposed connector. Automatic approval review rejected an unparameterized deployment because its destination was not established. No deployment occurred. Browser fallback requires user approval; exact proposed setup is in docs/lab/DEPLOYMENT_SETUP.md.
+
+## First Vercel deployment — September 25, 2026
+- Project mdp-tracker-lab: prj_H6frjmh8wPjYXFzK4aBHRjd7VhmF, team team_EEoCcHOGaLxcpWCZACyMGC54.
+- Deployment dpl_DPYGEKoSDtjS4WvD8Xs6kwU9iue8 is READY; source main at 20af07ac792b386c51e63e429555d604f52cce15, Next.js 16.1.6, Node 24.x. Build/deployment took about 3 minutes.
+- Verified browser URL: https://mdp-tracker-lab-meccanics.vercel.app/login. Root redirects signed-out visitor to login; sandbox banner visible.
+- Exactly NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY saved for Production and Preview; no shared team variables linked. User entered server key directly in Vercel; value was not read or printed.
+- Google sign-in transition was rejected by cloud browser URL policy; no attempt to bypass. Direct API guard navigation returned ERR_BLOCKED_BY_CLIENT. Neither test is claimed successful.
+- Remaining: verify/configure lab Google provider and redirects, real JWT/RLS and workspace permissions, server-side database access, then seed samples and onboard Paul. No production resources changed.
+- The earlier Vercel connector blocker was resolved through user-approved browser setup. This documentation commit may trigger a subsequent Git deployment; the READY evidence above applies to the specified source SHA.
