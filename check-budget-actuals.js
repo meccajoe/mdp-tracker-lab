@@ -1,8 +1,12 @@
+const supabaseUrl = process.env.SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !serviceRoleKey) {
+  throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+}
+
 const { createClient } = require('@supabase/supabase-js');
-const sb = createClient(
-  'https://yaftybqzlbbvzwwdzlny.supabase.co',
-  '__REMOVED_SUPABASE_SERVICE_ROLE_CREDENTIAL__'
-);
+const sb = createClient(supabaseUrl, serviceRoleKey);
 
 async function run() {
   // Pick a few active projects with expenses and check budget vs actual
