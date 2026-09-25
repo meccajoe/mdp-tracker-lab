@@ -3,7 +3,7 @@
 ## Confirmed
 - Private repository: meccajoe/mdp-tracker-lab.
 - Sanitized bootstrap main verified at f493458f3a72b27500d10c2670bdf009efee4646.
-- Supabase project gkvaeqlqrthztobxitvn exists in Mecca Design & Production; schema bootstrap and hosted corrections are applied. Hosted parity: 1,722 signatures, zero differences; 75 tables report zero rows.
+- Supabase project gkvaeqlqrthztobxitvn exists in Mecca Design & Production; schema bootstrap and hosted corrections are applied. Before hardening, hosted parity was 1,722 signatures with zero differences and 75 tables reported zero rows. Subsequent lab-only hardening intentionally changes two view options and nine function search paths.
 - Original source baseline and sanitation details: LAB_BOOTSTRAP_PROVENANCE.md.
 - Vercel cron schedules removed from lab configuration.
 - Lab environment example contains no external integration credentials.
@@ -37,3 +37,11 @@ The original production credential reported by Hermes has not been rotated as pa
 
 ## Session reporting
 Update this file with completed changes, validation evidence, current blockers, and the next concrete task. Keep business decisions in the working brief.
+
+## Hosted hardening — September 25, 2026
+- Applied `lab_harden_view_and_function_resolution` only to gkvaeqlqrthztobxitvn; replay SQL: `supabase/bootstrap/lab_view_function_hardening.sql`.
+- All three public views now use security_invoker=true. Nine previously mutable function search paths are pinned to pg_catalog, public, pg_temp. Client roles cannot CREATE in public.
+- Catalog verification and pure-function smoke checks passed. Security advisors no longer report security_definer_view or function_search_path_mutable.
+- Remaining advisors: 20 RLS-enabled tables without client policies, two anon-executable and 20 authenticated-executable SECURITY DEFINER functions. These remain review items, not a clean security certification.
+- Attempted authenticated role probe was denied by the management connection; no role grants were changed to bypass this. Real JWT/RLS and browser tests remain pending.
+- Vercel project creation/environment configuration are unavailable in the exposed connector. Automatic approval review rejected an unparameterized deployment because its destination was not established. No deployment occurred. Browser fallback requires user approval; exact proposed setup is in docs/lab/DEPLOYMENT_SETUP.md.
