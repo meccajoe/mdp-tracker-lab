@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { assertLabEnvironment, isLabBlockedPath, LAB_PROJECT_REF, LAB_SUPABASE_URL } from '../src/lib/lab-safety.mjs';
+const token = (ref,role) => 'eyJ0eXAiOiJKV1QifQ.' + Buffer.from(JSON.stringify({ref,role})).toString('base64url') + '.fixture';
+const env = () => ({NEXT_PUBLIC_SUPABASE_URL:LAB_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY:token(LAB_PROJECT_REF,'anon'),SUPABASE_SERVICE_ROLE_KEY:token(LAB_PROJECT_REF,'service_role')});
+test('accepts matching lab credentials',()=>assert.doesNotThrow(()=>assertLabEnvironment(env())));
+test('rejects another project URL and URL lookalikes',()=>{for(const url of ['https://production.supabase.co',LAB_SUPABASE_URL+'.evil.test',LAB_SUPABASE_URL+'/']) assert.throws(()=>assertLabEnvironment({...env(),NEXT_PUBLIC_SUPABASE_URL:url}));});
+test('rejects mismatching diagnostic URL',()=>assert.throws(()=>assertLabEnvironment({...env(),SUPABASE_URL:'https://other.supabase.co'})));
+test('rejects another project JWT without revealing it',()=>{const secret=token('other','service_role');assert.throws(()=>assertLabEnvironment({...env(),SUPABASE_SERVICE_ROLE_KEY:secret}),e=>!e.message.includes(secret));});
+test('rejects privileged public key',()=>assert.throws(()=>assertLabEnvironment({...env(),NEXT_PUBLIC_SUPABASE_ANON_KEY:token(LAB_PROJECT_REF,'service_role')})));
+test('rejects missing and malformed keys',()=>{for(const key of ['', 'placeholder','eyJbad']) assert.throws(()=>assertLabEnvironment({...env(),SUPABASE_SERVICE_ROLE_KEY:key}));});
+test('rejects integration credentials',()=>{for(const name of ['HUBSPOT_API_KEY','MDP_SLACK_BOT_TOKEN','ADA_GOOGLE_SERVICE_ACCOUNT_JSON','QBO_ACCESS_TOKEN']) assert.throws(()=>assertLabEnvironment({...env(),[name]:'fixture'}));});
+test('blocks integration routes, aliases and encoded paths',()=>{for(const path of ['/api/cron/sync-tsheets-labor','/api/slack/events','/api/webhooks/hubspot','/api/line-items/sync','/api/ada/workspaces/x/revisions/y/sheet','/api/projects/x/subscriptions/test-delivery','/api/ada/workspaces/x/messages','/api/%71bo/project-pnl','/api/projects/x/postmortem/generate']) assert.equal(isLabBlockedPath(path),true,path);});
+test('keeps ordinary local workflows available',()=>{for(const path of ['/login','/auth/callback','/api/quote-workspaces','/api/materials/search','/api/projects/lookup']) assert.equal(isLabBlockedPath(path),false,path);});

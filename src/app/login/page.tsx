@@ -16,7 +16,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://projects.meccanics.com",
+        redirectTo: window.location.origin,
         queryParams: {
           hd: "meccadesign.com",
           prompt: "select_account",
@@ -34,7 +34,7 @@ export default function LoginPage() {
     <div className="flex min-h-dvh items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center pb-4">
-          <div className="text-2xl font-bold text-gray-900 mb-1">MDP Tracker</div>
+          <div className="text-2xl font-bold text-gray-900 mb-1">MDP Tracker Lab</div>
           <CardTitle className="text-base font-normal text-gray-500">
             Mecca Design &amp; Production
           </CardTitle>

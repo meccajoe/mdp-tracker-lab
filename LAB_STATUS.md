@@ -11,11 +11,19 @@
 
 ## Next work
 1. Verify a reproducible database bootstrap using the actual schema and historical migration audit.
-2. Add runtime isolation checks, block integration/cron entry points, and add a visible sandbox banner.
+2. Validate isolation checks, blocked integration routes, sandbox banner and login redirect in a full build/running app. Implementation is committed; nine isolated guard tests pass.
 3. Create the dedicated Vercel project and configure only lab credentials.
 4. Configure authentication and verify Joe/Paul login and workspace permissions.
 5. Load approved sample data, then reproduce Fonroche.
 6. Configure Paul's Codex workspace when his GitHub username is available.
+
+## Latest implementation checks
+- Added strict lab URL and legacy JWT project/role checks at Next configuration load and API/auth request handling.
+- Reject known external integration environment variables and block known integration API paths.
+- Restricted browser connection destinations, removed production CORS settings, added noindex and a sandbox banner.
+- Login redirects to the current origin instead of a production hostname.
+- Nine focused Node tests pass. Full Next build, TypeScript and browser verification remain pending in an authenticated checkout.
+- Schema-only bootstrap procedure: docs/lab/DATABASE_BOOTSTRAP.md.
 
 ## Not yet ready
 No application deployment, database bootstrap, auth-user creation, live data refresh, or completed quote implementation is claimed.

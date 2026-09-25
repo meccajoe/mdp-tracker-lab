@@ -7,7 +7,7 @@ import AuthGuard from "@/components/AuthGuard";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "MDP Tracker",
+  title: "MDP Tracker Lab",
   description: "Internal project cost tracking for Mecca Design & Production",
   icons: {
     icon: [
@@ -27,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <div role="note" className="bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-950">Tracker Lab — sandbox data and changes do not update production.</div>
         <ThemeProvider>
           <AuthGuard>
             <AdminViewProvider>
