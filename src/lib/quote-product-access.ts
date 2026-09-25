@@ -1,5 +1,6 @@
 const QUOTE_PRODUCT_ALLOWED_EMAILS = [
   "joe@meccadesign.com",
+  "paul@meccadesign.com",
   "mecca.joe@gmail.com",
 ] as const;
 

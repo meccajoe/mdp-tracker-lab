@@ -1,20 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/sync-tsheets-labor",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/sync-line-items",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/sync-hubspot-quotes",
-      "schedule": "30 9 * * *"
-    },
-    {
-      "path": "/api/cron/evaluate-project-subscriptions",
-      "schedule": "5 * * * *"
-    }
-  ]
+  "crons": []
 }
