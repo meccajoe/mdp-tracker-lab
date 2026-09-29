@@ -80,3 +80,8 @@ Update this file with completed changes, validation evidence, current blockers, 
 - Source distinctions and intentional invalid-input guards documented in V27_CALCULATOR.md. New sample still matches every cached Fonroche line, $28,953.192 sell and $11,890.64 build budget.
 - Verification: 13 existing calculator tests, 2 request validation tests, 10 estimator tests, strict component/API TypeScript, and local UI/API/PostgreSQL save/reopen (all four panels) passed. Local browser binaries remain unavailable; real-session and visual/mobile QA remain outstanding.
 - Next engineering slice: reconcile trade/allowed hours into capacity and preserve demand across partial weeks, scenario status changes and committed work. Do not silently resolve the calendar-day versus workday allocation decision without Paul.
+
+## Quote route authentication fix — September 29, 2026
+- Joe reported /quotes returned 404. Both quote pages ran a cookie-only server-page access check before the browser session could supply its bearer token. The browser client stores its session locally.
+- Removed the premature server-page check from the two data-free page shells. Existing AuthGuard, QuoteAccessGate, and all authenticated API/workspace/RLS checks remain in place. No data is loaded by the page shells.
+- Both changed TSX routes transpile. Hosted deployment verification follows; signed-in user acceptance remains pending.

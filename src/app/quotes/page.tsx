@@ -1,12 +1,8 @@
-import { notFound } from "next/navigation";
-
 import { QuoteAccessGate } from "@/components/quote-access-gate";
 import { QuoteLibrary } from "@/components/quote-library";
-import { requireQuoteProductAccess } from "@/lib/ada-server";
 
-export default async function QuotesPage() {
-  const access = await requireQuoteProductAccess();
-  if (!access.ok) notFound();
+// Authentication uses the browser session; the gate and APIs verify its bearer token.
+export default function QuotesPage() {
   return (
     <QuoteAccessGate>
       <QuoteLibrary />
