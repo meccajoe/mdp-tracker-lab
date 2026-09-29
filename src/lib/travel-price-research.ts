@@ -83,9 +83,8 @@ export function parseTravelResearch(value: unknown): TravelResearch {
       || typeof row.selectedAt !== 'string' || Number.isNaN(Date.parse(row.selectedAt)))
       throw new Error('Invalid sample travel selection.');
     selections[kind] = {
-      kind, source: 'lab_fixture', unit: units[kind], offerId: row.offerId,
-      label: row.label, unitAmount: row.unitAmount, search: parseTravelSearch(row.search),
-      searchedAt: row.searchedAt, selectedAt: row.selectedAt,
+      ...fixture, search: parseTravelSearch(row.search),
+      searchedAt: row.searchedAt as string, selectedAt: row.selectedAt as string,
     };
   }
   return { version: 1, selections };
