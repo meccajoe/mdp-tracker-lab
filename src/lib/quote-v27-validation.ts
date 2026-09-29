@@ -1,5 +1,6 @@
-import { parseEstimators } from './quote-v27-estimators';
-import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type QuoteV27, type Settings } from './quote-v27';
+import { parseEstimators } from './quote-v27-estimators.ts';
+import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type QuoteV27, type Settings } from './quote-v27.ts';
+import { parseTravelResearch } from './travel-price-research.ts';
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected an object.');
@@ -47,6 +48,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     }),
   };
   if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
+  if(v.travelResearch !== undefined) parsed.travelResearch=parseTravelResearch(v.travelResearch);
   calculateQuoteV27(parsed);
   return parsed;
 }

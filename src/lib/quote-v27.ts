@@ -1,4 +1,5 @@
 import { calculateEstimators, type Estimators } from './quote-v27-estimators.ts';
+import type { TravelResearch } from './travel-price-research.ts';
 /** Pure v27 workbook calculations. No live catalog, persistence, or integration calls. */
 export const LINE_TYPES = [
   "Fabrication", "Graphics", "beMatrix / SEG", "Design / Engineering / CAD",
@@ -36,6 +37,7 @@ export type QuoteLine = {
 };
 export type QuoteV27 = {
   estimators?: Estimators;
+  travelResearch?: TravelResearch;
   schemaVersion: 1; assumptionsVersion: string; commission: number;
   settings: Settings; trades: Trade[]; catalog: Material[];
   takeoffs: Takeoff[]; lines: QuoteLine[];
