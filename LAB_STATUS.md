@@ -1,5 +1,27 @@
 # Lab status
 
+## Spreadsheet-style Quote Builder implementation — September 29, 2026
+- Access to Paul's signed-in blank Google Sheet confirmed. Read-only XLSX export inspected; no source sheet edits or live integration enabled. Source SHA256 a1aa9b0567daaa7c2c280f154aaaffad503cdbc810ff8ee9b0fac6bc212fe2cf.
+- Added default Quote Builder grid matching A–X columns, yellow inputs, dark headers, frozen item names, distinct computed/override/final price, budgets, totals and economics. Grid edits use existing nullable overrides and append-only save flow. Existing tab workflows remain available.
+- Blank creation now uses its own extracted settings, 699 catalog entries, 15 item rows, seven named spares and 15 service rows. Rates match the previous engine assumptions; estimates/overrides start empty or zero. Service estimator links initialized. Fonroche sample button removed from new-quote UI; historical snapshots/fixtures retained. No migration or hosted data writes.
+- Dependencies installed using npm ci and the existing unchanged lockfile. Full TypeScript and Next.js build pass (dummy lab-format keys for build only). 37 tests pass: 32 calculator/estimator/safety + two validation + three blank-template tests. Initial combined tsx/mjs test invocation used the wrong loader; reran each suite with its documented loader successfully.
+- Browser verification of actual editor in isolated local harness: blank start, material/hour edits ($440.84 including automatic PM), zero price override, restore, save/reload, takeoff quantity/cost/hour ($714.82 after second item), restore calculated takeoff cost, and second save/reload pass. API/auth/storage are replaced by a browser-local test adapter; this is not hosted persistence evidence. Desktop scrolling checked and corrected; mobile and real-session hosted acceptance remain outstanding.
+- GitHub read succeeds; push dry-run fails with missing HTTPS authentication (could not read Username; terminal prompts disabled). No push or deployment occurred. Need Git authentication for meccajoe/mdp-tracker-lab, then push and verify Vercel source SHA/READY and Paul's real edit/save/reopen.
+- Temporary local preview: http://127.0.0.1:4173, server/harness under /private/tmp/mdp-quote-preview. Test saves are browser-local, not lab quotes. Preview runtime is temporary; restart requires the recorded bundled Node executable. No real environment keys were loaded.
+
+## Blank-template layout request — September 29, 2026
+- Paul selected spreadsheet-style layout as the first change and supplied the blank Google Sheets template (linked in WORKING_BRIEF.md), explicitly replacing Fonroche sample data as the reference for this work.
+- Direct web read failed; browser navigation reached Google sign-in. Template layout/formulas have not yet been inspected. Browser sheet opened for user sign-in; an uploaded XLSX is another way to supply the reference.
+- No product implementation, pricing changes, quote data writes, commit or deployment performed for this request yet. Resume with template inspection, then implement a focused layout/blank-start change and verify the authorized test/push/deploy loop.
+
+## Paul's local setup check — September 29, 2026
+- Read AGENTS.md, this status, WORKING_BRIEF.md and V27_CALCULATOR.md before changes. Paul will choose one small workflow change for the first edit/test/push/deploy acceptance loop; no product or pricing changes made during setup inspection.
+- Checkout was clean on main at 70c0b44; GitHub read access verified and remote HEAD matches. Git author configured. Push permission and current Vercel deployment status remain unverified.
+- Bundled Node v24.19.0 runs all 32 calculator, estimator and lab-safety tests successfully, including Fonroche regression expectations.
+- No local node_modules, actual environment file or .vercel project link present; node/npm/gh/vercel are not on the shell PATH. Bundled Node is available by absolute path. Full app checks require installing existing locked dependencies; real local service tests require lab-only configuration. No credentials read or changed.
+- Existing notes document Git-triggered deployment to mdp-tracker-lab; no direct Vercel connector is available in this session. Verify deployment access and exact source SHA when shipping the chosen change. Paul's real login, workspace authorization and hosted save/reopen remain unverified.
+- Preserve saved quotes/revisions and separate calculated values from overrides. Keep Fonroche as the pricing baseline unless Paul explicitly approves a rule change; Joe retains production promotion ownership.
+
 ## Confirmed
 - Private repository: meccajoe/mdp-tracker-lab.
 - Sanitized bootstrap main verified at f493458f3a72b27500d10c2670bdf009efee4646.

@@ -4,6 +4,8 @@
 Paul can describe changes to Codex, build and deploy them to a persistent sandbox, and iterate independently. Joe reviews production promotion. Paul joins development before the new quote workspace is finished.
 
 ## Product starting point
+
+Paul's first requested change (September 29, 2026): make the website quote builder resemble his blank spreadsheet template. Use https://docs.google.com/spreadsheets/d/1Wbnlz1Th3zC2nKgBBFJUjZw4lGotF_4Z8Tqd6O-xkhM/edit?gid=2071081838 as the layout and new-quote starting reference, disregarding Fonroche sample data for this work. Signed-in template inspection completed; the Quote Builder sheet is gid 1358146786. First implementation matches its A–X column sequence, yellow entry cells, dark headers, service rows and project economics. New drafts use independently extracted blank-template settings/catalog and zero estimates. The app requires named, typed rows, so the 15 item and seven spare rows default to Fabrication; the start screen explains this. Existing quotes/revisions retain their snapshots. Historical fixtures remain solely as calculation regression checks; no pricing engine change was requested.
 Use a spreadsheet-like editable workflow: takeoffs, material catalog lookups, quantities and section multipliers, trade labor, pricing, explicit overrides, client quote, and production budget.
 Preserve calculated values separately from overrides, with restore-to-calculated behavior.
 Use stable IDs for items/trades instead of exact-name joins. Version material/rate assumptions per quote revision.
@@ -39,4 +41,3 @@ Trade definitions should cover the live catalog instead of hardcoding only the w
 ## First acceptance loop
 Recreate Fonroche; alter quantity, cost, labor and price override; save/reopen; verify quote and budget changes; feed trade hours into capacity; move dates and status; verify totals and no duplication.
 Then let Paul change the workflow through Codex. Do not expand into a full scheduling system before this loop works.
-

@@ -1,5 +1,15 @@
 # v27 calculation foundation
 
+## Blank-template grid — September 29, 2026
+
+Paul selected the blank v27 template as the UI/new-quote reference: [Google Sheet](https://docs.google.com/spreadsheets/d/1Wbnlz1Th3zC2nKgBBFJUjZw4lGotF_4Z8Tqd6O-xkhM/edit?gid=1358146786). Its exported XLSX SHA256 is `a1aa9b0567daaa7c2c280f154aaaffad503cdbc810ff8ee9b0fac6bc212fe2cf`. `scripts/lab/extract-blank-v27.py` independently extracts its Settings values, trade wages, catalog and row labels into `src/data/quote-v27-blank.json`; no Google integration is installed or called by the app. There are 699 usable catalog entries. Main calculation settings equal the previous snapshot's settings; the calculation engine is unchanged.
+
+New drafts contain 15 items, seven spares and 15 service lines, with no takeoffs, project estimates or manual overrides. The persisted schema requires nonempty names/types, so empty spare names become Spare 1–7 and untyped rows default to Fabrication. Service estimator links use stable IDs; estimator parameter defaults remain those of `emptyEstimators`. The PM fee uses its calculated formula, with no sample-specific override. The historical sample remains available only through its existing API template option and regression fixtures.
+
+`quote-sheet.tsx` presents the template's A–X column order and project economics. Inputs show effective values; editing stores a nullable override, clearing or ↺ restores calculated input, and an explicit zero remains an override. O is the optional price override; N and P remain computed and final values. Unused template column L (Support crew) is read-only with guidance to enter support person-days in the Install estimator; inspection found it does not drive the template's Quote Builder formulas. Existing saved snapshots are never replaced with new defaults.
+
+Focused checks: `node --import tsx --test tests/quote-v27-blank.test.ts tests/quote-v27-validation.test.ts`; original `.mjs` calculator/estimator tests use Node's native `--experimental-strip-types` loader separately. Full application TypeScript and a placeholder-key production build pass. Browser-local test adapter verifies grid/takeoff edits, zero/restored overrides and two save/reload revisions using the actual component and parser. This does not verify hosted authentication, RLS or persistence. Deployment is pending GitHub push authentication on Paul's Mac.
+
 The first implementation is `src/lib/quote-v27.ts`, a pure calculation engine with no network or database access. It now powers the Quote builder tab and append-only workbook draft revisions. Capacity UI and the legacy commercial review/publication model remain separate.
 
 ## Source and comparison

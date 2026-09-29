@@ -1,0 +1,5030 @@
+{
+  "schemaVersion": 1,
+  "assumptionsVersion": "blank-v27-a1aa9b0567da",
+  "commission": 0,
+  "settings": {
+    "contingency": 0.05,
+    "opex": 0.36,
+    "indirect": 0.04,
+    "laborSell": 110.0,
+    "materialMarkup": 2.08,
+    "shopDay": 8.0,
+    "efficiency": 1.0,
+    "graphicsSell": 25.0,
+    "graphicsCost": 6.5,
+    "handlingMinutes": 12.5,
+    "handlingCrew": 2.0,
+    "designSell": 125.0,
+    "pmFee": 0.03,
+    "pmBonus": 0.01,
+    "leadDay": 1995.0,
+    "supportDay": 1495.0,
+    "travelFactor": 0.5,
+    "pmTravelDay": 1495.0,
+    "siteHours": 10.0,
+    "supportCost": 750.0,
+    "offFactor": 0.5,
+    "equipmentMarkup": 1.6,
+    "resaleMarkup": 1.6,
+    "travelMarkup": 0.6,
+    "freightMarkup": 0.6,
+    "burdenMultiplier": 1.4643,
+    "burdenedRateOverride": null
+  },
+  "trades": [
+    {
+      "id": "trade-66",
+      "name": "Carpentry",
+      "wage": 30.38
+    },
+    {
+      "id": "trade-67",
+      "name": "CNC + cutting",
+      "wage": 22.75
+    },
+    {
+      "id": "trade-68",
+      "name": "Assembly",
+      "wage": 28.0
+    },
+    {
+      "id": "trade-69",
+      "name": "Painting",
+      "wage": 24.0
+    },
+    {
+      "id": "trade-70",
+      "name": "Finish",
+      "wage": 28.0
+    },
+    {
+      "id": "trade-71",
+      "name": "Graphic Install",
+      "wage": 23.0
+    },
+    {
+      "id": "trade-72",
+      "name": "Vinyl Install",
+      "wage": 23.0
+    },
+    {
+      "id": "trade-73",
+      "name": "Electrical",
+      "wage": 32.0
+    },
+    {
+      "id": "trade-74",
+      "name": "Metal Work",
+      "wage": 32.0
+    },
+    {
+      "id": "trade-75",
+      "name": "Crate & pack",
+      "wage": 25.07
+    },
+    {
+      "id": "trade-76",
+      "name": "Sculpting",
+      "wage": null
+    }
+  ],
+  "catalog": [
+    {
+      "id": "material-5",
+      "name": "Acrylic Sheet 1.5\" thick (1.5\" x 48 x 96)",
+      "unit": "each",
+      "unitCost": 1190.4
+    },
+    {
+      "id": "material-6",
+      "name": "Acrylic Sheet 2\" thick (2\" x 48 x 97)",
+      "unit": "each",
+      "unitCost": 1544.4
+    },
+    {
+      "id": "material-7",
+      "name": "Acrylic tube 3 4\" (6')",
+      "unit": "each",
+      "unitCost": 283.5
+    },
+    {
+      "id": "material-8",
+      "name": "Acrylic tube 5 1/2\" (6')",
+      "unit": "each",
+      "unitCost": 283.5
+    },
+    {
+      "id": "material-9",
+      "name": "Acrylic tube 6 1/4\" (6')",
+      "unit": "each",
+      "unitCost": 225
+    },
+    {
+      "id": "material-10",
+      "name": "Acrylic tube 9\" (6')",
+      "unit": "each",
+      "unitCost": 475
+    },
+    {
+      "id": "material-11",
+      "name": "Armari Greencast Acrylic",
+      "unit": "each",
+      "unitCost": 96
+    },
+    {
+      "id": "material-12",
+      "name": "Clear cast acrylic 1/2\" (4'x8')",
+      "unit": "sheet",
+      "unitCost": 454.72
+    },
+    {
+      "id": "material-13",
+      "name": "Clear cast acrylic 1/4\" (4'x8')",
+      "unit": "sheet",
+      "unitCost": 215.25
+    },
+    {
+      "id": "material-14",
+      "name": "Clear cast acrylic 1/8\" (4'x8')",
+      "unit": "sheet",
+      "unitCost": 75
+    },
+    {
+      "id": "material-15",
+      "name": "2 inch square aluminum tubing (2 SQ x 1/16 W x 26')",
+      "unit": "sqft",
+      "unitCost": 50.44
+    },
+    {
+      "id": "material-16",
+      "name": "2 inch square aluminum tubing (2 SQ x 1/8 W x 24')",
+      "unit": "sqft",
+      "unitCost": 86.4
+    },
+    {
+      "id": "material-17",
+      "name": "606 0496 0992 30 (19 1/2\" x 39\" (1/2 meter x 1 meter))",
+      "unit": "Eco Frame",
+      "unitCost": 176
+    },
+    {
+      "id": "material-18",
+      "name": "606 0496 2418 30 (19 1/2\" x 95\" (1/2 meter x 8ft \"ish\"))",
+      "unit": "Eco Frame",
+      "unitCost": 298
+    },
+    {
+      "id": "material-19",
+      "name": "606 0496 2976 30 (19 1/2\" x 117\" (1/2 meter x 10ft \"ish\"))",
+      "unit": "Eco Frame",
+      "unitCost": 349
+    },
+    {
+      "id": "material-20",
+      "name": "606 0992 0992 30 (39\" x 39\" (1 meter x 1 meter))",
+      "unit": "Eco Frame",
+      "unitCost": 221
+    },
+    {
+      "id": "material-21",
+      "name": "606 0992 2418 30 (39\" x 95\" (1 meter x 8ft \"ish\"))",
+      "unit": "Eco Frame",
+      "unitCost": 322
+    },
+    {
+      "id": "material-22",
+      "name": "606 0992 2976 30 (39\" x 117\" (1 meter x 10ft \"ish\"))",
+      "unit": "Eco Frame",
+      "unitCost": 388
+    },
+    {
+      "id": "material-23",
+      "name": "1/4\" Bender Board, barrel (4'x8')",
+      "unit": "sheet",
+      "unitCost": 48.7
+    },
+    {
+      "id": "material-24",
+      "name": "3/8\" Bender Board, barrel (4'x8')",
+      "unit": "sheet",
+      "unitCost": 48.7
+    },
+    {
+      "id": "material-25",
+      "name": "3/8\" Bender Board, column (4'x8')",
+      "unit": "sheet",
+      "unitCost": 48.7
+    },
+    {
+      "id": "material-26",
+      "name": "704P Brushed Light Brass Aluminum (4'x10')",
+      "unit": "sheet",
+      "unitCost": 9.87
+    },
+    {
+      "id": "material-27",
+      "name": "Custom printed carpet (Enhance A Color)",
+      "unit": "sqft",
+      "unitCost": 15
+    },
+    {
+      "id": "material-28",
+      "name": "Custom printed carpet (Red Carpet Systems)",
+      "unit": "sqft",
+      "unitCost": 16
+    },
+    {
+      "id": "material-29",
+      "name": "Disco ball 12\"",
+      "unit": "each",
+      "unitCost": 41.98
+    },
+    {
+      "id": "material-30",
+      "name": "Disco ball motor",
+      "unit": "each",
+      "unitCost": 49.99
+    },
+    {
+      "id": "material-31",
+      "name": "Black ACM Panel (4x8)",
+      "unit": "sheet",
+      "unitCost": 57
+    },
+    {
+      "id": "material-32",
+      "name": "Brushed Aluminum (4x8)",
+      "unit": "sheet",
+      "unitCost": 235
+    },
+    {
+      "id": "material-33",
+      "name": "White ACM Panel (4x8)",
+      "unit": "sheet",
+      "unitCost": 49
+    },
+    {
+      "id": "material-34",
+      "name": "Ink",
+      "unit": "sqft",
+      "unitCost": 0.25
+    },
+    {
+      "id": "material-35",
+      "name": "Ink and Maintenance",
+      "unit": "sqft",
+      "unitCost": 0.3
+    },
+    {
+      "id": "material-36",
+      "name": "Printing on white laminate w/ labor",
+      "unit": "sqft",
+      "unitCost": 0.5
+    },
+    {
+      "id": "material-37",
+      "name": "White Ink",
+      "unit": "sqft",
+      "unitCost": 1
+    },
+    {
+      "id": "material-38",
+      "name": "Edgebanding, white 3/4\" width (250')",
+      "unit": "each",
+      "unitCost": 24.52
+    },
+    {
+      "id": "material-39",
+      "name": "Edgebanding, white pine 1\" thick (250')",
+      "unit": "each",
+      "unitCost": 90
+    },
+    {
+      "id": "material-40",
+      "name": "Edgebanding, white pine 3/4\" thick (500')",
+      "unit": "each",
+      "unitCost": 43.9
+    },
+    {
+      "id": "material-41",
+      "name": "0.5\" pink foam (4x8)",
+      "unit": "sheet",
+      "unitCost": 20.97
+    },
+    {
+      "id": "material-42",
+      "name": "1\" pink foam (4x8)",
+      "unit": "sheet",
+      "unitCost": 31.97
+    },
+    {
+      "id": "material-43",
+      "name": "1\" Sign Foam Green (4x8)",
+      "unit": "sheet",
+      "unitCost": 316.06
+    },
+    {
+      "id": "material-44",
+      "name": "2\" pink foam (4x8)",
+      "unit": "sheet",
+      "unitCost": 58.97
+    },
+    {
+      "id": "material-45",
+      "name": "2\" Sign Foam Green (4x8)",
+      "unit": "sheet",
+      "unitCost": 574.34
+    },
+    {
+      "id": "material-46",
+      "name": "3\" Sign Foam Green (4x8)",
+      "unit": "sheet",
+      "unitCost": 817.88
+    },
+    {
+      "id": "material-47",
+      "name": "EPS Foam Sheet, 4\" thick (4x8)",
+      "unit": "sheet",
+      "unitCost": 110
+    },
+    {
+      "id": "material-48",
+      "name": "Foam (1 squarefoot)",
+      "unit": "sqft",
+      "unitCost": 5.571428571
+    },
+    {
+      "id": "material-49",
+      "name": "Foam Block (40\"x48\"x96\", 105 sqft)",
+      "unit": "sqft",
+      "unitCost": 585
+    },
+    {
+      "id": "material-50",
+      "name": "Green paint (RGB 128,174,195)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-51",
+      "name": "Orange paint (RGB 251,140,32)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-52",
+      "name": "Sher-wood Hi-Bild clear lacquer (T77 F 58 (MEDIUM RUBBED EFFECT))",
+      "unit": "5 gallons",
+      "unitCost": 247.45
+    },
+    {
+      "id": "material-53",
+      "name": "Sherwin Williams paint RAL 1021 (yellow)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-54",
+      "name": "Sherwin Williams paint RAL 2002",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-55",
+      "name": "Sherwin Williams paint RAL 3002",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-56",
+      "name": "Sherwin Williams paint RAL 3005",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-57",
+      "name": "Sherwin Williams paint RAL 3007",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-58",
+      "name": "Sherwin Williams paint RAL 4010 (neon pink)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-59",
+      "name": "Sherwin Williams paint RAL 6037 (green)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-60",
+      "name": "Sherwin Williams paint RAL 9010 (white)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-61",
+      "name": "Sherwin Williams paint RAL 9011 (black)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-62",
+      "name": "Varathane wood stain: Provincial",
+      "unit": "each",
+      "unitCost": 42.78
+    },
+    {
+      "id": "material-63",
+      "name": "Yellow paint (RBG 242, 198, 5)",
+      "unit": "gallon",
+      "unitCost": 39.54
+    },
+    {
+      "id": "material-64",
+      "name": "G Floor at 600 dpi (reverse print)",
+      "unit": "sqft",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-65",
+      "name": "1/4\"safety glass 75.25x17.60\"",
+      "unit": "sheet",
+      "unitCost": 350
+    },
+    {
+      "id": "material-66",
+      "name": "1/4\"safety glass 75.25x24.32\"",
+      "unit": "sheet",
+      "unitCost": 350
+    },
+    {
+      "id": "material-67",
+      "name": "(Briteline) VisaLam Matte 54\"",
+      "unit": "each",
+      "unitCost": 268
+    },
+    {
+      "id": "material-68",
+      "name": "287437SP/08 MATTHEWS ACCELERATOR PT",
+      "unit": "each",
+      "unitCost": 70.2
+    },
+    {
+      "id": "material-69",
+      "name": "3640 Economy Matte White 54\"",
+      "unit": "each",
+      "unitCost": 165.65
+    },
+    {
+      "id": "material-70",
+      "name": "3651RA Gloss/Grey 54\"",
+      "unit": "each",
+      "unitCost": 380
+    },
+    {
+      "id": "material-71",
+      "name": "3M 26000 2.0 PPS Standard",
+      "unit": "each",
+      "unitCost": 106.99
+    },
+    {
+      "id": "material-72",
+      "name": "3M Platinum Plus Bondo",
+      "unit": "each",
+      "unitCost": 77.01
+    },
+    {
+      "id": "material-73",
+      "name": "42-228SP MATTHEWS ACRYLIC POLYERETHANE",
+      "unit": "each",
+      "unitCost": 182.45
+    },
+    {
+      "id": "material-74",
+      "name": "42-900SP MATTE CLEAR MATTHEWS",
+      "unit": "each",
+      "unitCost": 181.28
+    },
+    {
+      "id": "material-75",
+      "name": "43270SP/01 MATTHEWS/ UNIVERSAL CATALYST GAL",
+      "unit": "each",
+      "unitCost": 205.17
+    },
+    {
+      "id": "material-76",
+      "name": "45280SP/01 MATTHEWS REDUCER WARM TEMP GAL",
+      "unit": "each",
+      "unitCost": 55.36
+    },
+    {
+      "id": "material-77",
+      "name": "54\" X 50Y 3651RA INTER RAP AIR GLO WHIT 2.75 PA",
+      "unit": "each",
+      "unitCost": 312.31
+    },
+    {
+      "id": "material-78",
+      "name": "54\" X 50Y DPF 8200X HI TACK SATIN WHITE X-SCAPE",
+      "unit": "each",
+      "unitCost": 552.8
+    },
+    {
+      "id": "material-79",
+      "name": "54\"X150FT BRITELINE SHIELD MATTE UV",
+      "unit": "each",
+      "unitCost": 228.49
+    },
+    {
+      "id": "material-80",
+      "name": "Alcohol",
+      "unit": "each",
+      "unitCost": 45.27
+    },
+    {
+      "id": "material-81",
+      "name": "Bulldog Adhesion Promoter QTPO123 Quart",
+      "unit": "each",
+      "unitCost": 75.96
+    },
+    {
+      "id": "material-82",
+      "name": "Bulldog Bond KS GTPO123 Adhesion Promotor",
+      "unit": "each",
+      "unitCost": 231.04
+    },
+    {
+      "id": "material-83",
+      "name": "DPC HEXIS 3.0 MIL, MATTE CL MONOMERIC 63\" X 164'",
+      "unit": "each",
+      "unitCost": 206.82
+    },
+    {
+      "id": "material-84",
+      "name": "DPC HEXIS 4ML WHT G PERM MONO 63",
+      "unit": "each",
+      "unitCost": 326.26
+    },
+    {
+      "id": "material-85",
+      "name": "EcoSol Max 2 Yellow",
+      "unit": "each",
+      "unitCost": 153.99
+    },
+    {
+      "id": "material-86",
+      "name": "EcoSol Max Yellow",
+      "unit": "each",
+      "unitCost": 153.99
+    },
+    {
+      "id": "material-87",
+      "name": "HEXIS 3MIL 3YR CB GLOSS 63X164",
+      "unit": "each",
+      "unitCost": 149.95
+    },
+    {
+      "id": "material-88",
+      "name": "HEXIS LAMINATE MATTE 63\"X164",
+      "unit": "each",
+      "unitCost": 159.95
+    },
+    {
+      "id": "material-89",
+      "name": "Klean Strip Aceton",
+      "unit": "each",
+      "unitCost": 42.24
+    },
+    {
+      "id": "material-90",
+      "name": "NASON Select-Primer 2K 421-19",
+      "unit": "each",
+      "unitCost": 129.4
+    },
+    {
+      "id": "material-91",
+      "name": "NASON Select-Primer 2K Activator 483-87",
+      "unit": "each",
+      "unitCost": 86.45
+    },
+    {
+      "id": "material-92",
+      "name": "Rapid Tac",
+      "unit": "each",
+      "unitCost": 31.47
+    },
+    {
+      "id": "material-93",
+      "name": "SEM Adhesion Promoter",
+      "unit": "each",
+      "unitCost": 40.02
+    },
+    {
+      "id": "material-94",
+      "name": "1/2\"x1/2\" corner guards (36\")",
+      "unit": "each",
+      "unitCost": 7.05
+    },
+    {
+      "id": "material-95",
+      "name": "110\u00b0 hinge, soft close (Blum 39C355B.20)",
+      "unit": "Pair",
+      "unitCost": 2.95
+    },
+    {
+      "id": "material-96",
+      "name": "1mm x 1mt x 1mt Self Adhesive EPDM Sponge (1mx1m)",
+      "unit": "Piece",
+      "unitCost": 2
+    },
+    {
+      "id": "material-97",
+      "name": "3\" casters, black",
+      "unit": "Set of 4",
+      "unitCost": 8.87
+    },
+    {
+      "id": "material-98",
+      "name": "3\" casters, black. Lockable",
+      "unit": "Set of 4",
+      "unitCost": 11.87
+    },
+    {
+      "id": "material-99",
+      "name": "3\" casters, gray. Lockable",
+      "unit": "Set of 4",
+      "unitCost": 11.87
+    },
+    {
+      "id": "material-100",
+      "name": "4\" casters, black",
+      "unit": "Set of 4",
+      "unitCost": 9.78
+    },
+    {
+      "id": "material-101",
+      "name": "4\" casters, black. Lockable",
+      "unit": "Set of 4",
+      "unitCost": 12.78
+    },
+    {
+      "id": "material-102",
+      "name": "5 1/2\" Lazy Susan mechanism (5.5\" dia)",
+      "unit": "each",
+      "unitCost": 10
+    },
+    {
+      "id": "material-103",
+      "name": "Black poster rail (A0 portrait 841mm wide. PS.85-B)",
+      "unit": "each",
+      "unitCost": 30
+    },
+    {
+      "id": "material-104",
+      "name": "Closet Rod Support - 1\"",
+      "unit": "Pair",
+      "unitCost": 5
+    },
+    {
+      "id": "material-105",
+      "name": "Closet Rod Supports, 1-5/16\" (3.33 cm)",
+      "unit": "Pair",
+      "unitCost": 5
+    },
+    {
+      "id": "material-106",
+      "name": "Core shop roll holder (Wall Mounted Kitchen Roll Holder)",
+      "unit": "each",
+      "unitCost": 15
+    },
+    {
+      "id": "material-107",
+      "name": "Cruciform cam mounting plate \u2013 Twin application",
+      "unit": "Pair",
+      "unitCost": 0
+    },
+    {
+      "id": "material-108",
+      "name": "Drawer slides (18\")",
+      "unit": "Pair",
+      "unitCost": 17.03
+    },
+    {
+      "id": "material-109",
+      "name": "Heavy duty magnetic catch white",
+      "unit": "Package of 10",
+      "unitCost": 10
+    },
+    {
+      "id": "material-110",
+      "name": "HPL SCREWS RAL 9010 pure white (2.8x38mm 12mm \u00f8 head)",
+      "unit": "Piece",
+      "unitCost": 0.5
+    },
+    {
+      "id": "material-111",
+      "name": "Inside-Corner Bracket: Inside-Corner Bracket (1 in x 7/8 in x 1 in, For 17/64 in Slot Wd, 10 Series)",
+      "unit": "each",
+      "unitCost": 6.01
+    },
+    {
+      "id": "material-112",
+      "name": "Leveler Kit for 25 Cabinets. Richelieu",
+      "unit": "Pack of 25 kits",
+      "unitCost": 115
+    },
+    {
+      "id": "material-113",
+      "name": "M10 threaded insert & M10 HEX bolt",
+      "unit": "Piece",
+      "unitCost": 0.25
+    },
+    {
+      "id": "material-114",
+      "name": "M3 x 12mm hex socket cap bolt",
+      "unit": "each",
+      "unitCost": 0.08
+    },
+    {
+      "id": "material-115",
+      "name": "Metal S-Hooks - Standard",
+      "unit": "Pack",
+      "unitCost": 6
+    },
+    {
+      "id": "material-116",
+      "name": "Misc (glue, nails, etc)",
+      "unit": "%",
+      "unitCost": 0.025
+    },
+    {
+      "id": "material-117",
+      "name": "Plain Wood Screw, Flat Head, Quadrex Drive, Coarse Thread, Type 17 point",
+      "unit": "Box of 250",
+      "unitCost": 9.16
+    },
+    {
+      "id": "material-118",
+      "name": "Round Aluminum Rod 1-5/16\" 14 Ga (1215608900 /8')",
+      "unit": "each",
+      "unitCost": 36.73
+    },
+    {
+      "id": "material-119",
+      "name": "Round Grommet 2\". Black",
+      "unit": "each",
+      "unitCost": 3
+    },
+    {
+      "id": "material-120",
+      "name": "Round Grommet 2\". White",
+      "unit": "each",
+      "unitCost": 3
+    },
+    {
+      "id": "material-121",
+      "name": "Round Grommet 3\". Black",
+      "unit": "each",
+      "unitCost": 3
+    },
+    {
+      "id": "material-122",
+      "name": "Round Grommet 3\". White",
+      "unit": "each",
+      "unitCost": 3
+    },
+    {
+      "id": "material-123",
+      "name": "Rubber bounce pads",
+      "unit": "Pack",
+      "unitCost": 0.1
+    },
+    {
+      "id": "material-124",
+      "name": "Screws #8-5\"",
+      "unit": "Pack",
+      "unitCost": 10
+    },
+    {
+      "id": "material-125",
+      "name": "Shelf support and sleeve 1/4\"",
+      "unit": "each",
+      "unitCost": 0.1
+    },
+    {
+      "id": "material-126",
+      "name": "Sliding Closet Door Track Kit (60in)",
+      "unit": "Kit",
+      "unitCost": 0
+    },
+    {
+      "id": "material-127",
+      "name": "Space plug 25 reg-white",
+      "unit": "Piece",
+      "unitCost": 0.8
+    },
+    {
+      "id": "material-128",
+      "name": "Sugatsune black tonk strip",
+      "unit": "each",
+      "unitCost": 12
+    },
+    {
+      "id": "material-129",
+      "name": "Sugatsune \u2013 Bookcase Stud AP-FB20",
+      "unit": "each",
+      "unitCost": 0.53
+    },
+    {
+      "id": "material-130",
+      "name": "Table leg leveler",
+      "unit": "Blister of 4",
+      "unitCost": 0
+    },
+    {
+      "id": "material-131",
+      "name": "100W 24v HLG Outdoor Power Supply \u2013 MW (100w, 24V)",
+      "unit": "each",
+      "unitCost": 78.83
+    },
+    {
+      "id": "material-132",
+      "name": "Bare connector",
+      "unit": "each",
+      "unitCost": 1.02
+    },
+    {
+      "id": "material-133",
+      "name": "Dotless 3000K 4.4V LED Strip Lights (15ft)",
+      "unit": "Roll",
+      "unitCost": 40.61
+    },
+    {
+      "id": "material-134",
+      "name": "Dotless LED 4.4w/ft 24v RGB LED strip lights (15ft)",
+      "unit": "Roll",
+      "unitCost": 78.03
+    },
+    {
+      "id": "material-135",
+      "name": "Dotted Strip Light 3000k, 4000k, 5000k (24V, 3W, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 35.65
+    },
+    {
+      "id": "material-136",
+      "name": "Ext-connector",
+      "unit": "each",
+      "unitCost": 1.02
+    },
+    {
+      "id": "material-137",
+      "name": "Gapless connector",
+      "unit": "each",
+      "unitCost": 0.77
+    },
+    {
+      "id": "material-138",
+      "name": "INDOOR LED STRIP LIGHTS HD (24V, 3000K)",
+      "unit": "100ft roll",
+      "unitCost": 170.22
+    },
+    {
+      "id": "material-139",
+      "name": "INDOOR LED STRIP LIGHTS SD (24V, 3000K)",
+      "unit": "100ft roll",
+      "unitCost": 170.22
+    },
+    {
+      "id": "material-140",
+      "name": "Indoor Single Color Strip 3000k, 4000k, 6000k (24V, 4.4w, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 37.28
+    },
+    {
+      "id": "material-141",
+      "name": "Indoor Strip Light\u2013 RGB/RGBW/RGB+CCT (SD, 24 V, RGB)",
+      "unit": "15ft roll",
+      "unitCost": 30.84
+    },
+    {
+      "id": "material-142",
+      "name": "L connector",
+      "unit": "each",
+      "unitCost": 1.33
+    },
+    {
+      "id": "material-143",
+      "name": "LED DRIVER, 100W (24V, 100W)",
+      "unit": "each",
+      "unitCost": 30.84
+    },
+    {
+      "id": "material-144",
+      "name": "Outdoor LED Driver 0-10v Dimming (200W, 24V)",
+      "unit": "each",
+      "unitCost": 65
+    },
+    {
+      "id": "material-145",
+      "name": "Outdoor LED Strip Lights Single Color Options 15ft, SD (24 V, 3000K)",
+      "unit": "Roll",
+      "unitCost": 38.05
+    },
+    {
+      "id": "material-146",
+      "name": "Outdoor TRIAC Dimmable LED Driver \u2013 12V or 24V Options (24V,200W)",
+      "unit": "each",
+      "unitCost": 113.1
+    },
+    {
+      "id": "material-147",
+      "name": "RGB Seamless (24V, 4.4w, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 44.83
+    },
+    {
+      "id": "material-148",
+      "name": "RGBCB HD Dotted Strip Light (24V, 4.4w, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 96.24
+    },
+    {
+      "id": "material-149",
+      "name": "RGBCB Seamless System (24V, 6.3W, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 94
+    },
+    {
+      "id": "material-150",
+      "name": "Seamless Strip Light 3000k, 4000k, 5000k (24V, 4.4w, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 40.61
+    },
+    {
+      "id": "material-151",
+      "name": "Seamless Strip Light RGB (24V, 4.4w, 15ft)",
+      "unit": "15ft roll",
+      "unitCost": 78.03
+    },
+    {
+      "id": "material-152",
+      "name": "Seamless Strip Light RGB (24v, 4.4w, 32ft)",
+      "unit": "32ft roll",
+      "unitCost": 166.46
+    },
+    {
+      "id": "material-153",
+      "name": "Waterproof 12V/24V 60W Dimmable Constant Voltage LED Driver",
+      "unit": "each",
+      "unitCost": 29
+    },
+    {
+      "id": "material-154",
+      "name": "White Laminate (4'x8')",
+      "unit": "sheet",
+      "unitCost": 115
+    },
+    {
+      "id": "material-155",
+      "name": "1\" MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 68.53
+    },
+    {
+      "id": "material-156",
+      "name": "1\" MDF (5'x10')",
+      "unit": "sheet",
+      "unitCost": 112.31
+    },
+    {
+      "id": "material-157",
+      "name": "1\" MDF (5'x12')",
+      "unit": "sheet",
+      "unitCost": 134.31
+    },
+    {
+      "id": "material-158",
+      "name": "1/2\" MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 24.9
+    },
+    {
+      "id": "material-159",
+      "name": "1/2\" MDF (5'x10')",
+      "unit": "sheet",
+      "unitCost": 55
+    },
+    {
+      "id": "material-160",
+      "name": "1/2\" MDF (5'x12')",
+      "unit": "sheet",
+      "unitCost": 118.16
+    },
+    {
+      "id": "material-161",
+      "name": "1/4\" MDF (4'x10')",
+      "unit": "sheet",
+      "unitCost": 31.76
+    },
+    {
+      "id": "material-162",
+      "name": "1/4\" MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 20
+    },
+    {
+      "id": "material-163",
+      "name": "1/4\" MDF (5'x10')",
+      "unit": "sheet",
+      "unitCost": 45
+    },
+    {
+      "id": "material-164",
+      "name": "1/8\" MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 11.43
+    },
+    {
+      "id": "material-165",
+      "name": "3/4\" MDF (4'x10')",
+      "unit": "sheet",
+      "unitCost": 70
+    },
+    {
+      "id": "material-166",
+      "name": "3/4\" MDF (4'x12')",
+      "unit": "sheet",
+      "unitCost": 90
+    },
+    {
+      "id": "material-167",
+      "name": "3/4\" MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 38.14
+    },
+    {
+      "id": "material-168",
+      "name": "3/4\" MDF (5'x10')",
+      "unit": "sheet",
+      "unitCost": 64.29
+    },
+    {
+      "id": "material-169",
+      "name": "3/4\" MDF (5'x12')",
+      "unit": "sheet",
+      "unitCost": 119.05
+    },
+    {
+      "id": "material-170",
+      "name": "3/4\" Melamine Black 2S MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 60
+    },
+    {
+      "id": "material-171",
+      "name": "3/4\" Melamine White 2S MDF (4'x8')",
+      "unit": "sheet",
+      "unitCost": 60
+    },
+    {
+      "id": "material-172",
+      "name": "2PCS Black Rigid Flange Shaft Coupling",
+      "unit": "each",
+      "unitCost": 12.99
+    },
+    {
+      "id": "material-173",
+      "name": "DC 24V 15A 360W Power Supply",
+      "unit": "each",
+      "unitCost": 31.33
+    },
+    {
+      "id": "material-174",
+      "name": "Electric Turntable (320lb)",
+      "unit": "each",
+      "unitCost": 68.99
+    },
+    {
+      "id": "material-175",
+      "name": "Electric Turntable. light (17lb)",
+      "unit": "each",
+      "unitCost": 26.99
+    },
+    {
+      "id": "material-176",
+      "name": "Greartisan DC 24V 20RPM Gear Motor",
+      "unit": "each",
+      "unitCost": 14.99
+    },
+    {
+      "id": "material-177",
+      "name": "HiLetgo 4pcs L298N Motor Driver controller Board Module Stepper Motor DC Dual H-Bridge",
+      "unit": "each",
+      "unitCost": 11.49
+    },
+    {
+      "id": "material-178",
+      "name": "Custom printed marley floor (clear, print on bottom for see through)",
+      "unit": "sqft",
+      "unitCost": 24
+    },
+    {
+      "id": "material-179",
+      "name": "Custom printed marley floor (opaque, print on top)",
+      "unit": "sqft",
+      "unitCost": 20
+    },
+    {
+      "id": "material-180",
+      "name": "1/8\" x 1\" Hr Flat",
+      "unit": "each",
+      "unitCost": 7.76
+    },
+    {
+      "id": "material-181",
+      "name": "11 Ga Steel Sheet 4x8",
+      "unit": "each",
+      "unitCost": 115
+    },
+    {
+      "id": "material-182",
+      "name": "180 Grained Round Steel .065x3\"x20'",
+      "unit": "each",
+      "unitCost": 559
+    },
+    {
+      "id": "material-183",
+      "name": "2x2 Steel Tube 16 ga 2x2x.065",
+      "unit": "each",
+      "unitCost": 59.43
+    },
+    {
+      "id": "material-184",
+      "name": "3/8\" HR Round 3/8\" x 20'",
+      "unit": "each",
+      "unitCost": 7.75
+    },
+    {
+      "id": "material-185",
+      "name": "304 Stainless Steel Round Tube 1-1/2\" X 16ga X R/L (48IN)",
+      "unit": "each",
+      "unitCost": 47.36
+    },
+    {
+      "id": "material-186",
+      "name": "7/8\" Corrugated Corten Steel 39\" x 10', 22ga",
+      "unit": "per ft",
+      "unitCost": 7.25
+    },
+    {
+      "id": "material-187",
+      "name": "A36 Hot Rolled Steel Plate 3/8\" R/L (24IN x 24IN)",
+      "unit": "each",
+      "unitCost": 80.44
+    },
+    {
+      "id": "material-188",
+      "name": "Alum Arch Angle 1.25x1.25x.125",
+      "unit": "each",
+      "unitCost": 50
+    },
+    {
+      "id": "material-189",
+      "name": "Alum Arch Angle 1.25x1.25x.1875",
+      "unit": "each",
+      "unitCost": 36.4
+    },
+    {
+      "id": "material-190",
+      "name": "Alum Arch Angle 1.5x1.5x.125 (20 feet length)",
+      "unit": "each",
+      "unitCost": 27
+    },
+    {
+      "id": "material-191",
+      "name": "Alum Arch Angle 1x1x.125 (20 feet length)",
+      "unit": "each",
+      "unitCost": 17.2
+    },
+    {
+      "id": "material-192",
+      "name": "Alum Arch Angle 2x2x.125",
+      "unit": "each",
+      "unitCost": 1.92
+    },
+    {
+      "id": "material-193",
+      "name": "Alum Arch Angle 2x2x.125 (20 feet length)",
+      "unit": "each",
+      "unitCost": 36.4
+    },
+    {
+      "id": "material-194",
+      "name": "Alum. Sq. Steel Tube 2x2x.125",
+      "unit": "per ft",
+      "unitCost": 3.6
+    },
+    {
+      "id": "material-195",
+      "name": "Alum. Sq. Tube 1x1x.0625",
+      "unit": "each",
+      "unitCost": 23.28
+    },
+    {
+      "id": "material-196",
+      "name": "Alum. Sq. Tube 1x1x.125",
+      "unit": "each",
+      "unitCost": 44.16
+    },
+    {
+      "id": "material-197",
+      "name": "Aluminum Angle 1.5x1.5x.125",
+      "unit": "each",
+      "unitCost": 1.51
+    },
+    {
+      "id": "material-198",
+      "name": "Aluminum Angle 1x1x.125",
+      "unit": "each",
+      "unitCost": 0.97
+    },
+    {
+      "id": "material-199",
+      "name": "Aluminum Channel 1x1x1/8\" (3ft length)",
+      "unit": "each",
+      "unitCost": 11
+    },
+    {
+      "id": "material-200",
+      "name": "Aluminum Channel 4x(1.647)x(.247)",
+      "unit": "each",
+      "unitCost": 330.52
+    },
+    {
+      "id": "material-201",
+      "name": "Aluminum Flat Bar (1/4\")x2\"x12'",
+      "unit": "each",
+      "unitCost": 44.46
+    },
+    {
+      "id": "material-202",
+      "name": "Aluminum Flat Bar (1/8\")x(1/2\")x12'",
+      "unit": "each",
+      "unitCost": 9.72
+    },
+    {
+      "id": "material-203",
+      "name": "Aluminum Flat Bar (3/4\")x(1/8\")x12'",
+      "unit": "each",
+      "unitCost": 9.13
+    },
+    {
+      "id": "material-204",
+      "name": "Aluminum Pipe 1\" SCH 40 1.3125x.125",
+      "unit": "each",
+      "unitCost": 66
+    },
+    {
+      "id": "material-205",
+      "name": "Aluminum RD Tube 6063 6\" x 1/8 (4ft piece length)",
+      "unit": "each",
+      "unitCost": 70
+    },
+    {
+      "id": "material-206",
+      "name": "Aluminum Rectangular Tube 1\"x2\"x.125",
+      "unit": "each",
+      "unitCost": 116.73
+    },
+    {
+      "id": "material-207",
+      "name": "Aluminum Rectangular Tube 1.5x2x.125",
+      "unit": "each",
+      "unitCost": 106.47
+    },
+    {
+      "id": "material-208",
+      "name": "Aluminum Round Bar 1/4\"x12'",
+      "unit": "each",
+      "unitCost": 5.24
+    },
+    {
+      "id": "material-209",
+      "name": "Aluminum Sheet ( Paper mask) .125x48x120",
+      "unit": "each",
+      "unitCost": 202.54
+    },
+    {
+      "id": "material-210",
+      "name": "Aluminum Sheet (1 side coated) (1/8\")x(48)x(120)",
+      "unit": "each",
+      "unitCost": 371
+    },
+    {
+      "id": "material-211",
+      "name": "Aluminum Sheet (PVC mask) .040x4x10",
+      "unit": "each",
+      "unitCost": 67.56
+    },
+    {
+      "id": "material-212",
+      "name": "Aluminum Sheet .125x48x96",
+      "unit": "each",
+      "unitCost": 299
+    },
+    {
+      "id": "material-213",
+      "name": "Aluminum Sheet 48x120x.25",
+      "unit": "each",
+      "unitCost": 420
+    },
+    {
+      "id": "material-214",
+      "name": "Aluminum Sheet 48x120x.250",
+      "unit": "each",
+      "unitCost": 472.4
+    },
+    {
+      "id": "material-215",
+      "name": "Aluminum Sheet 48x96x.25",
+      "unit": "each",
+      "unitCost": 336
+    },
+    {
+      "id": "material-216",
+      "name": "Aluminum Sheet 48x96x.250",
+      "unit": "each",
+      "unitCost": 377.72
+    },
+    {
+      "id": "material-217",
+      "name": "Aluminum Sheet 4x10x.025",
+      "unit": "each",
+      "unitCost": 670
+    },
+    {
+      "id": "material-218",
+      "name": "Aluminum Sheet 4x10x.25",
+      "unit": "each",
+      "unitCost": 650
+    },
+    {
+      "id": "material-219",
+      "name": "Aluminum Sheet 4x8x.25",
+      "unit": "each",
+      "unitCost": 406
+    },
+    {
+      "id": "material-220",
+      "name": "Aluminum Sheet 4x8x0.25",
+      "unit": "each",
+      "unitCost": 536
+    },
+    {
+      "id": "material-221",
+      "name": "Aluminum Sheets 5052H32 .125x48x96",
+      "unit": "each",
+      "unitCost": 162.4
+    },
+    {
+      "id": "material-222",
+      "name": "Aluminum Tubing 1x2x(1/8)",
+      "unit": "each",
+      "unitCost": 65.52
+    },
+    {
+      "id": "material-223",
+      "name": "Aluminum U-Channel 1x1x.625",
+      "unit": "each",
+      "unitCost": 19.7
+    },
+    {
+      "id": "material-224",
+      "name": "CR Sheet 48x96x18ga",
+      "unit": "each",
+      "unitCost": 118
+    },
+    {
+      "id": "material-225",
+      "name": "CR Sheet 48x96x20ga",
+      "unit": "each",
+      "unitCost": 88.4
+    },
+    {
+      "id": "material-226",
+      "name": "Galv Sheet 48x120x22ga",
+      "unit": "each",
+      "unitCost": 99.75
+    },
+    {
+      "id": "material-227",
+      "name": "Galv Sheet 48x120x24ga",
+      "unit": "each",
+      "unitCost": 82.25
+    },
+    {
+      "id": "material-228",
+      "name": "HR Round 1/2\" (20FT length)",
+      "unit": "each",
+      "unitCost": 25.65
+    },
+    {
+      "id": "material-229",
+      "name": "HR Steel Flat Bar (1/8\")x4\"x20'",
+      "unit": "each",
+      "unitCost": 47.54
+    },
+    {
+      "id": "material-230",
+      "name": "Metal Sheet 48x96x.125",
+      "unit": "each",
+      "unitCost": 165.34
+    },
+    {
+      "id": "material-231",
+      "name": "Mirror Polish Stainless Steel Sheet 48x120x16ga",
+      "unit": "each",
+      "unitCost": 1176
+    },
+    {
+      "id": "material-232",
+      "name": "Mirror Polish Stainless Steel Sheet 4x10x16gauge",
+      "unit": "each",
+      "unitCost": 412.35
+    },
+    {
+      "id": "material-233",
+      "name": "Perforated Metal, Round, Aluminum 48x96, 18 Gauge",
+      "unit": "each",
+      "unitCost": 193.48
+    },
+    {
+      "id": "material-234",
+      "name": "Pickled & Oiled Rnd Tube 1-3/4\" X 16ga X 20'",
+      "unit": "each",
+      "unitCost": 57.81
+    },
+    {
+      "id": "material-235",
+      "name": "Rectangular Tubing 1.5x2x.125 (24 feet length)",
+      "unit": "each",
+      "unitCost": 74.88
+    },
+    {
+      "id": "material-236",
+      "name": "Rectangular Tubing 1.5x3x.125 (24 feet length)",
+      "unit": "each",
+      "unitCost": 97.92
+    },
+    {
+      "id": "material-237",
+      "name": "Rectangular Tubing 1.75x4x.125 (24 feet length)",
+      "unit": "each",
+      "unitCost": 126.72
+    },
+    {
+      "id": "material-238",
+      "name": "Round Tube Aluminum 6063 1.5x.065 (24 feet length)",
+      "unit": "each",
+      "unitCost": 31.92
+    },
+    {
+      "id": "material-239",
+      "name": "Round Tubing (1/8\")x(1\")x(20')",
+      "unit": "per ft",
+      "unitCost": 1.87
+    },
+    {
+      "id": "material-240",
+      "name": "Round Tubing 1\"x14gauge",
+      "unit": "each",
+      "unitCost": 132
+    },
+    {
+      "id": "material-241",
+      "name": "Round Tubing 1\"x20'x11Ga",
+      "unit": "each",
+      "unitCost": 76
+    },
+    {
+      "id": "material-242",
+      "name": "Round Tubing 1\"x20'x14Ga",
+      "unit": "each",
+      "unitCost": 79.2
+    },
+    {
+      "id": "material-243",
+      "name": "Round Tubing 1.5x1.5x16 ga (20 feet length)",
+      "unit": "each",
+      "unitCost": 28.6
+    },
+    {
+      "id": "material-244",
+      "name": "Round Tubing 1.5x16 ga (20 feet length)",
+      "unit": "each",
+      "unitCost": 116
+    },
+    {
+      "id": "material-245",
+      "name": "SCH 40 Pipe 1.25\" X 21' (21FT length)",
+      "unit": "each",
+      "unitCost": 71.61
+    },
+    {
+      "id": "material-246",
+      "name": "SCH 40 Pipe 3/4\"x21'x.824\"ID",
+      "unit": "each",
+      "unitCost": 49.14
+    },
+    {
+      "id": "material-247",
+      "name": "Sq. Aluminum Tubing 1.25x.125 (24 feet length)",
+      "unit": "each",
+      "unitCost": 52.08
+    },
+    {
+      "id": "material-248",
+      "name": "Sq. Aluminum Tubing 2x2x0.062 (26 feet length)",
+      "unit": "each",
+      "unitCost": 50.44
+    },
+    {
+      "id": "material-249",
+      "name": "Sq. Steel Tubing 1.5x1.5x16 ga (24 feet length)",
+      "unit": "each",
+      "unitCost": 25.68
+    },
+    {
+      "id": "material-250",
+      "name": "Sq. Steel Tubing 1x1x.125",
+      "unit": "per ft",
+      "unitCost": 1.51
+    },
+    {
+      "id": "material-251",
+      "name": "Sq. Steel Tubing 1x1x16ga",
+      "unit": "each",
+      "unitCost": 17.2
+    },
+    {
+      "id": "material-252",
+      "name": "Sq. Steel Tubing 3x3x14",
+      "unit": "per ft",
+      "unitCost": 3.1
+    },
+    {
+      "id": "material-253",
+      "name": "Square Tube Steel 2\" x .065\" x 20'",
+      "unit": "each",
+      "unitCost": 42.12
+    },
+    {
+      "id": "material-254",
+      "name": "Square Tube Steel 2\" x 0.065 \" x 24'",
+      "unit": "each",
+      "unitCost": 50.54
+    },
+    {
+      "id": "material-255",
+      "name": "Stainless Sheet (T-304 #8 Mirror finish 1 side) 48x120x16ga",
+      "unit": "each",
+      "unitCost": 893
+    },
+    {
+      "id": "material-256",
+      "name": "Stainless Steel 304 #3 w/pvc 48x120x16ga",
+      "unit": "each",
+      "unitCost": 458.68
+    },
+    {
+      "id": "material-257",
+      "name": "Steel Angle 2x2x.125",
+      "unit": "each",
+      "unitCost": 30.69
+    },
+    {
+      "id": "material-258",
+      "name": "Steel Angle 2x2x.125 (20ft length)",
+      "unit": "each",
+      "unitCost": 31.35
+    },
+    {
+      "id": "material-259",
+      "name": "Steel Elbow (buttweld) 2\" Sch 40 90-degree",
+      "unit": "each",
+      "unitCost": 10.98
+    },
+    {
+      "id": "material-260",
+      "name": "Steel Plate 4x8",
+      "unit": "each",
+      "unitCost": 304.15
+    },
+    {
+      "id": "material-261",
+      "name": "Steel Round Rod 1/4\"",
+      "unit": "each",
+      "unitCost": 5.14
+    },
+    {
+      "id": "material-262",
+      "name": "Steel Sheet (1/2\")x48\"x96\"",
+      "unit": "each",
+      "unitCost": 529.6
+    },
+    {
+      "id": "material-263",
+      "name": "Steel Sheet (1/4\")x48\"x96\"",
+      "unit": "each",
+      "unitCost": 227.7
+    },
+    {
+      "id": "material-264",
+      "name": "Steel Sheet 4x8x16gauge",
+      "unit": "each",
+      "unitCost": 104
+    },
+    {
+      "id": "material-265",
+      "name": "Steel Sq. Tubing 1.25\"x1/8\" x 20'",
+      "unit": "each",
+      "unitCost": 63
+    },
+    {
+      "id": "material-266",
+      "name": "Steel Sq. Tubing 1.5\"x1/8\" x 20'",
+      "unit": "each",
+      "unitCost": 82
+    },
+    {
+      "id": "material-267",
+      "name": "Steel Sq. Tubing 1.5x1.5x.125 (24ft length)",
+      "unit": "each",
+      "unitCost": 97.2
+    },
+    {
+      "id": "material-268",
+      "name": "Steel Sq. Tubing 1x1x.125",
+      "unit": "per ft",
+      "unitCost": 2.09
+    },
+    {
+      "id": "material-269",
+      "name": "Steel Sq. Tubing 1x1x16ga (24 FT length)",
+      "unit": "each",
+      "unitCost": 36
+    },
+    {
+      "id": "material-270",
+      "name": "Steel Sq. Tubing 3x3x14",
+      "unit": "per ft",
+      "unitCost": 6.34
+    },
+    {
+      "id": "material-271",
+      "name": "Steel Sq. Tubing 5x3x0.1875",
+      "unit": "each",
+      "unitCost": 243.4
+    },
+    {
+      "id": "material-272",
+      "name": "Steel Tube 2 X 2 X 11ga X 24' 2x2x.125",
+      "unit": "each",
+      "unitCost": 102.48
+    },
+    {
+      "id": "material-273",
+      "name": "Steel Tubing 1\"x2\"x24'",
+      "unit": "each",
+      "unitCost": 89.69
+    },
+    {
+      "id": "material-274",
+      "name": "Steel Tubing 2x6x.125",
+      "unit": "per ft",
+      "unitCost": 5.1
+    },
+    {
+      "id": "material-275",
+      "name": "Steel Tubing 2x6x3/16",
+      "unit": "per ft",
+      "unitCost": 10.25
+    },
+    {
+      "id": "material-276",
+      "name": "Steel Tubing Sch 40 2 3/8 x 21'",
+      "unit": "each",
+      "unitCost": 135.78
+    },
+    {
+      "id": "material-277",
+      "name": "Structural Angle 6061 1.5x1.5x.25 (25 feet length)",
+      "unit": "each",
+      "unitCost": 66.5
+    },
+    {
+      "id": "material-278",
+      "name": "5 1/2\" Lazy Susan mechanism (6\" dia)",
+      "unit": "each",
+      "unitCost": 20.48
+    },
+    {
+      "id": "material-279",
+      "name": "Traditional Metal Pull - 3323",
+      "unit": "each",
+      "unitCost": 11.96
+    },
+    {
+      "id": "material-280",
+      "name": "Metal hoops 12 5/8\"",
+      "unit": "each",
+      "unitCost": 6
+    },
+    {
+      "id": "material-281",
+      "name": "Metal hoops 15 3/8\"",
+      "unit": "each",
+      "unitCost": 6
+    },
+    {
+      "id": "material-282",
+      "name": "Metal hoops 5 7/8\" (6 7/8\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-283",
+      "name": "Metal hoops 7\"",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-284",
+      "name": "Metal hoops 9 3/4\"",
+      "unit": "each",
+      "unitCost": 6
+    },
+    {
+      "id": "material-285",
+      "name": "Metal hoops M1 (7\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-286",
+      "name": "Metal hoops S1 (9\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-287",
+      "name": "Metal hoops S2 (7 1/2\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-288",
+      "name": "Metal hoops S3 (6\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-289",
+      "name": "Metal hoops S4 (5\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-290",
+      "name": "Metal hoops S5 (4 1/2\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-291",
+      "name": "Metal hoops S6 (3 1/2\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-292",
+      "name": "Metal hoops S7 (3\")",
+      "unit": "each",
+      "unitCost": 5
+    },
+    {
+      "id": "material-293",
+      "name": ".025\" HR Steel (4'x4')",
+      "unit": "sheet",
+      "unitCost": 550.44
+    },
+    {
+      "id": "material-294",
+      "name": "Expanded Sheet: Aluminum, 3003, 8 ft Overall Lg, 4 ft Overall Wd, 0.06 in Overall Thick, Flattened (4'x8')",
+      "unit": "sheet",
+      "unitCost": 407.83
+    },
+    {
+      "id": "material-295",
+      "name": "Steel Drum with Lid - 55 Gallon, Open Top, Unlined",
+      "unit": "each",
+      "unitCost": 143
+    },
+    {
+      "id": "material-296",
+      "name": "20\" metal shelf (MANUF)",
+      "unit": "each",
+      "unitCost": 83
+    },
+    {
+      "id": "material-297",
+      "name": "30\" metal shelf (MANUF)",
+      "unit": "each",
+      "unitCost": 93
+    },
+    {
+      "id": "material-298",
+      "name": "36\" metal shelf (MANUF)",
+      "unit": "each",
+      "unitCost": 98
+    },
+    {
+      "id": "material-299",
+      "name": "40\" metal shelf (MANUF)",
+      "unit": "each",
+      "unitCost": 102
+    },
+    {
+      "id": "material-300",
+      "name": "Henna Bay shelving RAL 2002 (MANUF)",
+      "unit": "each",
+      "unitCost": 150.65
+    },
+    {
+      "id": "material-301",
+      "name": "Henna Bay shelving RAL 3002 (MANUF)",
+      "unit": "each",
+      "unitCost": 150.65
+    },
+    {
+      "id": "material-302",
+      "name": "Henna Bay shelving RAL 3005 (MANUF)",
+      "unit": "each",
+      "unitCost": 150.65
+    },
+    {
+      "id": "material-303",
+      "name": "Henna Bay Shelving RAL 9011 (MANUF)",
+      "unit": "each",
+      "unitCost": 150.65
+    },
+    {
+      "id": "material-304",
+      "name": "Henna Bay shelving RAL3007 (MANUF)",
+      "unit": "each",
+      "unitCost": 150.65
+    },
+    {
+      "id": "material-305",
+      "name": "1\"x1\" steel square tube (6')",
+      "unit": "each",
+      "unitCost": 24.2
+    },
+    {
+      "id": "material-306",
+      "name": "2\"x2\" steel square tube (6')",
+      "unit": "each",
+      "unitCost": 56.58
+    },
+    {
+      "id": "material-307",
+      "name": "3/4\" metal rod (20')",
+      "unit": "each",
+      "unitCost": 69.23
+    },
+    {
+      "id": "material-308",
+      "name": "3x3 Flat Mount Base Plate (3\"x3\")",
+      "unit": "each",
+      "unitCost": 1.47
+    },
+    {
+      "id": "material-309",
+      "name": "4x4 Flat Mount Base Plate (4\"x4\")",
+      "unit": "each",
+      "unitCost": 2.58
+    },
+    {
+      "id": "material-310",
+      "name": "Aluminum Square Tube 1 1/4 (36\")",
+      "unit": "each",
+      "unitCost": 15.53
+    },
+    {
+      "id": "material-311",
+      "name": "Aluminum Square Tube 1 1/4 (6')",
+      "unit": "each",
+      "unitCost": 25.65
+    },
+    {
+      "id": "material-312",
+      "name": "Aluminum steel tube 1\" (6'/0.035\" thickness)",
+      "unit": "each",
+      "unitCost": 35.23
+    },
+    {
+      "id": "material-313",
+      "name": "Aluminum steel tube 3/4\" (6'/0.035 thickness)",
+      "unit": "each",
+      "unitCost": 52.18
+    },
+    {
+      "id": "material-314",
+      "name": "Aluminum U-Channel 1\" H 1/4\" thk (8')",
+      "unit": "each",
+      "unitCost": 19.86
+    },
+    {
+      "id": "material-315",
+      "name": "Flat Bar 1 1/2 in x .375in thk (4')",
+      "unit": "each",
+      "unitCost": 27.85
+    },
+    {
+      "id": "material-316",
+      "name": "Flat Bar 3/8 in x 3/8in (6')",
+      "unit": "each",
+      "unitCost": 10.23
+    },
+    {
+      "id": "material-317",
+      "name": "custom Mirror plex (5x10')",
+      "unit": "sheet",
+      "unitCost": 640
+    },
+    {
+      "id": "material-318",
+      "name": "Hardcoating Foam",
+      "unit": "sqft",
+      "unitCost": 45
+    },
+    {
+      "id": "material-319",
+      "name": "Lightblanket",
+      "unit": "sqft",
+      "unitCost": 20
+    },
+    {
+      "id": "material-320",
+      "name": "Mirror plex standard (4x8' , 1/8\")",
+      "unit": "sheet",
+      "unitCost": 125
+    },
+    {
+      "id": "material-321",
+      "name": "Mirror plex standard (4x8', 1/4\")",
+      "unit": "sheet",
+      "unitCost": 260
+    },
+    {
+      "id": "material-322",
+      "name": "Paint (per gallon)",
+      "unit": "gallon",
+      "unitCost": 300
+    },
+    {
+      "id": "material-323",
+      "name": "Paint (per quart)",
+      "unit": "Quart",
+      "unitCost": 80
+    },
+    {
+      "id": "material-324",
+      "name": "Powder Coating (per linear foot)",
+      "unit": "per foot",
+      "unitCost": 3.5
+    },
+    {
+      "id": "material-325",
+      "name": "PVC tube 5 1/2\" (120\")",
+      "unit": "each",
+      "unitCost": 45
+    },
+    {
+      "id": "material-326",
+      "name": "PVC tube 6\" (120\")",
+      "unit": "each",
+      "unitCost": 79.1
+    },
+    {
+      "id": "material-327",
+      "name": "PVC tube 9\" (120\")",
+      "unit": "each",
+      "unitCost": 173.3
+    },
+    {
+      "id": "material-328",
+      "name": "1\" x 48\" x 96\" Styro Foam EPS Sheets 2# Virgin",
+      "unit": "each",
+      "unitCost": 24
+    },
+    {
+      "id": "material-329",
+      "name": "1\" x 48\" x 96\" Styro Foam EPS Sheets 3# Virgin",
+      "unit": "each",
+      "unitCost": 53.33
+    },
+    {
+      "id": "material-330",
+      "name": "2\" x 48\" x 96\" Styro Foam EPS Sheets 2# Virgin",
+      "unit": "each",
+      "unitCost": 48
+    },
+    {
+      "id": "material-331",
+      "name": "2\" x 48\" x 96\" Styro Foam EPS Sheets 3# Virgin",
+      "unit": "each",
+      "unitCost": 106.67
+    },
+    {
+      "id": "material-332",
+      "name": "2\u201d clear packing tape",
+      "unit": "roll",
+      "unitCost": 3
+    },
+    {
+      "id": "material-333",
+      "name": "2\u201d clear packing tape 2\" x 110 yards",
+      "unit": "roll",
+      "unitCost": 1.5
+    },
+    {
+      "id": "material-334",
+      "name": "2\u201d clear packing tape 48 mm x 100 m, 109yards",
+      "unit": "roll",
+      "unitCost": 2.28
+    },
+    {
+      "id": "material-335",
+      "name": "2\u201d clear packing tape 48mm x 55m, 60 yards",
+      "unit": "roll",
+      "unitCost": 3.55
+    },
+    {
+      "id": "material-336",
+      "name": "3\" x 48\" x 96\" Styro Foam EPS Sheets 2# Virgin",
+      "unit": "each",
+      "unitCost": 72
+    },
+    {
+      "id": "material-337",
+      "name": "3\" x 48\" x 96\" Styro Foam EPS Sheets 3# Virgin",
+      "unit": "each",
+      "unitCost": 160
+    },
+    {
+      "id": "material-338",
+      "name": "3.5 Mil, 2\" x 55 yds, Clear",
+      "unit": "roll",
+      "unitCost": 3.65
+    },
+    {
+      "id": "material-339",
+      "name": "3M Tape 301+ Masking Tape (YELLOW) 1\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 5.91
+    },
+    {
+      "id": "material-340",
+      "name": "3M Tape 301+ Masking Tape (YELLOW) 2\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 11.6
+    },
+    {
+      "id": "material-341",
+      "name": "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 1\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 5.55
+    },
+    {
+      "id": "material-342",
+      "name": "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 1-1/2\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 4.75
+    },
+    {
+      "id": "material-343",
+      "name": "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 1-1/2\" x 60 yds 3M",
+      "unit": "roll",
+      "unitCost": 6.5
+    },
+    {
+      "id": "material-344",
+      "name": "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 2\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 9.95
+    },
+    {
+      "id": "material-345",
+      "name": "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 2\" x 60 yds 3M",
+      "unit": "roll",
+      "unitCost": 8.75
+    },
+    {
+      "id": "material-346",
+      "name": "4\" x 48\" x 96\" Styro Foam EPS Sheets 2# Virgin",
+      "unit": "each",
+      "unitCost": 96
+    },
+    {
+      "id": "material-347",
+      "name": "4\" x 48\" x 96\" Styro Foam EPS Sheets 3# Virgin",
+      "unit": "each",
+      "unitCost": 213.33
+    },
+    {
+      "id": "material-348",
+      "name": "Black/White Gaffers Tape 2\" X 55 YRD (24/case)",
+      "unit": "each",
+      "unitCost": 16
+    },
+    {
+      "id": "material-349",
+      "name": "Cast Stretch Film 18\" wide x 1500' long 80 gauge BLACK",
+      "unit": "roll",
+      "unitCost": 20.75
+    },
+    {
+      "id": "material-350",
+      "name": "Cast Stretch Film 18\" wide x 1500' long 80 gauge Clear",
+      "unit": "roll",
+      "unitCost": 16.25
+    },
+    {
+      "id": "material-351",
+      "name": "Cast Stretch Film 18\" wide x 1500' long 80 gauge RED",
+      "unit": "roll",
+      "unitCost": 22.6
+    },
+    {
+      "id": "material-352",
+      "name": "Cast Stretch Film 18\" wide x 1500' long 90 gauge Clear",
+      "unit": "roll",
+      "unitCost": 22
+    },
+    {
+      "id": "material-353",
+      "name": "Cast Stretch Film 18\" X 80ga X 1500', (BLACK)",
+      "unit": "case",
+      "unitCost": 77
+    },
+    {
+      "id": "material-354",
+      "name": "Cast Stretch Film 18\"X1500', 80 gauge (CLEAR)",
+      "unit": "case",
+      "unitCost": 65
+    },
+    {
+      "id": "material-355",
+      "name": "Double Sided Carpet Tape 2\"x 25yds",
+      "unit": "roll",
+      "unitCost": 9.65
+    },
+    {
+      "id": "material-356",
+      "name": "Double Sided Carpet Tape 2\"x 36yds",
+      "unit": "roll",
+      "unitCost": 19
+    },
+    {
+      "id": "material-357",
+      "name": "Double Sided Carpet Tape 2\"x36yds",
+      "unit": "roll",
+      "unitCost": 8.49
+    },
+    {
+      "id": "material-358",
+      "name": "Edge Protectors Corner Board 2 x 2 x 36",
+      "unit": "roll",
+      "unitCost": 158
+    },
+    {
+      "id": "material-359",
+      "name": "Edge Protectors Corner Board 2 x 2 x 4",
+      "unit": "roll",
+      "unitCost": 160
+    },
+    {
+      "id": "material-360",
+      "name": "Edge Protectors Corner Board 2 x 2 x 48",
+      "unit": "roll",
+      "unitCost": 179.2
+    },
+    {
+      "id": "material-361",
+      "name": "General Purpose Masking Tape - 3\u20444\" x 60 yds 1\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 1.9
+    },
+    {
+      "id": "material-362",
+      "name": "General Purpose Masking Tape - 3\u20444\" x 60 yds 2\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 3.6
+    },
+    {
+      "id": "material-363",
+      "name": "General Purpose Masking Tape - 3\u20444\" x 60 yds 3\u20444\" x 60 yds",
+      "unit": "roll",
+      "unitCost": 1.5
+    },
+    {
+      "id": "material-364",
+      "name": "Hook/Loop, Black, 1\" x 25yds",
+      "unit": "roll",
+      "unitCost": 21.4
+    },
+    {
+      "id": "material-365",
+      "name": "Hook/Loop, Black, 1\" x 75'",
+      "unit": "roll",
+      "unitCost": 30
+    },
+    {
+      "id": "material-366",
+      "name": "Hook/Loop, Black, 3\u20444\" x 25yds",
+      "unit": "roll",
+      "unitCost": 20.49
+    },
+    {
+      "id": "material-367",
+      "name": "Hook/Loop, Black, 3\u20444\" x 75'",
+      "unit": "roll",
+      "unitCost": 24
+    },
+    {
+      "id": "material-368",
+      "name": "Hook/Loop, White, 1\" x 25yds",
+      "unit": "roll",
+      "unitCost": 21.4
+    },
+    {
+      "id": "material-369",
+      "name": "Hook/Loop, White, 1\" x 75'",
+      "unit": "roll",
+      "unitCost": 30
+    },
+    {
+      "id": "material-370",
+      "name": "Hook/Loop, White, 3\u20444\" x 25yds",
+      "unit": "roll",
+      "unitCost": 20.49
+    },
+    {
+      "id": "material-371",
+      "name": "Hook/Loop, White, 3\u20444\" x 75'",
+      "unit": "roll",
+      "unitCost": 24
+    },
+    {
+      "id": "material-372",
+      "name": "Hurrican Tape XHB 1\" inch, 40mil Clear X 33m",
+      "unit": "roll",
+      "unitCost": 85.56
+    },
+    {
+      "id": "material-373",
+      "name": "Hurrican Tape XHB 1.5\" inch, 40mil Clear X 33m",
+      "unit": "roll",
+      "unitCost": 128.34
+    },
+    {
+      "id": "material-374",
+      "name": "Hurrican Tape XHB 1/2\" inch, 40mil Clear X 33m",
+      "unit": "roll",
+      "unitCost": 42.78
+    },
+    {
+      "id": "material-375",
+      "name": "Hurrican Tape XHB 1/4\" inch, 40mil Clear X 33m",
+      "unit": "roll",
+      "unitCost": 21.39
+    },
+    {
+      "id": "material-376",
+      "name": "Hurrican Tape XHB 2\" inch, 40mil Clear X 33m",
+      "unit": "roll",
+      "unitCost": 171.12
+    },
+    {
+      "id": "material-377",
+      "name": "Hurrican Tape XHB 3/4\" inch, 40mil Clear X 33m",
+      "unit": "roll",
+      "unitCost": 64.17
+    },
+    {
+      "id": "material-378",
+      "name": "MIni Wrap 5\" x 1,000'",
+      "unit": "roll",
+      "unitCost": 8.86
+    },
+    {
+      "id": "material-379",
+      "name": "MIni Wrap 5\" x 1,000' with handle",
+      "unit": "roll",
+      "unitCost": 6.45
+    },
+    {
+      "id": "material-380",
+      "name": "MIni Wrap 5\" x 1,500'",
+      "unit": "roll",
+      "unitCost": 7.75
+    },
+    {
+      "id": "material-381",
+      "name": "Perforated Packaging Foam 1/8 x 48 x 550",
+      "unit": "each",
+      "unitCost": 164
+    },
+    {
+      "id": "material-382",
+      "name": "Steel Banding/Portable Strapping 1\u20442\" x .020\" x 300'",
+      "unit": "each",
+      "unitCost": 38
+    },
+    {
+      "id": "material-383",
+      "name": "1\" Knotty pine (4'x8')",
+      "unit": "sheet",
+      "unitCost": 120
+    },
+    {
+      "id": "material-384",
+      "name": "1/2\" Knotty pine (4'x8')",
+      "unit": "sheet",
+      "unitCost": 96
+    },
+    {
+      "id": "material-385",
+      "name": "3/4\" Knotty pine (4'x8')",
+      "unit": "sheet",
+      "unitCost": 108
+    },
+    {
+      "id": "material-386",
+      "name": "1/2\" Plastic Resin, black a (31.5\"x114\")",
+      "unit": "each",
+      "unitCost": 900
+    },
+    {
+      "id": "material-387",
+      "name": "1/2\" Plastic Resin, white a (31.5\"x114\")",
+      "unit": "each",
+      "unitCost": 900
+    },
+    {
+      "id": "material-388",
+      "name": "1/2\" Plastic Resin, white b (36\"x144\")",
+      "unit": "each",
+      "unitCost": 1200
+    },
+    {
+      "id": "material-389",
+      "name": "1\" Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 110.86
+    },
+    {
+      "id": "material-390",
+      "name": "1/2\" AC Fir Plywood (4'x10')",
+      "unit": "sheet",
+      "unitCost": 92.57
+    },
+    {
+      "id": "material-391",
+      "name": "1/2\" Maple Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 65.19
+    },
+    {
+      "id": "material-392",
+      "name": "1/2\" Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 29
+    },
+    {
+      "id": "material-393",
+      "name": "1/4\" Lauan Plywood (4'x10')",
+      "unit": "sheet",
+      "unitCost": 58.4
+    },
+    {
+      "id": "material-394",
+      "name": "1/4\" Meranti Plywood (4'x10')",
+      "unit": "sheet",
+      "unitCost": 50.2
+    },
+    {
+      "id": "material-395",
+      "name": "1/4\" Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 15.25
+    },
+    {
+      "id": "material-396",
+      "name": "3/4\" AC Fir Plywood (4'x10')",
+      "unit": "sheet",
+      "unitCost": 129.89
+    },
+    {
+      "id": "material-397",
+      "name": "3/4\" black melamine w/ plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 62
+    },
+    {
+      "id": "material-398",
+      "name": "3/4\" Maple Plywood (4'x10')",
+      "unit": "sheet",
+      "unitCost": 139
+    },
+    {
+      "id": "material-399",
+      "name": "3/4\" Maple Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 84.32
+    },
+    {
+      "id": "material-400",
+      "name": "3/4\" Plywood (4'x10')",
+      "unit": "sheet",
+      "unitCost": 150.68
+    },
+    {
+      "id": "material-401",
+      "name": "3/4\" Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 75
+    },
+    {
+      "id": "material-402",
+      "name": "3/4\" white melamine w/ plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 62
+    },
+    {
+      "id": "material-403",
+      "name": "3/8\" Plywood (4'x8')",
+      "unit": "sheet",
+      "unitCost": 82.67
+    },
+    {
+      "id": "material-404",
+      "name": "Liquid Tight Cord Connector: Nylon, M20, 0.17 in to 0.45 in (4'x8')",
+      "unit": "sheet",
+      "unitCost": 3.92
+    },
+    {
+      "id": "material-405",
+      "name": "Mild steel reservoir (4'x8')",
+      "unit": "sheet",
+      "unitCost": 0
+    },
+    {
+      "id": "material-406",
+      "name": "Mirror (18\"x56\")",
+      "unit": "each",
+      "unitCost": 79.73
+    },
+    {
+      "id": "material-407",
+      "name": "Mirror, custom (18\"x56\")",
+      "unit": "each",
+      "unitCost": 113.9
+    },
+    {
+      "id": "material-408",
+      "name": "Tube Stock: 5/8 in Inside Dia, 3/4 in Outside Dia, 3 ft Plastic Lg, Clear, 1/16 in Wall Thick (3')",
+      "unit": "each",
+      "unitCost": 16.8
+    },
+    {
+      "id": "material-409",
+      "name": "Universal water pump (4'x8')",
+      "unit": "sheet",
+      "unitCost": 21.38
+    },
+    {
+      "id": "material-410",
+      "name": "18oz Standard Carpet (white), 10' wide roll",
+      "unit": "sqft",
+      "unitCost": 1.5
+    },
+    {
+      "id": "material-412",
+      "name": "SEG Lightbox w/ frame",
+      "unit": "sqft",
+      "unitCost": 50
+    },
+    {
+      "id": "material-413",
+      "name": "SEG Printed (from Five)",
+      "unit": "sqft",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-414",
+      "name": "SEG w/ Velcro (from Five)",
+      "unit": "sqft",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-415",
+      "name": "SEG White (from Five)",
+      "unit": "sqft",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-416",
+      "name": "Standard SEG w/ velcro border",
+      "unit": "sqft",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-417",
+      "name": "1\" Sintra board white (4'x8')",
+      "unit": "sheet",
+      "unitCost": 250
+    },
+    {
+      "id": "material-418",
+      "name": "1' Sintra board black (4'x8')",
+      "unit": "sheet",
+      "unitCost": 225
+    },
+    {
+      "id": "material-419",
+      "name": "1/2\" Sintra board black (4'x8')",
+      "unit": "sheet",
+      "unitCost": 105
+    },
+    {
+      "id": "material-420",
+      "name": "1/2\" Sintra board white (4'x8')",
+      "unit": "sheet",
+      "unitCost": 102
+    },
+    {
+      "id": "material-421",
+      "name": "1/4\" Sintra board black (4'x8')",
+      "unit": "sheet",
+      "unitCost": 40.91
+    },
+    {
+      "id": "material-422",
+      "name": "1/4\" Sintra board white (4'x8')",
+      "unit": "sheet",
+      "unitCost": 38.51
+    },
+    {
+      "id": "material-423",
+      "name": "1/8\" Sintra board black (4'x8')",
+      "unit": "sheet",
+      "unitCost": 25
+    },
+    {
+      "id": "material-424",
+      "name": "1/8\" Sintra board white (4'x8')",
+      "unit": "sheet",
+      "unitCost": 32
+    },
+    {
+      "id": "material-425",
+      "name": "3/4\" Sintra board black (4'x8')",
+      "unit": "sheet",
+      "unitCost": 105
+    },
+    {
+      "id": "material-426",
+      "name": "3/4\" Sintra board white (4'x8')",
+      "unit": "sheet",
+      "unitCost": 190
+    },
+    {
+      "id": "material-427",
+      "name": "1\" dia dowel rod (4')",
+      "unit": "each",
+      "unitCost": 4.66
+    },
+    {
+      "id": "material-428",
+      "name": "1\"x1\" Solid Pine (8')",
+      "unit": "each",
+      "unitCost": 1.58
+    },
+    {
+      "id": "material-429",
+      "name": "1/2\" Square dowels (3')",
+      "unit": "each",
+      "unitCost": 2.38
+    },
+    {
+      "id": "material-430",
+      "name": "2\"x2\"' Solid Knotty Pine (8')",
+      "unit": "each",
+      "unitCost": 18.56
+    },
+    {
+      "id": "material-431",
+      "name": "2\"x3\" Solid Knotty Pine (8')",
+      "unit": "each",
+      "unitCost": 18.56
+    },
+    {
+      "id": "material-432",
+      "name": "2\"x4\" Solid Knotty Pine (8')",
+      "unit": "each",
+      "unitCost": 18.56
+    },
+    {
+      "id": "material-433",
+      "name": "2X4 #2 PREMIUM SPF (10')",
+      "unit": "each",
+      "unitCost": 6.5
+    },
+    {
+      "id": "material-434",
+      "name": "2X4 #2 PREMIUM SPF (12')",
+      "unit": "each",
+      "unitCost": 7.5
+    },
+    {
+      "id": "material-435",
+      "name": "2X4 #2 PREMIUM SPF (8')",
+      "unit": "each",
+      "unitCost": 4.5
+    },
+    {
+      "id": "material-436",
+      "name": "3\"x3\" Solid Knotty Pine (8')",
+      "unit": "each",
+      "unitCost": 18.56
+    },
+    {
+      "id": "material-437",
+      "name": "3/4\" dia dowel rod (4')",
+      "unit": "each",
+      "unitCost": 3.37
+    },
+    {
+      "id": "material-438",
+      "name": "3/4\" square dowel (3')",
+      "unit": "each",
+      "unitCost": 3.98
+    },
+    {
+      "id": "material-439",
+      "name": "4\"x4\" Solid Knotty Pine (8')",
+      "unit": "each",
+      "unitCost": 8.1
+    },
+    {
+      "id": "material-440",
+      "name": "Knotty Pine Veneer (4'x8')",
+      "unit": "sheet",
+      "unitCost": 95.98
+    },
+    {
+      "id": "material-441",
+      "name": "Maple Veneer (4'x8')",
+      "unit": "sheet",
+      "unitCost": 61.88
+    },
+    {
+      "id": "material-442",
+      "name": "Vinyl",
+      "unit": "sqft",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-443",
+      "name": "#2 Yellow Pine 16' 1x6",
+      "unit": "sheet",
+      "unitCost": 11
+    },
+    {
+      "id": "material-444",
+      "name": "(Roseburg) Natural Maple D-3 WPF VC 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 64
+    },
+    {
+      "id": "material-445",
+      "name": "1\" MDF 5x12",
+      "unit": "sheet",
+      "unitCost": 98
+    },
+    {
+      "id": "material-446",
+      "name": "1/2 4X8 MAPLE PAINT GRADE",
+      "unit": "sheet",
+      "unitCost": 77.5
+    },
+    {
+      "id": "material-447",
+      "name": "1/2\" MDF 4x8",
+      "unit": "sheet",
+      "unitCost": 23
+    },
+    {
+      "id": "material-448",
+      "name": "1/4\" MDF 5x8",
+      "unit": "sheet",
+      "unitCost": 16.5
+    },
+    {
+      "id": "material-449",
+      "name": "1/4\" MDF 5x9",
+      "unit": "sheet",
+      "unitCost": 17
+    },
+    {
+      "id": "material-450",
+      "name": "1/8\" MDF 4x8",
+      "unit": "sheet",
+      "unitCost": 8.5
+    },
+    {
+      "id": "material-451",
+      "name": "12\" Soft Close Ball Bearing Slides Full Ext",
+      "unit": "each",
+      "unitCost": 7.27
+    },
+    {
+      "id": "material-452",
+      "name": "12mm birch 4x8 1/2\"",
+      "unit": "sheet",
+      "unitCost": 22.75
+    },
+    {
+      "id": "material-453",
+      "name": "12mm Full birch 4x8 1/2\"",
+      "unit": "sheet",
+      "unitCost": 45
+    },
+    {
+      "id": "material-454",
+      "name": "18 mm BB-CP RC Full Birch VC 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 46.56
+    },
+    {
+      "id": "material-455",
+      "name": "18 mm Birch Import Vietnamese 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 32.5
+    },
+    {
+      "id": "material-456",
+      "name": "18 mm White Birch ArrowPly 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 44.36
+    },
+    {
+      "id": "material-457",
+      "name": "18mm birch 4x8 3/4\"",
+      "unit": "sheet",
+      "unitCost": 31.5
+    },
+    {
+      "id": "material-458",
+      "name": "19mm Cab 2s Natural Birch DP 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 49.5
+    },
+    {
+      "id": "material-459",
+      "name": "2 sided Hardrock Maple MDF 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 230
+    },
+    {
+      "id": "material-460",
+      "name": "20\" Soft Close Ball Bearing Slides Full Ext",
+      "unit": "each",
+      "unitCost": 10.15
+    },
+    {
+      "id": "material-461",
+      "name": "24\" Soft Close Ball Bearing Slides Full Ext",
+      "unit": "each",
+      "unitCost": 12.6
+    },
+    {
+      "id": "material-462",
+      "name": "2X4-10' #2 PREMIUM SPF",
+      "unit": "sheet",
+      "unitCost": 6.5
+    },
+    {
+      "id": "material-463",
+      "name": "2X4-12' #2 PREMIUM SPF",
+      "unit": "sheet",
+      "unitCost": 7.5
+    },
+    {
+      "id": "material-464",
+      "name": "2X4-8' #2 PREMIUM SPF",
+      "unit": "sheet",
+      "unitCost": 4.5
+    },
+    {
+      "id": "material-465",
+      "name": "3/4\" birch 4x10",
+      "unit": "sheet",
+      "unitCost": 154.5
+    },
+    {
+      "id": "material-466",
+      "name": "3/4\" MDF 4x8",
+      "unit": "sheet",
+      "unitCost": 30.25
+    },
+    {
+      "id": "material-467",
+      "name": "3/4\" MR MDF 5x12",
+      "unit": "sheet",
+      "unitCost": 94
+    },
+    {
+      "id": "material-468",
+      "name": "3/8\" 8X4 BENDING VIROLA",
+      "unit": "sheet",
+      "unitCost": 58.95
+    },
+    {
+      "id": "material-469",
+      "name": "3/8\" MDF 4x8",
+      "unit": "sheet",
+      "unitCost": 21
+    },
+    {
+      "id": "material-470",
+      "name": "3mm MDF 4x8 1/8\"",
+      "unit": "sheet",
+      "unitCost": 5.75
+    },
+    {
+      "id": "material-471",
+      "name": "4x10 1/2 AC",
+      "unit": "sheet",
+      "unitCost": 128
+    },
+    {
+      "id": "material-472",
+      "name": "4X10 1/8 HDF",
+      "unit": "sheet",
+      "unitCost": 19.5
+    },
+    {
+      "id": "material-473",
+      "name": "4X10'-1/4 MERANTI PLYWOOD",
+      "unit": "sheet",
+      "unitCost": 50.2
+    },
+    {
+      "id": "material-474",
+      "name": "4x8 Knotty Pine BFV Veneer",
+      "unit": "sheet",
+      "unitCost": 95.68
+    },
+    {
+      "id": "material-475",
+      "name": "5.2mm birch 4x8 1/4\"",
+      "unit": "sheet",
+      "unitCost": 13.75
+    },
+    {
+      "id": "material-476",
+      "name": "A-1 Wh. Maple Plain Sliced MDF 4x8",
+      "unit": "sheet",
+      "unitCost": 154.98
+    },
+    {
+      "id": "material-477",
+      "name": "A1 MAPLE 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 168
+    },
+    {
+      "id": "material-478",
+      "name": "ABX FIR 7Ply (23/32\") 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 94.4
+    },
+    {
+      "id": "material-479",
+      "name": "ABX Marine FIR 7Ply S2S 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 117.76
+    },
+    {
+      "id": "material-480",
+      "name": "ABX MARINE FIR PLY S/E 7PLY S2S UPC 3/4\" 4X8",
+      "unit": "sheet",
+      "unitCost": 118
+    },
+    {
+      "id": "material-481",
+      "name": "AC Arauco Plywood 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 52.2
+    },
+    {
+      "id": "material-482",
+      "name": "AC FIR 1\" 4X8",
+      "unit": "sheet",
+      "unitCost": 153.6
+    },
+    {
+      "id": "material-483",
+      "name": "AC FIR 5Ply 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 98.57
+    },
+    {
+      "id": "material-484",
+      "name": "AC Fir Sanded 23/32\" 4x10",
+      "unit": "sheet",
+      "unitCost": 129.89
+    },
+    {
+      "id": "material-485",
+      "name": "AC Fir Sanded 31/32\" 4x8",
+      "unit": "sheet",
+      "unitCost": 108
+    },
+    {
+      "id": "material-486",
+      "name": "B-2 - Nat. Maple - VC 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 84.32
+    },
+    {
+      "id": "material-487",
+      "name": "B2 MAPLE PLYWOOD 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 145.85
+    },
+    {
+      "id": "material-488",
+      "name": "Baltic Birch 1\" 4x8",
+      "unit": "sheet",
+      "unitCost": 146.9
+    },
+    {
+      "id": "material-489",
+      "name": "Baltic Birch 1/2\" 5x5",
+      "unit": "sheet",
+      "unitCost": 74.5
+    },
+    {
+      "id": "material-490",
+      "name": "BC Exterior Ply 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 47.8
+    },
+    {
+      "id": "material-491",
+      "name": "BC Sanded Plywood 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 28.13
+    },
+    {
+      "id": "material-492",
+      "name": "BC SYP 23/32\" 4x8",
+      "unit": "sheet",
+      "unitCost": 48.44
+    },
+    {
+      "id": "material-493",
+      "name": "BC YELLOW PINE (23//32\") 3/4\" 4X8",
+      "unit": "sheet",
+      "unitCost": 47.88
+    },
+    {
+      "id": "material-494",
+      "name": "BC YELLOW PINE 3/4\" 4X8",
+      "unit": "sheet",
+      "unitCost": 50
+    },
+    {
+      "id": "material-495",
+      "name": "BCX Pine 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 43.25
+    },
+    {
+      "id": "material-496",
+      "name": "Bending Board (Virola) Barrell 1/4\" 8x4",
+      "unit": "sheet",
+      "unitCost": 23
+    },
+    {
+      "id": "material-497",
+      "name": "Bending Board (Virola) Barrell 3/8\" 8x4",
+      "unit": "sheet",
+      "unitCost": 35
+    },
+    {
+      "id": "material-498",
+      "name": "Bending Board (Virola) Column 3/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 34
+    },
+    {
+      "id": "material-499",
+      "name": "Bending Lauan (Column) 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 38.24
+    },
+    {
+      "id": "material-500",
+      "name": "Bending Plywood 0.175\" 8x4",
+      "unit": "sheet",
+      "unitCost": 62.67
+    },
+    {
+      "id": "material-501",
+      "name": "Birch (Arrowply) 12mm 4x8",
+      "unit": "sheet",
+      "unitCost": 58.67
+    },
+    {
+      "id": "material-502",
+      "name": "BIRCH 1/2\" 4X8 C2 IMP WPF VC",
+      "unit": "sheet",
+      "unitCost": 30
+    },
+    {
+      "id": "material-503",
+      "name": "Birch A-3 1/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 31.36
+    },
+    {
+      "id": "material-504",
+      "name": "BIrch Baltic 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 86.86
+    },
+    {
+      "id": "material-505",
+      "name": "Birch Baltic 1/2\" 5x5",
+      "unit": "sheet",
+      "unitCost": 55.15
+    },
+    {
+      "id": "material-506",
+      "name": "Birch Blatic 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 74
+    },
+    {
+      "id": "material-507",
+      "name": "Birch Blatic 1/2\" 5x5",
+      "unit": "sheet",
+      "unitCost": 73.88
+    },
+    {
+      "id": "material-508",
+      "name": "Birch C2 IMP VC Lauan 3/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 28
+    },
+    {
+      "id": "material-509",
+      "name": "Birch E3KN Plywood 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 150.68
+    },
+    {
+      "id": "material-510",
+      "name": "Birch Import 3ply 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 27.12
+    },
+    {
+      "id": "material-511",
+      "name": "Birch Import Plywood (Indo) 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 35
+    },
+    {
+      "id": "material-512",
+      "name": "Birch Import Plywood (Vietnamese) 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 37
+    },
+    {
+      "id": "material-513",
+      "name": "Birch Import Plywood 1\" 4x8",
+      "unit": "sheet",
+      "unitCost": 108
+    },
+    {
+      "id": "material-514",
+      "name": "Birch Import Plywood 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 27.73
+    },
+    {
+      "id": "material-515",
+      "name": "Birch Import Plywood 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 17.92
+    },
+    {
+      "id": "material-516",
+      "name": "Birch Import Plywood 18mm 4x8",
+      "unit": "sheet",
+      "unitCost": 39.68
+    },
+    {
+      "id": "material-517",
+      "name": "Birch Plywood - A1 Panel 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 166
+    },
+    {
+      "id": "material-518",
+      "name": "Birch Plywood 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 115.56
+    },
+    {
+      "id": "material-519",
+      "name": "Birch Plywood 5ply 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 79.08
+    },
+    {
+      "id": "material-520",
+      "name": "Birch WH C-2 R/C WPF VC 25mm 4x8",
+      "unit": "sheet",
+      "unitCost": 80.69
+    },
+    {
+      "id": "material-521",
+      "name": "Birch WH C-2 WPF VC 12mm 4x8",
+      "unit": "sheet",
+      "unitCost": 26.98
+    },
+    {
+      "id": "material-522",
+      "name": "Birch WH C-2 WPF VC 18mm 4x8",
+      "unit": "sheet",
+      "unitCost": 34.98
+    },
+    {
+      "id": "material-523",
+      "name": "Birch WH C-2 WPF VC 5.2mm 4x8",
+      "unit": "sheet",
+      "unitCost": 17.5
+    },
+    {
+      "id": "material-524",
+      "name": "Black 2S (Magnolia) 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 47.25
+    },
+    {
+      "id": "material-525",
+      "name": "Black Liner 2 Face Veneer Core 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 68.86
+    },
+    {
+      "id": "material-526",
+      "name": "Blatic Birch 1/2\" 5x5",
+      "unit": "sheet",
+      "unitCost": 51.38
+    },
+    {
+      "id": "material-527",
+      "name": "C-2 StdCab RC WPF Birch White VC 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 23.74
+    },
+    {
+      "id": "material-528",
+      "name": "CABINET LINER WHITE Particle Board 2S 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 30
+    },
+    {
+      "id": "material-529",
+      "name": "CABINET LINER WHITE VC 2S 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 61.71
+    },
+    {
+      "id": "material-530",
+      "name": "China Birch Plywood C2 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 34
+    },
+    {
+      "id": "material-531",
+      "name": "D3 - WPF - Nat Maple - VC 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 49
+    },
+    {
+      "id": "material-532",
+      "name": "D3 - WPF - Nat Maple - VC 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 131.14
+    },
+    {
+      "id": "material-533",
+      "name": "D3 - WPF - Nat Maple - VC 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 63
+    },
+    {
+      "id": "material-534",
+      "name": "DRAGON 3/4 4X8 WHITE 2S VC IMP",
+      "unit": "sheet",
+      "unitCost": 63
+    },
+    {
+      "id": "material-535",
+      "name": "Edgebanding Pine WH Pre Glued 13/16\" 250'",
+      "unit": "roll",
+      "unitCost": 26.95
+    },
+    {
+      "id": "material-536",
+      "name": "Famowood Natural/Tup/WhitePine Pint",
+      "unit": "pint",
+      "unitCost": 6.95
+    },
+    {
+      "id": "material-537",
+      "name": "Fir AB Ext 23/32\" 4x8",
+      "unit": "sheet",
+      "unitCost": 95.6
+    },
+    {
+      "id": "material-538",
+      "name": "Fir AB Ext 31/32 4x8",
+      "unit": "sheet",
+      "unitCost": 122.51
+    },
+    {
+      "id": "material-539",
+      "name": "Fir AB Marine Grade 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 250
+    },
+    {
+      "id": "material-540",
+      "name": "Fir AB Plywood Marine 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 129.95
+    },
+    {
+      "id": "material-541",
+      "name": "Fir AC 31/32\" 4x8",
+      "unit": "sheet",
+      "unitCost": 107
+    },
+    {
+      "id": "material-542",
+      "name": "Fir AC Ext 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 152.29
+    },
+    {
+      "id": "material-543",
+      "name": "Fir AC Plywood 15/32\" 4x10",
+      "unit": "sheet",
+      "unitCost": 92.57
+    },
+    {
+      "id": "material-544",
+      "name": "Formica - 961C-58 Fog postform 4x10",
+      "unit": "sheet",
+      "unitCost": 247.2
+    },
+    {
+      "id": "material-545",
+      "name": "HARDROCK MAPLE G2S PBC 3/4\" 49x97",
+      "unit": "sheet",
+      "unitCost": 41.98
+    },
+    {
+      "id": "material-546",
+      "name": "I Joist 20ft 2-5/16x11-7/8",
+      "unit": "each",
+      "unitCost": 6.16
+    },
+    {
+      "id": "material-547",
+      "name": "Import Birch 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 29.05
+    },
+    {
+      "id": "material-548",
+      "name": "Indo Birch (lighter in weight) 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 37.5
+    },
+    {
+      "id": "material-549",
+      "name": "Italian Poplar 3/4\" 5x10",
+      "unit": "sheet",
+      "unitCost": 240.83
+    },
+    {
+      "id": "material-550",
+      "name": "KNOTTY PINE A-1 PS VC (DOM) 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 92
+    },
+    {
+      "id": "material-551",
+      "name": "Knotty Pine A-1 PS VC 4x8 (DOM) 3/4\"",
+      "unit": "sheet",
+      "unitCost": 108.01
+    },
+    {
+      "id": "material-552",
+      "name": "Lauan 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 14.88
+    },
+    {
+      "id": "material-553",
+      "name": "Lauan/Meranti BB/CC 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 38.4
+    },
+    {
+      "id": "material-554",
+      "name": "LDF 3/4\" 5x12",
+      "unit": "sheet",
+      "unitCost": 160
+    },
+    {
+      "id": "material-555",
+      "name": "Luan Plywood 1/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 58.4
+    },
+    {
+      "id": "material-556",
+      "name": "Luan Plywood 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 25.44
+    },
+    {
+      "id": "material-557",
+      "name": "Magnolia Primo Black Birch 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 53
+    },
+    {
+      "id": "material-558",
+      "name": "Maple B2 SAP 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 86
+    },
+    {
+      "id": "material-559",
+      "name": "Maple Domestic C-2 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 60
+    },
+    {
+      "id": "material-560",
+      "name": "MAPLE E3 PLYWOOD 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 132
+    },
+    {
+      "id": "material-561",
+      "name": "MAPLE E4 OR D3 PLYWOOD 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 99.95
+    },
+    {
+      "id": "material-562",
+      "name": "MAPLE NAT 1/2 48.5X96.5 D-3 R/C WPF VC",
+      "unit": "sheet",
+      "unitCost": 52.28
+    },
+    {
+      "id": "material-563",
+      "name": "Maple Plywood 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 88.61
+    },
+    {
+      "id": "material-564",
+      "name": "Maple Plywood B-2 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 139
+    },
+    {
+      "id": "material-565",
+      "name": "Maple Plywood B-2 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 79
+    },
+    {
+      "id": "material-566",
+      "name": "Maple Solvent 1 PT Famowood pint",
+      "unit": "each",
+      "unitCost": 7.25
+    },
+    {
+      "id": "material-567",
+      "name": "Maple WH 1/2 48.5x96.5 B-2 R/C WPF VC",
+      "unit": "sheet",
+      "unitCost": 71.69
+    },
+    {
+      "id": "material-568",
+      "name": "MCA Ground Treated 10\" 2x4",
+      "unit": "sheet",
+      "unitCost": 6.75
+    },
+    {
+      "id": "material-569",
+      "name": "MCA Ground Treated 16' 4x4",
+      "unit": "sheet",
+      "unitCost": 29.95
+    },
+    {
+      "id": "material-570",
+      "name": "MCA Ground Treated 8' 2x4",
+      "unit": "sheet",
+      "unitCost": 5.95
+    },
+    {
+      "id": "material-571",
+      "name": "MDF (A-Grade Medim Density) 3/4\" 4x12",
+      "unit": "sheet",
+      "unitCost": 71.9
+    },
+    {
+      "id": "material-572",
+      "name": "MDF 1\" 4X8",
+      "unit": "sheet",
+      "unitCost": 72.31
+    },
+    {
+      "id": "material-573",
+      "name": "MDF 1\" 5x10",
+      "unit": "sheet",
+      "unitCost": 112.31
+    },
+    {
+      "id": "material-574",
+      "name": "MDF 1\" 5x12",
+      "unit": "sheet",
+      "unitCost": 179.95
+    },
+    {
+      "id": "material-575",
+      "name": "MDF 1-1/2 4X8 A-GRADE",
+      "unit": "sheet",
+      "unitCost": 135
+    },
+    {
+      "id": "material-576",
+      "name": "MDF 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 42.95
+    },
+    {
+      "id": "material-577",
+      "name": "MDF 1/2\" 5x10",
+      "unit": "sheet",
+      "unitCost": 89.95
+    },
+    {
+      "id": "material-578",
+      "name": "MDF 1/2\" 5x12",
+      "unit": "sheet",
+      "unitCost": 118.16
+    },
+    {
+      "id": "material-579",
+      "name": "MDF 1/4 4X8 A GRADE",
+      "unit": "sheet",
+      "unitCost": 18.2
+    },
+    {
+      "id": "material-580",
+      "name": "MDF 1/4\" 4X10",
+      "unit": "sheet",
+      "unitCost": 31.76
+    },
+    {
+      "id": "material-581",
+      "name": "MDF 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 25.44
+    },
+    {
+      "id": "material-582",
+      "name": "MDF 1/4\" 5x10",
+      "unit": "sheet",
+      "unitCost": 45
+    },
+    {
+      "id": "material-583",
+      "name": "MDF 1/4\" 61x121",
+      "unit": "sheet",
+      "unitCost": 39.63
+    },
+    {
+      "id": "material-584",
+      "name": "MDF 1/8 4X8 STANDARD",
+      "unit": "sheet",
+      "unitCost": 7.7
+    },
+    {
+      "id": "material-585",
+      "name": "MDF 1/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 11.43
+    },
+    {
+      "id": "material-586",
+      "name": "MDF 3/4 4X8 A GRADE",
+      "unit": "sheet",
+      "unitCost": 37
+    },
+    {
+      "id": "material-587",
+      "name": "MDF 3/4 4X8 Arauco ULTRALIGHT",
+      "unit": "sheet",
+      "unitCost": 43
+    },
+    {
+      "id": "material-588",
+      "name": "MDF 3/4\" 49x145",
+      "unit": "sheet",
+      "unitCost": 103.25
+    },
+    {
+      "id": "material-589",
+      "name": "MDF 3/4\" 49x97",
+      "unit": "sheet",
+      "unitCost": 39.88
+    },
+    {
+      "id": "material-590",
+      "name": "MDF 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 180
+    },
+    {
+      "id": "material-591",
+      "name": "MDF 3/4\" 4x12",
+      "unit": "sheet",
+      "unitCost": 99.2
+    },
+    {
+      "id": "material-592",
+      "name": "MDF 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 45.41
+    },
+    {
+      "id": "material-593",
+      "name": "MDF 3/4\" 5x10",
+      "unit": "sheet",
+      "unitCost": 82.25
+    },
+    {
+      "id": "material-594",
+      "name": "MDF 3/4\" 5X12",
+      "unit": "sheet",
+      "unitCost": 125
+    },
+    {
+      "id": "material-595",
+      "name": "MDF 3/4\" 61x121",
+      "unit": "sheet",
+      "unitCost": 57.98
+    },
+    {
+      "id": "material-596",
+      "name": "MDF 3/4\" 61x145",
+      "unit": "sheet",
+      "unitCost": 78.89
+    },
+    {
+      "id": "material-597",
+      "name": "MDF 3mm 49x97",
+      "unit": "sheet",
+      "unitCost": 8.6
+    },
+    {
+      "id": "material-598",
+      "name": "MDF Double Refined Ultra 3/4\" 4X8",
+      "unit": "sheet",
+      "unitCost": 67.2
+    },
+    {
+      "id": "material-599",
+      "name": "MDO (Black Concrete) 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 58.53
+    },
+    {
+      "id": "material-600",
+      "name": "MDO 1-side (11/32) 3/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 137.49
+    },
+    {
+      "id": "material-601",
+      "name": "MDO 1-side (15/32) 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 151.11
+    },
+    {
+      "id": "material-602",
+      "name": "MDO 1-side (23/32) 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 182.22
+    },
+    {
+      "id": "material-603",
+      "name": "MDO 1/2\" 4x10",
+      "unit": "sheet",
+      "unitCost": 110.41
+    },
+    {
+      "id": "material-604",
+      "name": "MDO 1S 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 64
+    },
+    {
+      "id": "material-605",
+      "name": "MDO 1S 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 83.04
+    },
+    {
+      "id": "material-606",
+      "name": "MDO 1S 3/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 63.79
+    },
+    {
+      "id": "material-607",
+      "name": "MDO 2 Side 4x8 NAUF PRIMED 2S 1/2\"",
+      "unit": "sheet",
+      "unitCost": 78
+    },
+    {
+      "id": "material-608",
+      "name": "MDO 2 sided 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 191.2
+    },
+    {
+      "id": "material-609",
+      "name": "MDO 2 sides 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 200
+    },
+    {
+      "id": "material-610",
+      "name": "MDO 2-Side Fir 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 135.2
+    },
+    {
+      "id": "material-611",
+      "name": "MDO 2S 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 129
+    },
+    {
+      "id": "material-612",
+      "name": "MDO 2S 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 93.65
+    },
+    {
+      "id": "material-613",
+      "name": "MDO 2S 3/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 81.72
+    },
+    {
+      "id": "material-614",
+      "name": "MELAMINE 3/4 4X8 BLACK 2S MDFC",
+      "unit": "sheet",
+      "unitCost": 57.5
+    },
+    {
+      "id": "material-615",
+      "name": "MELAMINE 3/4 4X8 WHITE 2S MDF",
+      "unit": "sheet",
+      "unitCost": 60
+    },
+    {
+      "id": "material-616",
+      "name": "MELAMINE 3/4 4X8 WHITE 2S Paricle Board",
+      "unit": "sheet",
+      "unitCost": 32
+    },
+    {
+      "id": "material-617",
+      "name": "MELAMINE 3/4 4X8 WHITE 2S VC",
+      "unit": "sheet",
+      "unitCost": 62
+    },
+    {
+      "id": "material-618",
+      "name": "Meranti (Luan) 1/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 44.5
+    },
+    {
+      "id": "material-619",
+      "name": "Meranti (Luan) 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 19.2
+    },
+    {
+      "id": "material-620",
+      "name": "Meranti (Luan) 5.2mm 4x8",
+      "unit": "sheet",
+      "unitCost": 14.86
+    },
+    {
+      "id": "material-621",
+      "name": "Meranti BB/CC EXT VC 5.2mm 4x8",
+      "unit": "sheet",
+      "unitCost": 11.67
+    },
+    {
+      "id": "material-622",
+      "name": "Meranti Bending VC 5.2mm 8x4",
+      "unit": "sheet",
+      "unitCost": 35.07
+    },
+    {
+      "id": "material-623",
+      "name": "Meranti G1S 5.2mm 4x8",
+      "unit": "sheet",
+      "unitCost": 18.75
+    },
+    {
+      "id": "material-624",
+      "name": "Natural Maple D-3 WPF VC 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 55.99
+    },
+    {
+      "id": "material-625",
+      "name": "Natural Maple D-3 WPF VC 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 45
+    },
+    {
+      "id": "material-626",
+      "name": "Natural Maple D-3 WPF VC 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 58.54
+    },
+    {
+      "id": "material-627",
+      "name": "OSB 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 68
+    },
+    {
+      "id": "material-628",
+      "name": "OSB 5/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 22.37
+    },
+    {
+      "id": "material-629",
+      "name": "OSB 7/16\" Oriented Strand Board 4x8",
+      "unit": "sheet",
+      "unitCost": 14
+    },
+    {
+      "id": "material-630",
+      "name": "OVL&BTR RC Meranti VC 1/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 11.74
+    },
+    {
+      "id": "material-631",
+      "name": "PG Maple 7/8\" 250ft",
+      "unit": "each",
+      "unitCost": 29.2
+    },
+    {
+      "id": "material-632",
+      "name": "Platform Core 1\" 4x8",
+      "unit": "sheet",
+      "unitCost": 136.8
+    },
+    {
+      "id": "material-633",
+      "name": "Plywood (tongue and groove) 1\" 4x8",
+      "unit": "sheet",
+      "unitCost": 89
+    },
+    {
+      "id": "material-634",
+      "name": "PONDEROSA PINE 1X12 #2 COMMON Linear FT -->",
+      "unit": "per ft",
+      "unitCost": 2.09
+    },
+    {
+      "id": "material-635",
+      "name": "Primo Black White Birch C+ VC ***4X10*** 3/4\"",
+      "unit": "sheet",
+      "unitCost": 99
+    },
+    {
+      "id": "material-636",
+      "name": "Primo Black White Birch C+ VC Magnolia Core 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 34.3
+    },
+    {
+      "id": "material-637",
+      "name": "Primo Black White Birch C+ WPF VC 1\" 4x8",
+      "unit": "sheet",
+      "unitCost": 98.08
+    },
+    {
+      "id": "material-638",
+      "name": "PrimoPLY 1/2\" 48.5 x 96.5",
+      "unit": "sheet",
+      "unitCost": 34.3
+    },
+    {
+      "id": "material-639",
+      "name": "RC Lauan LG VC Bending Column 3/8\" 4x8",
+      "unit": "sheet",
+      "unitCost": 29.7
+    },
+    {
+      "id": "material-640",
+      "name": "RC Meranti VC 1/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 17.5
+    },
+    {
+      "id": "material-641",
+      "name": "Revolution Ply 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 67
+    },
+    {
+      "id": "material-642",
+      "name": "RGR-1Gal - Melamine and Vinyl Glue 1 Gallon",
+      "unit": "each",
+      "unitCost": 34.43
+    },
+    {
+      "id": "material-643",
+      "name": "RooClear 1GL Melamine and Vinyl Glue Gallon",
+      "unit": "gallon",
+      "unitCost": 34.43
+    },
+    {
+      "id": "material-644",
+      "name": "Slate Ultrapan Matte 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 160
+    },
+    {
+      "id": "material-645",
+      "name": "Standard CAB RC WPF Birch White VCE 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 29.99
+    },
+    {
+      "id": "material-646",
+      "name": "Standard MDF (Domestic Roseburg) 3/4\" 4x10",
+      "unit": "sheet",
+      "unitCost": 68.7
+    },
+    {
+      "id": "material-647",
+      "name": "Standard MDF 3/4\" 5x10",
+      "unit": "sheet",
+      "unitCost": 95
+    },
+    {
+      "id": "material-648",
+      "name": "Studio Stock 1x3 16'",
+      "unit": "each",
+      "unitCost": 8.4
+    },
+    {
+      "id": "material-649",
+      "name": "Sturdy Floor 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 42.16
+    },
+    {
+      "id": "material-650",
+      "name": "T&G Advan Tech Flooring 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 60
+    },
+    {
+      "id": "material-651",
+      "name": "Trupan Ultralight MDF 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 35.07
+    },
+    {
+      "id": "material-652",
+      "name": "Trupan Ultralight MDF 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 51.21
+    },
+    {
+      "id": "material-653",
+      "name": "VC Bending Barrel 8mm 4x8",
+      "unit": "sheet",
+      "unitCost": 29.63
+    },
+    {
+      "id": "material-654",
+      "name": "Veneer Maple 4x8",
+      "unit": "sheet",
+      "unitCost": 61.88
+    },
+    {
+      "id": "material-655",
+      "name": "Viet Birch Import 13 ply 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 38.8
+    },
+    {
+      "id": "material-656",
+      "name": "White 4811 PBC 2S Ply 4x8",
+      "unit": "sheet",
+      "unitCost": 58.14
+    },
+    {
+      "id": "material-657",
+      "name": "White Birch C-2 WPF 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 24.8
+    },
+    {
+      "id": "material-658",
+      "name": "White Birch C-2 WPF 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 31
+    },
+    {
+      "id": "material-659",
+      "name": "White Birch C-2 WPF 5-ply 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 28.65
+    },
+    {
+      "id": "material-660",
+      "name": "White Cabinet Liner MDF Melamine 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 44.52
+    },
+    {
+      "id": "material-661",
+      "name": "White Cabinet Liner Particle Board Melamine 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 26.49
+    },
+    {
+      "id": "material-662",
+      "name": "White Cabinet Liner VC Melamine 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 57
+    },
+    {
+      "id": "material-663",
+      "name": "White Maple B-2 3/4\" 4x8",
+      "unit": "sheet",
+      "unitCost": 78
+    },
+    {
+      "id": "material-664",
+      "name": "White Maple C-2 1/2\" 4x8",
+      "unit": "sheet",
+      "unitCost": 65.19
+    },
+    {
+      "id": "material-665",
+      "name": "White Pine 16' 1x6",
+      "unit": "sheet",
+      "unitCost": 18.25
+    },
+    {
+      "id": "material-666",
+      "name": "Carpentry",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-667",
+      "name": "CNC + cutting",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-668",
+      "name": "Assembly",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-669",
+      "name": "Painting",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-670",
+      "name": "Finish",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-671",
+      "name": "Graphic Install",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-672",
+      "name": "Vinyl Install",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-673",
+      "name": "Electrical",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-674",
+      "name": "Metal Work",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-675",
+      "name": "Crate & pack",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-676",
+      "name": "Hardware & fasteners",
+      "unit": "lot",
+      "unitCost": 25
+    },
+    {
+      "id": "material-677",
+      "name": "Paint (lot)",
+      "unit": "lot",
+      "unitCost": 25
+    },
+    {
+      "id": "material-678",
+      "name": "Truss",
+      "unit": "unit",
+      "unitCost": 150
+    },
+    {
+      "id": "material-679",
+      "name": "Truss Clamps",
+      "unit": "unit",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-680",
+      "name": "Setup/Staging",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-681",
+      "name": "LED Lighting",
+      "unit": "feet",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-682",
+      "name": "Metal Handrail 8'",
+      "unit": "unit",
+      "unitCost": 335
+    },
+    {
+      "id": "material-683",
+      "name": "Steel Staircase",
+      "unit": "unit",
+      "unitCost": 6500
+    },
+    {
+      "id": "material-684",
+      "name": "Laminate (typical)",
+      "unit": "sheet",
+      "unitCost": 110
+    },
+    {
+      "id": "material-685",
+      "name": "3D Printing",
+      "unit": "unit",
+      "unitCost": 150
+    },
+    {
+      "id": "material-686",
+      "name": "Acrylic Topper",
+      "unit": "unit",
+      "unitCost": 550
+    },
+    {
+      "id": "material-687",
+      "name": "Chrome Edgebanding",
+      "unit": "roll",
+      "unitCost": 430
+    },
+    {
+      "id": "material-688",
+      "name": "1/2\u2033 Stainless Steel Round Bar (72\")",
+      "unit": "each",
+      "unitCost": 30
+    },
+    {
+      "id": "material-689",
+      "name": "Custom Cut Glass",
+      "unit": "unit",
+      "unitCost": 700
+    },
+    {
+      "id": "material-690",
+      "name": "Tile Install",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-691",
+      "name": "Direct Printing (Standard)",
+      "unit": "squarefeet",
+      "unitCost": 12.5
+    },
+    {
+      "id": "material-692",
+      "name": "Upholstery Labor",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-693",
+      "name": "Laminate (typical) 5'x12'",
+      "unit": "sheet",
+      "unitCost": 190
+    },
+    {
+      "id": "material-694",
+      "name": "Fabric Wall (aluminum frame)",
+      "unit": "squarefeet",
+      "unitCost": 25
+    },
+    {
+      "id": "material-695",
+      "name": "Custom Printed Turf",
+      "unit": "squarefeet",
+      "unitCost": 12
+    },
+    {
+      "id": "material-696",
+      "name": "Track Lighting",
+      "unit": "unit",
+      "unitCost": 100
+    },
+    {
+      "id": "material-697",
+      "name": "Sculpting",
+      "unit": "hours",
+      "unitCost": 0
+    },
+    {
+      "id": "material-698",
+      "name": "Fabric",
+      "unit": "squarefeet",
+      "unitCost": 10
+    },
+    {
+      "id": "material-699",
+      "name": "Zero-Lift Snap-In Panel Clips",
+      "unit": "each",
+      "unitCost": 4.4
+    },
+    {
+      "id": "material-700",
+      "name": "Gatorboard 1/2\" (black)",
+      "unit": "sheet",
+      "unitCost": 130
+    },
+    {
+      "id": "material-701",
+      "name": "Gatorboard 1/2\" (white)",
+      "unit": "sheet",
+      "unitCost": 130
+    },
+    {
+      "id": "material-702",
+      "name": "Gatorboard 1\" (white)",
+      "unit": "sheet",
+      "unitCost": 167
+    },
+    {
+      "id": "material-703",
+      "name": "Cam Locks",
+      "unit": "set",
+      "unitCost": 0
+    },
+    {
+      "id": "material-704",
+      "name": "Z Clips",
+      "unit": "",
+      "unitCost": 0
+    }
+  ],
+  "lines": [
+    {
+      "id": "line-5",
+      "name": "Item 1",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-6",
+      "name": "Item 2",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-7",
+      "name": "Item 3",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-8",
+      "name": "Item 4",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-9",
+      "name": "Item 5",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-10",
+      "name": "Item 6",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-11",
+      "name": "Item 7",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-12",
+      "name": "Item 8",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-13",
+      "name": "Item 9",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-14",
+      "name": "Item 10",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-15",
+      "name": "Item 11",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-16",
+      "name": "Item 12",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-17",
+      "name": "Item 13",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-18",
+      "name": "Item 14",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-19",
+      "name": "Item 15",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-20",
+      "name": "Spare 1",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-21",
+      "name": "Spare 2",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-22",
+      "name": "Spare 3",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-23",
+      "name": "Spare 4",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-24",
+      "name": "Spare 5",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-25",
+      "name": "Spare 6",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-26",
+      "name": "Spare 7",
+      "type": "Fabrication",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-27",
+      "name": "beMatrix walls",
+      "type": "beMatrix / SEG",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-28",
+      "name": "Lead Installer \u2014 Install/Dismantle/Off Days/Travel",
+      "type": "Installer Days",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-29",
+      "name": "Installer 2 \u2014 Install/Dismantle/Off Days/Travel",
+      "type": "Installer Days",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-30",
+      "name": "Installer 3 \u2014 Install/Dismantle/Off Days/Travel",
+      "type": "Installer Days",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-31",
+      "name": "Install support labor (hired local crews, incl. off days)",
+      "type": "Install Support Labor",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-32",
+      "name": "Lead Installer \u2014 Travel Expenses",
+      "type": "Travel & Expenses",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-33",
+      "name": "Travel \u2014 project manager",
+      "type": "Travel \u2014 Project Manager",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-34",
+      "name": "Travel & expenses \u2014 PM & installers 2/3",
+      "type": "Travel & Expenses",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-35",
+      "name": "Design, engineering & CAD",
+      "type": "Design / Engineering / CAD",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-36",
+      "name": "Project management fee (auto \u2014 % of hard scope)",
+      "type": "Project Management Fee",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-37",
+      "name": "Stage, pack & prep for shipping",
+      "type": "Stage / Pack / Prep",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-38",
+      "name": "Disposal of client assets",
+      "type": "Disposal",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-39",
+      "name": "Equipment rental",
+      "type": "Equipment Rental",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-40",
+      "name": "Props / decor / resale items",
+      "type": "Props / Resale",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    },
+    {
+      "id": "line-41",
+      "name": "Freight",
+      "type": "Freight",
+      "takeoffDriven": true,
+      "inputs": {
+        "materials": 0,
+        "resale": 0,
+        "hours": 0,
+        "days": 0,
+        "sqft": 0,
+        "panels": 0,
+        "rental": 0,
+        "siteDays": 0,
+        "travelDays": 0,
+        "cost": 0
+      },
+      "overrides": {},
+      "priceOverride": null
+    }
+  ],
+  "takeoffs": []
+}

@@ -1,4 +1,4 @@
-import { emptyEstimators } from '@/lib/quote-v27-estimators';
+import { createBlankQuoteV27 } from '@/lib/quote-v27-template';
 import { NextResponse } from 'next/server';
 import { requireQuoteProductWorkspaceAccess } from '@/lib/ada-server';
 import { canPerformQuoteAction } from '@/lib/quote-permissions';
@@ -21,8 +21,7 @@ export async function GET(request: Request, { params }: Context) {
   const template = search.get('template');
   if (template) {
     if (!['fonroche', 'blank'].includes(template)) return json({ error: 'Unknown template.' }, 400);
-    const document = parseQuoteV27(fonroche);
-    if (template === 'blank') { document.lines = []; document.takeoffs = []; document.estimators = emptyEstimators(); }
+    const document = template === 'blank' ? createBlankQuoteV27() : parseQuoteV27(fonroche);
     return json({ document, canEdit });
   }
   const history = await access.actorSupabase.from('quote_workbook_revisions')

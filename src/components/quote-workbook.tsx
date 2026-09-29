@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { QuoteEstimators } from '@/components/quote-estimators';
+import { QuoteSheet } from '@/components/quote-sheet';
 import { adaFetch } from '@/lib/ada-client';
 import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type Inputs, type QuoteV27, type Settings } from '@/lib/quote-v27';
 import { parseQuoteV27 } from '@/lib/quote-v27-validation';
@@ -30,7 +31,7 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [tab, setTab] = useState('Takeoffs');
+  const [tab, setTab] = useState('Quote Builder');
   const [selected, setSelected] = useState('');
   const endpoint = `/api/quote-workspaces/${workspaceId}/workbook`;
   const load = useCallback(async (revision?: number) => {
@@ -117,17 +118,17 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       </div>
     </div>
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
-    {!document && !busy && !error && <div className="my-10 rounded-xl border p-6"><h2 className="font-semibold">Start a workbook</h2><p className="my-3 text-sm text-muted-foreground">Use Fonroche to compare the workbook, or start with empty lines and the same saved rate card.</p><div className="flex gap-3"><button className={button} disabled={!canEdit} onClick={() => void start('fonroche')}>Use Fonroche example</button><button className={button} disabled={!canEdit} onClick={() => void start('blank')}>Start blank</button></div></div>}
+    {!document && !busy && !error && <div className="my-10 rounded-xl border p-6"><h2 className="font-semibold">Start from your blank v27 template</h2><p className="my-3 text-sm text-muted-foreground">Your item rows, service lines and rate card, with zero estimates. Item and spare rows start as Fabrication; choose another line type as needed.</p><button className={button} disabled={!canEdit} onClick={() => void start('blank')}>Start blank quote</button></div>}
     {document && <>
-      {calculation && <div className="my-5 grid grid-cols-2 gap-3 xl:grid-cols-4">{[['Client quote',money(calculation.totals.price)],['Build budget',money(calculation.totals.buildBudget)],['Allowed hours',number(calculation.totals.hoursAllowed)],['Planned net',money(calculation.totals.netProfit)]].map(([label,value]) => <div key={label} className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold tabular-nums">{value}</p></div>)}</div>}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{['Takeoffs','Pricing','Estimators','Client quote','Production budget','Rates'].map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
+      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{['Quote Builder','Takeoffs','Pricing','Estimators','Client quote','Production budget','Rates'].map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>
       <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Use Estimators for install, travel, shipping and beMatrix; Pricing overrides take precedence.</p>
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
       {(tab==='Takeoffs' || tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label><button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {tab==='Estimators' && <><QuoteEstimators quote={document} edit={edit} readOnly={!canEdit || busy} result={calculation?.estimators}/>{calculation?.estimators && <div className="mt-5 rounded border p-4 text-sm"><p>Install labor billing: {money(calculation.estimators.install.reduce((n,p)=>n+p.billing,0)+calculation.estimators.supportBilling)}</p><p>Travel cost: {money(calculation.estimators.travelCost)}</p><p>Shipping cost: {money(calculation.estimators.shippingCost)}</p></div>}</>}
-      <fieldset disabled={!canEdit || busy}>
+      <fieldset className="min-w-0" disabled={!canEdit || busy}>
+      {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
       {tab==='Takeoffs' && selectedLine && <>
         <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['Description / catalog','Quantity','Unit cost','Sections ×','Labor hours','Trade','Resale','Extended cost','Extended hours',''].map((h,i)=><th className={cell} key={i}>{h}</th>)}</tr></thead><tbody>{document.takeoffs.filter(row=>row.lineId===selected).map(row=>{
           const computed=calculation?.takeoffs.find(item=>item.id===row.id);
