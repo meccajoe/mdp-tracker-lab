@@ -85,3 +85,9 @@ Update this file with completed changes, validation evidence, current blockers, 
 - Joe reported /quotes returned 404. Both quote pages ran a cookie-only server-page access check before the browser session could supply its bearer token. The browser client stores its session locally.
 - Removed the premature server-page check from the two data-free page shells. Existing AuthGuard, QuoteAccessGate, and all authenticated API/workspace/RLS checks remain in place. No data is loaded by the page shells.
 - Both changed TSX routes transpile. Hosted deployment verification follows; signed-in user acceptance remains pending.
+
+## Sample travel price lookup — September 29, 2026
+- Added a lab-only sample lookup in the v27 Travel estimator for airfare per person, hotel per room-night, and vehicle per day. This deliberately makes no outbound travel API calls and requires edit access to the quote workspace.
+- Applying a sample changes the existing unit cost, recalculates the linked Travel & Expenses lines, and saves a source/date/search snapshot in the versioned workbook document. A manual unit-cost edit clears its sample provenance. Old revisions remain valid.
+- Local Node tests cover search validation, sample integrity, three-category application, calculation, saved-revision parsing, manual overrides, and existing Fonroche totals. Live provider accuracy and authenticated hosted interaction are not verified in this slice.
+- Next: build and render the lab deployment, then test a signed-in workspace save/reopen with the sample lookup. Joe controls any later production promotion; no external provider credential has been configured.

@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { emptyEstimators, INSTALLERS, PEOPLE, PERSON_LABELS, WALL_TEMPLATE, type Estimators, type calculateEstimators } from '@/lib/quote-v27-estimators';
 import type { Inputs, QuoteV27 } from '@/lib/quote-v27';
+import { TravelPriceLookup } from '@/components/travel-price-lookup';
+import { clearTravelSelection } from '@/lib/travel-price-research';
 
 const money=(n:number)=>n.toLocaleString('en-US',{style:'currency',currency:'USD'});
 const control='rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50';
@@ -13,7 +15,7 @@ function Numbers({values,labels,change}:{values:object;labels:Record<string,stri
   })}</div>;
 }
 
-export function QuoteEstimators({quote,edit,readOnly=false,result}:{quote:QuoteV27;readOnly?:boolean;result?:ReturnType<typeof calculateEstimators>|null;edit:(change:(quote:QuoteV27)=>void)=>void}) {
+export function QuoteEstimators({quote,edit,readOnly=false,result,workspaceId}:{quote:QuoteV27;readOnly?:boolean;result?:ReturnType<typeof calculateEstimators>|null;workspaceId:string;edit:(change:(quote:QuoteV27)=>void)=>void}) {
   const [tab,setTab]=useState('Install');
   const e=quote.estimators;
   if(!e)return <div className="rounded border p-4"><p className="mb-3 text-sm">This revision uses saved estimator totals. Enable editable estimators, then choose their destination quote items. Existing totals stay unchanged until you link an output.</p><button disabled={readOnly} className={control} onClick={()=>edit(q=>{q.estimators=emptyEstimators();})}>Enable estimators</button></div>;
@@ -34,10 +36,11 @@ export function QuoteEstimators({quote,edit,readOnly=false,result}:{quote:QuoteV
       <div className="rounded border p-4"><h3 className="mb-3 font-semibold">Hired support · person-days</h3><Numbers values={e.install.support} labels={{installDays:'Support install person-days',dismantleDays:'Support dismantle person-days',offDays:'Support off person-days'}} change={(key,v)=>update(x=>Object.assign(x.install.support,{[key]:v}))}/>{link('Hired support item',e.install.support.lineId,'Install Support Labor',['siteDays','cost'],(x,v)=>{x.install.support.lineId=v;})}</div>
     </>}
     {tab==='Travel'&&<>
+      <TravelPriceLookup workspaceId={workspaceId} readOnly={readOnly} research={quote.travelResearch} edit={edit}/>
       {PEOPLE.map(id=>{const p=e.travel.people[id],computed=result?.travel.find(row=>row.id===id);return <div key={id} className="mb-4 rounded border p-4"><h3 className="mb-3 font-semibold">{PERSON_LABELS[id]}</h3><div className="mb-3 flex flex-wrap gap-2">{toggle(`${PERSON_LABELS[id]} traveling`,p.traveling,v=>update(x=>{x.travel.people[id].traveling=v;}))}{toggle(`${PERSON_LABELS[id]} stays in market`,p.stays,v=>update(x=>{x.travel.people[id].stays=v;}))}{toggle(`${PERSON_LABELS[id]} road bonus`,p.roadBonus,v=>update(x=>{x.travel.people[id].roadBonus=v;}))}{id!=='pm'&&toggle(`${PERSON_LABELS[id]} follow install days`,p.useInstallDays,v=>update(x=>{x.travel.people[id].useInstallDays=v;}))}</div>
       {!p.useInstallDays&&<Numbers values={p} labels={{installDays:`${PERSON_LABELS[id]} travel install days`,offDays:`${PERSON_LABELS[id]} travel off-days`,dismantleDays:`${PERSON_LABELS[id]} travel dismantle days`}} change={(key,v)=>update(x=>Object.assign(x.travel.people[id],{[key]:v}))}/>}
       <div className="mt-3"><Numbers values={p} labels={{daysPerTrip:`${PERSON_LABELS[id]} days per round trip`,hotelAdjustment:`${PERSON_LABELS[id]} hotel nights adjustment`}} change={(key,v)=>update(x=>Object.assign(x.travel.people[id],{[key]:v}))}/></div>{computed&&<p className="mt-3 text-sm">{computed.trips} round trip(s) · {computed.travelDays} travel days · {computed.hotelNights} hotel nights · {money(computed.total)} including shared costs</p>}</div>;})}
-      <h3 className="mb-3 font-semibold">Travel unit costs</h3><Numbers values={e.travel.rates} labels={{airfare:'Airfare per round trip',hotel:'Hotel per night',perDiem:'Per diem per road day',vehicle:'Vehicle per day',vehicles:'Vehicle count',baggage:'Baggage per trip',roadBonus:'Road bonus per day',other:'Other travel costs'}} change={(key,v)=>update(x=>Object.assign(x.travel.rates,{[key]:v}))}/>
+      <h3 className="mb-3 font-semibold">Travel unit costs</h3><Numbers values={e.travel.rates} labels={{airfare:'Airfare per round trip',hotel:'Hotel per night',perDiem:'Per diem per road day',vehicle:'Vehicle per day',vehicles:'Vehicle count',baggage:'Baggage per trip',roadBonus:'Road bonus per day',other:'Other travel costs'}} change={(key,v)=>edit(q=>{Object.assign(q.estimators!.travel.rates,{[key]:v});if(key==='airfare'||key==='hotel'||key==='vehicle')clearTravelSelection(q,key);})}/>
       {link('Lead expenses item',e.travel.leadLineId,'Travel & Expenses',['cost'],(x,v)=>{x.travel.leadLineId=v;})}{link('Other travelers expenses item',e.travel.otherLineId,'Travel & Expenses',['cost'],(x,v)=>{x.travel.otherLineId=v;})}{link('PM travel billing item',e.travel.pmLineId,'Travel — Project Manager',['travelDays'],(x,v)=>{x.travel.pmLineId=v;})}
       <p className="text-xs text-muted-foreground">Shared vehicles use the longest trip; shared expenses split by road days. Travel off-days affect expenses; billed off-days are set under Install.</p>
     </>}

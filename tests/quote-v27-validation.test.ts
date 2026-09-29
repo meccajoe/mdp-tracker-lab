@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { parseQuoteV27 } from '../src/lib/quote-v27-validation';
-import { calculateQuoteV27 } from '../src/lib/quote-v27';
+import { parseQuoteV27 } from '../src/lib/quote-v27-validation.ts';
+import { calculateQuoteV27 } from '../src/lib/quote-v27.ts';
 const fixture = JSON.parse(readFileSync('src/data/quote-v27-fonroche.json','utf8'));
 test('request parsing retains workbook math and strips unrecognized fields',()=>{
   const result=parseQuoteV27({...fixture,untrustedExtra:'discard'});
