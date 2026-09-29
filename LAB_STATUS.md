@@ -73,3 +73,10 @@ Update this file with completed changes, validation evidence, current blockers, 
 - Runtime template removes one unused blank-name catalog entry; 697 usable items, no changes to Fonroche totals.
 - Visual/real-session acceptance remains blocked: local Chromium download was unusable, cloud browser is signed out, and lab currently has no quote workspaces. Do not claim hosted save/reopen has passed. Source commit will trigger the lab Vercel build; deployment status must be checked separately.
 - Next user-visible acceptance: sign in, create Fonroche comparison in Quotes, load Fonroche, save, edit, save and reload. Next engineering scope: full upstream estimators, then reconciled capacity.
+
+## Linked estimator update — September 29, 2026 UTC
+- Previous editor deployment 1b2bf92 / dpl_EJyXKrYiFV6XX4wTbbejUApxESwE verified READY on the primary lab URL. Google sign-in handoff was declined; no real-session save/reopen claim.
+- Added editable Install, Travel, Shipping and beMatrix panels with calculated outputs, typed destination links, frozen-snapshot compatibility and persistent estimator inputs. No new DB migration or access changes.
+- Source distinctions and intentional invalid-input guards documented in V27_CALCULATOR.md. New sample still matches every cached Fonroche line, $28,953.192 sell and $11,890.64 build budget.
+- Verification: 13 existing calculator tests, 2 request validation tests, 10 estimator tests, strict component/API TypeScript, and local UI/API/PostgreSQL save/reopen (all four panels) passed. Local browser binaries remain unavailable; real-session and visual/mobile QA remain outstanding.
+- Next engineering slice: reconcile trade/allowed hours into capacity and preserve demand across partial weeks, scenario status changes and committed work. Do not silently resolve the calendar-day versus workday allocation decision without Paul.

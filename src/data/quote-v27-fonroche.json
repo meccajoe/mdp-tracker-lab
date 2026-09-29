@@ -5067,9 +5067,9 @@
         "sqft": 0,
         "panels": 0,
         "rental": 0,
-        "siteDays": 4,
+        "siteDays": 0,
         "travelDays": 0,
-        "cost": 5985
+        "cost": 0
       },
       "overrides": {},
       "priceOverride": null,
@@ -5130,9 +5130,9 @@
         "sqft": 0,
         "panels": 0,
         "rental": 0,
-        "siteDays": 2,
+        "siteDays": 0,
         "travelDays": 0,
-        "cost": 2990
+        "cost": 0
       },
       "overrides": {},
       "priceOverride": null,
@@ -5153,7 +5153,7 @@
         "rental": 0,
         "siteDays": 0,
         "travelDays": 0,
-        "cost": 3825
+        "cost": 0
       },
       "overrides": {},
       "priceOverride": null,
@@ -5508,5 +5508,132 @@
       "hours": 24.0,
       "resale": false
     }
-  ]
+  ],
+  "estimators": {
+    "version": 1,
+    "install": {
+      "lead": {
+        "installDays": 1.0,
+        "offDays": 0,
+        "dismantleDays": 1.0,
+        "travelDaysOverride": null,
+        "lineId": "line-28"
+      },
+      "second": {
+        "installDays": 0,
+        "offDays": 0,
+        "dismantleDays": 0,
+        "travelDaysOverride": null,
+        "lineId": "line-29"
+      },
+      "third": {
+        "installDays": 0,
+        "offDays": 0,
+        "dismantleDays": 0,
+        "travelDaysOverride": null,
+        "lineId": "line-30"
+      },
+      "support": {
+        "installDays": 1,
+        "dismantleDays": 1,
+        "offDays": 0,
+        "lineId": "line-31"
+      }
+    },
+    "travel": {
+      "people": {
+        "lead": {
+          "traveling": true,
+          "installDays": 1.0,
+          "offDays": 1.0,
+          "dismantleDays": 1.0,
+          "useInstallDays": false,
+          "stays": true,
+          "daysPerTrip": 2.0,
+          "hotelAdjustment": 0,
+          "roadBonus": true
+        },
+        "pm": {
+          "traveling": false,
+          "installDays": 0,
+          "offDays": 0,
+          "dismantleDays": 0,
+          "useInstallDays": false,
+          "stays": false,
+          "daysPerTrip": 2.0,
+          "hotelAdjustment": 0,
+          "roadBonus": false
+        },
+        "second": {
+          "traveling": false,
+          "installDays": 0,
+          "offDays": 0,
+          "dismantleDays": 0,
+          "useInstallDays": true,
+          "stays": false,
+          "daysPerTrip": 2.0,
+          "hotelAdjustment": 0,
+          "roadBonus": false
+        },
+        "third": {
+          "traveling": false,
+          "installDays": 0,
+          "offDays": 0,
+          "dismantleDays": 0,
+          "useInstallDays": true,
+          "stays": false,
+          "daysPerTrip": 2.0,
+          "hotelAdjustment": 0,
+          "roadBonus": false
+        }
+      },
+      "rates": {
+        "airfare": 1000.0,
+        "hotel": 450.0,
+        "perDiem": 70.0,
+        "vehicle": 65.0,
+        "vehicles": 1.0,
+        "baggage": 100.0,
+        "roadBonus": 50.0,
+        "other": 0
+      },
+      "leadLineId": "line-32",
+      "otherLineId": "line-34",
+      "pmLineId": "line-33"
+    },
+    "shipping": {
+      "rates": {
+        "fuel": 6.5,
+        "mpg": 8.0,
+        "wear": 0.8,
+        "rentalDay": 250.0,
+        "rentalMile": 0.35,
+        "driverDay": 410.0,
+        "milesPerDay": 500.0
+      },
+      "lineId": "line-41",
+      "outbound": {
+        "enabled": false,
+        "mode": "Our truck",
+        "driver": "Lead installer",
+        "miles": 0,
+        "carrierQuote": 0,
+        "misc": 0
+      },
+      "return": {
+        "enabled": false,
+        "mode": "Our truck",
+        "driver": "Lead installer",
+        "miles": 0,
+        "carrierQuote": 0,
+        "misc": 0
+      }
+    },
+    "beMatrix": {
+      "frameRental": 250.0,
+      "frameWidth": 3.25,
+      "frameHeight": 8.0,
+      "walls": []
+    }
+  }
 }

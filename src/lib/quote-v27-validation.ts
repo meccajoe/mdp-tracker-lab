@@ -1,3 +1,4 @@
+import { parseEstimators } from './quote-v27-estimators';
 import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type QuoteV27, type Settings } from './quote-v27';
 
 function record(value: unknown): Record<string, unknown> {
@@ -45,6 +46,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
         priceOverride:nullable(row.priceOverride)};
     }),
   };
+  if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
   calculateQuoteV27(parsed);
   return parsed;
 }

@@ -1,3 +1,4 @@
+import { calculateEstimators, type Estimators } from './quote-v27-estimators.ts';
 /** Pure v27 workbook calculations. No live catalog, persistence, or integration calls. */
 export const LINE_TYPES = [
   "Fabrication", "Graphics", "beMatrix / SEG", "Design / Engineering / CAD",
@@ -34,6 +35,7 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
+  estimators?: Estimators;
   schemaVersion: 1; assumptionsVersion: string; commission: number;
   settings: Settings; trades: Trade[]; catalog: Material[];
   takeoffs: Takeoff[]; lines: QuoteLine[];
@@ -56,6 +58,7 @@ function unique<T extends { id: string }>(rows: T[], name: string) {
 /** Preserve full precision until display, except Excel's two-decimal blended labor rate. */
 export function calculateQuoteV27(quote: QuoteV27) {
   if (quote.schemaVersion !== 1 || !quote.assumptionsVersion) throw new Error("Unsupported quote snapshot version.");
+  const estimatorResult = quote.estimators ? calculateEstimators(quote, quote.estimators) : null;
   const s = quote.settings;
   for (const [key, value] of Object.entries(s)) {
     if (key === "burdenedRateOverride" && value === null) continue;
@@ -107,6 +110,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
       calculatedInputs.resale = total?.resale ?? 0;
       calculatedInputs.hours = total?.hours ?? 0;
     }
+    Object.assign(calculatedInputs, estimatorResult?.lineInputs[line.id] ?? {});
     const input = { ...calculatedInputs };
     for (const key of Object.keys(EMPTY_INPUTS) as (keyof Inputs)[]) {
       nonnegative(calculatedInputs[key], `${line.id}.${key}`);
@@ -181,6 +185,6 @@ export function calculateQuoteV27(quote: QuoteV27) {
   for (const line of lines) for (const [id, hours] of Object.entries(line.tradeHours)) tradeHours[id] = (tradeHours[id] ?? 0) + hours;
   const pmBonus = totals.margin * s.pmBonus, opex = totals.price * s.opex;
   for (const value of Object.values(totals)) if (!Number.isFinite(value)) throw new Error("Quote calculation exceeds numeric limits.");
-  return { laborRate, takeoffs, lines: pricedLines, tradeHours, totals: { ...totals, pmBonus, opex, netProfit: totals.margin - pmBonus - opex },
-    warnings: lines.filter(line => line.overallocatedTradeHours > 0).map(line => `${line.name}: takeoff trade hours exceed allowed hours by ${line.overallocatedTradeHours}.`) };
+  return { estimators: estimatorResult, laborRate, takeoffs, lines: pricedLines, tradeHours, totals: { ...totals, pmBonus, opex, netProfit: totals.margin - pmBonus - opex },
+    warnings: [...(estimatorResult?.warnings ?? []), ...lines.filter(line => line.overallocatedTradeHours > 0).map(line => `${line.name}: takeoff trade hours exceed allowed hours by ${line.overallocatedTradeHours}.`)] };
 }

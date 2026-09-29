@@ -25,7 +25,7 @@ Fonroche `Quote Builder!N36` contains the literal **1250**, replacing the PM for
 
 ## Deliberate limits of this slice
 
-The beMatrix, install, travel, and shipping estimators currently enter as frozen upstream values with source-cell/formula provenance. Their interactive estimator forms and full upstream recalculation are not implemented here. The editor/API/disposable-PostgreSQL integration test verifies save/reopen for quantity, cost, labor and price overrides. Hosted save/reopen under a real Google session remains unverified.
+Install, travel, shipping and beMatrix now have editable estimator panels and linked calculations. New Fonroche drafts include the extracted estimator inputs. Older snapshots without the optional estimators object keep frozen totals until the user enables and explicitly links the new controls. The editor/API/disposable-PostgreSQL integration test verifies save/reopen for quantity, cost, labor and price overrides. Hosted save/reopen under a real Google session remains unverified.
 
 Named trade hours remain the quoted takeoff baseline when efficiency or an hours override changes allowed hours. The result includes untyped hours and an overallocated-trade warning rather than silently rescaling the trade mix. Capacity distribution and the known partial-week allocation issue remain separate follow-up work.
 
@@ -51,4 +51,16 @@ Run the added checks with `node --import tsx --test tests/quote-v27-validation.t
 
 ## Next implementation
 
-Verify the deployed editor with a real lab account: Quotes → New quote → name it Fonroche comparison → Use Fonroche example → Save revision. Change quantity/cost/labor/price override, save, reload, and inspect both previews. This requires the user's Google session; no hosted business data was seeded by the agent. Then replace frozen upstream values with editable estimators and feed reconciled hours into capacity. Keep commercial approval/publication separate until an explicit mapping into its revision model is defined.
+Verify the deployed editor with a real lab account: Quotes → New quote → name it Fonroche comparison → Use Fonroche example → Save revision. Change quantity/cost/labor/price override, save, reload, and inspect both previews. This requires the user's Google session; no hosted business data was seeded by the agent. Then feed reconciled hours into capacity. Keep commercial approval/publication separate until an explicit mapping into its revision model is defined.
+
+## Upstream estimators — September 29, 2026 UTC
+
+- Optional `estimators.version=1` is stored within the existing revision document. No table, grant or migration change is needed. Old snapshots still calculate identically.
+- Install: separate install, dismantle and billed off-days for three installers; travel days default to each traveler’s trip shape with nullable overrides. Hired support uses total person-days (equivalent to summing the workbook’s ten-day grid).
+- Travel: four travelers with independent trip shapes, stay/return behavior, signed hotel adjustment, lead bonus, common unit costs and shared-expense allocation. Installers 2/3 initially follow the install day counts, as the workbook does; lead and PM initially have independent counts.
+- Shipping: two enabled/disabled legs; owned/rented truck and LTL/FTL carrier modes; fuel, wear, rental mileage, driver costs and miscellaneous charges. Lead-driver days produce a reminder and never silently add install labor.
+- beMatrix: rounded width/height frame geometry, rental, 0/1/2 SEG sides, nullable sqft overrides, multiple walls grouped by stable quote-item ID. The quote rate card supplies the actual graphics sell price, matching the builder’s source formula.
+- Output links are explicit and type checked. Two distinct outputs cannot silently overwrite the same quote item. Unlinked nonzero outputs produce a warning. Item input/price overrides retain precedence. Cached base fields are cleared when binding/unbinding so stale estimator totals cannot reappear.
+- Intentional source distinctions: Fonroche travel has one off-day while install bills zero off-days; these remain separate. Negative hotel adjustments are allowed, but a negative resulting hotel-night count is rejected. If shared travel costs exist with zero road days, they stay on the other-expenses output instead of disappearing.
+- All 18 Fonroche line outputs continue to match cached workbook expectations. Ten added tests cover upstream totals, split trips, off-day independence, shared allocations, all shipping modes, lead driving, frame rounding/grouping, overrides, old snapshots and invalid links/inputs. Strict component/API TypeScript and the JSDOM → actual API → disposable PostgreSQL save/reopen flow pass with changes in all four estimator panels. Authentication remains stubbed only in that local harness.
+- Visual/mobile and real hosted-session QA remain unverified; the earlier browser sign-in was declined and was not retried. No live provider integrations were added.

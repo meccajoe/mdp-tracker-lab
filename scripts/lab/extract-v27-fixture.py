@@ -102,6 +102,43 @@ print(f'Extracted {len(lines)} lines, {len(takeoffs)} takeoffs, {len(catalog)} c
 
 # Runtime picker excludes one whitespace-only unused catalog row in the source.
 runtime_quote = dict(quote, catalog=[row for row in catalog if row['name'].strip()])
+def value(sheet, cell):
+    return cached[sheet][cell].value or 0
+
+def yes(sheet, cell):
+    return cached[sheet][cell].value == 'Yes'
+
+installers = {}
+for key, col, line_id in [('lead', 'B', 'line-28'), ('second', 'C', 'line-29'), ('third', 'D', 'line-30')]:
+    installers[key] = dict(installDays=value('Install Labor', col+'5'), offDays=value('Install Labor', col+'6'),
+                          dismantleDays=value('Install Labor', col+'7'), travelDaysOverride=None, lineId=line_id)
+installers['support'] = dict(installDays=value('Install Labor', 'B29'), dismantleDays=value('Install Labor', 'C29'),
+                             offDays=value('Install Labor', 'D29'), lineId='line-31')
+people = {}
+for key, col in [('lead', 'B'), ('pm', 'C'), ('second', 'D'), ('third', 'E')]:
+    people[key] = dict(traveling=yes('Travel Estimator', col+'5'), installDays=value('Travel Estimator', col+'6'),
+                       offDays=value('Travel Estimator', col+'7'), dismantleDays=value('Travel Estimator', col+'8'),
+                       useInstallDays=key in ('second', 'third'), stays=yes('Travel Estimator', col+'9'),
+                       daysPerTrip=value('Travel Estimator', col+'10'), hotelAdjustment=value('Travel Estimator', col+'11'),
+                       roadBonus=yes('Travel Estimator', col+'12'))
+travel_rates = {key: value('Travel Estimator', 'B'+str(r)) for key,r in
+                dict(airfare=22,hotel=23,perDiem=24,vehicle=25,vehicles=26,baggage=27,roadBonus=28,other=29).items()}
+shipping = {'rates': {key:value('Shipping Estimator', 'B'+str(r)) for key,r in
+             dict(fuel=22,mpg=23,wear=24,rentalDay=25,rentalMile=26,driverDay=27,milesPerDay=28).items()}, 'lineId':'line-41'}
+for key,col in [('outbound','B'),('return','C')]:
+    shipping[key] = dict(enabled=yes('Shipping Estimator', col+'5'),mode=cached['Shipping Estimator'][col+'6'].value,
+                         driver=cached['Shipping Estimator'][col+'8'].value,miles=value('Shipping Estimator',col+'7'),
+                         carrierQuote=value('Shipping Estimator',col+'9'),misc=value('Shipping Estimator',col+'10'))
+runtime_quote['estimators'] = dict(version=1,install=installers,
+    travel=dict(people=people,rates=travel_rates,leadLineId='line-32',otherLineId='line-34',pmLineId='line-33'),
+    shipping=shipping,beMatrix=dict(frameRental=value('beMatrix Estimator','B5'),frameWidth=value('beMatrix Estimator','B6'),
+                                  frameHeight=value('beMatrix Estimator','B7'),walls=[]))
+# Linked formulas now supply these inputs; disconnecting must not revive stale cached totals.
+for line in runtime_quote['lines']:
+    fields = {'line-28':['siteDays','cost'],'line-29':['siteDays','cost'],'line-30':['siteDays','cost'],
+              'line-31':['siteDays','cost'],'line-32':['cost'],'line-34':['cost'],'line-33':['travelDays'],'line-41':['cost']}.get(line['id'],[])
+    for field in fields:
+        line['inputs'][field] = 0
 runtime_path = pathlib.Path(__file__).resolve().parents[2] / 'src/data/quote-v27-fonroche.json'
 runtime_path.parent.mkdir(parents=True, exist_ok=True)
 runtime_path.write_text(json.dumps(runtime_quote, indent=2, ensure_ascii=False) + '\n')
