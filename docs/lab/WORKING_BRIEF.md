@@ -10,7 +10,7 @@ Use stable IDs for items/trades instead of exact-name joins. Version material/ra
 The old quote spec does not dictate the new user experience.
 
 ## Reference attachments
-Reviewed snapshots: Fonroche_v27_Mecca_Quote_Builder.xlsx and Mecca_Capacity_Tracker_v5.xlsx. These files are not yet included in this repository; do not invent missing workbook inputs from summary totals.
+Reviewed snapshots: Fonroche_v27_Mecca_Quote_Builder.xlsx and Mecca_Capacity_Tracker_v5.xlsx. Original workbooks remain attachments. A reproducible Fonroche input/catalog snapshot and source hash are now in tests/fixtures/quote-v27/fonroche.json; see V27_CALCULATOR.md for implemented behavior and limits. Do not invent missing workbook inputs from summary totals.
 The capacity workbook is work in progress.
 
 ## Fonroche comparison case
@@ -39,3 +39,4 @@ Trade definitions should cover the live catalog instead of hardcoding only the w
 ## First acceptance loop
 Recreate Fonroche; alter quantity, cost, labor and price override; save/reopen; verify quote and budget changes; feed trade hours into capacity; move dates and status; verify totals and no duplication.
 Then let Paul change the workflow through Codex. Do not expand into a full scheduling system before this loop works.
+

@@ -54,3 +54,13 @@ Update this file with completed changes, validation evidence, current blockers, 
 - Google sign-in transition was rejected by cloud browser URL policy; no attempt to bypass. Direct API guard navigation returned ERR_BLOCKED_BY_CLIENT. Neither test is claimed successful.
 - Remaining: verify/configure lab Google provider and redirects, real JWT/RLS and workspace permissions, server-side database access, then seed samples and onboard Paul. No production resources changed.
 - The earlier Vercel connector blocker was resolved through user-approved browser setup. This documentation commit may trigger a subsequent Git deployment; the READY evidence above applies to the specified source SHA.
+
+
+## v27 calculation foundation — September 29, 2026
+- Implemented a pure workbook calculation engine, reproducible Fonroche fixture, and 13 passing calculation/acceptance tests. See docs/lab/V27_CALCULATOR.md. All 18 populated workbook line outputs match, including $28,953.192 sell and $11,890.64 build budget.
+- Strict standalone TypeScript 6.0.2 check passed for the new engine; 7 changed files scanned without credential-shaped values. Full application build and browser checks were not run for this unconnected module.
+- Explicitly preserved the $1,250 PM fee override discovered in Fonroche N36; the template-calculated fee remains independently available.
+- Snapshot includes 698 cached catalog entries, stable material/line/trade IDs, versioned assumptions, nullable overrides, and trade-hour reconciliation warnings. No live catalog connection was enabled.
+- This is a calculation foundation only. Editor integration, hosted versioned persistence, browser save/reopen, upstream estimator editing, and capacity are not yet implemented or verified. No database migration or business-data writes in this slice.
+- Authentication follow-up from September 26–28: primary lab URL is https://mdp-tracker-lab.vercel.app/login. The older meccanics deployment alias can require Vercel authentication and should not be used for user onboarding. Google provider and redirects were configured; Joe's auth identity and create_workspace capability were observed. At the last membership check Joe had zero active workspaces. Paul login and workspace authorization remain unverified.
+- Next concrete task: connect a versioned, membership-authorized quote editor and verify quantity/cost/labor/override edits across a real hosted save/reopen.
