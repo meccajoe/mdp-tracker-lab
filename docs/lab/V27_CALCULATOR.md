@@ -1,6 +1,6 @@
 # v27 calculation foundation
 
-The first implementation is `src/lib/quote-v27.ts`, a pure calculation engine with no network or database access. It is not yet connected to the quote editor, revision persistence, or capacity UI.
+The first implementation is `src/lib/quote-v27.ts`, a pure calculation engine with no network or database access. It now powers the Quote builder tab and append-only workbook draft revisions. Capacity UI and the legacy commercial review/publication model remain separate.
 
 ## Source and comparison
 
@@ -25,7 +25,7 @@ Fonroche `Quote Builder!N36` contains the literal **1250**, replacing the PM for
 
 ## Deliberate limits of this slice
 
-The beMatrix, install, travel, and shipping estimators currently enter as frozen upstream values with source-cell/formula provenance. Their interactive estimator forms and full upstream recalculation are not implemented here. JSON round-trip tests establish that the snapshot is serializable; they do not establish hosted save/reopen behavior.
+The beMatrix, install, travel, and shipping estimators currently enter as frozen upstream values with source-cell/formula provenance. Their interactive estimator forms and full upstream recalculation are not implemented here. The editor/API/disposable-PostgreSQL integration test verifies save/reopen for quantity, cost, labor and price overrides. Hosted save/reopen under a real Google session remains unverified.
 
 Named trade hours remain the quoted takeoff baseline when efficiency or an hours override changes allowed hours. The result includes untyped hours and an overallocated-trade warning rather than silently rescaling the trade mix. Capacity distribution and the known partial-week allocation issue remain separate follow-up work.
 
@@ -33,6 +33,22 @@ Named trade hours remain the quoted takeoff baseline when efficiency or an hours
 
 Run `node --experimental-strip-types --test tests/quote-v27.test.mjs` on Node 24 (the lab runtime). Thirteen tests cover every pricing branch, line-by-line Fonroche comparison, quantity/section changes, catalog cost edits, labor changes, renames, zero and cleared overrides, PM scope, commission, efficiency, serialization, immutability, and invalid numeric/reference inputs.
 
+## Editor and persistence
+
+The default Quote builder tab supports item/takeoff editing, catalog lookup and custom unit costs, section multipliers, trade hours, input and price overrides with restoration, rate assumptions, client quote preview, production budget, JSON draft download, and the last 20 saved revisions. Loading an older revision makes an unsaved draft; saving appends a new revision. Switching workspace or leaving the page warns about unsaved edits. Workbook data stays mounted when switching to the existing Workspace or Review tab.
+
+`quote_workbook_revisions` is separate from commercial quote revisions. Each row contains the full assumptions/catalog/input snapshot and engine version. The authenticated actor inserts through row-level security. Active owners, editors and reviewers can append; active members including viewers can read; archived workspaces are read-only. The server product allowlist is still enforced. An invoker trigger serializes appends per workspace and rejects stale or skipped revision numbers. Clients cannot update or delete rows. No service-key insert bypass or live outbound integration was added.
+
+Migration: `supabase/migrations/20260929012605_lab_quote_workbook_revisions.sql`, applied only to gkvaeqlqrthztobxitvn. Hosted catalog verification confirms RLS, two policies, no anonymous read and no authenticated update/delete grants. No new security advisor finding references the table or trigger; pre-existing findings remain.
+
+Runtime template `src/data/quote-v27-fonroche.json` excludes one unused whitespace-only catalog row (697 usable entries). The source comparison fixture remains unchanged at 698 rows. The extraction script reproduces both.
+
+Additional checks: strict TypeScript for the component/API and dependencies; two request-validation tests; disposable PostgreSQL RLS/history tests for owner/editor/viewer/outsider/removed-member/email-mismatch/archived access, stale/skipped revisions, spoofed authors, and denied update/delete; a temporary JSDOM integration harness exercising the actual editor, API handlers, and PostgreSQL through a test adapter. Authentication and Next response plumbing were stubbed only in that local harness. The hosted app uses its existing verified-user authorization helpers.
+
+Local Chromium was unavailable and its download returned an invalid archive, so desktop/mobile visual QA is not claimed. Cloud browser navigation reaches the real lab login page; no Google session is available there.
+
+Run the added checks with `node --import tsx --test tests/quote-v27-validation.test.ts`. For database tests, provide a local PGlite install via `PGLITE_MODULE=/absolute/path/to/@electric-sql/pglite/dist/index.js node --test tests/quote-workbook-db.test.mjs`. PGlite is a test-only external dependency; app dependencies and lockfile are unchanged.
+
 ## Next implementation
 
-Connect the calculator to a spreadsheet-like editor within the existing quote workspace. Add versioned server-side snapshots with existing membership and draft-edit authorization, optimistic concurrency, and save/reopen verification. Keep the existing quote review/publication workflow separate until there is an explicit mapping into its revision model. Then replace frozen upstream values with editable estimators and feed reconciled hours into capacity. No hosted schema change or business-data write was made for this foundation.
+Verify the deployed editor with a real lab account: Quotes → New quote → name it Fonroche comparison → Use Fonroche example → Save revision. Change quantity/cost/labor/price override, save, reload, and inspect both previews. This requires the user's Google session; no hosted business data was seeded by the agent. Then replace frozen upstream values with editable estimators and feed reconciled hours into capacity. Keep commercial approval/publication separate until an explicit mapping into its revision model is defined.

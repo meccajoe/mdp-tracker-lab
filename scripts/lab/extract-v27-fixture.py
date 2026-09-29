@@ -99,3 +99,9 @@ destination = pathlib.Path(__file__).resolve().parents[2] / 'tests/fixtures/quot
 destination.parent.mkdir(parents=True, exist_ok=True)
 destination.write_text(json.dumps(fixture, indent=2, ensure_ascii=False) + '\n')
 print(f'Extracted {len(lines)} lines, {len(takeoffs)} takeoffs, {len(catalog)} catalog entries to {destination}')
+
+# Runtime picker excludes one whitespace-only unused catalog row in the source.
+runtime_quote = dict(quote, catalog=[row for row in catalog if row['name'].strip()])
+runtime_path = pathlib.Path(__file__).resolve().parents[2] / 'src/data/quote-v27-fonroche.json'
+runtime_path.parent.mkdir(parents=True, exist_ok=True)
+runtime_path.write_text(json.dumps(runtime_quote, indent=2, ensure_ascii=False) + '\n')
