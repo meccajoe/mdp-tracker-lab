@@ -57,4 +57,6 @@ Only destination: Vercel project `mdp-tracker-lab` (`prj_H6frjmh8wPjYXFzK4aBHRjd
 
 ## First two-Mac acceptance check
 
+Current verification (September 30): code pushed through df1509f and Vercel deployment completed. Paul's Mecca Google login and Quotes library work, but new quote creation is denied because his lab account lacks `create_workspace` in `public.quote_user_capabilities`. An authorized lab administrator must grant it to his actual auth identity and record grant actor/reason. Do not bypass permissions or replay historical migrations. No verification quote was created.
+
 After the new build is deployed, create a clearly named test quote in an authorized lab workspace on Mac A, edit one estimate, and save its revision. Open that same quote on Mac B, confirm the value/revision, edit and save, then reload it on Mac A. Preserve the test quote unless Paul authorizes removal. This check is still required before claiming cross-Mac quote persistence is verified.

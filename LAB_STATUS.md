@@ -1,5 +1,12 @@
 # Lab status
 
+## Shared source and hosted deployment verified — September 30, 2026
+- GitHub CLI authenticated as pl285; GitHub API confirms push permission for meccajoe/mdp-tracker-lab. Pushed dd018d2 (spreadsheet UI) and df1509f (multi-Mac setup) to main.
+- Vercel status for df1509f reports success, “Deployment has completed”, at https://vercel.com/meccanics/mdp-tracker-lab/5RMQcESii7oAcyjvtevLgLu4BLNG. Shared application URL is https://mdp-tracker-lab.vercel.app/quotes, not the localhost preview.
+- Real Google sign-in as paul@meccadesign.com succeeded; dashboard and Quotes library load. Quote library is empty for Paul. Attempted clearly named test workspace “Cross-device verification — September 30”; server rejected it with “Quote capability create_workspace is required.” No test quote/revision was created. Dialog cancelled after verification.
+- Remaining blocker: authorized lab administrator must grant Paul the create_workspace capability in public.quote_user_capabilities, bound to his actual lab auth identity, with grant actor/reason recorded. Do not bypass API/RLS checks or replay old membership migrations. After grant, verify real save/reopen and then the same quote on a second device. Existing workspace membership is separately required to share someone else's quote.
+- Code and working notes are now shared through GitHub; separate devices require their own sign-in/checkout. Hosted quote access works up to the capability gate. Do not claim end-to-end cross-device quoting is verified yet.
+
 ## Multiple-Mac development setup — September 30, 2026
 - Paul requested work across several Macs. Added docs/lab/MULTI_MAC.md, a lab-only README, .nvmrc, npm run lab:doctor and npm run lab:check. Preserved the inherited README as explicitly historical reference. AGENTS.md now records handoff expectations.
 - Shared code/context travels through GitHub commits and working notes; shared saved quotes use the same account/workspace on the hosted lab. The temporary localhost preview and unsaved edits do not sync. Second-Mac and hosted quote acceptance remain unverified.
