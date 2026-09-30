@@ -5,6 +5,8 @@ Paul can describe changes to Codex, build and deploy them to a persistent sandbo
 
 ## Product starting point
 
+Rates UI preference (September 30, 2026): Paul wants the original sheet's readable sections instead of a dense card grid. Group settings by purpose, align parameter/value/notes rows, show percent symbols with human-entered percentages (5 means 5%), dollar signs for money, and × for multipliers. Keep stored fractions, price math, manual overrides and saved snapshots unchanged.
+
 Paul's first requested change (September 29, 2026): make the website quote builder resemble his blank spreadsheet template. Use https://docs.google.com/spreadsheets/d/1Wbnlz1Th3zC2nKgBBFJUjZw4lGotF_4Z8Tqd6O-xkhM/edit?gid=2071081838 as the layout and new-quote starting reference, disregarding Fonroche sample data for this work. Signed-in template inspection completed; the Quote Builder sheet is gid 1358146786. First implementation matches its A–X column sequence, yellow entry cells, dark headers, service rows and project economics. New drafts use independently extracted blank-template settings/catalog and zero estimates. The app requires named, typed rows, so the 15 item and seven spare rows default to Fabrication; the start screen explains this. Existing quotes/revisions retain their snapshots. Historical fixtures remain solely as calculation regression checks; no pricing engine change was requested.
 Use a spreadsheet-like editable workflow: takeoffs, material catalog lookups, quantities and section multipliers, trade labor, pricing, explicit overrides, client quote, and production budget.
 Preserve calculated values separately from overrides, with restore-to-calculated behavior.

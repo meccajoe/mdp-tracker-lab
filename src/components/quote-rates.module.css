@@ -1,0 +1,36 @@
+.sheet { max-width: 1060px; color: #172033; background: white; border: 1px solid #c3c7cd; font: 14px Arial, sans-serif; }
+.header { padding: 20px 24px 12px; }
+.header h2 { font-size: 21px; font-weight: bold; }
+.header p { margin-top: 7px; color: #526070; line-height: 1.5; }
+.group { margin: 0 24px 24px; }
+.group h3 { background: #2f3947; color: white; padding: 10px 12px; font-size: 15px; font-weight: bold; }
+.row, .columnHead, .calculated, .commission, .trade, .tradeHead { display: grid; grid-template-columns: minmax(210px, 1fr) 175px minmax(220px, 1.3fr); gap: 16px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #dde1e6; }
+.commission { margin: 0 24px 24px; }
+.commission label, .label { font-weight: 500; line-height: 1.45; }
+.row p, .commission p, .calculated > span:last-child { font-size: 13px; color: #526070; line-height: 1.5; }
+.columnHead, .tradeHead { font-size: 12px; color: #526070; background: #f3f5f7; }
+.input { display: flex; align-items: center; width: 175px; border: 1px solid #c5c77c; background: #ffff99; color: #182775; min-height: 36px; }
+.input:focus-within { outline: 2px solid #2563eb; outline-offset: 1px; }
+.input input { width: 100%; min-width: 0; text-align: right; padding: 7px 9px; background: transparent; border: 0; font: inherit; font-variant-numeric: tabular-nums; outline: none; appearance: textfield; }
+.input input::-webkit-inner-spin-button, .input input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.input > span { padding: 0 9px; font-size: 13px; white-space: nowrap; }
+.input > span:first-child { padding-right: 0; }
+.input > span:last-child { padding-left: 0; }
+.input input:disabled { cursor: not-allowed; opacity: .65; }
+.restore { font-size: 12px; text-decoration: underline; margin-top: 6px; color: #244d91; }
+.calculated, .tradeCost { background: #e2efda; }
+.calculated strong { font-variant-numeric: tabular-nums; }
+.tradeCost { padding: 9px 12px; font-variant-numeric: tabular-nums; }
+.footnote { padding: 12px; font-size: 12px; line-height: 1.5; color: #526070; }
+@media(max-width: 760px) {
+  .header { padding: 16px 12px; }
+  .group { margin: 0 12px 20px; }
+  .row, .commission, .calculated, .trade, .tradeHead { grid-template-columns: minmax(0,1fr) 140px; gap: 8px 12px; padding: 10px 8px; }
+  .commission { margin: 0 12px 20px; }
+  .row p, .commission p, .calculated > span:last-child { grid-column: 1 / -1; }
+  .columnHead { display: none; }
+  .input { width: 140px; }
+  .tradeHead > span:last-child { display: none; }
+  .tradeCost { grid-column: 1 / -1; font-size: 12px; }
+  .tradeCost::before { content: 'Burdened cost / hour: '; }
+}
