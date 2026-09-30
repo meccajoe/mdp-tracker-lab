@@ -1,0 +1,17 @@
+.workbook {font-size:12px!important;padding:12px!important;background:#f8fafc;color:#273549;}
+.workbook h1 {font-size:18px;}
+.workbook :global(.text-sm) {font-size:12px;}
+.workbook :global(.text-xl) {font-size:18px;}
+.workbook :global(.p-4),.workbook :global(.p-6) {padding:12px;}
+.workbook :global(.mb-4),.workbook :global(.mb-5) {margin-bottom:10px;}
+.workbook :global(.mt-4),.workbook :global(.mt-5) {margin-top:10px;}
+.workbook :global(.gap-3) {gap:8px;}
+.workbook :global(.py-1\.5) {padding-top:3px;padding-bottom:3px;}
+.workbook [role=tablist] {gap:4px;}
+.workbook [role=tab] {background:#e9eef8;border-color:#cfdae8;padding:5px 10px;}
+.workbook [role=tab]:nth-child(2n) {background:#eaf2e9;}
+.workbook [role=tab]:nth-child(3n) {background:#f2edf7;}
+.workbook [role=tab][aria-selected=true] {border-color:#577ca3;box-shadow:inset 0 -2px #577ca3;color:#203e62;}
+.workbook input:global(.rounded),.workbook select:global(.rounded) {background:#fffbea;}
+.workbook label:global(.rounded) {background:#edf2f8;}
+.workbook fieldset {min-width:0;}

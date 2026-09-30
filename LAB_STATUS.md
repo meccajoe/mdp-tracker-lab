@@ -1,5 +1,12 @@
 # Lab status
 
+## Compact workbook and continuous takeoffs — September 30, 2026
+- Paul requested soft colors, smaller text and less scrolling across the quoting tool, plus one continuous takeoff worksheet and spreadsheet editing. Added pastel tab/input/header colors, tighter spacing, and narrower Quote Builder columns. Rates retains %/$/unit adornments.
+- Takeoffs now shows every item in one table, with stable Item links, catalog and trade name lookup, ten-row insertion, literal column drag-fill, Shift-click range copy, rectangular TSV paste, Tab navigation and a 30-edit undo history. Calculated totals are protected. Blank cost/sections retain their existing meanings; explicit zero remains distinct. Invalid bulk edits are rejected atomically. Add/rename item definitions in Quote Builder; ambiguous names require the exact stable ID offered by the lookup.
+- No pricing engine, schema, saved quote or revision migration changes. Drag-fill repeats values; it is not an Excel formula/series engine. It fills visible target rows in one column; no auto-scroll during dragging. Native keyboard/text editing remains available on phones.
+- Verification: 41 calculator/estimator/validation/grid/safety tests and TypeScript passed; production build passed with placeholder lab keys. Local browser adapter verified description drag-fill and undo; 2x4 numeric paste produced $25/3 hours and $40/2 hours; range copy reproduced the TSV; reassigned the second row to Item 2; local save/reload retained it. Desktop Rates/Takeoffs/Estimators reviewed. At 390px, Estimators and Takeoffs stayed within page width, with internal worksheet scrolling. Physical touch gestures and hosted save/reopen remain unverified.
+- Lab deployment status will be recorded after push. Paul's existing create_workspace permission blocker still prevents real hosted quote verification. Local test data stays only in the temporary browser preview.
+
 ## Rates tab readability — September 30, 2026
 - Shipped as dfa22c9; GitHub Vercel status confirms successful deployment at https://vercel.com/meccanics/mdp-tracker-lab/7tkkVLHskeCoAwTrXYGnz6aoXSpQ. The hosted Rates view still requires an accessible quote workspace; use the isolated local preview to review the layout until Paul's capability is granted.
 - Replaced dense settings cards with spreadsheet-style sections for global parameters, fabrication, graphics/SEG, professional services, install/travel, pass-throughs and trade labor. Yellow editable values, aligned notes, and green calculated labor costs distinguish inputs from results.

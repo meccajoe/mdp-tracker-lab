@@ -1,0 +1,23 @@
+.sheet {border:1px solid #cbd5df;background:white;color:#273549;font:12px Arial,sans-serif;}
+.toolbar {display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:8px;background:#e8eef7;}
+.toolbar button {border:1px solid #b6c5d6;background:#f8fafc;padding:4px 8px;border-radius:4px;}
+.sheet p {padding:6px 10px;color:#4b5b6a;font-size:11px;}
+.sheet p[role=alert] {color:#a12525;background:#fff0eb;}
+.scroll {overflow:auto;max-height:65vh;}
+.sheet table {width:100%;min-width:1250px;border-collapse:separate;border-spacing:0;table-layout:fixed;}
+.sheet th,.sheet td {border-right:1px solid #d8dfe5;border-bottom:1px solid #d8dfe5;height:27px;padding:0;position:relative;}
+.sheet thead {position:sticky;top:0;z-index:4;background:#e3ebf4;}
+.sheet th {font-weight:500;font-size:11px;padding:5px;}
+.sheet th:first-child {width:30px;}
+.sheet th:nth-child(2),.sheet th:nth-child(3),.sheet th:nth-child(4) {width:170px;}
+.sheet th:nth-child(9) {width:115px;}
+.sheet th:last-child {width:25px;}
+.sheet td {background:#fffbea;}
+.sheet td:first-of-type {position:sticky;left:0;z-index:2;background:#edf2fa;}
+.sheet input,.sheet select {width:100%;min-width:0;height:26px;border:0;background:transparent;font:inherit;padding:3px 6px;color:inherit;}
+.sheet input:focus,.sheet select:focus {outline:2px solid #467dad;outline-offset:-2px;}
+.sheet .computed {background:#edf5ed;text-align:right;padding:3px 6px;}
+.sheet .active {box-shadow:inset 0 0 0 2px #467dad;}
+.sheet .filling {background:#dceafa;}
+.handle {position:absolute;right:0;bottom:0;width:9px;height:9px;background:#326ba0;border:1px solid white;cursor:crosshair;touch-action:none;z-index:3;}
+@media(max-width:640px){.sheet td:first-of-type{position:relative;}}
