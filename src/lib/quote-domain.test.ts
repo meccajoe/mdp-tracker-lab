@@ -98,7 +98,7 @@ test("locked revisions and project-scoped work package identity fail closed", ()
   assert.throws(() => validateWorkPackageIdentity({ id: "3b4e9370-a3aa-4d02-a1c4-7ffdbf2d9102", workspaceId: "", projectId: null, itemNumber: 1 }), /workspace context/i);
 });
 
-test("workspace membership permits ordinary collaboration but never grants privileged authority", () => {
+test("workspace membership permits collaboration and owner lifecycle authority without granting unrelated privileges", () => {
   for (const actor of [estimator, pm, commercialApprover, operations, breakGlassAdmin]) {
     assert.equal(canPerformQuoteAction(actor, "view_workspace"), true);
     assert.equal(canPerformQuoteAction(actor, "edit_draft"), true);
@@ -112,8 +112,8 @@ test("workspace membership permits ordinary collaboration but never grants privi
   assert.equal(canPerformQuoteAction(viewer, "view_workspace"), true);
   assert.equal(canPerformQuoteAction(viewer, "edit_draft"), false);
   assert.equal(canPerformQuoteAction(viewer, "attach_evidence"), false);
-  assert.equal(canPerformQuoteAction(commercialApprover, "archive_workspace"), false);
-  assert.equal(canPerformQuoteAction(commercialApprover, "restore_workspace"), false);
+  assert.equal(canPerformQuoteAction(commercialApprover, "archive_workspace"), true);
+  assert.equal(canPerformQuoteAction(commercialApprover, "restore_workspace"), true);
   const lifecycleAdministrator = { ...commercialApprover, capabilities: [...commercialApprover.capabilities, "archive_workspace" as const] };
   assert.equal(canPerformQuoteAction(lifecycleAdministrator, "archive_workspace"), true);
   assert.equal(canPerformQuoteAction(lifecycleAdministrator, "restore_workspace"), true);

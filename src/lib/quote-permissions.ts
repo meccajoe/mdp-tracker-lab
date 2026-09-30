@@ -73,6 +73,9 @@ export function canPerformQuoteAction(actor: QuoteActor, action: QuoteAction): b
   if (action === "view_workspace") return true;
   if (action === "edit_draft" || action === "attach_evidence" || action === "submit_revision" || action === "request_change") return ordinaryRoles.has(actor.workspaceRole);
 
+  // Both governed database lifecycle functions authorize active workspace owners.
+  if ((action === "archive_workspace" || action === "restore_workspace") && actor.workspaceRole === "owner") return true;
+
   const required = privilegedCapability[action];
   if (!required) return false;
   if (actor.capabilities.includes(required)) return true;
@@ -98,5 +101,22 @@ export function buildQuoteActor(input: {
     isActiveMember: Boolean(input.membership && !input.membership.removed_at),
     capabilities: input.capabilities.filter((row) => !row.revoked_at).map((row) => row.capability),
     breakGlassReason: input.breakGlassReason,
+  };
+}
+
+export interface QuoteWorkspaceActions {
+  rename: boolean;
+  archive: boolean;
+  restore: boolean;
+}
+
+// Presentation permissions are derived from the same actor policy as route guards.
+// The API still rechecks identity, membership, capabilities and lifecycle on mutation.
+export function quoteWorkspaceActions(actor: QuoteActor, lifecycle: string): QuoteWorkspaceActions {
+  const archived = lifecycle === "archived";
+  return {
+    rename: !archived && canPerformQuoteAction(actor, "edit_draft"),
+    archive: !archived && canPerformQuoteAction(actor, "archive_workspace"),
+    restore: archived && canPerformQuoteAction(actor, "restore_workspace"),
   };
 }

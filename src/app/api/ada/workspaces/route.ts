@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { quoteWorkspaceActions, type QuoteCapability, type QuoteWorkspaceRole } from "@/lib/quote-permissions";
 import { requireAdaIdentity } from "@/lib/ada-server";
 
 const WORKSPACE_STATUSES = ["draft", "gathering_inputs", "estimating", "in_review", "accepted", "handed_off", "archived"] as const;
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get("search")?.trim();
   const { data: memberships, error: membershipError } = await admin.supabase
     .from("quote_workspace_members")
-    .select("workspace_id")
+    .select("workspace_id, workspace_role")
     .eq("user_id", admin.actorId)
     .eq("email_normalized", admin.actorEmail)
     .is("removed_at", null);
@@ -29,9 +30,17 @@ export async function GET(request: NextRequest) {
   const workspaceIds = (memberships ?? []).map((membership) => membership.workspace_id);
   if (workspaceIds.length === 0) return NextResponse.json({ workspaces: [] });
 
+  const { data: capabilities, error: capabilityError } = await admin.supabase
+    .from("quote_user_capabilities")
+    .select("capability")
+    .eq("user_id", admin.actorId)
+    .eq("email_normalized", admin.actorEmail)
+    .is("revoked_at", null);
+  if (capabilityError) return NextResponse.json({ error: "Unable to verify workspace actions." }, { status: 500 });
+
   let query = admin.supabase
     .from("ada_quote_workspaces")
-    .select("id, ada_project_id, title, client_name, contact_name, hubspot_deal_id, tracker_project_id, status, last_activity_at, pinned_at, archived_at, created_by_email, created_at, updated_at")
+    .select("id, ada_project_id, title, client_name, contact_name, hubspot_deal_id, tracker_project_id, status, lifecycle_status, last_activity_at, pinned_at, archived_at, created_by_email, created_at, updated_at")
     .in("id", workspaceIds)
     .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_activity_at", { ascending: false })
@@ -48,7 +57,17 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ workspaces: data ?? [] });
+  const roles = new Map((memberships ?? []).map((member) => [member.workspace_id, member.workspace_role]));
+  return NextResponse.json({ workspaces: (data ?? []).map((workspace) => ({
+    ...workspace,
+    actions: quoteWorkspaceActions({
+      email: admin.actorEmail,
+      systemRole: admin.actorRole,
+      workspaceRole: roles.get(workspace.id) as QuoteWorkspaceRole,
+      isActiveMember: true,
+      capabilities: (capabilities ?? []).map((row) => row.capability as QuoteCapability),
+    }, workspace.lifecycle_status),
+  })) });
 }
 
 export async function POST(request: NextRequest) {

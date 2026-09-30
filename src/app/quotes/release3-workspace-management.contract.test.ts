@@ -66,7 +66,7 @@ test("quote discovery hides archived work by default and exposes an explicit arc
 
 test("quote library exposes responsive rename archive and restore controls", () => {
   const library = source("src/components/quote-library.tsx");
-  for (const label of ["Rename", "Archive", "Restore", "Save name"]) assert.match(library, new RegExp(label));
+  for (const label of ["Rename", "Archive", "Restore", "Save name"]) assert.match(library + source("src/components/quote-workspace-actions.tsx"), new RegExp(label));
   assert.match(library, /method:\s*"PATCH"/);
   assert.match(library, /renameOnly:\s*true/);
   assert.doesNotMatch(library, /body: JSON\.stringify\(\{ title, clientName: editingWorkspace/);

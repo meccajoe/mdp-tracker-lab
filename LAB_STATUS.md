@@ -91,3 +91,8 @@ Update this file with completed changes, validation evidence, current blockers, 
 - Applying a sample changes the existing unit cost, recalculates the linked Travel & Expenses lines, and saves a source/date/search snapshot in the versioned workbook document. A manual unit-cost edit clears its sample provenance. Old revisions remain valid.
 - Local Node tests cover search validation, sample integrity, three-category application, calculation, saved-revision parsing, manual overrides, and existing Fonroche totals. Live provider accuracy and authenticated hosted interaction are not verified in this slice.
 - Next: build and render the lab deployment, then test a signed-in workspace save/reopen with the sample lookup. Joe controls any later production promotion; no external provider credential has been configured.
+
+## Owner Archive/Restore alignment — September 30, 2026
+- Local branch codex/lab-owner-archive aligns shared API policy with existing database owner lifecycle authority and computes UI controls from verified per-workspace permissions. No hosted access grants, production changes, push, merge or deployment.
+- Route/helper/UI regression 11/11 and isolated database/workbook tests 2/2 pass; TypeScript passes. Final full inventory: 681/685 pass with four inherited contract failures. Baseline comparison and build ENOSPC blocker are documented in docs/lab/OWNER_LIFECYCLE_FIX.md.
+- Previous hosted travel save/reopen/manual-edit evidence is preserved. Hosted new-fix owner lifecycle, viewer and archived acceptance remain not run until an approved preview publication and safe authenticated fixtures are available.

@@ -3,8 +3,10 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, ArrowRight, Pencil, Plus, RotateCcw, Search, X } from "lucide-react";
+import { ArrowRight, Plus, Search, X } from "lucide-react";
 
+import { QuoteActions } from "@/components/quote-workspace-actions";
+import type { QuoteWorkspaceActions } from "@/lib/quote-permissions";
 import { adaFetch } from "@/lib/ada-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ type QuoteWorkspace = {
   status: QuoteStatus;
   last_activity_at: string;
   pinned_at: string | null;
+  actions?: QuoteWorkspaceActions;
 };
 
 const FILTERS: Array<{ value: "all" | QuoteStatus; label: string }> = [
@@ -201,7 +204,7 @@ export function QuoteLibrary() {
                 <Link href={`/quotes/${workspace.id}`} className="inline-flex items-center gap-1 hover:text-foreground">{formatActivity(workspace.last_activity_at)} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></Link>
               </div>
               <div data-slot="quote-library-mobile-actions" className="mt-3 flex justify-end gap-2 border-t border-border/60 pt-3">
-                <QuoteActions workspace={workspace} busy={mutatingId === workspace.id} onRename={setEditingWorkspace} onLifecycle={changeLifecycle} />
+                <QuoteActions archived={workspace.status === "archived"} actions={workspace.actions} busy={mutatingId === workspace.id} onRename={() => setEditingWorkspace(workspace)} onLifecycle={() => void changeLifecycle(workspace)} />
               </div>
             </div>
           ))}
@@ -238,7 +241,7 @@ export function QuoteLibrary() {
                   </TableCell>
                   <TableCell data-slot="quote-library-table-actions" className="pr-4 text-right">
                     <div className="inline-flex gap-1">
-                      <QuoteActions workspace={workspace} busy={mutatingId === workspace.id} onRename={setEditingWorkspace} onLifecycle={changeLifecycle} />
+                      <QuoteActions archived={workspace.status === "archived"} actions={workspace.actions} busy={mutatingId === workspace.id} onRename={() => setEditingWorkspace(workspace)} onLifecycle={() => void changeLifecycle(workspace)} />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -300,27 +303,5 @@ function EmptyQuotes({ onCreate }: { onCreate: () => void }) {
       <p className="mt-1 text-sm text-muted-foreground">Start a quote now; connect it to a project only when the work is ready.</p>
       <Button variant="outline" className="mt-4" onClick={onCreate}>New quote</Button>
     </div>
-  );
-}
-
-function QuoteActions({ workspace, busy, onRename, onLifecycle }: {
-  workspace: QuoteWorkspace;
-  busy: boolean;
-  onRename: (workspace: QuoteWorkspace) => void;
-  onLifecycle: (workspace: QuoteWorkspace) => void;
-}) {
-  const archived = workspace.status === "archived";
-  return (
-    <>
-      {!archived ? (
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => onRename(workspace)}>
-          <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Rename
-        </Button>
-      ) : null}
-      <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void onLifecycle(workspace)}>
-        {archived ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Archive className="h-3.5 w-3.5" aria-hidden="true" />}
-        {busy ? "Working…" : archived ? "Restore" : "Archive"}
-      </Button>
-    </>
   );
 }
