@@ -1,6 +1,7 @@
 # Lab status
 
 ## Rates tab readability — September 30, 2026
+- Shipped as dfa22c9; GitHub Vercel status confirms successful deployment at https://vercel.com/meccanics/mdp-tracker-lab/7tkkVLHskeCoAwTrXYGnz6aoXSpQ. The hosted Rates view still requires an accessible quote workspace; use the isolated local preview to review the layout until Paul's capability is granted.
 - Replaced dense settings cards with spreadsheet-style sections for global parameters, fabrication, graphics/SEG, professional services, install/travel, pass-throughs and trade labor. Yellow editable values, aligned notes, and green calculated labor costs distinguish inputs from results.
 - Rates now shows/accepts human percentages (10 = 10%, stored as 0.10), $ on monetary fields including wages, × on multipliers and units for hours/minutes/people. Pinned labor override remains nullable with explicit restore and valid zero. No calculator, database schema or snapshot migration changes.
 - All 37 existing quote/validation/safety checks, full TypeScript and placeholder-key production build pass. Browser-local adapter check passed: 10% commission, 7.5% contingency, $120 labor sell, $0 pinned override/restoration, and save/reload. Independent example: $100 materials + 2 hours gives $512.71 including PM with 10% commission; contingency $38.45. Restored the isolated preview to blank/default inputs afterward.
