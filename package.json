@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lab:doctor": "node scripts/lab/doctor.mjs",
+    "lab:check": "node scripts/lab/check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

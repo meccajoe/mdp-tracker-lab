@@ -2,6 +2,9 @@
 
 This repository is Paul's isolated development environment. Read LAB_STATUS.md and docs/lab/WORKING_BRIEF.md first.
 
+## Multiple Macs
+Use docs/lab/MULTI_MAC.md for setup and handoff. GitHub is the shared source history; saved quotes belong in the hosted lab. Local previews and unsaved edits are not synchronized. Before handing off, update LAB_STATUS.md, commit and push authorized changes; verify push/deployment independently. At session start check local status and remote changes before editing; preserve divergent or uncommitted work. Use Node 24 and npm ci; npm run lab:doctor checks setup and npm run lab:check runs quote tests plus TypeScript without service keys.
+
 ## Ownership and scope
 Paul directs quote and capacity workflows. Joe owns infrastructure, integration boundaries, and production promotion. Implement, test, commit, and deploy authorized work within the lab without routine reconfirmation once deployment is configured. Record decisions and blockers in LAB_STATUS.md. Do not claim a feature works until verified.
 

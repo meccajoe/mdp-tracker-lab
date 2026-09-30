@@ -1,5 +1,12 @@
 # Lab status
 
+## Multiple-Mac development setup — September 30, 2026
+- Paul requested work across several Macs. Added docs/lab/MULTI_MAC.md, a lab-only README, .nvmrc, npm run lab:doctor and npm run lab:check. Preserved the inherited README as explicitly historical reference. AGENTS.md now records handoff expectations.
+- Shared code/context travels through GitHub commits and working notes; shared saved quotes use the same account/workspace on the hosted lab. The temporary localhost preview and unsaved edits do not sync. Second-Mac and hosted quote acceptance remain unverified.
+- Installed GitHub CLI 2.101.0 and Homebrew Node 24.21.0/npm 11.19.0 on this Mac; Node PATH added to .zprofile. Package dependency versions and lockfile unchanged. The check runner passes all 37 tests and TypeScript on bundled Node 24.19.0; Node 24.21.0 check also invoked for runtime confirmation.
+- Homebrew reported incomplete ca-certificates/openssl postinstall steps, including on retry. Node/npm version commands and quote checks run; do not claim those separate system postinstall steps succeeded. No certificate-validation bypass applied.
+- GitHub CLI browser authorization started; waiting for Paul's completion. Git push/deployment and other Macs are not yet verified. Existing pending spreadsheet-style commit is dd018d2.
+
 ## Spreadsheet-style Quote Builder implementation — September 29, 2026
 - Access to Paul's signed-in blank Google Sheet confirmed. Read-only XLSX export inspected; no source sheet edits or live integration enabled. Source SHA256 a1aa9b0567daaa7c2c280f154aaaffad503cdbc810ff8ee9b0fac6bc212fe2cf.
 - Added default Quote Builder grid matching A–X columns, yellow inputs, dark headers, frozen item names, distinct computed/override/final price, budgets, totals and economics. Grid edits use existing nullable overrides and append-only save flow. Existing tab workflows remain available.
