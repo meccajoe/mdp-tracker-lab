@@ -25,6 +25,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [active,setActive]=useState<Cell|null>(null);
   const [selectionEnd,setSelectionEnd]=useState<Cell|null>(null);
   const [end,setEnd]=useState<number|null>(null);
+  const [endColumn,setEndColumn]=useState<number|null>(null);
   const [error,setError]=useState('');
   const [itemPicker,setItemPicker]=useState<number|null>(null);
   const [learnedUsage,setLearnedUsage]=useState<Record<string,number>>({});
@@ -32,7 +33,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const usage={...learnedUsage};for(const [name,count] of Object.entries(quote.catalogUsage??{}))usage[name]=(usage[name]??0)+count;
   const filterChoices=quote.lines.filter(line=>`${quoteItemLabel(quote,line.id)} ${line.name}`.toLowerCase().includes(filterQuery.toLowerCase()));
   function setFilter(id:string) {
-    setFilterItem(id);setFilterOpen(false);setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);drag.current=null;
+    setFilterItem(id);setFilterOpen(false);setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;
   }
   const drag=useRef<{row:number;column:number;end:number;endColumn:number;value:string}|null>(null);
   const live=useQuoteCatalog();
@@ -65,7 +66,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
   }
   function finish() {
-    const range=drag.current;drag.current=null;setEnd(null);
+    const range=drag.current;drag.current=null;setEnd(null);setEndColumn(null);
     if(range&&(range.end!==range.row||range.endColumn!==range.column)) {
       const first=Math.min(range.row,range.end),last=Math.max(range.row,range.end),col=Math.min(range.column,range.endColumn),lastCol=Math.max(range.column,range.endColumn);
       apply(first,col,visibleIndices.filter(index=>index>=first&&index<=last).map(()=>Array.from({length:lastCol-col+1},()=>range.value)));
@@ -107,7 +108,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
           const isActive=active?.[0]===r&&active[1]===c;
           const inSelection=active&&selectionEnd&&r>=Math.min(active[0],selectionEnd[0])&&r<=Math.max(active[0],selectionEnd[0])&&c>=Math.min(active[1],selectionEnd[1])&&c<=Math.max(active[1],selectionEnd[1]);
-          const filling=active&&end!==null&&active[1]===c&&r>=Math.min(active[0],end)&&r<=Math.max(active[0],end);
+          const filling=active&&end!==null&&c>=Math.min(active[1],endColumn??active[1])&&c<=Math.max(active[1],endColumn??active[1])&&r>=Math.min(active[0],end)&&r<=Math.max(active[0],end);
           const lookedUp=(key==='unit'&&row.unit===undefined||key==='unitCostOverride'&&row.unitCostOverride===null)&&row.materialId;
           return <td key={key} data-takeoff-row={r} data-takeoff-column={c} className={`${key==='description'?styles.descriptionCell:''} ${protectedCell||lookedUp?styles.computed:''} ${isActive?styles.active:''} ${filling||inSelection?styles.filling:''}`}
             onMouseDown={e=>{if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
@@ -131,8 +132,8 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
             }
             {isActive&&!protectedCell&&!readOnly&&<button tabIndex={-1} className={styles.handle} aria-label="Drag to copy cell value"
               onPointerDown={e=>{e.preventDefault();const input=e.currentTarget.parentElement?.querySelector('input');const value=input?.value??display;input?.blur();e.currentTarget.setPointerCapture(e.pointerId);drag.current={row:r,column:c,end:r,endColumn:c,value};}}
-              onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=Number(td.getAttribute('data-takeoff-column'));setEnd(target);}}}
-              onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);}}/>
+              onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
+              onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);setEndColumn(null);}}/>
             }
           </td>;
         })}</tr>)}</tbody>
