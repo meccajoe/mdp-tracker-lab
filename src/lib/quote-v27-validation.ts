@@ -13,6 +13,11 @@ function num(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1e12) throw new Error('Numbers must be between 0 and 1 trillion.');
   return value;
 }
+function optionalText(row: Record<string, unknown>, key: string, max: number): Record<string,string> {
+  if (row[key] === undefined) return {};
+  if (typeof row[key] !== 'string' || row[key].length > max) throw new Error(`${key} must be at most ${max} characters.`);
+  return {[key]: row[key]};
+}
 const nullable = (value: unknown) => value === null ? null : num(value);
 const id = (value: unknown) => text(value, 'ID', 200);
 const nullableId = (value: unknown) => value === null ? null : id(value);
@@ -36,7 +41,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     settings: { ...Object.fromEntries(settingKeys.map(key => [key, num(settings[key])])), burdenedRateOverride: nullable(settings.burdenedRateOverride) } as Settings,
     trades: list(v.trades, 100).map(row => ({ id: id(row.id), name: text(row.name, 'Trade name'), wage: nullable(row.wage) })),
     catalog: list(v.catalog, 2000).map(row => ({id:id(row.id),name:text(row.name,'Material name'),unit:typeof row.unit === 'string' && row.unit.length <= 200 ? row.unit : '',unitCost:num(row.unitCost)})),
-    takeoffs: list(v.takeoffs, 5000).map(row => ({id:id(row.id),lineId:id(row.lineId),description:text(row.description,'Takeoff description'),materialId:nullableId(row.materialId),tradeId:nullableId(row.tradeId),quantity:num(row.quantity),sections:nullable(row.sections),unitCostOverride:nullable(row.unitCostOverride),hours:num(row.hours),resale:bool(row.resale)})),
+    takeoffs: list(v.takeoffs, 5000).map(row => ({id:id(row.id),lineId:id(row.lineId),description:text(row.description,'Takeoff description'),materialId:nullableId(row.materialId),tradeId:nullableId(row.tradeId),quantity:num(row.quantity),sections:nullable(row.sections),unitCostOverride:nullable(row.unitCostOverride),hours:num(row.hours),resale:bool(row.resale),...optionalText(row,'unit',200),...optionalText(row,'notes',2000)})),
     lines: list(v.lines, 200).map(row => {
       const inputs = record(row.inputs), overrides = record(row.overrides);
       if (!(LINE_TYPES as readonly unknown[]).includes(row.type)) throw new Error('Unknown line type.');

@@ -28,6 +28,7 @@ export type Takeoff = {
   id: string; lineId: string; description: string; materialId: string | null;
   tradeId: string | null; quantity: number; sections: number | null;
   unitCostOverride: number | null; hours: number; resale: boolean;
+  unit?: string; notes?: string;
 };
 export type QuoteLine = {
   id: string; name: string; type: LineType; takeoffDriven: boolean;

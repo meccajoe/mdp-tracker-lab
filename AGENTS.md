@@ -13,7 +13,7 @@ Paul directs quote and capacity workflows. Joe owns infrastructure, integration 
 - Only hosted Supabase project gkvaeqlqrthztobxitvn in organization cqyvrbacdmbytzmoakag (Mecca Design & Production).
 - Vercel lab project is mdp-tracker-lab (prj_H6frjmh8wPjYXFzK4aBHRjd7VhmF), team Meccanics (team_EEoCcHOGaLxcpWCZACyMGC54). Deploy only to this destination with the lab-only environment. Vercel's production target here means the lab's primary URL, not business production.
 - Never use production credentials, copy production environment files, restart production services, or mutate the production database.
-- Do not enable live accounting, CRM, Google Drive/Sheets, Slack, email, or other outbound integrations. Use fixtures or explicit lab-only substitutes.
+- Do not enable live accounting, CRM, Google Drive/Sheets, Slack, email, or other outbound integrations, except the narrow read-only Materials DB connection Paul authorized on October 4, 2026: spreadsheet 1Z34DH5kc3c7K9g-yOUyzF_sEhhNPFZeIdfh1gMTNL-0, gid 1318845246. No spreadsheet writes or sharing changes. Preserve quote price snapshots; this exception does not authorize other integrations. Otherwise use fixtures or explicit lab-only substitutes.
 - Empty Vercel cron configuration prevents scheduled invocation; it does not disable API routes. Runtime route guards and environment validation remain required before deployment.
 - Preserve sandbox data across deployments. Data refreshes require explicit scope and must not overwrite Paul's scenarios.
 - Never print credentials or commit environment files.

@@ -1,47 +1,106 @@
 'use client';
-import { useRef, useState } from 'react';
-import { calculateQuoteV27, type QuoteV27 } from '@/lib/quote-v27';
-import { applyWorksheetCells, takeoffWorksheetRows, EMPTY_TAKEOFF_DESCRIPTION, TAKEOFF_COLUMNS } from '@/lib/quote-takeoff-grid';
+import {useMemo,useRef,useState} from 'react';
+import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
+import {applySheetCells,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
+import {useQuoteCatalog} from './use-quote-catalog';
 import styles from './quote-takeoffs.module.css';
-const headers = ['Item','Description','Catalog material','Qty','Unit cost $','Sections ×','Hours','Trade','Resale'];
-export function QuoteTakeoffs({quote, edit, selected, onAddItem, readOnly}: {quote: QuoteV27; edit:(change:(next:QuoteV27)=>void)=>void; selected:string; onAddItem:()=>void; readOnly:boolean}) {
-  const [rowCapacity,setRowCapacity] = useState(50);
-  const rowCount = Math.min(5000, Math.max(rowCapacity, Math.ceil(quote.takeoffs.length / 50) * 50));
-  const worksheetRows = takeoffWorksheetRows(quote, rowCount, selected);
-  const [active,setActive] = useState<[number,number] | null>(null);
-  const [selectionEnd,setSelectionEnd] = useState<[number,number] | null>(null);
-  const [end,setEnd] = useState<number|null>(null);
-  const [error,setError] = useState('');
-  const drag = useRef<{row:number;column:number;end:number;value:string}|null>(null);
-  let calculation: ReturnType<typeof calculateQuoteV27> | null = null;
-  try { calculation = calculateQuoteV27(quote); } catch { /* Workbook displays calculation errors. */ }
-  function apply(row:number,column:number,values:string[][]) {
-    if(readOnly) return false;
-    try { const trial=structuredClone(quote); applyWorksheetCells(trial,rowCount,selected,row,column,values); edit(next=>{next.takeoffs=trial.takeoffs;}); setError(''); return true; }
-    catch(e) {setError(e instanceof Error ? e.message : 'Check the entered cells.');return false;}
+const headers=['Line item','Description','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes','Trade'];
+type Cell=[number,number];
+export function QuoteTakeoffs({quote,edit,selected,onAddItem,readOnly}: {
+  quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onAddItem:()=>void;readOnly:boolean;
+}) {
+  const [rowCapacity,setRowCapacity]=useState(50);
+  const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
+  const rows=takeoffWorksheetRows(quote,rowCount,selected);
+  const [active,setActive]=useState<Cell|null>(null);
+  const [selectionEnd,setSelectionEnd]=useState<Cell|null>(null);
+  const [end,setEnd]=useState<number|null>(null);
+  const [error,setError]=useState('');
+  const drag=useRef<{row:number;column:number;end:number;value:string}|null>(null);
+  const live=useQuoteCatalog();
+  const calculation=useMemo(()=>{
+    try {return calculateQuoteV27(quote);} catch {return null; /* Workbook displays calculation errors. */}
+  },[quote]);
+  const computed=new Map(calculation?.takeoffs.map(row=>[row.id,row]));
+  const catalog=new Map(quote.catalog.map(material=>[material.id,material]));
+  const choices=live.materials??quote.catalog;
+  function valueAt(r:number,key:SheetColumn):string {
+    const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
+    if(key==='lineId')return quote.lines.find(line=>line.id===row.lineId)?.name??'';
+    if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
+    if(key==='unit')return row.unit??catalog.get(row.materialId??'')?.unit??'';
+    if(key==='tradeId')return quote.trades.find(trade=>trade.id===row.tradeId)?.name??'';
+    if(key==='materialTotal')return saved?(computed.get(row.id)?.cost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
+    if(key==='extendedHours')return saved?String(computed.get(row.id)?.extendedHours??0):'';
+    if(key==='resale')return row.resale?'Yes':'No';
+    if(key==='unitCostOverride')return saved?String(row.unitCostOverride??catalog.get(row.materialId??'')?.unitCost??0):'';
+    return saved?String(row[key]??''):'';
   }
-  function raw(row:number,column:number) {return String(worksheetRows[row][TAKEOFF_COLUMNS[column]]??'');}
-  function finish() {const range=drag.current;drag.current=null;setEnd(null);if(range && range.end!==range.row) {const first=range.end>range.row?range.row+1:range.end;apply(first,range.column,Array.from({length:Math.abs(range.end-range.row)},()=>[range.value]));}}
+  function apply(row:number,column:number,values:string[][]) {
+    if(readOnly)return false;
+    try {
+      const trial=structuredClone(quote);
+      applySheetCells(trial,rowCount,selected,row,column,values,live.materials);
+      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;});setError('');return true;
+    } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
+  }
+  function finish() {
+    const range=drag.current;drag.current=null;setEnd(null);
+    if(range&&range.end!==range.row)apply(range.end>range.row?range.row+1:range.end,range.column,
+      Array.from({length:Math.abs(range.end-range.row)},()=>[range.value]));
+  }
   return <div className={styles.sheet}>
-    <div className={styles.toolbar}><strong>Takeoffs · all items</strong><button onClick={onAddItem}>Add item</button><button disabled={rowCount>=5000} onClick={()=>setRowCapacity(Math.min(5000,rowCount+50))}>Add 50 more rows</button><span>{rowCount} rows</span></div>
-    <p>Click a cell, then drag its blue corner up or down to repeat it. Paste spreadsheet cells starting at the focused cell. Shift-click another cell to select a range and copy it. Use Tab to move between fields. Start typing in any row. New rows use the current item; change the Item cell to assign another.</p>
-    {error && <p role="alert">{error}</p>}
-    <div className={styles.scroll} onCopy={e=>{if(!active || !selectionEnd)return;e.preventDefault();const rows=[];for(let r=Math.min(active[0],selectionEnd[0]);r<=Math.max(active[0],selectionEnd[0]);r++){const cells=[];for(let c=Math.min(active[1],selectionEnd[1]);c<=Math.max(active[1],selectionEnd[1]);c++){const key=TAKEOFF_COLUMNS[c];const source=key==='lineId'?quote.lines:key==='materialId'?quote.catalog:key==='tradeId'?quote.trades:null;cells.push(source ? source.find(x=>x.id===worksheetRows[r][key])?.name??'' : raw(r,c));}rows.push(cells.join('\t'));}e.clipboardData.setData('text/plain',rows.join('\n'));}}><table><thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}</th>)}<th>Extended $</th><th>Total hrs</th><th/></tr></thead><tbody>{worksheetRows.map((row,r)=>{
-      const computed=calculation?.takeoffs.find(t=>t.id===row.id);
-      return <tr key={row.id}><th>{r+1}</th>{TAKEOFF_COLUMNS.map((key,c)=>{
-        const source=key==='lineId'?quote.lines:key==='materialId'?quote.catalog:key==='tradeId'?quote.trades:null;
-        const empty = r >= quote.takeoffs.length;
-        const display=key==='description' && row.description===EMPTY_TAKEOFF_DESCRIPTION ? '' : empty && !source ? '' : source ? source.find(x=>x.id===row[key])?.name??'' : raw(r,c);
-        const isActive=active?.[0]===r && active[1]===c;
-        const inSelection=active && selectionEnd && r>=Math.min(active[0],selectionEnd[0])&&r<=Math.max(active[0],selectionEnd[0])&&c>=Math.min(active[1],selectionEnd[1])&&c<=Math.max(active[1],selectionEnd[1]);
-        const filling=active && end!==null && active[1]===c && r>=Math.min(active[0],end)&&r<=Math.max(active[0],end);
-        return <td key={key} data-takeoff-row={r} className={`${isActive?styles.active:''} ${filling||inSelection?styles.filling:''}`} onMouseDown={e=>{if(e.shiftKey && active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}} onFocus={()=>setActive([r,c])} onPaste={e=>{const text=e.clipboardData.getData('text/plain');if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}}}>
-          {key==='resale'?<select aria-label={`Resale row ${r+1}`} value={row.resale?'Yes':'No'} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:<input key={`${row.id}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} list={source?`takeoff-${key}`:undefined} inputMode={source||key==='description'?'text':'decimal'} placeholder={key==='sections'?'1':key==='unitCostOverride'?`$${computed?.unitCost??0}`:source?'Choose…':''} onBlur={e=>{if(e.target.value!==display && !apply(r,c,[[e.target.value]]))e.target.value=display;}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=display;e.currentTarget.blur();}}}/>}
-          {isActive&&!readOnly&&<button className={styles.handle} aria-label="Drag to fill column" onPointerDown={e=>{e.preventDefault();const input=e.currentTarget.parentElement?.querySelector('input');input?.blur();e.currentTarget.setPointerCapture(e.pointerId);drag.current={row:r,column:c,end:r,value:e.currentTarget.parentElement?.querySelector('input,select') instanceof HTMLInputElement ? (e.currentTarget.parentElement.querySelector('input') as HTMLInputElement).value : raw(r,c)};}} onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;setEnd(target);}}} onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);}} onKeyDown={e=>{if(e.key==='Escape'){drag.current=null;setEnd(null);}}} />}
-        </td>;
-      })}<td className={styles.computed}>{(computed?.cost??0).toLocaleString('en-US',{style:'currency',currency:'USD'})}</td><td className={styles.computed}>{computed?.extendedHours??0}</td><td><button disabled={r>=quote.takeoffs.length} aria-label={`Remove takeoff row ${r+1}`} onClick={()=>edit(next=>{next.takeoffs=next.takeoffs.filter(t=>t.id!==row.id);})}>×</button></td></tr>;
-    })}</tbody></table></div>
-    {(['lineId','materialId','tradeId'] as const).map(key=><datalist key={key} id={`takeoff-${key}`}>{(key==='lineId'?quote.lines:key==='materialId'?quote.catalog:quote.trades).map(item=><option key={item.id} value={item.name}>{item.id}</option>)}</datalist>)}
-    <p>Blank sections = 1. Blank unit cost uses the catalog; 0 is an explicit override. Green cells are calculated. Undo restores a bulk edit.</p>
+    <div className={styles.toolbar}><strong>Item Takeoffs · all items</strong><button onClick={onAddItem}>Add item</button>
+      <button disabled={rowCount>=5000} onClick={()=>setRowCapacity(Math.min(5000,rowCount+50))}>Add 50 more rows</button><span>{rowCount} rows</span>
+      {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],1,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
+    </div>
+    <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
+    {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
+    <p>Type a description or choose a catalog suggestion to fill its unit and cost. Drag a cell’s blue corner to repeat it. Shift-click to select and copy a range. New rows use the current item.</p>
+    {error&&<p role="alert">{error}</p>}
+    <div className={styles.scroll} onCopy={e=>{
+      if(!active||!selectionEnd)return;e.preventDefault();const copied=[];
+      for(let r=Math.min(active[0],selectionEnd[0]);r<=Math.max(active[0],selectionEnd[0]);r++) {
+        const cells=[];for(let c=Math.min(active[1],selectionEnd[1]);c<=Math.max(active[1],selectionEnd[1]);c++)cells.push(valueAt(r,SHEET_COLUMNS[c]));
+        copied.push(cells.join('\t'));
+      }
+      e.clipboardData.setData('text/plain',copied.join('\n'));
+    }}>
+      <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[175,265,65,70,95,70,65,100,80,65,190,110].map((width,i)=><col key={i} style={{width}}/>)}<col style={{width:28}}/></colgroup>
+        <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}</th>)}<th/></tr></thead>
+        <tbody>{rows.map((row,r)=><tr key={r}><th>{r+1}</th>{SHEET_COLUMNS.map((key,c)=>{
+          const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
+          const isActive=active?.[0]===r&&active[1]===c;
+          const inSelection=active&&selectionEnd&&r>=Math.min(active[0],selectionEnd[0])&&r<=Math.max(active[0],selectionEnd[0])&&c>=Math.min(active[1],selectionEnd[1])&&c<=Math.max(active[1],selectionEnd[1]);
+          const filling=active&&end!==null&&active[1]===c&&r>=Math.min(active[0],end)&&r<=Math.max(active[0],end);
+          const lookedUp=(key==='unit'&&row.unit===undefined||key==='unitCostOverride'&&row.unitCostOverride===null)&&row.materialId;
+          return <td key={key} data-takeoff-row={r} className={`${protectedCell||lookedUp?styles.computed:''} ${isActive?styles.active:''} ${filling||inSelection?styles.filling:''}`}
+            onMouseDown={e=>{if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
+            onFocus={()=>setActive([r,c])} onPaste={e=>{
+              const text=e.clipboardData.getData('text/plain');
+              if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
+            }}>
+            {protectedCell?display:key==='resale'?<select aria-label={`Resale row ${r+1}`} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:
+              <input key={`${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display}
+                title={key==='unitCostOverride'?row.unitCostOverride===null?'Catalog price · type to override':'Manual cost · clear to restore catalog':display}
+                list={key==='description'?'takeoff-description':key==='lineId'?'takeoff-lineId':key==='tradeId'?'takeoff-tradeId':undefined}
+                inputMode={['quantity','unitCostOverride','sections','hours'].includes(key)?'decimal':'text'}
+                placeholder={key==='sections'?'1':''}
+                onBlur={e=>{if(e.target.value!==display&&!apply(r,c,[[e.target.value]]))e.target.value=display;}}
+                onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=display;e.currentTarget.blur();}}}/>
+            }
+            {isActive&&!protectedCell&&!readOnly&&<button tabIndex={-1} className={styles.handle} aria-label="Drag to fill column"
+              onPointerDown={e=>{e.preventDefault();const input=e.currentTarget.parentElement?.querySelector('input');const value=input?.value??display;input?.blur();e.currentTarget.setPointerCapture(e.pointerId);drag.current={row:r,column:c,end:r,value};}}
+              onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;setEnd(target);}}}
+              onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);}}/>
+            }
+          </td>;
+        })}<td><button disabled={r>=quote.takeoffs.length} aria-label={`Remove takeoff row ${r+1}`} onClick={()=>edit(next=>{next.takeoffs=next.takeoffs.filter(t=>t.id!==row.id);})}>×</button></td></tr>)}</tbody>
+      </table>
+    </div>
+    <datalist id="takeoff-description">{choices.map(material=><option key={material.id} value={material.name}>{material.unit} · ${material.unitCost}</option>)}</datalist>
+    <datalist id="takeoff-lineId">{quote.lines.map(line=><option key={line.id} value={line.name}>{line.id}</option>)}</datalist>
+    <datalist id="takeoff-tradeId">{quote.trades.map(trade=><option key={trade.id} value={trade.name}>{trade.id}</option>)}</datalist>
+    <p>Blank sections = 1. Clear unit cost to restore the recorded catalog price; 0 is an explicit override. Live choices refresh every 15 seconds. Use latest price for selected row to update an existing selection. Saved rows do not reprice automatically.</p>
   </div>;
 }

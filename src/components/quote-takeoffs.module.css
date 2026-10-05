@@ -21,3 +21,6 @@
 .sheet .filling {background:#dceafa;}
 .handle {position:absolute;right:0;bottom:0;width:9px;height:9px;background:#326ba0;border:1px solid white;cursor:crosshair;touch-action:none;z-index:3;}
 @media(max-width:640px){.sheet td:first-of-type{position:relative;}}
+.catalogStatus {display:flex;align-items:center;gap:12px;padding:7px 10px;background:#edf5ed;font-size:11px;}
+.catalogStatus button {border:1px solid #b9cdbb;border-radius:3px;padding:3px 7px;background:white;}
+.sheet table {min-width:1505px;}

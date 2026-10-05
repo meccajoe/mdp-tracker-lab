@@ -60,3 +60,52 @@ export function applyWorksheetCells(quote: QuoteV27, count: number, selected: st
   applyTakeoffCells(next, start, column, values);
   quote.takeoffs = next.takeoffs;
 }
+
+export const SHEET_COLUMNS = ['lineId','description','quantity','unit','unitCostOverride','sections','resale','materialTotal','hours','extendedHours','notes','tradeId'] as const;
+export type SheetColumn = typeof SHEET_COLUMNS[number];
+/** Spreadsheet-facing edits use live choices, but never replace catalog prices already in use. */
+export function applySheetCells(quote: QuoteV27, count: number, selected: string, start: number,
+  column: number, values: string[][], liveMaterials: QuoteV27['catalog'] | null) {
+  const next=structuredClone(quote);
+  // Materialize rows only inside this transaction; any invalid cell rejects the entire paste.
+  applyWorksheetCells(next,count,selected,start,3,values.map(()=>['0']));
+  for(let r=0;r<values.length;r++) {
+    const row=next.takeoffs[start+r];
+    // The materialization call must not replace an existing quantity.
+    row.quantity=quote.takeoffs[start+r]?.quantity??0;
+    for(let c=0;c<values[r].length;c++) {
+      const key=SHEET_COLUMNS[column+c], value=values[r][c].trim();
+      if(!key)throw new Error('Paste extends beyond the worksheet.');
+      if(key==='materialTotal'||key==='extendedHours') {
+        if(value)throw new Error('Calculated columns are protected. Paste into editable columns only.');
+      } else if(key==='notes'||key==='unit') {
+        if(value.length>(key==='unit'?200:2000))throw new Error(`${key} is too long.`);
+        row[key]=value;
+      } else if(key==='description') {
+        const matches=(liveMaterials??next.catalog).filter(m=>m.name===value||m.id===value);
+        if(matches.length>1)throw new Error('Catalog description is ambiguous.');
+        if(matches.length===1) {
+          const material=matches[0];
+          const existing=next.catalog.find(m=>m.id===material.id);
+          if(existing && (existing.unitCost!==material.unitCost || existing.name!==material.name || existing.unit!==material.unit))throw new Error('Catalog identity conflict. Refresh and retry.');
+          if(!existing)next.catalog.push({...material});
+          row.materialId=material.id;row.description=material.name;row.unitCostOverride=null;delete row.unit;
+        } else {
+          const old=next.catalog.find(m=>m.id===row.materialId);
+          row.unitCostOverride=row.unitCostOverride??old?.unitCost??0;
+          row.unit=row.unit??old?.unit??'';
+          row.materialId=null;row.description=value||EMPTY_TAKEOFF_DESCRIPTION;
+        }
+      } else {
+        const legacyColumn=TAKEOFF_COLUMNS.indexOf(key);
+        // Set the target row directly via the shared conversion/validation rules.
+        applyTakeoffCells(next,start+r,legacyColumn,[[value]]);
+        Object.assign(row,next.takeoffs[start+r]);next.takeoffs[start+r]=row;
+      }
+    }
+  }
+  // Keep all referenced snapshots; trim unused history only if the existing schema limit is reached.
+  if(next.catalog.length>2000){const used=new Set(next.takeoffs.map(r=>r.materialId));next.catalog=next.catalog.filter(m=>used.has(m.id));}
+  if(next.catalog.length>2000)throw new Error('Quote has reached its 2,000 catalog snapshot limit.');
+  quote.catalog=next.catalog;quote.takeoffs=next.takeoffs;
+}
