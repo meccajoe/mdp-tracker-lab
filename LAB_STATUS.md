@@ -1,5 +1,11 @@
 # Lab status
 
+## Ready-to-type Takeoffs — October 4, 2026
+- Takeoffs opens with 50 editable rows; Add 50 more rows expands the worksheet up to the existing 5,000-row limit. Opening/expanding alone does not dirty or change the quote. Editing a later row materializes zero-value blank rows before it to preserve row positions on save/reload. New rows use the selected/first existing item. Existing records and price math remain intact.
+- 44 tests and TypeScript pass. Isolated browser verification: 50 rows initially, typed in row 50 without adding anything, expanded to 100, typed quantity in row 51, saved/reloaded both values. Production build passed with placeholder lab keys. Hosted verification pending deployment.
+- Paul reports Joe granted create_workspace and hosted quote creation now works; this is user-reported, not independently reverified in this session.
+- Follow-up authorization: Paul explicitly requests a read-only live connection to Materials DB 1Z34DH5kc3c7K9g-yOUyzF_sEhhNPFZeIdfh1gMTNL-0, gid 1318845246. Connector metadata/header reads and unauthenticated CSV export succeeded. This is a narrow user-authorized exception to the prior no-live-Sheets rule; no sheet writes, sharing changes or other integrations. Implementation follows separately.
+
 ## Compact workbook and continuous takeoffs — September 30, 2026
 - Paul requested soft colors, smaller text and less scrolling across the quoting tool, plus one continuous takeoff worksheet and spreadsheet editing. Added pastel tab/input/header colors, tighter spacing, and narrower Quote Builder columns. Rates retains %/$/unit adornments.
 - Takeoffs now shows every item in one table, with stable Item links, catalog and trade name lookup, ten-row insertion, literal column drag-fill, Shift-click range copy, rectangular TSV paste, Tab navigation and a 30-edit undo history. Calculated totals are protected. Blank cost/sections retain their existing meanings; explicit zero remains distinct. Invalid bulk edits are rejected atomically. Add/rename item definitions in Quote Builder; ambiguous names require the exact stable ID offered by the lookup.

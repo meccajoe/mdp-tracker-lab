@@ -46,3 +46,31 @@ test('duplicate names require exact IDs and invalid resale is rejected',()=>{
   assert.equal(q.takeoffs[0].resale,true);assert.equal(q.takeoffs[1].resale,false);
   assert.throws(()=>applyTakeoffCells(q,0,8,[['perhaps']]));
 });
+
+import { takeoffWorksheetRows, applyWorksheetCells } from '../src/lib/quote-takeoff-grid';
+test('opening a blank worksheet provides 50 rows without changing the document',()=>{
+  const q=createBlankQuoteV27();const original=structuredClone(q);
+  assert.equal(takeoffWorksheetRows(q,50,q.lines[0].id).length,50);
+  assert.deepEqual(q,original);
+});
+test('typing in row 50 preserves row position, existing rows, and valid saved totals',()=>{
+  const q=fixture(); const original=structuredClone(q.takeoffs);
+  applyWorksheetCells(q,50,q.lines[1].id,49,1,[['Panel']]);
+  assert.equal(q.takeoffs.length,50);
+  assert.deepEqual(q.takeoffs.slice(0,3),original);
+  assert.equal(q.takeoffs[49].description,'Panel');
+  assert.equal(q.takeoffs[49].lineId,q.lines[1].id);
+  assert.equal(calculateQuoteV27(parseQuoteV27(JSON.parse(JSON.stringify(q)))).totals.price,0);
+  applyWorksheetCells(q,100,q.lines[1].id,50,3,[['2','10']]);
+  assert.equal(q.takeoffs.length,51);
+  assert.equal(calculateQuoteV27(q).takeoffs[50].cost,20);
+  assert.equal(new Set(q.takeoffs.map(r=>r.id)).size,51);
+});
+test('paste into fresh rows is atomic and respects visible capacity',()=>{
+  const q=createBlankQuoteV27();const original=structuredClone(q);
+  assert.throws(()=>applyWorksheetCells(q,50,q.lines[0].id,49,3,[['2'],['3']]));
+  assert.throws(()=>applyWorksheetCells(q,50,q.lines[0].id,0,3,[['2'],['-1']]));
+  assert.deepEqual(q,original);
+  applyWorksheetCells(q,50,q.lines[0].id,0,3,[['2','10'],['3','20']]);
+  assert.equal(calculateQuoteV27(q).takeoffs[1].cost,60);
+});
