@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBlankQuoteV27 } from '../src/lib/quote-v27-template';
-import { applyTakeoffCells } from '../src/lib/quote-takeoff-grid';
+import { applyTakeoffCells, applyVisibleSheetCells } from '../src/lib/quote-takeoff-grid';
 import { calculateQuoteV27 } from '../src/lib/quote-v27';
 import { parseQuoteV27 } from '../src/lib/quote-v27-validation';
 function fixture() {
@@ -94,4 +94,20 @@ test('assign fresh and existing rows independently; names propagate through save
   applySheetCells(saved,50,saved.lines[0].id,6,0,[['Item 1']],null);
   assert.equal(saved.takeoffs[7].lineId,saved.lines[1].id);
   assert.equal(saved.lines[1].name,'Golden Arch');
+});
+
+test('filtered paste and fill skip hidden items atomically and preserve stored order',()=>{
+  const q=fixture();q.takeoffs[1].lineId=q.lines[1].id;
+  const hidden=structuredClone(q.takeoffs[1]);const ids=q.takeoffs.map(row=>row.id);
+  applyVisibleSheetCells(q,50,q.lines[0].id,[0,2,3,4],0,3,[['2'],['4']],null);
+  assert.equal(q.takeoffs[0].quantity,2);assert.equal(q.takeoffs[2].quantity,4);
+  assert.deepEqual(q.takeoffs[1],hidden);assert.deepEqual(q.takeoffs.map(row=>row.id),ids);
+  const before=structuredClone(q);
+  assert.throws(()=>applyVisibleSheetCells(q,50,q.lines[0].id,[0,2],0,3,[['8'],['-1']],null));
+  assert.deepEqual(q,before);
+  assert.throws(()=>applyVisibleSheetCells(q,50,q.lines[0].id,[0,2],2,3,[['8'],['9']],null));
+  assert.deepEqual(q,before);
+  applyVisibleSheetCells(q,50,q.lines[1].id,[1,3,4],3,2,[['New filtered material']],null);
+  assert.equal(q.takeoffs[3].lineId,q.lines[1].id);
+  assert.equal(parseQuoteV27(q).takeoffs[3].description,'New filtered material');
 });

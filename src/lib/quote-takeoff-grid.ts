@@ -123,3 +123,16 @@ export function quoteItemLabel(quote:QuoteV27,lineId:string):string {
   const index=quote.lines.findIndex(line=>line.id===lineId);
   return index<0?'Unknown item':`Item ${index+1}`;
 }
+
+/** Filtered paste/fill touches only visible rows and commits as one atomic edit. */
+export function applyVisibleSheetCells(quote:QuoteV27,count:number,selected:string,visibleIndices:number[],start:number,column:number,values:string[][],liveMaterials:QuoteV27['catalog']|null) {
+  const offset=visibleIndices.indexOf(start);
+  if(offset<0||offset+values.length>visibleIndices.length)throw new Error('Add more visible rows before pasting.');
+  const targets=visibleIndices.slice(offset,offset+values.length);
+  if(targets.every((target,i)=>target===start+i)) {
+    applySheetCells(quote,count,selected,start,column,values,liveMaterials);return;
+  }
+  const next=structuredClone(quote);
+  for(const [i,cells] of values.entries())applySheetCells(next,count,selected,visibleIndices[offset+i],column,[cells],liveMaterials);
+  quote.takeoffs=next.takeoffs;quote.catalog=next.catalog;quote.lines=next.lines;
+}

@@ -5,6 +5,8 @@ Paul can describe changes to Codex, build and deploy them to a persistent sandbo
 
 ## Product starting point
 
+October 5 worksheet clarification: all item takeoffs stay on one page by default, like Paul’s 12:00 screen recording. No top-level working-item toggle. Assign/name rows inline; an optional Filter items button searches item number or name and isolates a selected item, with Show all items to restore the full worksheet. Filtered editing must never overwrite hidden rows. This supersedes earlier requests for a working-item toolbar.
+
 October 5 item-identity clarification: Paul needs separate Item # and editable Item name columns directly in Takeoffs (Item 1 = Golden Arch, Item 2 = Cabinet Fixture), repeated on every related material/labor row. Item numbers follow the stored quote-line order and internal links remain stable IDs. Choosing an item on a row makes it the default for new rows without reassigning existing ones. Names belong to quote items, not individual takeoff descriptions, and must persist for eventual team/project handoff. Production budget shows both number and name; automatic workbook-to-project conversion remains separate unfinished work.
 
 October 5, 2026: Undo/Redo should reverse and restore successive quote edits across all tabs, one completed field edit or bulk operation per action. History is shared across tabs (100 most recent session actions), retained when saving, reset when loading/reopening a workbook, and a new edit clears redo. Saved revisions are a separate persistent history. Takeoff line-item controls should show understandable item names only, in Quote Builder order, with assignment distinct from renaming.

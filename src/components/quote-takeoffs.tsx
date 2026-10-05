@@ -1,7 +1,7 @@
 'use client';
 import {useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
-import {applySheetCells,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
+import {applyVisibleSheetCells,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
 import {useQuoteCatalog} from './use-quote-catalog';
 import styles from './quote-takeoffs.module.css';
 const headers=['Item #','Item name','Description','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes','Trade'];
@@ -11,7 +11,13 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
 }) {
   const [rowCapacity,setRowCapacity]=useState(50);
   const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
-  const rows=takeoffWorksheetRows(quote,rowCount,selected);
+  const [filterOpen,setFilterOpen]=useState(false);
+  const [filterItem,setFilterItem]=useState('');
+  const [filterQuery,setFilterQuery]=useState('');
+  const defaultItem=filterItem||selected;
+  const rows=takeoffWorksheetRows(quote,rowCount,defaultItem);
+  const visibleRows=rows.map((row,index)=>({row,index})).filter(({row})=>!filterItem||row.lineId===filterItem);
+  const visibleIndices=visibleRows.map(({index})=>index);
   const [active,setActive]=useState<Cell|null>(null);
   const [selectionEnd,setSelectionEnd]=useState<Cell|null>(null);
   const [end,setEnd]=useState<number|null>(null);
@@ -20,7 +26,10 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [picker,setPicker]=useState<number|null>(null);
   const [query,setQuery]=useState('');
   const [choiceKind,setChoiceKind]=useState('all');
-  const selectedItem=quote.lines.find(line=>line.id===selected)??quote.lines[0];
+  const filterChoices=quote.lines.filter(line=>`${quoteItemLabel(quote,line.id)} ${line.name}`.toLowerCase().includes(filterQuery.toLowerCase()));
+  function setFilter(id:string) {
+    setFilterItem(id);setFilterOpen(false);setActive(null);setSelectionEnd(null);setPicker(null);setItemPicker(null);setEnd(null);drag.current=null;
+  }
   const drag=useRef<{row:number;column:number;end:number;value:string}|null>(null);
   const live=useQuoteCatalog();
   const calculation=useMemo(()=>{
@@ -50,24 +59,29 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     if(readOnly)return false;
     try {
       const trial=structuredClone(quote);
-      applySheetCells(trial,rowCount,selected,row,column,values,live.materials);
+      applyVisibleSheetCells(trial,rowCount,defaultItem,visibleIndices,row,column,values,live.materials);
       edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');return true;
     } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
   }
   function finish() {
     const range=drag.current;drag.current=null;setEnd(null);
-    if(range&&range.end!==range.row)apply(range.end>range.row?range.row+1:range.end,range.column,
-      Array.from({length:Math.abs(range.end-range.row)},()=>[range.value]));
+    if(range&&range.end!==range.row)apply(range.end>range.row?visibleIndices[visibleIndices.indexOf(range.row)+1]:range.end,range.column,
+      Array.from({length:Math.abs(visibleIndices.indexOf(range.end)-visibleIndices.indexOf(range.row))},()=>[range.value]));
   }
   return <div className={styles.sheet}>
-    <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong><button disabled={readOnly} onClick={onAddItem}>Add item</button>
+    <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong><button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>
       <button disabled={rowCount>=5000} onClick={()=>setRowCapacity(Math.min(5000,rowCount+50))}>Add 50 more rows</button><span>{rowCount} rows</span>
       {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
     <div className={styles.itemToolbar}>
-      <label>Working on item <select aria-label="Working on item" value={selectedItem?.id??''} onChange={e=>{onSelectItem?.(e.target.value);setPicker(null);}}>{quote.lines.map(line=><option key={line.id} value={line.id}>{quoteItemLabel(quote,line.id)} — {line.name}</option>)}</select></label>
-      <label>Item name <input aria-label="Working item name" key={restoreKey+'-'+selectedItem?.id+'-'+selectedItem?.name} defaultValue={selectedItem?.name??''} disabled={readOnly} onBlur={e=>{const name=e.target.value.trim();if(name&&name!==selectedItem?.name)edit(next=>{const line=next.lines.find(l=>l.id===selectedItem?.id);if(line)line.name=name;});else e.target.value=selectedItem?.name??'';}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
-      <span>Choose an Item # on any row, then type its name beside it. The name updates every row for that item.</span>
+      <strong>{filterItem?`Showing ${quoteItemLabel(quote,filterItem)} — ${quote.lines.find(line=>line.id===filterItem)?.name}`:'All items — one worksheet'}</strong>
+      <button type="button" aria-expanded={filterOpen} onClick={()=>{setFilterOpen(!filterOpen);setFilterQuery('');}}>Filter items</button>
+      {filterItem&&<button type="button" onClick={()=>setFilter('')}>Show all items</button>}
+      <span>Name and assign items directly in the rows below.</span>
+      {filterOpen&&<div className={styles.filterPanel} role="dialog" aria-label="Filter takeoffs by item" onKeyDown={e=>{if(e.key==='Escape')setFilterOpen(false);}}>
+        <div className={styles.pickerTools}><input autoFocus aria-label="Search item number or name" placeholder="Search item # or name…" value={filterQuery} onChange={e=>setFilterQuery(e.target.value)}/><button type="button" aria-label="Close item filter" onClick={()=>setFilterOpen(false)}>×</button></div>
+        <div className={styles.choices}><button type="button" onClick={()=>setFilter('')}>All items</button>{filterChoices.map(line=><button type="button" key={line.id} onClick={()=>setFilter(line.id)}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name}</span></button>)}{!filterChoices.length&&<p>No matching items.</p>}</div>
+      </div>}
     </div>
     <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
@@ -75,7 +89,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     {error&&<p role="alert">{error}</p>}
     <div className={styles.scroll} onCopy={e=>{
       if(!active||!selectionEnd)return;e.preventDefault();const copied=[];
-      for(let r=Math.min(active[0],selectionEnd[0]);r<=Math.max(active[0],selectionEnd[0]);r++) {
+      for(const r of visibleIndices.filter(index=>index>=Math.min(active[0],selectionEnd[0])&&index<=Math.max(active[0],selectionEnd[0]))) {
         const cells=[];for(let c=Math.min(active[1],selectionEnd[1]);c<=Math.max(active[1],selectionEnd[1]);c++)cells.push(valueAt(r,SHEET_COLUMNS[c]));
         copied.push(cells.join('\t'));
       }
@@ -83,7 +97,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     }}>
       <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[90,220,245,50,60,85,55,55,85,70,55,190,100].map((width,i)=><col key={i} style={{width}}/>)}<col style={{width:28}}/></colgroup>
         <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h==='Labor hrs'?'Labor hrs (per section)':h}</th>)}<th/></tr></thead>
-        <tbody>{rows.map((row,r)=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{SHEET_COLUMNS.map((key,c)=>{
+        <tbody>{visibleRows.map(({row,index:r})=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{SHEET_COLUMNS.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
           const isActive=active?.[0]===r&&active[1]===c;
           const inSelection=active&&selectionEnd&&r>=Math.min(active[0],selectionEnd[0])&&r<=Math.max(active[0],selectionEnd[0])&&c>=Math.min(active[1],selectionEnd[1])&&c<=Math.max(active[1],selectionEnd[1]);

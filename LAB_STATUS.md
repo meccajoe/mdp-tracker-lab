@@ -1,5 +1,9 @@
 # Lab status
 
+## All-item worksheet and optional filter — October 5, 2026
+- Reviewed Paul’s 12:00 recording: named takeoff groups share one continuous worksheet with blank space between groups. Removed the top-level Working on item/name toolbar. Item assignment and naming remain inline; all items are shown by default. Optional Filter items searches number/name and selects one item; Show all items restores the worksheet. New blank rows in a filtered view belong to that item. Filters are view-only, not saved quote changes.
+- Filtered paste, copy and drag-fill use visible row positions; hidden items keep their IDs, data and order. Bulk edits remain atomic and undoable. Added regression for noncontiguous filtered edits, hidden-row preservation, failed paste rollback and filtered row creation. No pricing changes. Local browser verified two named items, name search, filtered entry and return to all items. Deployment/hosted verification pending.
+
 ## Separate item numbers and names — October 5, 2026
 - Shipped faab19c; Vercel success verified at https://vercel.com/meccanics/mdp-tracker-lab/CKp8iMY3688qdN4632RzQ7WuMbjQ. Hosted dedicated verification quote saved revision 4: Item 1 Golden Arch (plywood + Carpentry), Item 2 Cabinet Fixture (hardware); assignments and names survived Reload saved. Populated row reassignment Item 1 -> Item 2 -> Undo -> Redo -> Undo verified, restoring the saved baseline. Production budget shows Item 1 Golden Arch $1,657.48 materials / 49 hours and Item 2 Cabinet Fixture $50 materials. Test Quote 1 untouched. Screenshot /private/tmp/tracker-lab-item-names.jpg.
 - Paul supplied a recording showing awkward row assignment with the native selector and asked for Item # plus an inline unique Item name (e.g. Item 1 = Golden Arch). Recording inspected read-only using extracted frames; his Test Quote 1 was not edited.
