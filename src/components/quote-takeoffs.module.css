@@ -23,4 +23,35 @@
 @media(max-width:640px){.sheet td:first-of-type{position:relative;}}
 .catalogStatus {display:flex;align-items:center;gap:12px;padding:7px 10px;background:#edf5ed;font-size:11px;}
 .catalogStatus button {border:1px solid #b9cdbb;border-radius:3px;padding:3px 7px;background:white;}
-.sheet table {min-width:1505px;}
+.sheet table {min-width:1430px;}
+
+/* Match the source sheet: compact rows, dark headings, yellow inputs, green lookups. */
+.sheet thead {background:#354154;color:white;}
+.sheet thead th {font-weight:600;line-height:1.15;padding:7px 4px;}
+.sheet tbody th {background:#f1f4f7;color:#68758a;}
+.sheet td {background:#fffbd5;}
+.sheet td:first-of-type {background:#fff5bb;color:#23436b;}
+.sheet th,.sheet td {height:25px;}
+.sheet input,.sheet select {height:24px;padding:2px 5px;}
+.sheet .computed {background:#edf6df;}
+.itemStart td,.itemStart th {border-top:9px solid white;}
+.itemToolbar {display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px;background:#fff8dc;}
+.itemToolbar label {display:flex;align-items:center;gap:7px;font-weight:600;}
+.itemToolbar input,.itemToolbar select {width:235px;background:white;border:1px solid #c7cbd1;border-radius:3px;}
+.itemToolbar span {font-size:11px;color:#617083;}
+.sheet .descriptionCell {padding-right:22px;}
+.choose {position:absolute;right:0;top:0;width:22px;height:24px;border-left:1px solid #d7d5b6;background:#f4efc6;color:#334155;}
+.sheet td:has(.picker) {z-index:6;}
+.picker {position:absolute;left:0;top:100%;width:360px;max-width:80vw;padding:8px;background:white;border:1px solid #9aaac0;border-radius:4px;box-shadow:0 5px 18px #20344b33;color:#273549;}
+.pickerTools {display:flex;align-items:center;gap:5px;}
+.pickerTools input {border:1px solid #c1cad5;background:#f8fafc;}
+.pickerTools button {padding:3px 7px;}
+.picker>select {margin:5px 0;background:#eef3f8;}
+.choices {max-height:220px;overflow:auto;}
+.choices button {display:flex;justify-content:space-between;gap:12px;width:100%;text-align:left;padding:7px 5px;border-bottom:1px solid #edf0f4;}
+.choices button:hover,.choices button:focus {background:#e5eef8;}
+.choices small {white-space:nowrap;color:#607184;}
+.picker>small {display:block;padding:5px;color:#64748b;}
+
+.sheet thead th:nth-child(2) {position:sticky;left:0;z-index:5;background:#354154;}
+@media(max-width:640px){.sheet thead th:nth-child(2){position:relative;}}
