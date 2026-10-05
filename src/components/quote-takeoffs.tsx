@@ -6,8 +6,8 @@ import {useQuoteCatalog} from './use-quote-catalog';
 import styles from './quote-takeoffs.module.css';
 const headers=['Line item','Description','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes','Trade'];
 type Cell=[number,number];
-export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly}: {
-  quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
+export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0}: {
+  restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
   const [rowCapacity,setRowCapacity]=useState(50);
   const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
@@ -64,8 +64,8 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     </div>
     <div className={styles.itemToolbar}>
       <label>Working on item <select aria-label="Working on item" value={selectedItem?.id??''} onChange={e=>{onSelectItem?.(e.target.value);setPicker(null);}}>{quote.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>
-      <label>Item name <input aria-label="Working item name" key={selectedItem?.id+'-'+selectedItem?.name} defaultValue={selectedItem?.name??''} disabled={readOnly} onBlur={e=>{const name=e.target.value.trim();if(name&&name!==selectedItem?.name)edit(next=>{const line=next.lines.find(l=>l.id===selectedItem?.id);if(line)line.name=name;});else e.target.value=selectedItem?.name??'';}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
-      <span>Every new row belongs to this item. Existing rows keep their item labels.</span>
+      <label>Item name <input aria-label="Working item name" key={restoreKey+'-'+selectedItem?.id+'-'+selectedItem?.name} defaultValue={selectedItem?.name??''} disabled={readOnly} onBlur={e=>{const name=e.target.value.trim();if(name&&name!==selectedItem?.name)edit(next=>{const line=next.lines.find(l=>l.id===selectedItem?.id);if(line)line.name=name;});else e.target.value=selectedItem?.name??'';}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
+      <span>Line item assigns each row to a Quote Builder item. Rename the selected item here; new rows use it.</span>
     </div>
     <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
@@ -93,10 +93,10 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               const text=e.clipboardData.getData('text/plain');
               if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
             }}>
-            {protectedCell?display:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:
-              <input key={`${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
+            {protectedCell?display:key==='lineId'?<select aria-label={`Line item row ${r+1}`} title="Choose the quote item this row belongs to. Rename it with Item name above." disabled={readOnly} value={row.lineId} onChange={e=>apply(r,c,[[e.target.value]])}>{quote.lines.map((line,index)=><option key={line.id} value={line.id}>{line.name}{quote.lines.filter(other=>other.name===line.name).length>1?` (quote row ${index+1})`:''}</option>)}</select>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:
+              <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
                 title={key==='unitCostOverride'?row.unitCostOverride===null?'Catalog price · type to override':'Manual cost · clear to restore catalog':display}
-                list={key==='lineId'?'takeoff-lineId':key==='tradeId'?'takeoff-tradeId':undefined}
+                list={key==='tradeId'?'takeoff-tradeId':undefined}
                 inputMode={['quantity','unitCostOverride','sections','hours'].includes(key)?'decimal':'text'}
                 placeholder={key==='sections'?'1':''}
                 onBlur={e=>{if(e.target.value!==display&&!apply(r,c,[[e.target.value]]))e.target.value=display;}}
@@ -118,7 +118,6 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
         })}<td><button disabled={readOnly||r>=quote.takeoffs.length} aria-label={`Remove takeoff row ${r+1}`} onClick={()=>edit(next=>{next.takeoffs=next.takeoffs.filter(t=>t.id!==row.id);})}>×</button></td></tr>)}</tbody>
       </table>
     </div>
-    <datalist id="takeoff-lineId">{quote.lines.map(line=><option key={line.id} value={line.name}>{line.id}</option>)}</datalist>
     <datalist id="takeoff-tradeId">{quote.trades.map(trade=><option key={trade.id} value={trade.name}>{trade.id}</option>)}</datalist>
     <p>Blank sections = 1. Clear unit cost to restore the recorded catalog price; 0 is an explicit override. Live choices refresh every 15 seconds. Use latest price for selected row to update an existing selection. Saved rows do not reprice automatically.</p>
   </div>;

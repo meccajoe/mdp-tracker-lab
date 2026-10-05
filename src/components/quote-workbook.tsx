@@ -8,6 +8,7 @@ import styles from './quote-workbook.module.css';
 import { QuoteSheet } from '@/components/quote-sheet';
 import { adaFetch } from '@/lib/ada-client';
 import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
+import { newEditHistory, recordEdit, moveEditHistory, type EditHistory } from '@/lib/quote-edit-history';
 import { parseQuoteV27 } from '@/lib/quote-v27-validation';
 
 const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -25,7 +26,12 @@ function Numeric({ label, value, onChange, nullable = false }: { label: string; 
 
 export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
   const [document, setDocument] = useState<QuoteV27 | null>(null);
-  const undo = useRef<QuoteV27[]>([]);
+  const workbookRef=useRef<HTMLElement>(null);
+  const [restoreKey,setRestoreKey]=useState(0);
+  const edits = useRef<EditHistory<QuoteV27>|null>(null);
+  const editGroup = useRef<object|null>(null);
+  const savedDocument = useRef('');
+  const [pendingInput,setPendingInput] = useState(false);
   const [version, setVersion] = useState(0);
   const [history, setHistory] = useState<History[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -43,9 +49,10 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Workbook could not load.');
       const next = payload.document ? parseQuoteV27(payload.document) : null;
-      undo.current = []; setDocument(next); setSelected(next?.lines[0]?.id ?? '');
+      edits.current = next?newEditHistory(next):null; editGroup.current=null; setDocument(next); setSelected(next?.lines[0]?.id ?? '');
       setVersion(payload.latestVersion); setHistory(payload.history); setCanEdit(payload.canEdit);
       const restoring = Boolean(revision && revision !== payload.latestVersion);
+      savedDocument.current=restoring?'':JSON.stringify(next);setPendingInput(false);
       setDirty(restoring);
       setMessage(restoring ? `Revision ${revision} loaded. Save to keep it as a new revision.` : payload.version ? `Saved revision ${payload.version}` : 'No saved workbook yet.');
     } catch (e) { setError(e instanceof Error ? e.message : 'Workbook could not load.'); }
@@ -73,9 +80,25 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
   function edit(change: (next: QuoteV27) => void) {
     if (!canEdit || busy) return;
     if (!document) return;
-    const next = structuredClone(document); change(next);
-    undo.current = [...undo.current.slice(-29), document]; setDocument(next);
-    setDirty(true); setMessage('Unsaved changes'); setError('');
+    const current=edits.current??newEditHistory(document);
+    const next = structuredClone(current.present); change(next);
+    const updated=recordEdit(current,next,editGroup.current);
+    if(updated===current)return;
+    edits.current=updated; setDocument(next);
+    setDirty(JSON.stringify(next)!==savedDocument.current); setMessage('Unsaved changes'); setError('');
+  }
+  function travelEdits(direction:'undo'|'redo') {
+    if(!canEdit||busy)return;
+    // Commit a cell being typed into before moving through workbook history.
+    const focused=window.document.activeElement;
+    if(focused instanceof HTMLElement)focused.blur();
+    editGroup.current=null;setPendingInput(false);
+    const current=edits.current;if(!current)return;
+    const updated=moveEditHistory(current,direction);if(updated===current)return;
+    edits.current=updated;setDocument(updated.present);setRestoreKey(key=>key+1);workbookRef.current?.focus({preventScroll:true});
+    if(!updated.present.lines.some(line=>line.id===selected))setSelected(updated.present.lines[0]?.id??'');
+    const changed=JSON.stringify(updated.present)!==savedDocument.current;
+    setDirty(changed);setError('');setMessage(changed?`Unsaved changes · ${direction==='undo'?'edit undone':'edit redone'}`:`Saved revision ${version} · restored`);
   }
   async function start(template: string) {
     setBusy(true); setError('');
@@ -84,7 +107,7 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error);
       const next = parseQuoteV27(payload.document);
-      undo.current = []; setDocument(next); setSelected(next.lines[0]?.id ?? ''); setDirty(true); setMessage('Template loaded — save your first revision.');
+      edits.current = newEditHistory(next); editGroup.current=null; setDocument(next); setSelected(next.lines[0]?.id ?? ''); setDirty(true); setMessage('Template loaded — save your first revision.');
     } catch (e) { setError(e instanceof Error ? e.message : 'Template could not load.'); }
     finally { setBusy(false); }
   }
@@ -95,7 +118,7 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       const response = await adaFetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({expectedVersion:version,document}) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Save failed.');
-      setVersion(payload.version); setDirty(false); setMessage(`Saved revision ${payload.version}`);
+      savedDocument.current=JSON.stringify(document); editGroup.current=null; if(edits.current)edits.current.group=null; setVersion(payload.version); setDirty(false); setMessage(`Saved revision ${payload.version}`);
       setHistory(current => [{revision:payload.version,created_at:payload.savedAt,created_by_email:'You'},...current].slice(0,20));
     } catch (e) { setError(e instanceof Error ? e.message : 'Save failed. Your edits are still here.'); }
     finally { setBusy(false); }
@@ -112,11 +135,18 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
   const selectedLine = document?.lines.find(line => line.id === selected);
   const selectedCalculation = calculation?.lines.find(line => line.id === selected);
 
-  return <section className={`${styles.workbook} h-full overflow-auto p-4 sm:p-6`} aria-label="Workbook quote builder">
+  return <section ref={workbookRef} tabIndex={-1} className={`${styles.workbook} h-full overflow-auto p-4 sm:p-6`} aria-label="Workbook quote builder"
+    onFocusCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)editGroup.current={};}}
+    onBlurCapture={()=>{editGroup.current=null;setPendingInput(false);}}
+    onInputCapture={()=>setPendingInput(true)}
+    onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h1 className="text-xl font-semibold">Quote builder</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : message}{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">
-        {document && <button className={button} disabled={!canEdit || busy || !undo.current.length} onClick={()=>{const previous=undo.current.pop();if(previous){setDocument(previous);setDirty(true);setMessage('Unsaved changes · edit undone');}}}>Undo edit</button>}
+        {document && <>
+          <button className={button} disabled={!canEdit||busy||(!edits.current?.past.length&&!pendingInput)} title="Undo last change (⌘/Ctrl+Z)" onClick={()=>travelEdits('undo')}>↶ Undo</button>
+          <button className={button} disabled={!canEdit||busy||!edits.current?.future.length} title="Redo last undone change (⌘/Ctrl+Shift+Z)" onClick={()=>travelEdits('redo')}>↷ Redo</button>
+        </>}
         {document && <button className={button} onClick={download}>Download draft</button>}
         <button className={button} disabled={busy} onClick={() => { if (!dirty || window.confirm('Discard unsaved edits and reload?')) void load(); }}>Reload saved</button>
         <button className={`${button} bg-foreground text-background`} disabled={!document || !dirty || !canEdit || busy || !!result.error} onClick={() => void save()}>Save revision</button>
@@ -134,7 +164,7 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       {tab==='Estimators' && <><QuoteEstimators quote={document} edit={edit} readOnly={!canEdit || busy} result={calculation?.estimators}/>{calculation?.estimators && <div className="mt-5 rounded border p-4 text-sm"><p>Install labor billing: {money(calculation.estimators.install.reduce((n,p)=>n+p.billing,0)+calculation.estimators.supportBilling)}</p><p>Travel cost: {money(calculation.estimators.travelCost)}</p><p>Shipping cost: {money(calculation.estimators.shippingCost)}</p></div>}</>}
       <fieldset className="min-w-0" disabled={!canEdit || busy}>
       {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
-      {tab==='Takeoffs' && <QuoteTakeoffs quote={document} edit={edit} selected={selected} onSelectItem={setSelected} onAddItem={addLine} readOnly={!canEdit || busy}/>}
+      {tab==='Takeoffs' && <QuoteTakeoffs restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} onAddItem={addLine} readOnly={!canEdit || busy}/>}
       {tab==='Pricing' && selectedLine && <>
         <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{(Object.keys(inputLabels) as (keyof Inputs)[]).map(key=><label key={key} className="rounded border p-3 text-sm"><span className="mb-2 block">{inputLabels[key]}</span><Numeric label={inputLabels[key]} nullable value={selectedLine.overrides[key]??null} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=v;})}/><span className="ml-2 text-xs">Calculated: {number(selectedCalculation?.calculatedInputs[key]??0)}</span>{selectedLine.overrides[key]!=null && <button className="ml-2 text-xs underline" onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=null;})}>Restore</button>}</label>)}</div>
         <div className="flex flex-wrap items-center gap-4 rounded border p-4"><span>Computed price: {money(selectedCalculation?.calculatedPrice??0)}</span><label>Price override <Numeric label="Price override" nullable value={selectedLine.priceOverride} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=v;})}/></label><button className={button} disabled={selectedLine.priceOverride===null} onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=null;})}>Restore calculated price</button><strong>Final: {money(selectedCalculation?.finalPrice??0)}</strong></div>
