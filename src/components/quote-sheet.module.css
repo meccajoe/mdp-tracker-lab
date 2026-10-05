@@ -38,3 +38,9 @@
 .economics dl > div:last-child { background: #e2efda; font-weight: bold; }
 .sheet :disabled { opacity: .65; cursor: not-allowed; }
 @media (max-width: 640px) { .sheet .frozen { position: static; } .heading h2 { font-size: 15px; } }
+
+.sheet tr[data-section=bematrix] td {border-top:2px solid #adcab1;background:#edf6ed;}
+.sheet tr[data-section=labor] td {border-top:2px solid #b6c9df;background:#edf3fa;}
+.sheet tr[data-section=travel] td {border-top:2px solid #d6c3a3;background:#fbf3e6;}
+.sheet tr[data-section=design] td {border-top:2px solid #c9b9db;background:#f3edf9;}
+.sheet tr[data-section=management] td {border-top:2px solid #d8b8c4;background:#faeef3;}

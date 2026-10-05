@@ -5,6 +5,7 @@ import { QuoteEstimators } from '@/components/quote-estimators';
 import { QuoteRates } from "@/components/quote-rates";
 import { QuoteTakeoffs } from '@/components/quote-takeoffs';
 import styles from './quote-workbook.module.css';
+import {QuoteGridInteraction} from './quote-grid-interaction';
 import { QuoteSheet } from '@/components/quote-sheet';
 import { adaFetch } from '@/lib/ada-client';
 import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
@@ -38,13 +39,17 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
   const [dirty, setDirty] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
   const [busy, setBusy] = useState(true);
+  const [saving,setSaving]=useState(false);
+  const saveInFlight=useRef(false);
+  const autosavePaused=useRef(false);
+  const autosave=useRef<()=>void>(()=>{});
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState('Quote Builder');
   const [selected, setSelected] = useState('');
   const endpoint = `/api/quote-workspaces/${workspaceId}/workbook`;
   const load = useCallback(async (revision?: number) => {
-    setBusy(true); setError('');
+    autosavePaused.current=false;setBusy(true); setError('');
     try {
       const response = await adaFetch(endpoint + (revision ? `?revision=${revision}` : ''));
       const payload = await response.json();
@@ -112,18 +117,26 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
     } catch (e) { setError(e instanceof Error ? e.message : 'Template could not load.'); }
     finally { setBusy(false); }
   }
-  async function save() {
-    if (!document) return;
-    setBusy(true); setError('');
+  async function save(automatic=false) {
+    if(!canEdit||busy||saveInFlight.current)return;
+    const focused=window.document.activeElement;
+    if(focused instanceof HTMLInputElement && workbookRef.current?.contains(focused)) {focused.blur();focused.focus();}
+    const snapshot=edits.current?.present;if(!snapshot||JSON.stringify(snapshot)===savedDocument.current)return;
+    try {parseQuoteV27(snapshot);calculateQuoteV27(snapshot);}catch{setError('Fix invalid inputs before saving.');return;}
+    saveInFlight.current=true;setSaving(true);setError('');
     try {
-      const response = await adaFetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({expectedVersion:version,document}) });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Save failed.');
-      savedDocument.current=JSON.stringify(document); editGroup.current=null; if(edits.current)edits.current.group=null; setVersion(payload.version); setDirty(false); setMessage(`Saved revision ${payload.version}`);
-      setHistory(current => [{revision:payload.version,created_at:payload.savedAt,created_by_email:'You'},...current].slice(0,20));
-    } catch (e) { setError(e instanceof Error ? e.message : 'Save failed. Your edits are still here.'); }
-    finally { setBusy(false); }
+      const response=await adaFetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:snapshot})});
+      const payload=await response.json();
+      if(!response.ok){if(response.status===409)autosavePaused.current=true;throw new Error(payload.error||'Save failed. Your edits are still here.');}
+      savedDocument.current=JSON.stringify(snapshot);setVersion(payload.version);
+      const stillDirty=JSON.stringify(edits.current?.present)!==savedDocument.current;
+      setDirty(stillDirty);setMessage(`${automatic?'Autosaved':'Saved'} revision ${payload.version}${stillDirty?' · newer edits pending':''}`);
+      setHistory(current=>[{revision:payload.version,created_at:payload.savedAt,created_by_email:'You'},...current].slice(0,20));
+    }catch(e){setError(e instanceof Error?e.message:'Save failed. Your edits are still here.');}
+    finally{saveInFlight.current=false;setSaving(false);}
   }
+  autosave.current=()=>{if(!autosavePaused.current&&(dirty||pendingInput))void save(true);};
+  useEffect(()=>{const timer=window.setInterval(()=>autosave.current(),60000);return()=>window.clearInterval(timer);},[]);
   function download() {
     const href = URL.createObjectURL(new Blob([JSON.stringify(document,null,2)], {type:'application/json'}));
     const a = window.document.createElement('a'); a.href=href; a.download=`quote-${workspaceId}-draft.json`; a.click(); URL.revokeObjectURL(href);
@@ -142,36 +155,36 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
     onInputCapture={()=>setPendingInput(true)}
     onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h1 className="text-xl font-semibold">Quote builder</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : message}{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
+      <div><h1 className="text-xl font-semibold">Quote builder</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">
         {document && <>
           <button className={button} disabled={!canEdit||busy||(!edits.current?.past.length&&!pendingInput)} title="Undo last change (⌘/Ctrl+Z)" onClick={()=>travelEdits('undo')}>↶ Undo</button>
           <button className={button} disabled={!canEdit||busy||!edits.current?.future.length} title="Redo last undone change (⌘/Ctrl+Shift+Z)" onClick={()=>travelEdits('redo')}>↷ Redo</button>
         </>}
         {document && <button className={button} onClick={download}>Download draft</button>}
-        <button className={button} disabled={busy} onClick={() => { if (!dirty || window.confirm('Discard unsaved edits and reload?')) void load(); }}>Reload saved</button>
-        <button className={`${button} bg-foreground text-background`} disabled={!document || !dirty || !canEdit || busy || !!result.error} onClick={() => void save()}>Save revision</button>
+        <button className={button} disabled={busy||saving} onClick={() => { if (!dirty || window.confirm('Discard unsaved edits and reload?')) void load(); }}>Reload saved</button>
+        <button className={`${button} bg-foreground text-background`} disabled={!document || !dirty || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
       </div>
     </div>
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <div className="my-10 rounded-xl border p-6"><h2 className="font-semibold">Start from your blank v27 template</h2><p className="my-3 text-sm text-muted-foreground">Your item rows, service lines and rate card, with zero estimates. Item and spare rows start as Fabrication; choose another line type as needed.</p><button className={button} disabled={!canEdit} onClick={() => void start('blank')}>Start blank quote</button></div>}
     {document && <>
       <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{['Quote Builder','Takeoffs','Pricing','Estimators','Client quote','Production budget','Rates'].map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
-        <select aria-label="Load saved revision" className={control} value="" disabled={busy} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
+        <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>
       <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Use Estimators for install, travel, shipping and beMatrix; Pricing overrides take precedence.</p>
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label><button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {tab==='Estimators' && <><QuoteEstimators quote={document} edit={edit} readOnly={!canEdit || busy} result={calculation?.estimators}/>{calculation?.estimators && <div className="mt-5 rounded border p-4 text-sm"><p>Install labor billing: {money(calculation.estimators.install.reduce((n,p)=>n+p.billing,0)+calculation.estimators.supportBilling)}</p><p>Travel cost: {money(calculation.estimators.travelCost)}</p><p>Shipping cost: {money(calculation.estimators.shippingCost)}</p></div>}</>}
-      <fieldset className="min-w-0" disabled={!canEdit || busy}>
+      <QuoteGridInteraction><fieldset className="min-w-0" disabled={!canEdit || busy}>
       {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
-      {tab==='Takeoffs' && <QuoteTakeoffs restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} onAddItem={addLine} readOnly={!canEdit || busy}/>}
+      {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} onAddItem={addLine} readOnly={!canEdit || busy}/>}
       {tab==='Pricing' && selectedLine && <>
         <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{(Object.keys(inputLabels) as (keyof Inputs)[]).map(key=><label key={key} className="rounded border p-3 text-sm"><span className="mb-2 block">{inputLabels[key]}</span><Numeric label={inputLabels[key]} nullable value={selectedLine.overrides[key]??null} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=v;})}/><span className="ml-2 text-xs">Calculated: {number(selectedCalculation?.calculatedInputs[key]??0)}</span>{selectedLine.overrides[key]!=null && <button className="ml-2 text-xs underline" onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=null;})}>Restore</button>}</label>)}</div>
         <div className="flex flex-wrap items-center gap-4 rounded border p-4"><span>Computed price: {money(selectedCalculation?.calculatedPrice??0)}</span><label>Price override <Numeric label="Price override" nullable value={selectedLine.priceOverride} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=v;})}/></label><button className={button} disabled={selectedLine.priceOverride===null} onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=null;})}>Restore calculated price</button><strong>Final: {money(selectedCalculation?.finalPrice??0)}</strong></div>
       </>}
       {tab==='Rates' && <QuoteRates quote={document} edit={edit} laborRate={calculation?.laborRate??null}/>}
-      </fieldset>
+      </fieldset></QuoteGridInteraction>
       {tab==='Client quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · Draft</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
       {tab==='Production budget' && calculation && <><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['Item #','Item name','Materials / other','Allowed hours','Labor cost','Build budget','Trade hours','Untyped hours'].map(h=><th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>{calculation.lines.filter(line=>line.buildBudget!==0||line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{quoteItemLabel(document,line.id)}</td><td className={cell}>{line.name}</td><td className={cell}>{money(line.materialsBudget)}</td><td className={cell}>{number(line.hoursAllowed)}</td><td className={cell}>{money(line.laborBudget)}</td><td className={cell}>{money(line.buildBudget)}</td><td className={cell}>{Object.entries(line.tradeHours).map(([id,hours])=>`${document.trades.find(t=>t.id===id)?.name}: ${number(hours)}`).join(', ')||'—'}</td><td className={cell}>{number(line.untypedHours)}</td></tr>)}</tbody></table></div><p className="mt-4 font-semibold">Total build budget: {money(calculation.totals.buildBudget)}</p><p className="mt-2 text-sm">Contingency held separately: {money(calculation.totals.contingency)}</p></>}
     </>}

@@ -39,7 +39,7 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
   }, [workspaceId]);
 
   return (
-    <div data-slot="quote-workspace" className="flex h-[calc(100dvh-6.5rem)] min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-background xl:h-[calc(100dvh-3rem)]">
+    <div data-slot="quote-workspace" className="fixed inset-0 z-40 flex h-[100dvh] min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-background">
       <div className="flex min-h-11 flex-wrap shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1 sm:px-4">
         <Link href="/quotes" className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />

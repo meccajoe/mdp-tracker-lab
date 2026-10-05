@@ -65,7 +65,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
           const row=rows.get(line.id);
-          return <tr key={line.id}>
+          return <tr key={line.id} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
             <th scope="row" className={styles.rowNumber}>{`Item ${index+1}`}</th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><input aria-label={`Line item ${index+1}`} value={line.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value;})}/><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
             <td className={styles.entry}><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></td>

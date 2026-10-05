@@ -37,6 +37,8 @@ export type QuoteLine = {
 };
 export type QuoteV27 = {
   estimators?: Estimators;
+  reusableItemIds?: string[];
+  catalogUsage?: Record<string,number>;
   schemaVersion: 1; assumptionsVersion: string; commission: number;
   settings: Settings; trades: Trade[]; catalog: Material[];
   takeoffs: Takeoff[]; lines: QuoteLine[];

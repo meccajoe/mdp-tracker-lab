@@ -52,6 +52,12 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     }),
   };
   if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
+  if(v.reusableItemIds!==undefined){
+    if(!Array.isArray(v.reusableItemIds)||v.reusableItemIds.length>200)throw new Error('Invalid reusable item list.');
+    parsed.reusableItemIds=v.reusableItemIds.map(id);
+    if(parsed.reusableItemIds.some(id=>!parsed.lines.some(line=>line.id===id)))throw new Error('Reusable item is missing.');
+  }
+  if(v.catalogUsage!==undefined){const usage=Object.entries(record(v.catalogUsage));if(usage.length>2000)throw new Error('Too many catalog preferences.');parsed.catalogUsage=Object.fromEntries(usage.map(([name,count])=>[text(name,'Material name'),num(count)]));}
   calculateQuoteV27(parsed);
   return parsed;
 }

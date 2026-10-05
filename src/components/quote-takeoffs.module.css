@@ -67,3 +67,12 @@
 .itemToolbar>button {border:1px solid #b6c5d6;background:#f8fafc;padding:4px 8px;border-radius:4px;}
 .filterPanel {position:absolute;top:100%;left:8px;width:360px;max-width:90%;z-index:10;padding:8px;background:white;border:1px solid #9aaac0;border-radius:4px;box-shadow:0 5px 18px #20344b33;}
 .filterPanel input {width:100%;}
+
+.sheet .descriptionCell {padding-right:0;}
+.sheet td:has([role=listbox]) {z-index:12;}
+.materialList {position:absolute;top:100%;left:0;width:480px;max-width:75vw;max-height:52vh;overflow:auto;background:white;border:1px solid #9aaac0;box-shadow:0 5px 18px #20344b33;z-index:12;}
+.materialList button {display:flex;justify-content:space-between;gap:10px;width:100%;padding:6px 8px;text-align:left;border-bottom:1px solid #edf0f4;}
+.materialList button[aria-selected=true],.materialList button:hover {background:#dceafa;}
+.materialList small {white-space:nowrap;color:#617083;}
+.listHint {position:sticky;top:0;background:#eef3f8;padding:7px;font-size:11px;}
+.sheet table {min-width:1320px;}
