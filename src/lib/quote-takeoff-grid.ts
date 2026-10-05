@@ -61,7 +61,7 @@ export function applyWorksheetCells(quote: QuoteV27, count: number, selected: st
   quote.takeoffs = next.takeoffs;
 }
 
-export const SHEET_COLUMNS = ['lineId','description','quantity','unit','unitCostOverride','sections','resale','materialTotal','hours','extendedHours','notes','tradeId'] as const;
+export const SHEET_COLUMNS = ['lineId','itemName','description','quantity','unit','unitCostOverride','sections','resale','materialTotal','hours','extendedHours','notes','tradeId'] as const;
 export type SheetColumn = typeof SHEET_COLUMNS[number];
 /** Spreadsheet-facing edits use live choices, but never replace catalog prices already in use. */
 export function applySheetCells(quote: QuoteV27, count: number, selected: string, start: number,
@@ -78,6 +78,11 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
       if(!key)throw new Error('Paste extends beyond the worksheet.');
       if(key==='materialTotal'||key==='extendedHours') {
         if(value)throw new Error('Calculated columns are protected. Paste into editable columns only.');
+      } else if(key==='itemName') {
+        if(!value||value.length>2000)throw new Error('Enter an item name (up to 2,000 characters).');
+        const line=next.lines.find(line=>line.id===row.lineId)!;
+        if(next.lines.some(other=>other.id!==line.id&&other.name.toLowerCase()===value.toLowerCase()))throw new Error('Another item already uses that name. Choose a unique name.');
+        line.name=value;
       } else if(key==='notes'||key==='unit') {
         if(value.length>(key==='unit'?200:2000))throw new Error(`${key} is too long.`);
         row[key]=value;
@@ -99,7 +104,10 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
       } else {
         const legacyColumn=TAKEOFF_COLUMNS.indexOf(key);
         // Set the target row directly via the shared conversion/validation rules.
-        applyTakeoffCells(next,start+r,legacyColumn,[[value]]);
+        const itemNumber=key==='lineId'?/^Item (\d+)$/.exec(value):null;
+        const resolved=itemNumber?next.lines[Number(itemNumber[1])-1]?.id:value;
+        if(resolved===undefined||(key==='lineId'&&!resolved))throw new Error('Choose an existing item number.');
+        applyTakeoffCells(next,start+r,legacyColumn,[[resolved]]);
         Object.assign(row,next.takeoffs[start+r]);next.takeoffs[start+r]=row;
       }
     }
@@ -107,5 +115,11 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
   // Keep all referenced snapshots; trim unused history only if the existing schema limit is reached.
   if(next.catalog.length>2000){const used=new Set(next.takeoffs.map(r=>r.materialId));next.catalog=next.catalog.filter(m=>used.has(m.id));}
   if(next.catalog.length>2000)throw new Error('Quote has reached its 2,000 catalog snapshot limit.');
-  quote.catalog=next.catalog;quote.takeoffs=next.takeoffs;
+  quote.catalog=next.catalog;quote.takeoffs=next.takeoffs;quote.lines=next.lines;
+}
+
+/** Numbers follow the persisted quote-item order; names can change without changing links. */
+export function quoteItemLabel(quote:QuoteV27,lineId:string):string {
+  const index=quote.lines.findIndex(line=>line.id===lineId);
+  return index<0?'Unknown item':`Item ${index+1}`;
 }

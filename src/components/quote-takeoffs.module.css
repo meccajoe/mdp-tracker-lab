@@ -9,8 +9,8 @@
 .sheet thead {position:sticky;top:0;z-index:4;background:#e3ebf4;}
 .sheet th {font-weight:500;font-size:11px;padding:5px;}
 .sheet th:first-child {width:30px;}
-.sheet th:nth-child(2),.sheet th:nth-child(3),.sheet th:nth-child(4) {width:170px;}
-.sheet th:nth-child(9) {width:115px;}
+
+
 .sheet th:last-child {width:25px;}
 .sheet td {background:#fffbea;}
 .sheet td:first-of-type {position:sticky;left:0;z-index:2;background:#edf2fa;}
@@ -55,3 +55,10 @@
 
 .sheet thead th:nth-child(2) {position:sticky;left:0;z-index:5;background:#354154;}
 @media(max-width:640px){.sheet thead th:nth-child(2){position:relative;}}
+
+.itemChoice {width:100%;height:24px;padding:2px 5px;text-align:left;white-space:nowrap;}
+.sheet td:nth-child(3) {position:sticky;left:90px;z-index:2;background:#fff5bb;color:#23436b;}
+.sheet thead th:nth-child(3) {position:sticky;left:90px;z-index:5;background:#354154;}
+.sheet td:has([role=dialog]) {z-index:7;}
+.sheet table {min-width:1510px;}
+@media(max-width:640px){.sheet td:nth-child(3),.sheet thead th:nth-child(3){position:relative;left:auto;}}

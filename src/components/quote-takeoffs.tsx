@@ -1,10 +1,10 @@
 'use client';
 import {useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
-import {applySheetCells,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
+import {applySheetCells,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
 import {useQuoteCatalog} from './use-quote-catalog';
 import styles from './quote-takeoffs.module.css';
-const headers=['Line item','Description','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes','Trade'];
+const headers=['Item #','Item name','Description','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes','Trade'];
 type Cell=[number,number];
 export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0}: {
   restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
@@ -16,6 +16,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [selectionEnd,setSelectionEnd]=useState<Cell|null>(null);
   const [end,setEnd]=useState<number|null>(null);
   const [error,setError]=useState('');
+  const [itemPicker,setItemPicker]=useState<number|null>(null);
   const [picker,setPicker]=useState<number|null>(null);
   const [query,setQuery]=useState('');
   const [choiceKind,setChoiceKind]=useState('all');
@@ -34,7 +35,8 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   ),[choices,query,choiceKind]);
   function valueAt(r:number,key:SheetColumn):string {
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
-    if(key==='lineId')return quote.lines.find(line=>line.id===row.lineId)?.name??'';
+    if(key==='lineId')return quoteItemLabel(quote,row.lineId);
+    if(key==='itemName'){const name=quote.lines.find(line=>line.id===row.lineId)?.name??'';return name===quoteItemLabel(quote,row.lineId)?'':name;}
     if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
     if(key==='unit')return row.unit??catalog.get(row.materialId??'')?.unit??'';
     if(key==='tradeId')return quote.trades.find(trade=>trade.id===row.tradeId)?.name??'';
@@ -49,7 +51,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     try {
       const trial=structuredClone(quote);
       applySheetCells(trial,rowCount,selected,row,column,values,live.materials);
-      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;});setError('');return true;
+      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');return true;
     } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
   }
   function finish() {
@@ -60,12 +62,12 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   return <div className={styles.sheet}>
     <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong><button disabled={readOnly} onClick={onAddItem}>Add item</button>
       <button disabled={rowCount>=5000} onClick={()=>setRowCapacity(Math.min(5000,rowCount+50))}>Add 50 more rows</button><span>{rowCount} rows</span>
-      {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],1,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
+      {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
     <div className={styles.itemToolbar}>
-      <label>Working on item <select aria-label="Working on item" value={selectedItem?.id??''} onChange={e=>{onSelectItem?.(e.target.value);setPicker(null);}}>{quote.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>
+      <label>Working on item <select aria-label="Working on item" value={selectedItem?.id??''} onChange={e=>{onSelectItem?.(e.target.value);setPicker(null);}}>{quote.lines.map(line=><option key={line.id} value={line.id}>{quoteItemLabel(quote,line.id)} — {line.name}</option>)}</select></label>
       <label>Item name <input aria-label="Working item name" key={restoreKey+'-'+selectedItem?.id+'-'+selectedItem?.name} defaultValue={selectedItem?.name??''} disabled={readOnly} onBlur={e=>{const name=e.target.value.trim();if(name&&name!==selectedItem?.name)edit(next=>{const line=next.lines.find(l=>l.id===selectedItem?.id);if(line)line.name=name;});else e.target.value=selectedItem?.name??'';}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/></label>
-      <span>Line item assigns each row to a Quote Builder item. Rename the selected item here; new rows use it.</span>
+      <span>Choose an Item # on any row, then type its name beside it. The name updates every row for that item.</span>
     </div>
     <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
@@ -79,8 +81,8 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       }
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
-      <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[235,245,50,60,85,55,55,85,70,55,190,100].map((width,i)=><col key={i} style={{width}}/>)}<col style={{width:28}}/></colgroup>
-        <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h==='Line item'?'Line item (matches Quote Builder)':h==='Labor hrs'?'Labor hrs (per section)':h}</th>)}<th/></tr></thead>
+      <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[90,220,245,50,60,85,55,55,85,70,55,190,100].map((width,i)=><col key={i} style={{width}}/>)}<col style={{width:28}}/></colgroup>
+        <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h==='Labor hrs'?'Labor hrs (per section)':h}</th>)}<th/></tr></thead>
         <tbody>{rows.map((row,r)=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{SHEET_COLUMNS.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
           const isActive=active?.[0]===r&&active[1]===c;
@@ -93,16 +95,22 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               const text=e.clipboardData.getData('text/plain');
               if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
             }}>
-            {protectedCell?display:key==='lineId'?<select aria-label={`Line item row ${r+1}`} title="Choose the quote item this row belongs to. Rename it with Item name above." disabled={readOnly} value={row.lineId} onChange={e=>apply(r,c,[[e.target.value]])}>{quote.lines.map((line,index)=><option key={line.id} value={line.id}>{line.name}{quote.lines.filter(other=>other.name===line.name).length>1?` (quote row ${index+1})`:''}</option>)}</select>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:
+            {protectedCell?display:key==='lineId'?<>
+              <button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onMouseDown={e=>e.preventDefault()} onClick={()=>{setItemPicker(itemPicker===r?null:r);setPicker(null);}}>{display} ▾</button>
+              {itemPicker===r&&<div role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
+                <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
+                <div className={styles.choices}>{quote.lines.map(line=><button type="button" key={line.id} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name===quoteItemLabel(quote,line.id)?'Name this item…':line.name}</span></button>)}</div>
+              </div>}
+            </>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
                 title={key==='unitCostOverride'?row.unitCostOverride===null?'Catalog price · type to override':'Manual cost · clear to restore catalog':display}
                 list={key==='tradeId'?'takeoff-tradeId':undefined}
                 inputMode={['quantity','unitCostOverride','sections','hours'].includes(key)?'decimal':'text'}
-                placeholder={key==='sections'?'1':''}
+                placeholder={key==='sections'?'1':key==='itemName'?'e.g. Golden Arch':''}
                 onBlur={e=>{if(e.target.value!==display&&!apply(r,c,[[e.target.value]]))e.target.value=display;}}
                 onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=display;e.currentTarget.blur();}}}/>
             }
-            {key==='description'&&<button type="button" className={styles.choose} disabled={readOnly} aria-label={`Choose material or labor row ${r+1}`} aria-expanded={picker===r} onMouseDown={e=>e.preventDefault()} onClick={()=>{setPicker(picker===r?null:r);setQuery('');setChoiceKind('all');}}>▾</button>}
+            {key==='description'&&<button type="button" className={styles.choose} disabled={readOnly} aria-label={`Choose material or labor row ${r+1}`} aria-expanded={picker===r} onMouseDown={e=>e.preventDefault()} onClick={()=>{setPicker(picker===r?null:r);setItemPicker(null);setQuery('');setChoiceKind('all');}}>▾</button>}
             {key==='description'&&picker===r&&<div role="dialog" aria-label={`Material or labor for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setPicker(null);}}>
               <div className={styles.pickerTools}><input autoFocus aria-label="Search materials and labor" placeholder="Search materials and labor…" value={query} onChange={e=>setQuery(e.target.value)}/><button type="button" aria-label="Close material chooser" onClick={()=>setPicker(null)}>×</button></div>
               <select aria-label="Catalog choices" value={choiceKind} onChange={e=>setChoiceKind(e.target.value)}><option value="all">All materials and labor</option><option value="materials">Materials / other costs</option><option value="labor">Labor (hours)</option></select>

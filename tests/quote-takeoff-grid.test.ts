@@ -74,3 +74,24 @@ test('paste into fresh rows is atomic and respects visible capacity',()=>{
   applyWorksheetCells(q,50,q.lines[0].id,0,3,[['2','10'],['3','20']]);
   assert.equal(calculateQuoteV27(q).takeoffs[1].cost,60);
 });
+
+import {applySheetCells,SHEET_COLUMNS,quoteItemLabel} from '../src/lib/quote-takeoff-grid';
+test('assign fresh and existing rows independently; names propagate through saved item identity',()=>{
+  const q=createBlankQuoteV27();const col=(key:typeof SHEET_COLUMNS[number])=>SHEET_COLUMNS.indexOf(key);
+  applySheetCells(q,50,q.lines[0].id,6,0,[['Item 2']],null);
+  applySheetCells(q,50,q.lines[0].id,7,0,[['Item 2']],null);
+  assert.equal(q.takeoffs[6].lineId,q.lines[1].id);assert.equal(q.takeoffs[7].lineId,q.lines[1].id);
+  applySheetCells(q,50,q.lines[0].id,7,col('itemName'),[['Golden Arch']],null);
+  applySheetCells(q,50,q.lines[0].id,6,col('description'),[['Custom panel','2','each','10']],null);
+  applySheetCells(q,50,q.lines[0].id,7,col('hours'),[['3']],null);
+  const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+  assert.equal(quoteItemLabel(saved,saved.takeoffs[6].lineId),'Item 2');
+  const result=calculateQuoteV27(saved).lines.find(line=>line.id===q.lines[1].id)!;
+  assert.equal(result.name,'Golden Arch');assert.equal(result.calculatedInputs.materials,20);assert.equal(result.calculatedInputs.hours,3);
+  const before=structuredClone(saved);
+  assert.throws(()=>applySheetCells(saved,50,saved.lines[0].id,6,col('itemName'),[['Item 1']],null));
+  assert.deepEqual(saved,before);
+  applySheetCells(saved,50,saved.lines[0].id,6,0,[['Item 1']],null);
+  assert.equal(saved.takeoffs[7].lineId,saved.lines[1].id);
+  assert.equal(saved.lines[1].name,'Golden Arch');
+});

@@ -19,7 +19,7 @@ const outputs = [
   ['laborBudget','Labor $ (cost)'], ['buildBudget','Build budget'],
   ['contingency','Contingency'], ['indirect','Indirect levy'], ['margin','Margin'],
 ] as const;
-const headers = ['Line item','Line type',...inputs.map(i=>i.heading),'Support crew',
+const headers = ['Item name','Line type',...inputs.map(i=>i.heading),'Support crew',
   'Cost $ (equip / props / expenses / freight / dump fees)','COMPUTED PRICE','Price override','FINAL PRICE',
   ...outputs.map(([,label])=>label),'Margin %'];
 
@@ -58,15 +58,15 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
     </div>
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
       <table aria-label="Quote Builder estimates and budgets">
-        <colgroup><col style={{width:36}}/><col style={{width:240}}/><col style={{width:170}}/>{headers.slice(2).map((_,i)=><col key={i} style={{width:i===10?130:95}}/>)}</colgroup>
+        <colgroup><col style={{width:80}}/><col style={{width:240}}/><col style={{width:170}}/>{headers.slice(2).map((_,i)=><col key={i} style={{width:i===10?130:95}}/>)}</colgroup>
         <thead>
-          <tr className={styles.letters}><th aria-label="Row number"/>{headers.map((_,i)=><th key={i} scope="col" className={i===0?styles.frozen:undefined}>{String.fromCharCode(65+i)}</th>)}</tr>
-          <tr className={styles.columnHeaders}><th>4</th>{headers.map((label,i)=><th key={label} scope="col" className={i===0?styles.frozen:undefined}>{label}</th>)}</tr>
+          <tr className={styles.letters}><th aria-label="Item number"/>{headers.map((_,i)=><th key={i} scope="col" className={i===0?styles.frozen:undefined}>{String.fromCharCode(65+i)}</th>)}</tr>
+          <tr className={styles.columnHeaders}><th>Item #</th>{headers.map((label,i)=><th key={label} scope="col" className={i===0?styles.frozen:undefined}>{label}</th>)}</tr>
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
           const row=rows.get(line.id);
           return <tr key={line.id}>
-            <th scope="row" className={styles.rowNumber}>{index+5}</th>
+            <th scope="row" className={styles.rowNumber}>{`Item ${index+1}`}</th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><input aria-label={`Line item ${index+1}`} value={line.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value;})}/><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
             <td className={styles.entry}><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></td>
             {inputs.map(({key,heading})=>inputCell(line,key,heading))}
