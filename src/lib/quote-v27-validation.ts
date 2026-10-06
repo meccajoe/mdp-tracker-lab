@@ -1,3 +1,5 @@
+import {parsePlanning} from './capacity';
+import {parseSchedule} from './quote-schedule';
 import { parseEstimators } from './quote-v27-estimators';
 import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type QuoteV27, type Settings } from './quote-v27';
 
@@ -51,6 +53,8 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
         priceOverride:nullable(row.priceOverride)};
     }),
   };
+  if(v.planning!==undefined)parsed.planning=parsePlanning(v.planning);
+  if(v.schedule!==undefined)parsed.schedule=parseSchedule(v.schedule);
   if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
   if(v.reusableItemIds!==undefined){
     if(!Array.isArray(v.reusableItemIds)||v.reusableItemIds.length>200)throw new Error('Invalid reusable item list.');

@@ -61,7 +61,7 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
         </select>
       </div>
       <div className="min-h-0 flex-1">
-        <div className={view === "workbook" ? "h-full" : "hidden"}><QuoteWorkbook key={workspaceId} workspaceId={workspaceId} onDirtyChange={setWorkbookDirty} /></div>
+        <div className={view === "workbook" ? "h-full" : "hidden"}><QuoteWorkbook quoteName={workspaces.find(workspace=>workspace.id===workspaceId)?.title} key={workspaceId} workspaceId={workspaceId} onDirtyChange={setWorkbookDirty} /></div>
         {view === "workspace" ? <AdaWorkspaceDetail workspaceId={workspaceId} /> : view === "review" ? <QuoteReviewWorkspace workspaceId={workspaceId} /> : null}
       </div>
     </div>

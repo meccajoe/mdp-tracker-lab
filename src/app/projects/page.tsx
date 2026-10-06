@@ -138,6 +138,11 @@ export default function ProjectsPage() {
         <h1 className="text-2xl font-bold">Projects</h1>
       </div>
 
+      <section className="rounded border bg-emerald-50/50 p-3" aria-label="Capacity planning">
+        <h2 className="text-sm font-semibold"><Link href="/capacity" className="underline">Capacity tracker →</Link></h2>
+        <p className="mt-1 text-xs text-muted-foreground">Plan shop and field capacity from saved quote dates, total hours and hours by trade.</p>
+      </section>
+
       <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-center">
         <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-2">
           <span className="text-sm font-medium">Status:</span>

@@ -18,15 +18,23 @@ export async function GET(request: NextRequest) {
   if (!admin.ok) return admin.response;
 
   const status = request.nextUrl.searchParams.get("status");
+  const offset = Number(request.nextUrl.searchParams.get("offset") ?? 0);
+  if (!Number.isSafeInteger(offset) || offset < 0) return NextResponse.json({error:"Invalid page offset."},{status:400});
   const search = request.nextUrl.searchParams.get("search")?.trim();
-  const { data: memberships, error: membershipError } = await admin.supabase
-    .from("quote_workspace_members")
-    .select("workspace_id")
-    .eq("user_id", admin.actorId)
-    .eq("email_normalized", admin.actorEmail)
-    .is("removed_at", null);
-  if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 });
-  const workspaceIds = (memberships ?? []).map((membership) => membership.workspace_id);
+  const workspaceIds: string[] = [];
+  for (let page = 0; ; page += 1000) {
+    const { data: memberships, error: membershipError } = await admin.supabase
+      .from("quote_workspace_members")
+      .select("workspace_id")
+      .eq("user_id", admin.actorId)
+      .eq("email_normalized", admin.actorEmail)
+      .is("removed_at", null)
+      .order("workspace_id")
+      .range(page, page + 999);
+    if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 500 });
+    workspaceIds.push(...(memberships ?? []).map(membership => membership.workspace_id));
+    if ((memberships?.length ?? 0) < 1000) break;
+  }
   if (workspaceIds.length === 0) return NextResponse.json({ workspaces: [] });
 
   let query = admin.supabase
@@ -35,7 +43,8 @@ export async function GET(request: NextRequest) {
     .in("id", workspaceIds)
     .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_activity_at", { ascending: false })
-    .limit(100);
+    .order("id")
+    .range(offset, offset + 99);
 
   if (status === "archived") query = query.eq("status", "archived");
   else if (isWorkspaceStatus(status)) query = query.eq("status", status);
@@ -48,7 +57,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ workspaces: data ?? [] });
+  return NextResponse.json({ workspaces: data ?? [], hasMore: (data?.length ?? 0) === 100 });
 }
 
 export async function POST(request: NextRequest) {

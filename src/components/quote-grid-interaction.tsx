@@ -1,4 +1,5 @@
 'use client';
+import {moveToVerticalCell} from './quote-cell-navigation';
 import {useRef,useState,type ReactNode} from 'react';
 type Point={row:number;column:number};
 /** Shared keyboard navigation and selection statistics for rendered workbook tables. */
@@ -16,6 +17,7 @@ export function QuoteGridInteraction({children}:{children:ReactNode}) {
     onMouseOver={e=>{if(dragging.current&&e.buttons===1){const p=point(e.target);if(p&&anchor.current&&(p.row!==anchor.current.row||p.column!==anchor.current.column)){window.getSelection()?.removeAllRanges();select(p);}}}}
     onMouseUp={()=>{dragging.current=false;}}
     onKeyDown={e=>{
+      if(e.key==='Tab'&&!e.defaultPrevented&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!(e.target as HTMLElement).closest('[role=dialog],[role=listbox]')){if(moveToVerticalCell(e.target as HTMLElement,e.shiftKey?-1:1))e.preventDefault();return;}
       if(e.defaultPrevented||!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)||e.altKey||e.metaKey||e.ctrlKey)return;
       const dialog=(e.target as HTMLElement).closest('[role=dialog]');
       if(dialog){if(e.key==='ArrowUp'||e.key==='ArrowDown'){const choices=Array.from(dialog.querySelectorAll<HTMLButtonElement>('button')).filter(button=>!button.disabled&&!/Close|×/.test(button.textContent??''));const current=choices.indexOf(e.target as HTMLButtonElement);e.preventDefault();choices[Math.max(0,Math.min(choices.length-1,current+(e.key==='ArrowDown'?1:-1)))]?.focus();}return;}

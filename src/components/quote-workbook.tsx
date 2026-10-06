@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {QuoteBOM,QuoteMaterialsDB} from './quote-reference-sheets';
+import {EMPTY_SCHEDULE,FORECAST_STATUSES,parseSchedule} from '@/lib/quote-schedule';
 import { QuoteEstimators } from '@/components/quote-estimators';
 import { QuoteRates } from "@/components/quote-rates";
 import { QuoteTakeoffs } from '@/components/quote-takeoffs';
@@ -27,7 +28,7 @@ function Numeric({ label, value, onChange, nullable = false }: { label: string; 
   return <input aria-label={label} type="number" min="0" step="any" className={`${control} w-28 tabular-nums`} value={value ?? ''} placeholder={nullable ? 'Calculated' : '0'} onChange={event => onChange(event.target.value === '' ? (nullable ? null : 0) : Number(event.target.value))} />;
 }
 
-export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
+export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quoteName?:string;workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
   const [document, setDocument] = useState<QuoteV27 | null>(null);
   const workbookRef=useRef<HTMLElement>(null);
   const [restoreKey,setRestoreKey]=useState(0);
@@ -87,7 +88,7 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
   }, [dirty]);
   const result = useMemo(() => {
     if (!document) return { calculation: null, error: '' };
-    try { return { calculation: calculateQuoteV27(document), error: '' }; }
+    try { if(document.schedule)parseSchedule(document.schedule);return { calculation: calculateQuoteV27(document), error: '' }; }
     catch (e) { return { calculation: null, error: e instanceof Error ? e.message : 'Check your inputs.' }; }
   }, [document]);
   const calculation = result.calculation;
@@ -152,7 +153,7 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
     onInputCapture={()=>setPendingInput(true)}
     onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h1 className="text-xl font-semibold">Quote builder</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
+      <div><h1 className="text-xl font-semibold">{quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">
         {document && <>
           <button className={button} disabled={!canEdit||busy||(!edits.current?.past.length&&!pendingInput)} title="Undo last change (⌘/Ctrl+Z)" onClick={()=>travelEdits('undo')}>↶ Undo</button>
@@ -163,6 +164,11 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
         <button className={`${button} bg-foreground text-background`} disabled={!document || !dirty || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
       </div>
     </div>
+    {document&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
+      {([['installDate','Install date'],['buildStart','Build start date'],['buildFinish','Build finish date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
+      <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,status:event.target.value as typeof EMPTY_SCHEDULE.status};})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label>
+      <a className="text-xs underline" href="/capacity">Open Capacity tracker</a>
+    </fieldset>}
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
     {document && <>
@@ -174,8 +180,9 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label><button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
       {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
+      {tab==='Capacity'&&<div className="rounded border bg-white p-4"><h2>Capacity handoff</h2><p>The quote name, header dates, forecast status and calculated shop/trade hours appear in the Capacity tracker after saving. Planning overrides remain separate from quote inputs.</p><a className="underline" href="/capacity">Open Capacity tracker</a></div>}
       {tab==='Materials DB'&&<QuoteMaterialsDB quote={document}/>}
-      {(tab==='Legacy Decoder'||tab==='Capacity')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
+      {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
 
       <QuoteGridInteraction><fieldset className="min-w-0" disabled={!canEdit || busy}>
       {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}

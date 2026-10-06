@@ -1,3 +1,5 @@
+import type {CapacityOverride} from './capacity';
+import type {QuoteSchedule} from './quote-schedule';
 import { calculateEstimators, type Estimators } from './quote-v27-estimators.ts';
 /** Pure v27 workbook calculations. No live catalog, persistence, or integration calls. */
 export const LINE_TYPES = [
@@ -36,6 +38,8 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
+  schedule?: QuoteSchedule;
+  planning?: CapacityOverride;
   estimators?: Estimators;
   reusableItemIds?: string[];
   catalogUsage?: Record<string,number>;
