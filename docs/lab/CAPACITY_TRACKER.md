@@ -32,3 +32,6 @@ PGLITE_MODULE=/path/to/@electric-sql/pglite/dist/index.js node --test tests/capa
 ## Boundaries
 
 This is quote-driven capacity planning. It does not automatically create operational Tracker project records, sync QBO actuals, import Google-only quotes, infer crew assignments or promote business production. Existing project/commercial integration remains Joe's boundary. The old Legacy Decoder quote tab remains upcoming.
+
+## Hosted acceptance, October 5
+Feature commit 22ffcad deployed successfully. Dedicated lab quote d33f7c70-4fb5-4df2-92e0-2106a1351a24 saved schedule/trade demand as revision 3, automatically appeared in all four capacity views, then received a separate Completed planning override in revision 4 to remove test demand. Date reopening and weighted shop/field allocation passed. Shared roster migration remains unapplied and the UI correctly disables its saving. Native calendar popup inspection could not complete; manual/date input persistence passed. Business quotes were only read by the capacity listing, never modified.
