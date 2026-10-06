@@ -10,8 +10,8 @@ import {QuoteMaterialCell} from './quote-material-cell';
 const columns=SHEET_COLUMNS.filter(key=>key!=='tradeId');
 const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes'];
 type Cell=[number,number];
-export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId}: {
-  workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
+export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false}: {
+  libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
   const [rowCapacity,setRowCapacity]=useState(50);
   const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
@@ -43,6 +43,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const computed=new Map(calculation?.takeoffs.map(row=>[row.id,row]));
   const catalog=new Map(quote.catalog.map(material=>[material.id,material]));
   const choices=live.materials??quote.catalog;
+  const units=Array.from(new Set(['each','sheet','feet','sqft','hours','day','lot','gallon','quart','roll','pair','set',...choices.map(m=>m.unit),...quote.takeoffs.map(row=>row.unit??'')].filter(Boolean))).sort();
   function valueAt(r:number,key:SheetColumn):string {
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
@@ -73,7 +74,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     }
   }
   return <div className={styles.sheet}>
-    <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong><button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>
+    <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong>{!libraryItem&&<button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>}
       <button disabled={readOnly||quote.takeoffs.length>=5000} onClick={()=>{const id=filterItem||(active?rows[active[0]].lineId:selected);edit(next=>{const last=next.takeoffs.findLastIndex(row=>row.lineId===id);const added=takeoffWorksheetRows({...next,takeoffs:[]},5,id).map(row=>({...row,id:crypto.randomUUID()}));next.takeoffs.splice(last+1,0,...added.slice(0,5000-next.takeoffs.length));});setActive(null);setSelectionEnd(null);}}>Insert 5 blank rows after item</button>
       <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(!active)return;const index=active[0];edit(next=>{next.takeoffs.splice(index,1);});setActive(null);setSelectionEnd(null);setItemPicker(null);}}>Delete selected row</button>
       <button disabled={rowCount>=5000} onClick={()=>setRowCapacity(Math.min(5000,rowCount+50))}>Add 50 more rows</button><span>{rowCount} rows</span>
@@ -89,7 +90,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
         <div className={styles.choices}><button type="button" onClick={()=>setFilter('')}>All items</button>{filterChoices.map(line=><button type="button" key={line.id} onClick={()=>setFilter(line.id)}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name}</span></button>)}{!filterChoices.length&&<p>No matching items.</p>}</div>
       </div>}
     </div>
-    {!readOnly&&<QuoteReusableItems quote={quote} edit={edit} live={live.materials} onSelect={id=>{onSelectItem?.(id);setFilter('');}} save={save}/>}
+    {!readOnly&&!libraryItem&&<QuoteReusableItems quote={quote} edit={edit} live={live.materials} onSelect={id=>{onSelectItem?.(id);setFilter('');}} save={save}/>}
     <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
     <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor in Labor hrs. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
@@ -113,17 +114,24 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
           const lookedUp=(key==='unit'&&row.unit===undefined||key==='unitCostOverride'&&row.unitCostOverride===null)&&row.materialId;
           return <td key={key} data-takeoff-row={r} data-takeoff-column={c} className={`${key==='description'?styles.descriptionCell:''} ${protectedCell||lookedUp?styles.computed:''} ${isActive?styles.active:''} ${filling||inSelection?styles.filling:''}`}
             onMouseDown={e=>{if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
+            tabIndex={protectedCell?-1:undefined}
+            onKeyDownCapture={e=>{if((e.key==='Delete'||e.key==='Backspace')&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!readOnly&&!e.nativeEvent.isComposing){
+              if(protectedCell||key==='description')return;
+              e.preventDefault();e.stopPropagation();
+              if(e.target instanceof HTMLInputElement)e.target.value=key==='unitCostOverride'&&row.materialId?(catalog.get(row.materialId)?.unitCost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
+              apply(r,c,[['']]);setItemPicker(null);
+            }}}
             onFocus={()=>setActive([r,c])} onPaste={e=>{
               const text=e.clipboardData.getData('text/plain');
               if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
             }}>
-            {protectedCell?display:key==='description'?<QuoteMaterialCell key={`${restoreKey}-${display}`} value={display} label={`Materials & Labor row ${r+1}`} materials={choices} usage={usage} disabled={readOnly} commit={(name,picked)=>{return apply(r,c,[[name]],picked);}}/>:key==='lineId'?<>
-              <button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onMouseDown={e=>e.preventDefault()} onClick={()=>{setItemPicker(itemPicker===r?null:r);}}>{display} ▾</button>
+            {protectedCell?display:key==='description'?<QuoteMaterialCell key={`${restoreKey}-${display}`} clearWholeCell value={display} label={`Materials & Labor row ${r+1}`} materials={choices} usage={usage} disabled={readOnly} commit={(name,picked)=>{return apply(r,c,[[name]],picked);}}/>:key==='lineId'?<>
+              <button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button><button type="button" className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
               {itemPicker===r&&<div role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
                 <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map(line=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name===quoteItemLabel(quote,line.id)?'Name this item…':line.name}</span></button>)}</div>
               </div>}
-            </>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:
+            </>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
                 title={key==='unitCostOverride'?row.unitCostOverride===null?'Catalog price · type to override':'Manual cost · clear to restore catalog':display}
                 inputMode={['quantity','unitCostOverride','sections','hours'].includes(key)?'decimal':'text'}

@@ -188,6 +188,7 @@ export default function Sidebar({
         <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         {hasQuoteAccess && <NavLink href="/quotes" label="Quotes" icon={quoteIcon} collapsed={collapsed} exact={false} />}
+        {hasQuoteAccess && <NavLink href="/prequote-items" label="Prequote items" icon={projectsIcon} collapsed={collapsed} exact={false} />}
         {hasQuoteAccess && <NavLink href="/capacity" label="Capacity" icon={projectsIcon} collapsed={collapsed} exact={false} />}
         <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
         <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />

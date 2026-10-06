@@ -79,7 +79,8 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
       if(key==='materialTotal'||key==='extendedHours') {
         if(value)throw new Error('Calculated columns are protected. Paste into editable columns only.');
       } else if(key==='itemName') {
-        if(!value||value.length>2000)throw new Error('Enter an item name (up to 2,000 characters).');
+        if(!value){row.lineId='';continue;}
+        if(value.length>2000)throw new Error('Enter an item name (up to 2,000 characters).');
         let line=next.lines.find(line=>line.id===row.lineId);
         if(!line) {
           const matches=next.lines.filter(item=>item.name.toLowerCase()===value.toLowerCase());

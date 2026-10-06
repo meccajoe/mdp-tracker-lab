@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {QuoteReusableToolbar} from './quote-reusable-items';
 import {QuoteBOM,QuoteMaterialsDB} from './quote-reference-sheets';
 import {EMPTY_SCHEDULE,FORECAST_STATUSES,parseSchedule} from '@/lib/quote-schedule';
 import { QuoteEstimators } from '@/components/quote-estimators';
@@ -28,7 +29,7 @@ function Numeric({ label, value, onChange, nullable = false }: { label: string; 
   return <input aria-label={label} type="number" min="0" step="any" className={`${control} w-28 tabular-nums`} value={value ?? ''} placeholder={nullable ? 'Calculated' : '0'} onChange={event => onChange(event.target.value === '' ? (nullable ? null : 0) : Number(event.target.value))} />;
 }
 
-export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quoteName?:string;workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
+export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryItem=false }: { libraryItem?:boolean;quoteName?:string;workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
   const [document, setDocument] = useState<QuoteV27 | null>(null);
   const workbookRef=useRef<HTMLElement>(null);
   const [restoreKey,setRestoreKey]=useState(0);
@@ -49,7 +50,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
   const [error, setError] = useState('');
   const [tab, setTab] = useState('Quote Builder');
   const [selected, setSelected] = useState('');
-  const endpoint = `/api/quote-workspaces/${workspaceId}/workbook`;
+  const endpoint = libraryItem?`/api/prequote-items/${workspaceId}`:`/api/quote-workspaces/${workspaceId}/workbook`;
   const load = useCallback(async (revision?: number) => {
     autosavePaused.current=false;setBusy(true); setError('');
     try {
@@ -57,7 +58,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Workbook could not load.');
       let next = payload.document ? parseQuoteV27(payload.document) : null;
-      const initializing=!next&&payload.canEdit&&!revision;
+      const initializing=!libraryItem&&!next&&payload.canEdit&&!revision;
       if(initializing){
         const templateResponse=await adaFetch(`${endpoint}?template=blank`);
         const template=await templateResponse.json();
@@ -72,7 +73,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
       setMessage(initializing?'New quote — ready to edit.':restoring ? `Revision ${revision} loaded. Save to keep it as a new revision.` : payload.version ? `Saved revision ${payload.version}` : 'No saved workbook yet.');
     } catch (e) { setError(e instanceof Error ? e.message : 'Workbook could not load.'); }
     finally { setBusy(false); }
-  }, [endpoint]);
+  }, [endpoint,libraryItem]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { onDirtyChange(dirty); }, [dirty, onDirtyChange]);
   useEffect(() => {
@@ -150,10 +151,10 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
   return <section ref={workbookRef} tabIndex={-1} className={`${styles.workbook} h-full overflow-auto p-4 sm:p-6`} aria-label="Workbook quote builder"
     onFocusCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)editGroup.current={};}}
     onBlurCapture={()=>{editGroup.current=null;setPendingInput(false);}}
-    onInputCapture={()=>setPendingInput(true)}
+    onInputCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)setPendingInput(true);}}
     onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h1 className="text-xl font-semibold">{quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
+      <div><h1 className="text-xl font-semibold">{libraryItem?`Prequote item — ${document?.lines[0]?.name??'Loading…'}`:quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">
         {document && <>
           <button className={button} disabled={!canEdit||busy||(!edits.current?.past.length&&!pendingInput)} title="Undo last change (⌘/Ctrl+Z)" onClick={()=>travelEdits('undo')}>↶ Undo</button>
@@ -164,7 +165,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
         <button className={`${button} bg-foreground text-background`} disabled={!document || (!dirty&&!pendingInput) || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
       </div>
     </div>
-    {document&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
+    {document&&!libraryItem&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
       {([['installDate','Install date'],['buildStart','Build start date'],['buildFinish','Build finish date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
       <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,status:event.target.value as typeof EMPTY_SCHEDULE.status};})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label>
       <a className="text-xs underline" href="/capacity">Open Capacity tracker</a>
@@ -172,12 +173,12 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
     {document && <>
-      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing'].map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
+      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>
       <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Green cells calculate automatically. Pale yellow cells accept input. Pricing overrides take precedence.</p>
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
-      {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label><button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
+      {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>{!libraryItem&&<button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>}{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
       {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
       {tab==='Capacity'&&<div className="rounded border bg-white p-4"><h2>Capacity handoff</h2><p>The quote name, header dates, forecast status and calculated shop/trade hours appear in the Capacity tracker after saving. Planning overrides remain separate from quote inputs.</p><a className="underline" href="/capacity">Open Capacity tracker</a></div>}
@@ -185,8 +186,9 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
       {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
 
       <QuoteGridInteraction><fieldset className="min-w-0" disabled={!canEdit || busy}>
-      {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
-      {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} onAddItem={addLine} readOnly={!canEdit || busy}/>}
+      {tab==='Quote Builder'&&!libraryItem&&canEdit&&<QuoteReusableToolbar quote={document} edit={edit} onSelect={setSelected}/>}
+      {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={libraryItem?undefined:addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
+      {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} libraryItem={libraryItem} onAddItem={addLine} readOnly={!canEdit || busy}/>}
       {tab==='Pricing' && selectedLine && <>
         <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{(Object.keys(inputLabels) as (keyof Inputs)[]).map(key=><label key={key} className="rounded border p-3 text-sm"><span className="mb-2 block">{inputLabels[key]}</span><Numeric label={inputLabels[key]} nullable value={selectedLine.overrides[key]??null} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=v;})}/><span className="ml-2 text-xs">Calculated: {number(selectedCalculation?.calculatedInputs[key]??0)}</span>{selectedLine.overrides[key]!=null && <button className="ml-2 text-xs underline" onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=null;})}>Restore</button>}</label>)}</div>
         <div className="flex flex-wrap items-center gap-4 rounded border p-4"><span>Computed price: {money(selectedCalculation?.calculatedPrice??0)}</span><label>Price override <Numeric label="Price override" nullable value={selectedLine.priceOverride} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=v;})}/></label><button className={button} disabled={selectedLine.priceOverride===null} onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=null;})}>Restore calculated price</button><strong>Final: {money(selectedCalculation?.finalPrice??0)}</strong></div>

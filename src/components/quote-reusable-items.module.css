@@ -1,0 +1,7 @@
+.toolbar {display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;background:#eef2f8;font-size:11px;border-bottom:1px solid #d5dfeb;}
+.search {display:flex;align-items:center;gap:6px;position:relative;}
+.search>input {width:200px!important;height:26px!important;background:white!important;border:1px solid #bdcadd!important;border-radius:3px;}
+.toolbar>select {width:210px!important;max-width:100%;height:26px;border:1px solid #bdcadd;background:white;border-radius:3px;}
+.toolbar>button {padding:4px 7px;border:1px solid #bdcadd;border-radius:3px;background:white;}
+.toolbar>a {text-decoration:underline;margin-right:8px;}
+.feedback {font-size:11px;padding:3px 8px;}

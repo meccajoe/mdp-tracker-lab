@@ -44,3 +44,5 @@
 .sheet tr[data-section=travel] td {border-top:2px solid #d6c3a3;background:#fbf3e6;}
 .sheet tr[data-section=design] td {border-top:2px solid #c9b9db;background:#f3edf9;}
 .sheet tr[data-section=management] td {border-top:2px solid #d8b8c4;background:#faeef3;}
+
+.currencyPrefix {padding-left:5px;color:#516047;flex-shrink:0;}

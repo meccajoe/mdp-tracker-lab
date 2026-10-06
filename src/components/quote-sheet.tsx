@@ -4,7 +4,7 @@ import { calculateQuoteV27, LINE_TYPES, type Inputs, type QuoteV27 } from '@/lib
 import styles from './quote-sheet.module.css';
 
 type Calculation = ReturnType<typeof calculateQuoteV27>;
-const amount = (n: number) => n === 0 ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+const amount = (n: number) => n.toLocaleString('en-US', {style:'currency',currency:'USD'});
 const numeric = (n: number) => n === 0 ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const currency = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const inputs: { key: keyof Inputs; heading: string }[] = [
@@ -28,7 +28,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
   calculation: Calculation | null;
   edit: (change: (next: QuoteV27) => void) => void;
   onTakeoffs: (lineId: string) => void;
-  onAdd: () => void;
+  onAdd?: () => void;
 }) {
   const rows = new Map(calculation?.lines.map(line=>[line.id,line]));
   function inputCell(line: QuoteV27['lines'][number], key: keyof Inputs, label: string) {
@@ -38,6 +38,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
     const update = (value: number | null) => edit(next=>{next.lines.find(l=>l.id===line.id)!.overrides[key]=value;});
     return <td key={key} className={`${styles.entry} ${overridden ? styles.overridden : ''}`}>
       <div className={styles.inputCell}>
+        {['materials','resale','rental','cost'].includes(key)&&<span className={styles.currencyPrefix} aria-hidden="true">$</span>}
         <input type="number" min="0" step="any" aria-label={`${label} · ${line.name}`}
           title={`Calculated: ${numeric(calculated)}. Enter a manual override; clear to restore.`}
           value={overridden ? override : calculated === 0 ? '' : calculated} placeholder="—"
@@ -52,7 +53,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
       <p>Yellow cells are editable. ↺ restores a calculated input. Clear a price override to restore the computed price.</p>
       <div className={styles.toolbar}>
         <label>Sales commission % <input type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={quote.commission===0?'':Number((quote.commission*100).toFixed(8))} placeholder="—" onChange={e=>edit(next=>{next.commission=Number(e.target.value)/100;})}/></label>
-        <button type="button" onClick={onAdd}>Add item</button>
+        {onAdd&&<button type="button" onClick={onAdd}>Add item</button>}
         <span>Open an item’s takeoffs with ↗. Scroll right for pricing and budgets.</span>
       </div>
     </div>
@@ -73,7 +74,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
             <td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>
             {inputCell(line,'cost','Cost $')}
             <td>{row ? amount(row.calculatedPrice) : '—'}</td>
-            <td className={styles.entry}><div className={styles.inputCell}><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
+            <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
             <td className={styles.finalPrice}>{row ? amount(row.finalPrice) : '—'}</td>
             {outputs.map(([key])=><td key={key}>{row ? (key==='hoursAllowed'?numeric(row[key]):amount(row[key])) : '—'}</td>)}
             <td>{row?.marginPercent != null ? `${(row.marginPercent*100).toFixed(1)}%` : '—'}</td>
