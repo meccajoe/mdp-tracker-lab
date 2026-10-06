@@ -21,16 +21,20 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      adaFetch("/api/quote-workspaces"),
-      adaFetch("/api/quote-workspaces?status=archived"),
-    ]).then(async (responses) => {
-      const payloads = await Promise.all(responses.map((response) => response.json().catch(() => ({}))));
+    async function list(status: string) {
+      const result: WorkspaceOption[] = [];
+      for (let offset = 0; ; offset += 100) {
+        const response = await adaFetch(`/api/quote-workspaces?offset=${offset}${status}`);
+        const payload = await response.json();
+        if (!response.ok) throw new Error("Quote list could not load.");
+        result.push(...(payload.workspaces ?? []));
+        if (!payload.hasMore) return result;
+      }
+    }
+    void Promise.all([list(""), list("&status=archived")]).then((lists) => {
       if (!active) return;
       const unique = new Map<string, WorkspaceOption>();
-      for (const payload of payloads) {
-        for (const workspace of payload.workspaces ?? []) unique.set(workspace.id, workspace);
-      }
+      for (const workspace of lists.flat()) unique.set(workspace.id, workspace);
       setWorkspaces([...unique.values()]);
     }).catch(() => {
       if (active) setWorkspaces([]);

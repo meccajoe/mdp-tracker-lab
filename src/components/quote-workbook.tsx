@@ -161,7 +161,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange }: { quote
         </>}
         {document && <button className={button} onClick={download}>Download draft</button>}
         <button className={button} disabled={busy||saving} onClick={() => { if (!dirty || window.confirm('Discard unsaved edits and reload?')) void load(); }}>Reload saved</button>
-        <button className={`${button} bg-foreground text-background`} disabled={!document || !dirty || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
+        <button className={`${button} bg-foreground text-background`} disabled={!document || (!dirty&&!pendingInput) || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
       </div>
     </div>
     {document&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
