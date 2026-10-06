@@ -58,7 +58,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
     </div>
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
       <table aria-label="Quote Builder estimates and budgets">
-        <colgroup><col style={{width:80}}/><col style={{width:240}}/><col style={{width:170}}/>{headers.slice(2).map((_,i)=><col key={i} style={{width:i===10?130:95}}/>)}</colgroup>
+        <colgroup><col style={{width:60}}/><col style={{width:190}}/><col style={{width:150}}/>{headers.slice(2).map((_,i)=><col key={i} style={{width:i===10?100:80}}/>)}</colgroup>
         <thead>
           <tr className={styles.letters}><th aria-label="Item number"/>{headers.map((_,i)=><th key={i} scope="col" className={i===0?styles.frozen:undefined}>{String.fromCharCode(65+i)}</th>)}</tr>
           <tr className={styles.columnHeaders}><th>Item #</th>{headers.map((label,i)=><th key={label} scope="col" className={i===0?styles.frozen:undefined}>{label}</th>)}</tr>

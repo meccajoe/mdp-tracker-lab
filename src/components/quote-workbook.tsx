@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {QuoteBOM,QuoteMaterialsDB} from './quote-reference-sheets';
 import { QuoteEstimators } from '@/components/quote-estimators';
 import { QuoteRates } from "@/components/quote-rates";
 import { QuoteTakeoffs } from '@/components/quote-takeoffs';
@@ -54,13 +55,20 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       const response = await adaFetch(endpoint + (revision ? `?revision=${revision}` : ''));
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Workbook could not load.');
-      const next = payload.document ? parseQuoteV27(payload.document) : null;
+      let next = payload.document ? parseQuoteV27(payload.document) : null;
+      const initializing=!next&&payload.canEdit&&!revision;
+      if(initializing){
+        const templateResponse=await adaFetch(`${endpoint}?template=blank`);
+        const template=await templateResponse.json();
+        if(!templateResponse.ok)throw new Error(template.error||'Blank quote could not load.');
+        next=parseQuoteV27(template.document);
+      }
       edits.current = next?newEditHistory(next):null; editGroup.current=null; setDocument(next); setSelected(next?.lines[0]?.id ?? '');
       setVersion(payload.latestVersion); setHistory(payload.history); setCanEdit(payload.canEdit);
       const restoring = Boolean(revision && revision !== payload.latestVersion);
-      savedDocument.current=restoring?'':JSON.stringify(next);setPendingInput(false);
-      setDirty(restoring);
-      setMessage(restoring ? `Revision ${revision} loaded. Save to keep it as a new revision.` : payload.version ? `Saved revision ${payload.version}` : 'No saved workbook yet.');
+      savedDocument.current=restoring||initializing?'':JSON.stringify(next);setPendingInput(false);
+      setDirty(restoring||initializing);
+      setMessage(initializing?'New quote — ready to edit.':restoring ? `Revision ${revision} loaded. Save to keep it as a new revision.` : payload.version ? `Saved revision ${payload.version}` : 'No saved workbook yet.');
     } catch (e) { setError(e instanceof Error ? e.message : 'Workbook could not load.'); }
     finally { setBusy(false); }
   }, [endpoint]);
@@ -105,17 +113,6 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
     if(!updated.present.lines.some(line=>line.id===selected))setSelected(updated.present.lines[0]?.id??'');
     const changed=JSON.stringify(updated.present)!==savedDocument.current;
     setDirty(changed);setError('');setMessage(changed?`Unsaved changes · ${direction==='undo'?'edit undone':'edit redone'}`:`Saved revision ${version} · restored`);
-  }
-  async function start(template: string) {
-    setBusy(true); setError('');
-    try {
-      const response = await adaFetch(`${endpoint}?template=${template}`);
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error);
-      const next = parseQuoteV27(payload.document);
-      edits.current = newEditHistory(next); editGroup.current=null; setDocument(next); setSelected(next.lines[0]?.id ?? ''); setDirty(true); setMessage('Template loaded — save your first revision.');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Template could not load.'); }
-    finally { setBusy(false); }
   }
   async function save(automatic=false) {
     if(!canEdit||busy||saveInFlight.current)return;
@@ -167,15 +164,19 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
       </div>
     </div>
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
-    {!document && !busy && !error && <div className="my-10 rounded-xl border p-6"><h2 className="font-semibold">Start from your blank v27 template</h2><p className="my-3 text-sm text-muted-foreground">Your item rows, service lines and rate card, with zero estimates. Item and spare rows start as Fabrication; choose another line type as needed.</p><button className={button} disabled={!canEdit} onClick={() => void start('blank')}>Start blank quote</button></div>}
+    {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
     {document && <>
-      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{['Quote Builder','Takeoffs','Pricing','Estimators','Client quote','Production budget','Rates'].map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
+      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing'].map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>
-      <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Use Estimators for install, travel, shipping and beMatrix; Pricing overrides take precedence.</p>
+      <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Green cells calculate automatically. Pale yellow cells accept input. Pricing overrides take precedence.</p>
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label><button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
-      {tab==='Estimators' && <><QuoteEstimators quote={document} edit={edit} readOnly={!canEdit || busy} result={calculation?.estimators}/>{calculation?.estimators && <div className="mt-5 rounded border p-4 text-sm"><p>Install labor billing: {money(calculation.estimators.install.reduce((n,p)=>n+p.billing,0)+calculation.estimators.supportBilling)}</p><p>Travel cost: {money(calculation.estimators.travelCost)}</p><p>Shipping cost: {money(calculation.estimators.shippingCost)}</p></div>}</>}
+      {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
+      {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
+      {tab==='Materials DB'&&<QuoteMaterialsDB quote={document}/>}
+      {(tab==='Legacy Decoder'||tab==='Capacity')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
+
       <QuoteGridInteraction><fieldset className="min-w-0" disabled={!canEdit || busy}>
       {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
       {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} onAddItem={addLine} readOnly={!canEdit || busy}/>}
@@ -183,10 +184,10 @@ export function QuoteWorkbook({ workspaceId, onDirtyChange }: { workspaceId: str
         <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{(Object.keys(inputLabels) as (keyof Inputs)[]).map(key=><label key={key} className="rounded border p-3 text-sm"><span className="mb-2 block">{inputLabels[key]}</span><Numeric label={inputLabels[key]} nullable value={selectedLine.overrides[key]??null} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=v;})}/><span className="ml-2 text-xs">Calculated: {number(selectedCalculation?.calculatedInputs[key]??0)}</span>{selectedLine.overrides[key]!=null && <button className="ml-2 text-xs underline" onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=null;})}>Restore</button>}</label>)}</div>
         <div className="flex flex-wrap items-center gap-4 rounded border p-4"><span>Computed price: {money(selectedCalculation?.calculatedPrice??0)}</span><label>Price override <Numeric label="Price override" nullable value={selectedLine.priceOverride} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=v;})}/></label><button className={button} disabled={selectedLine.priceOverride===null} onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=null;})}>Restore calculated price</button><strong>Final: {money(selectedCalculation?.finalPrice??0)}</strong></div>
       </>}
-      {tab==='Rates' && <QuoteRates quote={document} edit={edit} laborRate={calculation?.laborRate??null}/>}
+      {tab==='Settings' && <QuoteRates key={restoreKey} quote={document} edit={edit} laborRate={calculation?.laborRate??null}/>}
       </fieldset></QuoteGridInteraction>
-      {tab==='Client quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · Draft</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
-      {tab==='Production budget' && calculation && <><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['Item #','Item name','Materials / other','Allowed hours','Labor cost','Build budget','Trade hours','Untyped hours'].map(h=><th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>{calculation.lines.filter(line=>line.buildBudget!==0||line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{quoteItemLabel(document,line.id)}</td><td className={cell}>{line.name}</td><td className={cell}>{money(line.materialsBudget)}</td><td className={cell}>{number(line.hoursAllowed)}</td><td className={cell}>{money(line.laborBudget)}</td><td className={cell}>{money(line.buildBudget)}</td><td className={cell}>{Object.entries(line.tradeHours).map(([id,hours])=>`${document.trades.find(t=>t.id===id)?.name}: ${number(hours)}`).join(', ')||'—'}</td><td className={cell}>{number(line.untypedHours)}</td></tr>)}</tbody></table></div><p className="mt-4 font-semibold">Total build budget: {money(calculation.totals.buildBudget)}</p><p className="mt-2 text-sm">Contingency held separately: {money(calculation.totals.contingency)}</p></>}
+      {tab==='Client Quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · Draft</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
+      {tab==='Budget Handoff' && calculation && <><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['Item #','Item name','Materials / other','Allowed hours','Labor cost','Build budget','Trade hours','Untyped hours'].map(h=><th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>{calculation.lines.filter(line=>line.buildBudget!==0||line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{quoteItemLabel(document,line.id)}</td><td className={cell}>{line.name}</td><td className={cell}>{money(line.materialsBudget)}</td><td className={cell}>{number(line.hoursAllowed)}</td><td className={cell}>{money(line.laborBudget)}</td><td className={cell}>{money(line.buildBudget)}</td><td className={cell}>{Object.entries(line.tradeHours).map(([id,hours])=>`${document.trades.find(t=>t.id===id)?.name}: ${number(hours)}`).join(', ')||'—'}</td><td className={cell}>{number(line.untypedHours)}</td></tr>)}</tbody></table></div><p className="mt-4 font-semibold">Total build budget: {money(calculation.totals.buildBudget)}</p><p className="mt-2 text-sm">Contingency held separately: {money(calculation.totals.contingency)}</p></>}
     </>}
   </section>;
 }

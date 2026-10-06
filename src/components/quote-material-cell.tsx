@@ -9,8 +9,8 @@ export function QuoteMaterialCell({value,label,materials,usage,disabled,commit}:
   const choices=useMemo(()=>materials.filter(m=>m.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>(usage[b.name]??0)-(usage[a.name]??0)).slice(0,150),[materials,query,usage]);
   function choose(name:string){if(commit(name,true)){if(input.current)input.current.value=name;setOpen(false);setIndex(-1);}}
   return <><input aria-label={label} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={open?`${label}-choices`:undefined} aria-activedescendant={open&&index>=0?`${label}-choice-${index}`:undefined} ref={input} defaultValue={value} disabled={disabled}
-    onFocus={e=>{const rect=e.currentTarget.getBoundingClientRect();const width=Math.min(480,window.innerWidth-24);setPosition({position:'fixed',left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12)),width,...(rect.bottom>window.innerHeight*.55?{bottom:window.innerHeight-rect.top,top:'auto'}:{top:rect.bottom,bottom:'auto'})});setOpen(true);setQuery('');setIndex(-1);}}
-    onChange={e=>{setQuery(e.target.value);setIndex(-1);setOpen(true);}}
+    onFocus={e=>{const rect=e.currentTarget.getBoundingClientRect();const width=Math.min(480,window.innerWidth-24);setPosition({position:'fixed',left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12)),width,...(rect.bottom>window.innerHeight*.55?{bottom:window.innerHeight-rect.top,top:'auto'}:{top:rect.bottom,bottom:'auto'})});setOpen(false);setQuery('');setIndex(-1);}}
+    onChange={e=>{setQuery(e.target.value);setIndex(-1);setOpen(Boolean(e.target.value.trim()));}}
     onBlur={e=>{setOpen(false);const text=e.currentTarget.value;if(text!==value&&!commit(text,false))e.currentTarget.value=value;}}
     onKeyDown={e=>{
       if(open&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();e.stopPropagation();setIndex(i=>Math.max(0,Math.min(choices.length-1,i+(e.key==='ArrowDown'?1:-1))));}

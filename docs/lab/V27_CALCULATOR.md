@@ -1,5 +1,11 @@
 # v27 calculation foundation
 
+## Explicit blank takeoff assignments and day grid — October 5, 2026
+
+New worksheet rows use an empty `lineId` until explicitly assigned, including intermediate rows materialized by an edit farther down. Parser accepts only this empty unassigned state or a valid existing ID. Unassigned row costs/hours are displayed but excluded from item rollups, with a warning for quantity/hours. Existing assigned rows and formulas are unchanged. BOM uses recorded takeoff costs grouped by material name/unit, applies section multipliers and excludes hour units; unassigned material demand is labeled Unassigned.
+
+Install support can carry an optional ten-entry `daily` grid, each with installDays/dismantleDays/offDays. Its sums must equal the pre-existing aggregate values used by the calculator. Old snapshots display their aggregates on Day 1 until edited; no historical revision is rewritten. The linear labor/travel UI retains the existing estimator formulas and explicit output links.
+
 ## Live catalog and spreadsheet Takeoffs — October 4, 2026
 
 The editor now reads the explicitly authorized Materials DB CSV (spreadsheet `1Z34DH5kc3c7K9g-yOUyzF_sEhhNPFZeIdfh1gMTNL-0`, gid `1318845246`) through authenticated `/api/quotes/catalog`. No-cache GET only, exact fixed source, 12-second timeout, 2 MB limit; rows 5–1004 match the sheet's own supported range. The existing Google read permissions allow this export without credentials. No sharing changes, sheet writes, or other integrations are enabled. The catalog is polled every 15 seconds while Takeoffs is visible, refreshed on window focus and manually. Google's export propagation may add delay; this is polling, not push delivery. Failures are visible and retain the last available choices; malformed/missing prices and duplicate descriptions are excluded with warnings, never converted silently to free materials. Labor entries with blank cost use zero material cost, and labor is still entered in the hours column.

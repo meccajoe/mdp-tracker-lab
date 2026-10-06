@@ -12,6 +12,7 @@ export function applyTakeoffCells(quote: QuoteV27, start: number, column: number
       if (!key) throw new Error('Calculated columns cannot be pasted into.');
       const value = text.trim();
       if (key === 'lineId' || key === 'materialId' || key === 'tradeId') {
+        if (!value && key === 'lineId') { row.lineId = ''; continue; }
         if (!value && key !== 'lineId') { row[key] = null; if (key === 'materialId') row.unitCostOverride = 0; continue; }
         const source = key === 'lineId' ? quote.lines : key === 'materialId' ? quote.catalog : quote.trades;
         const exact = source.find(item => item.id === value);
@@ -41,7 +42,7 @@ export function applyTakeoffCells(quote: QuoteV27, start: number, column: number
 export const EMPTY_TAKEOFF_DESCRIPTION = 'Untitled takeoff';
 /** View-only rows do not dirty a quote merely by opening the worksheet. */
 export function takeoffWorksheetRows(quote: QuoteV27, count: number, selected: string) {
-  const lineId = quote.lines.find(line => line.id === selected)?.id ?? quote.lines[0]?.id ?? '';
+  const lineId = ''; // Unassigned until this specific row is explicitly linked.
   return Array.from({length: Math.min(5000, Math.max(count, quote.takeoffs.length))}, (_, index) =>
     quote.takeoffs[index] ?? {id: `empty-takeoff-${index}`, lineId,
       description: EMPTY_TAKEOFF_DESCRIPTION, materialId: null, tradeId: null,
@@ -54,7 +55,6 @@ export function applyWorksheetCells(quote: QuoteV27, count: number, selected: st
   if (start < 0 || start + values.length > count || count > 5000) throw new Error('Add more rows before pasting.');
   const next = structuredClone(quote);
   const rows = takeoffWorksheetRows(next, count, selected);
-  if (!rows[start]?.lineId) throw new Error('This quote needs an item before entering takeoffs.');
   next.takeoffs = rows.slice(0, Math.max(next.takeoffs.length, start + values.length))
     .map((row, index) => index < quote.takeoffs.length ? row : {...row, id: crypto.randomUUID()});
   applyTakeoffCells(next, start, column, values);
@@ -80,7 +80,14 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
         if(value)throw new Error('Calculated columns are protected. Paste into editable columns only.');
       } else if(key==='itemName') {
         if(!value||value.length>2000)throw new Error('Enter an item name (up to 2,000 characters).');
-        const line=next.lines.find(line=>line.id===row.lineId)!;
+        let line=next.lines.find(line=>line.id===row.lineId);
+        if(!line) {
+          const matches=next.lines.filter(item=>item.name.toLowerCase()===value.toLowerCase());
+          if(matches.length>1)throw new Error('Choose an item number for this duplicate name.');
+          line=matches[0]??next.lines.find(item=>/^Item \d+$/.test(item.name)&&!next.takeoffs.some(t=>t.lineId===item.id));
+          if(!line)throw new Error('Add an item or choose its number before naming this row.');
+          row.lineId=line.id;
+        }
         if(next.lines.some(other=>other.id!==line.id&&other.name.toLowerCase()===value.toLowerCase()))throw new Error('Another item already uses that name. Choose a unique name.');
         line.name=value;
       } else if(key==='notes'||key==='unit') {
@@ -106,7 +113,7 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
         // Set the target row directly via the shared conversion/validation rules.
         const itemNumber=key==='lineId'?/^Item (\d+)$/.exec(value):null;
         const resolved=itemNumber?next.lines[Number(itemNumber[1])-1]?.id:value;
-        if(resolved===undefined||(key==='lineId'&&!resolved))throw new Error('Choose an existing item number.');
+        if(resolved===undefined)throw new Error('Choose an existing item number.');
         applyTakeoffCells(next,start+r,legacyColumn,[[resolved]]);
         Object.assign(row,next.takeoffs[start+r]);next.takeoffs[start+r]=row;
       }
@@ -120,6 +127,7 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
 
 /** Numbers follow the persisted quote-item order; names can change without changing links. */
 export function quoteItemLabel(quote:QuoteV27,lineId:string):string {
+  if(!lineId)return '';
   const index=quote.lines.findIndex(line=>line.id===lineId);
   return index<0?'Unknown item':`Item ${index+1}`;
 }

@@ -14,3 +14,16 @@ test('malformed HTTP document shapes and oversized fields are rejected',()=>{
   const bad=structuredClone(fixture);bad.lines[0].priceOverride='100';assert.throws(()=>parseQuoteV27(bad));
   const missing=structuredClone(fixture);delete missing.settings.efficiency;assert.throws(()=>parseQuoteV27(missing));
 });
+
+test('daily hired crew persists, keeps aggregate billing and rejects mismatched totals',()=>{
+ const quote=parseQuoteV27(fixture),support=quote.estimators!.install.support;
+ const before=calculateQuoteV27(quote).estimators!.supportBilling;
+ support.daily=Array.from({length:10},(_,i)=>({installDays:i===0?support.installDays:0,dismantleDays:i===0?support.dismantleDays:0,offDays:i===0?support.offDays:0}));
+ const restored=parseQuoteV27(JSON.parse(JSON.stringify(quote)));
+ assert.deepEqual(restored.estimators!.install.support.daily,support.daily);
+ assert.equal(calculateQuoteV27(restored).estimators!.supportBilling,before);
+ support.daily[1].installDays=2;
+ assert.throws(()=>parseQuoteV27(quote),/totals disagree/);
+ support.installDays+=2;
+ assert.equal(calculateQuoteV27(parseQuoteV27(quote)).estimators!.supportBilling,before+2*quote.settings.supportDay);
+});

@@ -8,12 +8,12 @@
 .toolbar button { padding: 4px 10px; border: 1px solid #aeb5bd; background: #f4f6f8; }
 .toolbar span { font-size: 12px; color: #505b6b; }
 .scroll { max-height: 65vh; overflow: auto; border-top: 1px solid #bcc3cb; }
-.sheet table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 2586px; }
+.sheet table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 2200px; }
 .sheet th, .sheet td { border-right: 1px solid #c3c7cd; border-bottom: 1px solid #c3c7cd; }
 .sheet td { height: 25px; padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; background: #fff; }
 .sheet thead { position: sticky; top: 0; z-index: 4; }
 .letters th { background: #f2f4f7; color: #5d6675; font-weight: normal; height: 23px; }
-.columnHeaders th { background: #e3eaf3; color: #273549; height: 60px; padding: 8px; vertical-align: bottom; text-align: center; }
+.columnHeaders th { background: #e3eaf3; color: #273549; height: 60px; padding: 4px; vertical-align: bottom; text-align: center; }
 .sheet .rowNumber { font-weight: normal; text-align: center; background: #f2f4f7; color: #5d6675; }
 .sheet .entry { background: #fff7da; padding: 0; color: #182775; }
 .sheet .frozen { position: sticky; left: 0; z-index: 2; text-align: left; box-shadow: 2px 0 #9ca5b1; }

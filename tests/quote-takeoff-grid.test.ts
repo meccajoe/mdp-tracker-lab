@@ -59,7 +59,7 @@ test('typing in row 50 preserves row position, existing rows, and valid saved to
   assert.equal(q.takeoffs.length,50);
   assert.deepEqual(q.takeoffs.slice(0,3),original);
   assert.equal(q.takeoffs[49].description,'Panel');
-  assert.equal(q.takeoffs[49].lineId,q.lines[1].id);
+  assert.equal(q.takeoffs[49].lineId,'');
   assert.equal(calculateQuoteV27(parseQuoteV27(JSON.parse(JSON.stringify(q)))).totals.price,0);
   applyWorksheetCells(q,100,q.lines[1].id,50,3,[['2','10']]);
   assert.equal(q.takeoffs.length,51);
@@ -108,6 +108,36 @@ test('filtered paste and fill skip hidden items atomically and preserve stored o
   assert.throws(()=>applyVisibleSheetCells(q,50,q.lines[0].id,[0,2],2,3,[['8'],['9']],null));
   assert.deepEqual(q,before);
   applyVisibleSheetCells(q,50,q.lines[1].id,[1,3,4],3,2,[['New filtered material']],null);
-  assert.equal(q.takeoffs[3].lineId,q.lines[1].id);
+  assert.equal(q.takeoffs[3].lineId,'');
   assert.equal(parseQuoteV27(q).takeoffs[3].description,'New filtered material');
+});
+
+ test('unused rows remain unassigned; names and drag fills link only targeted rows',()=>{
+ const q=createBlankQuoteV27();
+ assert.ok(takeoffWorksheetRows(q,50,q.lines[0].id).every(row=>row.lineId===''));
+ applySheetCells(q,50,q.lines[0].id,4,2,[['Custom panel','2','each','10']],null);
+ let saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+ assert.equal(calculateQuoteV27(saved).totals.price,0);
+ assert.match(calculateQuoteV27(saved).warnings.join(' '),/no item/);
+ applySheetCells(q,50,q.lines[0].id,4,1,[['Golden Arch']],null);
+ assert.equal(q.lines[0].name,'Golden Arch');
+ assert.ok(q.takeoffs.slice(0,4).every(row=>!row.lineId));
+ applySheetCells(q,50,q.lines[0].id,5,1,[['Golden Arch'],['Golden Arch']],null);
+ assert.equal(q.takeoffs[5].lineId,q.lines[0].id);
+ assert.equal(q.takeoffs[6].lineId,q.lines[0].id);
+ assert.equal(takeoffWorksheetRows(q,50,q.lines[0].id)[7].lineId,'');
+ saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+ assert.equal(calculateQuoteV27(saved).lines[0].calculatedInputs.materials,20);
+ applySheetCells(q,50,q.lines[0].id,4,0,[['']],null);
+ assert.equal(calculateQuoteV27(q).totals.price,0);
+ });
+
+import {quoteBOM} from '../src/lib/quote-bom';
+test('BOM combines names and units while preserving each recorded price and section count',()=>{
+ const q=fixture();q.takeoffs[0]={...q.takeoffs[0],description:'Panel',unit:'sheet',quantity:2,sections:3,unitCostOverride:10};
+ q.takeoffs[1]={...q.takeoffs[1],description:'Panel',unit:'sheet',quantity:1,unitCostOverride:15,lineId:q.lines[1].id};
+ q.takeoffs[2]={...q.takeoffs[2],description:'Carpentry',unit:'hours',quantity:2,unitCostOverride:0,hours:2};
+ const rows=quoteBOM(q);
+ assert.equal(rows.length,1);assert.equal(rows[0].quantity,7);assert.equal(rows[0].cost,75);assert.equal(rows[0].unitCost,10);
+ assert.deepEqual(rows[0].items,[q.lines[0].name,q.lines[1].name]);
 });

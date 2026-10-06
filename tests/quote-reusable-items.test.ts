@@ -8,6 +8,7 @@ import {calculateQuoteV27} from '../src/lib/quote-v27';
 test('reusable item uses current catalog, keeps source immutable and clones stable links',()=>{
  const source=createBlankQuoteV27(),target=createBlankQuoteV27();source.lines[0].name='Golden Arch';
  const material=source.catalog[0];applySheetCells(source,50,source.lines[0].id,0,2,[[material.name,'2']],null);
+ applySheetCells(source,50,source.lines[0].id,0,0,[[source.lines[0].id]],null);
  source.reusableItemIds=[source.lines[0].id];source.catalogUsage={[material.name]:4};
  const before=JSON.stringify(source),live=[{...material,id:'fresh-price',unitCost:21}];
  const id=insertReusableItem(target,parseQuoteV27(source),source.lines[0].id,live);

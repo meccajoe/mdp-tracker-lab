@@ -53,10 +53,11 @@ function RateInput({label,value,unit,onChange,nullable=false}: {
   const shown = value===null ? '' : unit==='%' ? Number((value*100).toPrecision(15)) : value;
   return <div className={styles.input}>
     {unit==='$' && <span aria-hidden="true">$</span>}
-    <input aria-label={`${label} (${unit})`} type="number" min="0" step="any" value={shown}
-      placeholder={nullable?'—':'0'} onChange={event=>{
+    <input aria-label={`${label} (${unit})`} type="number" min="0" step="any" key={shown} defaultValue={shown===0&&!nullable?'':shown}
+      placeholder={nullable?'—':''} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}} onBlur={event=>{
         const entered=event.target.value;
-        onChange(entered==='' ? (nullable?null:0) : Number(entered)/(unit==='%'?100:1));
+        const next=entered==='' ? (nullable?null:0) : Number(entered)/(unit==='%'?100:1);
+        if(next!==value)onChange(next);
       }}/>
     {unit!=='$' && <span aria-hidden="true">{unit}</span>}
   </div>;

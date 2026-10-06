@@ -18,7 +18,8 @@ export function emptyEstimators() {
     beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE)[]},
   };
 }
-export type Estimators = ReturnType<typeof emptyEstimators>;
+export type SupportDay = {installDays:number;dismantleDays:number;offDays:number};
+export type Estimators = ReturnType<typeof emptyEstimators> & {install:{support:{daily?:SupportDay[]}}};
 
 /** Accept only the versioned estimator schema, including signed hotel adjustments. */
 export function parseEstimators(value: unknown): Estimators {
@@ -42,6 +43,14 @@ export function parseEstimators(value: unknown): Estimators {
     return Object.fromEntries(Object.entries(shape as object).map(([k,v])=>[k,walk(v,(input as Record<string,unknown>)[k],k)]));
   }
   const parsed=walk(emptyEstimators(),value,'estimators') as Estimators;
+  const daily=(value as Estimators).install?.support?.daily;
+  if(daily!==undefined){
+    if(!Array.isArray(daily)||daily.length!==10)throw new Error('Support crew grid needs ten days.');
+    parsed.install.support.daily=daily.map(row=>walk({installDays:0,dismantleDays:0,offDays:0},row,'support day') as SupportDay);
+    for(const key of ['installDays','dismantleDays','offDays'] as const){
+      if(Math.abs(daily.reduce((sum,row)=>sum+row[key],0)-parsed.install.support[key])>1e-8)throw new Error('Support day grid and person-day totals disagree.');
+    }
+  }
   if(parsed.version!==1) throw new Error('Unsupported estimator version.');
   if(parsed.travel.people.pm.useInstallDays) throw new Error('The PM has no linked installer day counts.');
   if(new Set(parsed.beMatrix.walls.map(w=>w.id)).size!==parsed.beMatrix.walls.length) throw new Error('Wall IDs must be unique.');

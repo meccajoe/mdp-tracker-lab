@@ -11,7 +11,7 @@
 .sheet th:first-child {width:30px;}
 
 
-.sheet th:last-child {width:25px;}
+
 .sheet td {background:#fffbea;}
 .sheet td:first-of-type {position:sticky;left:0;z-index:2;background:#edf2fa;}
 .sheet input,.sheet select {width:100%;min-width:0;height:26px;border:0;background:transparent;font:inherit;padding:3px 6px;color:inherit;}
@@ -23,7 +23,7 @@
 @media(max-width:640px){.sheet td:first-of-type{position:relative;}}
 .catalogStatus {display:flex;align-items:center;gap:12px;padding:7px 10px;background:#edf5ed;font-size:11px;}
 .catalogStatus button {border:1px solid #b9cdbb;border-radius:3px;padding:3px 7px;background:white;}
-.sheet table {min-width:1430px;}
+.sheet table {min-width:1380px;}
 
 /* Match the source sheet: compact rows, dark headings, yellow inputs, green lookups. */
 .sheet thead {background:#354154;color:white;}

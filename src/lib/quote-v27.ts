@@ -86,7 +86,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
   const laborRate = s.burdenedRateOverride ?? Math.round((rates.reduce((a, b) => a + b, 0) / rates.length + Number.EPSILON) * 100) / 100;
   const takeoffTotals = new Map<string, { materials: number; resale: number; hours: number; trades: Record<string, number> }>();
   const takeoffs = quote.takeoffs.map(row => {
-    if (!linesById.has(row.lineId)) throw new Error(`Unknown takeoff line: ${row.lineId}`);
+    if (row.lineId && !linesById.has(row.lineId)) throw new Error(`Unknown takeoff line: ${row.lineId}`);
     if (row.tradeId !== null && !trades.has(row.tradeId)) throw new Error(`Unknown trade: ${row.tradeId}`);
     const material = row.materialId === null ? undefined : catalog.get(row.materialId);
     if (row.materialId !== null && !material) throw new Error(`Unknown material: ${row.materialId}`);
@@ -99,7 +99,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
     total[row.resale ? "resale" : "materials"] += cost;
     total.hours += hours;
     if (row.tradeId !== null) total.trades[row.tradeId] = (total.trades[row.tradeId] ?? 0) + hours;
-    takeoffTotals.set(row.lineId, total);
+    if (row.lineId) takeoffTotals.set(row.lineId, total);
     return { ...row, calculatedUnitCost: material?.unitCost ?? 0, unitCost, cost, extendedHours: hours };
   });
   if (quote.lines.filter(line => line.type === "Project Management Fee").length > 1) throw new Error("Only one project management fee line is supported.");
@@ -189,5 +189,5 @@ export function calculateQuoteV27(quote: QuoteV27) {
   const pmBonus = totals.margin * s.pmBonus, opex = totals.price * s.opex;
   for (const value of Object.values(totals)) if (!Number.isFinite(value)) throw new Error("Quote calculation exceeds numeric limits.");
   return { estimators: estimatorResult, laborRate, takeoffs, lines: pricedLines, tradeHours, totals: { ...totals, pmBonus, opex, netProfit: totals.margin - pmBonus - opex },
-    warnings: [...(estimatorResult?.warnings ?? []), ...lines.filter(line => line.overallocatedTradeHours > 0).map(line => `${line.name}: takeoff trade hours exceed allowed hours by ${line.overallocatedTradeHours}.`)] };
+    warnings: [...(quote.takeoffs.some(row=>!row.lineId&&(row.quantity||row.hours))?['Some takeoff rows have no item. Assign an Item # or name to include them in the quote.']:[]), ...(estimatorResult?.warnings ?? []), ...lines.filter(line => line.overallocatedTradeHours > 0).map(line => `${line.name}: takeoff trade hours exceed allowed hours by ${line.overallocatedTradeHours}.`)] };
 }
