@@ -120,7 +120,18 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   async function save(automatic=false) {
     if(!canEdit||busy||saveInFlight.current)return;
     const focused=window.document.activeElement;
-    if(focused instanceof HTMLInputElement && workbookRef.current?.contains(focused)) {focused.blur();focused.focus();}
+    if(focused instanceof HTMLInputElement && workbookRef.current?.contains(focused)) {
+      const label=focused.getAttribute('aria-label'),start=focused.selectionStart,end=focused.selectionEnd,editing=focused.dataset.cellEditing;
+      focused.blur();
+      // A commit can replace the input. Restore its caret only if the user hasn't moved elsewhere.
+      requestAnimationFrame(()=>{
+        if(window.document.activeElement!==window.document.body&&window.document.activeElement!==focused)return;
+        const replacement=label?Array.from(workbookRef.current?.querySelectorAll('input')??[]).find(input=>input.getAttribute('aria-label')===label):focused;
+        if(!replacement?.isConnected||replacement.disabled)return;
+        replacement.focus();if(editing!==undefined)replacement.dataset.cellEditing=editing;
+        if(start!==null&&end!==null)replacement.setSelectionRange(start,end);
+      });
+    }
     const snapshot=edits.current?.present;if(!snapshot||JSON.stringify(snapshot)===savedDocument.current)return;
     try {parseQuoteV27(snapshot);calculateQuoteV27(snapshot);}catch{setError('Fix invalid inputs before saving.');return;}
     saveInFlight.current=true;setSaving(true);setError('');
