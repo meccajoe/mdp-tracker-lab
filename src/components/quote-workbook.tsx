@@ -48,11 +48,12 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const autosave=useRef<()=>void>(()=>{});
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [selectionSummary,setSelectionSummary]=useState('');
   const [tab, setTab] = useState('Quote Builder');
   const [selected, setSelected] = useState('');
   const endpoint = libraryItem?`/api/prequote-items/${workspaceId}`:`/api/quote-workspaces/${workspaceId}/workbook`;
   const load = useCallback(async (revision?: number) => {
-    autosavePaused.current=false;setBusy(true); setError('');
+    autosavePaused.current=false;setSelectionSummary('');setBusy(true); setError('');
     try {
       const response = await adaFetch(endpoint + (revision ? `?revision=${revision}` : ''));
       const payload = await response.json();
@@ -100,7 +101,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     const next = structuredClone(current.present); change(next);
     const updated=recordEdit(current,next,editGroup.current);
     if(updated===current)return;
-    edits.current=updated; setDocument(next);
+    edits.current=updated; setDocument(next);setSelectionSummary('');
     setDirty(JSON.stringify(next)!==savedDocument.current); setMessage('Unsaved changes'); setError('');
   }
   function travelEdits(direction:'undo'|'redo') {
@@ -111,7 +112,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     editGroup.current=null;setPendingInput(false);
     const current=edits.current;if(!current)return;
     const updated=moveEditHistory(current,direction);if(updated===current)return;
-    edits.current=updated;setDocument(updated.present);setRestoreKey(key=>key+1);workbookRef.current?.focus({preventScroll:true});
+    edits.current=updated;setDocument(updated.present);setSelectionSummary('');setRestoreKey(key=>key+1);workbookRef.current?.focus({preventScroll:true});
     if(!updated.present.lines.some(line=>line.id===selected))setSelected(updated.present.lines[0]?.id??'');
     const changed=JSON.stringify(updated.present)!==savedDocument.current;
     setDirty(changed);setError('');setMessage(changed?`Unsaved changes · ${direction==='undo'?'edit undone':'edit redone'}`:`Saved revision ${version} · restored`);
@@ -148,11 +149,12 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const selectedLine = document?.lines.find(line => line.id === selected);
   const selectedCalculation = calculation?.lines.find(line => line.id === selected);
 
-  return <section ref={workbookRef} tabIndex={-1} className={`${styles.workbook} h-full overflow-auto p-4 sm:p-6`} aria-label="Workbook quote builder"
+  return <section ref={workbookRef} tabIndex={-1} className={`${styles.workbook} h-full p-4 sm:p-6`} aria-label="Workbook quote builder"
     onFocusCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)editGroup.current={};}}
     onBlurCapture={()=>{editGroup.current=null;setPendingInput(false);}}
     onInputCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)setPendingInput(true);}}
     onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
+    <div className={styles.frameHeader}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h1 className="text-xl font-semibold">{libraryItem?`Prequote item — ${document?.lines[0]?.name??'Loading…'}`:quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">
@@ -172,20 +174,22 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     </fieldset>}
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
-    {document && <>
-      <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => setTab(name)}>{name}</button>)}</div>
+    {document && <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');setTab(name);}}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
-      </div>
+      </div>}
+    </div>
+    <div className={styles.sheetViewport}>
+    {document && <>
       <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Green cells calculate automatically. Pale yellow cells accept input. Pricing overrides take precedence.</p>
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>{!libraryItem&&<button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>}{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
-      {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
+      {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction onSummary={setSelectionSummary}><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
       {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
       {tab==='Capacity'&&<div className="rounded border bg-white p-4"><h2>Capacity handoff</h2><p>The quote name, header dates, forecast status and calculated shop/trade hours appear in the Capacity tracker after saving. Planning overrides remain separate from quote inputs.</p><a className="underline" href="/capacity">Open Capacity tracker</a></div>}
       {tab==='Materials DB'&&<QuoteMaterialsDB quote={document}/>}
       {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
 
-      <QuoteGridInteraction><fieldset className="min-w-0" disabled={!canEdit || busy}>
+      <QuoteGridInteraction onSummary={setSelectionSummary}><fieldset className="min-w-0" disabled={!canEdit || busy}>
       {tab==='Quote Builder'&&!libraryItem&&canEdit&&<QuoteReusableToolbar quote={document} edit={edit} onSelect={setSelected}/>}
       {tab==='Quote Builder' && <QuoteSheet quote={document} calculation={calculation} edit={edit} onAdd={libraryItem?undefined:addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
       {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} libraryItem={libraryItem} onAddItem={addLine} readOnly={!canEdit || busy}/>}
@@ -198,5 +202,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {tab==='Client Quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · Draft</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
       {tab==='Budget Handoff' && calculation && <><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['Item #','Item name','Materials / other','Allowed hours','Labor cost','Build budget','Trade hours','Untyped hours'].map(h=><th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>{calculation.lines.filter(line=>line.buildBudget!==0||line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{quoteItemLabel(document,line.id)}</td><td className={cell}>{line.name}</td><td className={cell}>{money(line.materialsBudget)}</td><td className={cell}>{number(line.hoursAllowed)}</td><td className={cell}>{money(line.laborBudget)}</td><td className={cell}>{money(line.buildBudget)}</td><td className={cell}>{Object.entries(line.tradeHours).map(([id,hours])=>`${document.trades.find(t=>t.id===id)?.name}: ${number(hours)}`).join(', ')||'—'}</td><td className={cell}>{number(line.untypedHours)}</td></tr>)}</tbody></table></div><p className="mt-4 font-semibold">Total build budget: {money(calculation.totals.buildBudget)}</p><p className="mt-2 text-sm">Contingency held separately: {money(calculation.totals.contingency)}</p></>}
     </>}
+    </div>
+    <footer className={styles.selectionFooter} role="status" aria-label="Selection summary">{selectionSummary||'Select numeric cells to see their total here.'}</footer>
   </section>;
 }

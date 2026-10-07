@@ -1,4 +1,6 @@
 "use client";
+import {useState} from "react";
+import {clearQuoteItem} from "@/lib/quote-item-actions";
 
 import { calculateQuoteV27, LINE_TYPES, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
 import styles from './quote-sheet.module.css';
@@ -30,6 +32,8 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
   onTakeoffs: (lineId: string) => void;
   onAdd?: () => void;
 }) {
+  const [pendingClear,setPendingClear]=useState<string|null>(null);
+  const [clearId,setClearId]=useState(quote.lines[0]?.id??'');
   const rows = new Map(calculation?.lines.map(line=>[line.id,line]));
   function inputCell(line: QuoteV27['lines'][number], key: keyof Inputs, label: string) {
     const calculated = rows.get(line.id)?.calculatedInputs[key] ?? line.inputs[key];
@@ -54,9 +58,16 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
       <div className={styles.toolbar}>
         <label>Sales commission % <input type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={quote.commission===0?'':Number((quote.commission*100).toFixed(8))} placeholder="—" onChange={e=>edit(next=>{next.commission=Number(e.target.value)/100;})}/></label>
         {onAdd&&<button type="button" onClick={onAdd}>Add item</button>}
+        <label>Item to clear <select aria-label="Item to clear" value={clearId} onChange={e=>setClearId(e.target.value)}>{quote.lines.map((line,index)=><option key={line.id} value={line.id}>Item {index+1} — {line.name}</option>)}</select></label>
+        <button type="button" disabled={!quote.lines.some(line=>line.id===clearId)} title="Reset this item and remove its linked takeoff rows. Undo restores everything." onClick={()=>setPendingClear(clearId)}>Clear item</button>
         <span>Open an item’s takeoffs with ↗. Scroll right for pricing and budgets.</span>
       </div>
     </div>
+    {pendingClear&&<div role="alertdialog" aria-label="Clear quote item" className={styles.clearPrompt}>
+      <span>Clear {quote.lines.find(line=>line.id===pendingClear)?.name}? This resets its Quote Builder row, removes linked takeoff rows and unlinks estimator outputs. Undo restores everything.</span>
+      <button type="button" onClick={()=>{edit(next=>clearQuoteItem(next,pendingClear));setPendingClear(null);}}>Clear this item</button>
+      <button type="button" onClick={()=>setPendingClear(null)}>Cancel</button>
+    </div>}
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
       <table aria-label="Quote Builder estimates and budgets">
         <colgroup><col style={{width:60}}/><col style={{width:190}}/><col style={{width:150}}/>{headers.slice(2).map((_,i)=><col key={i} style={{width:i===10?100:80}}/>)}</colgroup>

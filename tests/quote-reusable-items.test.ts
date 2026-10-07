@@ -50,3 +50,17 @@ test('insertion fills empty item/rows and never shifts over or replaces populate
  assert.equal(id,q.lines[1].id);assert.equal(q.takeoffs.length,50);assert.deepEqual(q.takeoffs[0],originalRows[0]);assert.deepEqual(q.takeoffs[4],originalRows[4]);
  assert.equal(q.takeoffs[1].lineId,id);assert.equal(q.takeoffs[1].quantity,3);assert.doesNotThrow(()=>parseQuoteV27(q));
 });
+
+import {clearQuoteItem} from '../src/lib/quote-item-actions';
+import {newEditHistory,recordEdit,moveEditHistory} from '../src/lib/quote-edit-history';
+test('clearing an item resets its slot, removes its rows/links, preserves other items and can be undone',()=>{
+ const q=createBlankQuoteV27();const item=q.lines[0];item.name='Cabinet';item.overrides.materials=250;item.priceOverride=700;
+ applySheetCells(q,50,'',0,0,[[item.id,'Cabinet','Custom wood','3']],null);
+ const other=q.lines[1];other.name='Arch';applySheetCells(q,50,'',1,0,[[other.id,'Arch','Custom metal','2']],null);
+ const before=structuredClone(q),next=structuredClone(q);clearQuoteItem(next,item.id);
+ assert.equal(next.lines.length,before.lines.length);assert.equal(next.lines[0].id,item.id);assert.equal(next.lines[0].name,'Item 1');
+ assert.equal(calculateQuoteV27(parseQuoteV27(next)).lines[0].finalPrice,0);assert.equal(next.takeoffs.length,1);assert.deepEqual(next.takeoffs[0],before.takeoffs[1]);assert.deepEqual(next.lines[1],before.lines[1]);
+ const restored=moveEditHistory(recordEdit(newEditHistory(before),next),'undo');assert.deepEqual(restored.present,before);
+ const frame=next.lines.find(line=>line.type==='beMatrix / SEG')!;next.estimators!.beMatrix.walls=[{id:'test',lineId:frame.id,width:10,height:8,sides:1,sqftOverride:null}];clearQuoteItem(next,frame.id);assert.equal(next.estimators!.beMatrix.walls.length,0);assert.doesNotThrow(()=>parseQuoteV27(next));
+ const installer=next.estimators!.install.lead.lineId!;clearQuoteItem(next,installer);assert.equal(next.estimators!.install.lead.lineId,null);assert.doesNotThrow(()=>parseQuoteV27(next));
+});

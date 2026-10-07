@@ -1,4 +1,5 @@
 'use client';
+import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
 import {applyVisibleSheetCells,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
@@ -13,6 +14,7 @@ type Cell=[number,number];
 export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false}: {
   libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
+  const scrollRef=useRef<HTMLDivElement>(null);
   const [rowCapacity,setRowCapacity]=useState(50);
   const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
   const [filterOpen,setFilterOpen]=useState(false);
@@ -70,7 +72,9 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     const range=drag.current;drag.current=null;setEnd(null);setEndColumn(null);
     if(range&&(range.end!==range.row||range.endColumn!==range.column)) {
       const first=Math.min(range.row,range.end),last=Math.max(range.row,range.end),col=Math.min(range.column,range.endColumn),lastCol=Math.max(range.column,range.endColumn);
-      apply(first,col,visibleIndices.filter(index=>index>=first&&index<=last).map(()=>Array.from({length:lastCol-col+1},()=>range.value)));
+      const itemFill=range.column===1&&range.endColumn===1;
+      const value=itemFill?rows[range.row].lineId:range.value;
+      apply(first,itemFill?0:col,visibleIndices.filter(index=>index>=first&&index<=last).map(()=>Array.from({length:lastCol-col+1},()=>value)));
     }
   }
   return <div className={styles.sheet}>
@@ -93,10 +97,13 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     {!readOnly&&!libraryItem&&<QuoteReusableItems quote={quote} edit={edit} live={live.materials} onSelect={id=>{onSelectItem?.(id);setFilter('');}} save={save}/>}
     <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
-    <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor in Labor hrs. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
+    <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor in Labor hrs. Double-click or F2 edits text; Delete clears a selected cell. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
     {calculation?.lines.filter(line=>line.type==='beMatrix / SEG'&&(!filterItem||line.id===filterItem)&&(line.inputs.rental||line.inputs.sqft)).map(line=><p key={line.id}><strong>{line.name}</strong>: frame rental ${line.inputs.rental.toFixed(2)} + SEG ({line.inputs.sqft} sq. ft.) ${(line.inputs.sqft*quote.settings.graphicsSell).toFixed(2)} · Final quote ${line.finalPrice.toFixed(2)}. Dimensions and destination are set in beMatrix Estimator.</p>)}
     {error&&<p role="alert">{error}</p>}
-    <div className={styles.scroll} onCopy={e=>{
+    <div ref={scrollRef} className={styles.scroll}
+      onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=drag.current.column<=1?drag.current.column:Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
+      onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);setEndColumn(null);}}
+      onCopy={e=>{
       if(!active||!selectionEnd)return;e.preventDefault();const copied=[];
       for(const r of visibleIndices.filter(index=>index>=Math.min(active[0],selectionEnd[0])&&index<=Math.max(active[0],selectionEnd[0]))) {
         const cells=[];for(let c=Math.min(active[1],selectionEnd[1]);c<=Math.max(active[1],selectionEnd[1]);c++)cells.push(valueAt(r,SHEET_COLUMNS[c]));
@@ -116,7 +123,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
             onMouseDown={e=>{if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
             tabIndex={protectedCell?-1:undefined}
             onKeyDownCapture={e=>{if((e.key==='Delete'||e.key==='Backspace')&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!readOnly&&!e.nativeEvent.isComposing){
-              if(protectedCell||key==='description')return;
+              if(protectedCell||key==='description'||isEditingText(e.target))return;
               e.preventDefault();e.stopPropagation();
               if(e.target instanceof HTMLInputElement)e.target.value=key==='unitCostOverride'&&row.materialId?(catalog.get(row.materialId)?.unitCost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
               apply(r,c,[['']]);setItemPicker(null);
@@ -133,16 +140,20 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               </div>}
             </>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
+                onFocus={e=>selectTextCell(e.currentTarget)}
+                onMouseUp={e=>{if(!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}
+                onClick={e=>{if(e.detail===1)selectTextCell(e.currentTarget);}}
+                onDoubleClick={e=>editTextCell(e.currentTarget)}
+                onInput={e=>editTextCell(e.currentTarget)}
                 title={key==='unitCostOverride'?row.unitCostOverride===null?'Catalog price · type to override':'Manual cost · clear to restore catalog':display}
                 inputMode={['quantity','unitCostOverride','sections','hours'].includes(key)?'decimal':'text'}
                 placeholder={key==='sections'?'1':key==='itemName'?'e.g. Golden Arch':''}
                 onBlur={e=>{if(e.target.value!==display&&!apply(r,c,[[e.target.value]]))e.target.value=display;}}
-                onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=display;e.currentTarget.blur();}}}/>
+                onKeyDown={e=>{if(e.key==='F2'){e.preventDefault();editTextCell(e.currentTarget);e.currentTarget.setSelectionRange(e.currentTarget.value.length,e.currentTarget.value.length);}if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=display;e.currentTarget.blur();}}}/>
             }
             {isActive&&!protectedCell&&!readOnly&&<button tabIndex={-1} className={styles.handle} aria-label="Drag to copy cell value"
-              onPointerDown={e=>{e.preventDefault();const input=e.currentTarget.parentElement?.querySelector('input');const value=input?.value??display;input?.blur();e.currentTarget.setPointerCapture(e.pointerId);drag.current={row:r,column:c,end:r,endColumn:c,value};}}
-              onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
-              onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);setEndColumn(null);}}/>
+              onPointerDown={e=>{e.preventDefault();e.stopPropagation();const input=e.currentTarget.parentElement?.querySelector('input');const value=input?.value??display;scrollRef.current?.setPointerCapture(e.pointerId);drag.current={row:r,column:c,end:r,endColumn:c,value};input?.blur();}}
+              />
             }
           </td>;
         })}</tr>)}</tbody>
