@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type {WorkBook} from 'xlsx';
 import fixture from './fixtures/quote-v27/fonroche.json';
 import {importV27Workbook} from '../src/lib/quote-spreadsheet-import';
-import {capacityProject,capacityLoad,emptyCapacity} from '../src/lib/capacity';
+import {capacityProject,capacityLoad,emptyCapacity,quoteDemand} from '../src/lib/capacity';
 
 // Reconstruct the independently extracted source cells, including formula/literal identity.
 function source():WorkBook {
@@ -48,6 +48,10 @@ test('v27 import reconciles original prices, overrides, takeoffs and capacity de
  const settings={...emptyCapacity().settings,weekStart:'2026-10-12'};
  assert.equal(capacityLoad([project],settings,'shop').expected.reduce((a,b)=>a+b,0),30);
  assert.equal(capacityLoad([project],settings,'field').expected.reduce((a,b)=>a+b,0),20);
+ // Two installers work concurrently; combined person-hours do not extend the window.
+ result.document.lines.find(line=>line.id==='line-29')!.inputs.siteDays=3;
+ assert.equal(quoteDemand(result.document).fieldDays,4);
+ assert.equal(quoteDemand(result.document).field,70);
 });
 test('missing results, unsupported layouts, unassigned rows and mismatched totals fail before saving',()=>{
  for(const mutate of [(b:WorkBook)=>delete b.Sheets.Settings,(b:WorkBook)=>{b.Sheets['Quote Builder'].P43.v+=1;},(b:WorkBook)=>{b.Sheets['Quote Builder'].B5.v='Unknown';},(b:WorkBook)=>{b.Sheets.Takeoffs.A5.v='Missing parent';},(b:WorkBook)=>{b.Sheets['Quote Builder'].P5={t:'n',f:'formula()'};}]){

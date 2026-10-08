@@ -44,7 +44,10 @@ export function quoteDemand(quote:QuoteV27){
  }
  const typed=Object.values(trades).reduce((a,b)=>a+b,0);
  const field=calculation.lines.filter(line=>line.type==='Installer Days').reduce((sum,line)=>sum+line.hoursAllowed,0);
- const fieldDays=Math.max(0,...(calculation.estimators?.install.map(person=>person.days)??[]));
+ // Imported v27 Installer Days rows retain each person's duration. Do not turn
+ // concurrent person-days into one long single-person installation window.
+ const importedDays=quote.assumptionsVersion.startsWith('xlsx-v27-')?calculation.lines.filter(line=>line.type==='Installer Days').map(line=>line.inputs.siteDays):[];
+ const fieldDays=Math.max(0,...(calculation.estimators?.install.map(person=>person.days)??importedDays));
  return {shop,trades,untyped:Math.max(0,shop-typed),overallocated:Math.max(0,typed-shop),field,fieldDays:fieldDays||Math.ceil(field/Math.max(1,quote.settings.siteHours)),design:calculation.lines.filter(line=>line.type==='Design / Engineering / CAD').reduce((sum,line)=>sum+line.hoursAllowed,0),price:calculation.totals.price};
 }
 export type CapacityQuote={workspaceId:string;workspace:string;document:QuoteV27|null};
