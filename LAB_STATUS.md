@@ -1,5 +1,11 @@
 # Lab status
 
+## Spreadsheet quote import — October 8, 2026 (verification in progress)
+- Added `/quotes/import` and Quotes link: complete v27 XLSX → reconciled preview → explicit dates/status → new saved quote → existing native Capacity. Reads cached source prices, takeoffs/trades/notes/settings, preserving overrides and intermediate blank rows. No live Google integration or schema migration.
+- Source price, build budget, item inputs/hours/budgets and takeoff amounts must reconcile. Duplicate source fingerprint/name checks include all accessible active/archived pages; sequential guard only, not atomic cross-device uniqueness. Failed initial saves reuse returned workspace ID; unknown creation outcomes stop retry. Readback required before success. See SPREADSHEET_IMPORT.md for boundaries.
+- Detailed upstream estimator worksheets and source schedules are not reconstructed; recorded Quote Builder outputs remain, with persistent disclosure. Current business quote links/exports/list requested and still pending; no business quotes imported.
+- Initial local checks: historical extraction matches price and 60 shop / 40 field / 12 design hours with exact trades and weighted Capacity allocations. Browser XLSX upload, missing-date blocking and save/reopen passed using isolated memory adapter. Date fields commit on blur to retain typed calendar dates. Chrome upload automation requires extension file-URL access; used IAB without changing settings. Hosted verification/deployment pending.
+
 ## Cell editing, item clearing and fixed frame — October 7, 2026
 - Paul clarified Delete: typing/double-click/F2 edits characters; clicking selects a cell and Delete clears it. Replaced unconditional full-cell interception with explicit selection/edit state on Takeoff text and catalog fields. Arrow keys retain caret behavior during text edits; selected cells keep worksheet navigation.
 - Item Name drag-fill now assigns the source stable item ID instead of renaming destination items. Pointer capture belongs to the persistent scroll container so committing a source edit cannot detach the drag handle. Item identity fills stay in their source column and preserve filtered hidden rows.

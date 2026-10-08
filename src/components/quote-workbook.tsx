@@ -166,6 +166,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     onInputCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)setPendingInput(true);}}
     onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
     <div className={styles.frameHeader}>
+    {document?.assumptionsVersion.startsWith('xlsx-v27-')&&<p className="mb-2 text-xs text-amber-800">Imported spreadsheet: prices and takeoffs were reconciled to its saved values. Install, travel, shipping and beMatrix detail sheets were not imported; their recorded outputs remain in Quote Builder. Keep the original workbook for those details.</p>}
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h1 className="text-xl font-semibold">{libraryItem?`Prequote item — ${document?.lines[0]?.name??'Loading…'}`:quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">

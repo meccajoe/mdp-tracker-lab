@@ -5,6 +5,8 @@ Paul can describe changes to Codex, build and deploy them to a persistent sandbo
 
 ## Product starting point
 
+October 8: Paul needs existing spreadsheet quotes imported to Quote Builder and native Capacity, prioritizing all currently quoted projects appearing in the schedule. Build a reviewable import with recorded prices, item/trade hours, dates/status, duplicate checks and preserved revisions. Current project source list is pending. Initial v27 XLSX support/limitations are documented in SPREADSHEET_IMPORT.md; it is not an ongoing Google sync or full estimator-detail migration.
+
 October 7 clarification supersedes unconditional Delete: selected cells clear as a whole, while typing/double-click/F2 permits character editing. Item Name drag-fill assigns rows to the existing source item; it must not rename destination items. Quote Builder needs an undoable Clear item control. Keep the workbook frame/header/tabs and selection-sum footer visible while sheet contents scroll.
 
 October 6 direction: four Standard/Premium/Rush/Lower Budget pricing presets initialized from Standard; Takeoffs overtime percentage at 1.5× for that portion; dollar formatting; reliable native selections, Item click/drag behavior, Unit dropdown and full-cell Delete. Prequote items must have their own searchable, editable library, explicit Save as reusable on both Takeoffs/Quote Builder, and insert into next empty item/rows. Shared preset and overtime scope/price rules plus calculated-cell clearing are pending Paul’s answers. Do not silently reprice existing snapshots. See PREQUOTE_LIBRARY.md for independent library setup; earlier quote-linked reusable-storage design is superseded.

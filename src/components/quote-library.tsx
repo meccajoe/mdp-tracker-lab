@@ -158,10 +158,10 @@ export function QuoteLibrary() {
           <h1 className="mt-1 text-2xl font-bold tracking-tight">Quotes</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Create and resume quote workspaces before a Tracker project exists.</p>
         </div>
-        <Button size="lg" onClick={() => setCreateOpen(true)}>
+        <div className="flex items-center gap-3"><Link href="/quotes/import" className="text-sm underline">Import spreadsheet</Link><Button size="lg" onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden="true" />
           New quote
-        </Button>
+        </Button></div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
