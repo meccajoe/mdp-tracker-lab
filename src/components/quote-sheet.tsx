@@ -25,15 +25,20 @@ const headers = ['Item name','Line type',...inputs.map(i=>i.heading),'Support cr
   'Cost $ (equip / props / expenses / freight / dump fees)','COMPUTED PRICE','Price override','FINAL PRICE',
   ...outputs.map(([,label])=>label),'Margin %'];
 
-export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
+export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onViewChange }: {
   quote: QuoteV27;
   calculation: Calculation | null;
   edit: (change: (next: QuoteV27) => void) => void;
   onTakeoffs: (lineId: string) => void;
   onAdd?: () => void;
+  onViewChange?: () => void;
 }) {
   const [pendingClear,setPendingClear]=useState<string|null>(null);
   const [clearId,setClearId]=useState(quote.lines[0]?.id??'');
+  const [showDetails,setShowDetails]=useState(false);
+  const visibleInputs=showDetails?inputs:inputs.slice(0,3);
+  // Keep workbook letters stable when estimator-detail columns F–L are collapsed.
+  const visibleHeaders=headers.map((label,index)=>({label,index})).filter(({index})=>showDetails||index<5||index>11);
   const rows = new Map(calculation?.lines.map(line=>[line.id,line]));
   function inputCell(line: QuoteV27['lines'][number], key: keyof Inputs, label: string) {
     const calculated = rows.get(line.id)?.calculatedInputs[key] ?? line.inputs[key];
@@ -58,6 +63,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
       <div className={styles.toolbar}>
         <label>Sales commission % <input type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={quote.commission===0?'':Number((quote.commission*100).toFixed(8))} placeholder="—" onChange={e=>edit(next=>{next.commission=Number(e.target.value)/100;})}/></label>
         {onAdd&&<button type="button" onClick={onAdd}>Add item</button>}
+        <button type="button" aria-expanded={showDetails} onClick={()=>{setShowDetails(value=>!value);onViewChange?.();}}>{showDetails?'Hide estimate details':'Show estimate details'}</button>
         <label>Item to clear <select aria-label="Item to clear" value={clearId} onChange={e=>setClearId(e.target.value)}>{quote.lines.map((line,index)=><option key={line.id} value={line.id}>Item {index+1} — {line.name}</option>)}</select></label>
         <button type="button" disabled={!quote.lines.some(line=>line.id===clearId)} title="Reset this item and remove its linked takeoff rows. Undo restores everything." onClick={()=>setPendingClear(clearId)}>Clear item</button>
         <span>Open an item’s takeoffs with ↗. Scroll right for pricing and budgets.</span>
@@ -69,11 +75,11 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
       <button type="button" onClick={()=>setPendingClear(null)}>Cancel</button>
     </div>}
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
-      <table aria-label="Quote Builder estimates and budgets">
-        <colgroup><col style={{width:60}}/><col style={{width:190}}/><col style={{width:150}}/>{headers.slice(2).map((_,i)=><col key={i} style={{width:i===10?100:80}}/>)}</colgroup>
+      <table key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{width:showDetails?2200:1640}}>
+        <colgroup><col style={{width:60}}/><col style={{width:190}}/><col style={{width:150}}/>{visibleHeaders.slice(2).map(({index})=><col key={index} style={{width:index===12?100:80}}/>)}</colgroup>
         <thead>
-          <tr className={styles.letters}><th aria-label="Item number"/>{headers.map((_,i)=><th key={i} scope="col" className={i===0?styles.frozen:undefined}>{String.fromCharCode(65+i)}</th>)}</tr>
-          <tr className={styles.columnHeaders}><th>Item #</th>{headers.map((label,i)=><th key={label} scope="col" className={i===0?styles.frozen:undefined}>{label}</th>)}</tr>
+          <tr className={styles.letters}><th aria-label="Item number"/>{visibleHeaders.map(({index})=><th key={index} scope="col" className={index===0?styles.frozen:undefined}>{String.fromCharCode(65+index)}</th>)}</tr>
+          <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined}>{label}</th>)}</tr>
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
           const row=rows.get(line.id);
@@ -81,8 +87,8 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
             <th scope="row" className={styles.rowNumber}>{`Item ${index+1}`}</th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><input aria-label={`Line item ${index+1}`} value={line.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value;})}/><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
             <td className={styles.entry}><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></td>
-            {inputs.map(({key,heading})=>inputCell(line,key,heading))}
-            <td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>
+            {visibleInputs.map(({key,heading})=>inputCell(line,key,heading))}
+            {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}
             {inputCell(line,'cost','Cost $')}
             <td>{row ? amount(row.calculatedPrice) : '—'}</td>
             <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
@@ -91,7 +97,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd }: {
             <td>{row?.marginPercent != null ? `${(row.marginPercent*100).toFixed(1)}%` : '—'}</td>
           </tr>;
         })}</tbody>
-        {calculation && <tfoot><tr><th/><th className={styles.frozen}>GRAND TOTAL</th><td colSpan={12}/><td>{amount(calculation.totals.calculatedPrice)}</td><td/><td>{amount(calculation.totals.price)}</td>{outputs.map(([key])=><td key={key}>{key==='hoursAllowed'?numeric(calculation.totals[key]):amount(calculation.totals[key])}</td>)}<td>{calculation.totals.price ? `${(calculation.totals.margin/calculation.totals.price*100).toFixed(1)}%` : '—'}</td></tr></tfoot>}
+        {calculation && <tfoot><tr><th/><th className={styles.frozen}>GRAND TOTAL</th><td colSpan={showDetails?12:5}/><td>{amount(calculation.totals.calculatedPrice)}</td><td/><td>{amount(calculation.totals.price)}</td>{outputs.map(([key])=><td key={key}>{key==='hoursAllowed'?numeric(calculation.totals[key]):amount(calculation.totals[key])}</td>)}<td>{calculation.totals.price ? `${(calculation.totals.margin/calculation.totals.price*100).toFixed(1)}%` : '—'}</td></tr></tfoot>}
       </table>
     </div>
     {calculation && <div className={styles.economics}><h3>Project economics</h3><dl>{[

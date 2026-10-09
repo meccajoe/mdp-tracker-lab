@@ -1,5 +1,9 @@
 # Lab status
 
+## Compact Quote Builder columns — October 8, 2026
+- Paul approved hiding F–L (fab days, sqft/SEG, panels, rental, site/travel days and unused support crew) by default. Show estimate details restores the original columns/letters and editable overrides, including imported values. No saved values, schema or pricing calculations changed. beMatrix final price and production budgets remain visible.
+- Table shrinks from 2200px to 1640px; headers, column widths and grand-total spans follow visibility. Toggle is view state only and resets selection summary/table selection. Local browser verified 18 vs 25 columns with matching footer spans, unchanged $28,953.19 final price and $11,890.64 budget, and zero document edits after toggling. 74 quote tests and TypeScript passed. Lab deployment verification pending.
+
 ## Import corrections and older workbook support — October 8, 2026
 - Paul supplied three failing quotes. Added a retained-upload correction form for missing Settings values, Materials & Labor descriptions and parent links; no partial financial/Capacity save. Corrections apply to a copy, source totals still reconcile, audit notes persist and display on reopen. Blank unused labels are retained in Notes instead of blocking; nonzero cached costs/hours never take that path.
 - Added verified Solis v21 layout support: recorded B7 labor rate, no invented trade wages, labor-name trade attribution, legacy support person-days, separate PM price override. Source PM administrative hours are disclosed separately from production demand; nonzero PM costs still block. Pricing engine unchanged.
