@@ -11,7 +11,7 @@ export function QuoteGridInteraction({children,onSummary}:{children:ReactNode;on
   function select(end:Point){if(!anchor.current||anchor.current.table!==end.table)return;const start=anchor.current;let total=0,count=0;start.table.querySelectorAll('tbody tr').forEach((row,r)=>Array.from((row as HTMLTableRowElement).cells).forEach((cell,c)=>{
     const selected=r>=Math.min(start.row,end.row)&&r<=Math.max(start.row,end.row)&&c>=Math.min(start.column,end.column)&&c<=Math.max(start.column,end.column);
     cell.toggleAttribute('data-grid-selected',selected);if(!selected||cell.tagName==='TH')return;
-    const text=(cell.querySelector('input')?.value??cell.textContent??'').trim().replace(/[$,%\s,]/g,'');
+    const text=(cell.querySelector<HTMLInputElement|HTMLTextAreaElement>('input,textarea')?.value??cell.textContent??'').trim().replace(/[$,%\s,]/g,'');
     if(text&&/^-?\d+(\.\d+)?$/.test(text)){total+=Number(text);count++;}
   }));setSummary(`Selected numbers: ${count} · Sum: ${total.toLocaleString('en-US',{maximumFractionDigits:2})}`);}
   return <div ref={root} onMouseDown={e=>{if((e.target as HTMLElement).closest('button,[role=listbox],[role=dialog]'))return;const p=point(e.target);if(p){if(e.shiftKey&&anchor.current?.table===p.table){e.preventDefault();select(p);return;}anchor.current=p;dragging.current=true;setSummary('');root.current?.querySelectorAll('[data-grid-selected]').forEach(cell=>cell.removeAttribute('data-grid-selected'));}}}
@@ -28,7 +28,7 @@ export function QuoteGridInteraction({children,onSummary}:{children:ReactNode;on
       const p=point(e.target);if(!p)return;e.preventDefault();
       const rows=p.table.querySelectorAll('tbody tr');const r=p.row+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0),c=p.column+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0);
       const cell=(rows?.[r] as HTMLTableRowElement|undefined)?.cells[c];if(!cell)return;
-      const target=cell.querySelector<HTMLElement>('input,select,button')??cell;target.tabIndex=target===cell?-1:target.tabIndex;target.focus();
+      const target=cell.querySelector<HTMLElement>('input,textarea,select,button')??cell;target.tabIndex=target===cell?-1:target.tabIndex;target.focus();
       if(target instanceof HTMLInputElement&&target.type!=='number')target.select();
     }}>
     {children}

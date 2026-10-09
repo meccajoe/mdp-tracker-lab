@@ -39,6 +39,8 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
   const visibleInputs=showDetails?inputs:inputs.slice(0,3);
   // Keep workbook letters stable when estimator-detail columns F–L are collapsed.
   const visibleHeaders=headers.map((label,index)=>({label,index})).filter(({index})=>showDetails||index<5||index>11);
+  const columnWidths=[60,...visibleHeaders.map(({index})=>index===0?320:index===1?280:index===12?120:90)];
+  const tableWidth=columnWidths.reduce((sum,width)=>sum+width,0);
   const rows = new Map(calculation?.lines.map(line=>[line.id,line]));
   function inputCell(line: QuoteV27['lines'][number], key: keyof Inputs, label: string) {
     const calculated = rows.get(line.id)?.calculatedInputs[key] ?? line.inputs[key];
@@ -75,8 +77,8 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
       <button type="button" onClick={()=>setPendingClear(null)}>Cancel</button>
     </div>}
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
-      <table key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{width:showDetails?2200:1640}}>
-        <colgroup><col style={{width:60}}/><col style={{width:190}}/><col style={{width:150}}/>{visibleHeaders.slice(2).map(({index})=><col key={index} style={{width:index===12?100:80}}/>)}</colgroup>
+      <table key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{minWidth:tableWidth}}>
+        <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
         <thead>
           <tr className={styles.letters}><th aria-label="Item number"/>{visibleHeaders.map(({index})=><th key={index} scope="col" className={index===0?styles.frozen:undefined}>{String.fromCharCode(65+index)}</th>)}</tr>
           <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined}>{label}</th>)}</tr>
@@ -85,8 +87,8 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
           const row=rows.get(line.id);
           return <tr key={line.id} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
             <th scope="row" className={styles.rowNumber}>{`Item ${index+1}`}</th>
-            <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><input aria-label={`Line item ${index+1}`} value={line.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value;})}/><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
-            <td className={styles.entry}><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></td>
+            <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{line.name+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} value={line.name} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
+            <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{line.type}</span><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></div></td>
             {visibleInputs.map(({key,heading})=>inputCell(line,key,heading))}
             {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}
             {inputCell(line,'cost','Cost $')}

@@ -8,7 +8,7 @@
 .toolbar button { padding: 4px 10px; border: 1px solid #aeb5bd; background: #f4f6f8; }
 .toolbar span { font-size: 12px; color: #505b6b; }
 .scroll { max-height: 65vh; overflow: auto; border-top: 1px solid #bcc3cb; }
-.sheet table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 2200px; }
+.sheet table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
 .sheet th, .sheet td { border-right: 1px solid #c3c7cd; border-bottom: 1px solid #c3c7cd; }
 .sheet td { height: 25px; padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; background: #fff; }
 .sheet thead { position: sticky; top: 0; z-index: 4; }
@@ -18,8 +18,8 @@
 .sheet .entry { background: #fff7da; padding: 0; color: #182775; }
 .sheet .frozen { position: sticky; left: 0; z-index: 2; text-align: left; box-shadow: 2px 0 #9ca5b1; }
 .sheet .columnHeaders .frozen { background: #e3eaf3; }
-.sheet input, .sheet select { font: inherit; color: inherit; border-radius: 0; min-width: 0; outline-offset: -2px; }
-.sheet input:focus, .sheet select:focus, .sheet button:focus-visible { outline: 2px solid #2563eb; z-index: 3; }
+.sheet input, .sheet select, .sheet textarea { font: inherit; color: inherit; border-radius: 0; min-width: 0; outline-offset: -2px; }
+.sheet input:focus, .sheet textarea:focus, .sheet select:focus, .sheet button:focus-visible { outline: 2px solid #2563eb; z-index: 3; }
 .sheet input::placeholder { color: #646b46; opacity: 1; }
 .entry input, .entry select { width: 100%; height: 24px; padding: 3px 6px; background: transparent; border: 0; }
 .entry input[type=number] { text-align: right; appearance: textfield; }
@@ -49,3 +49,14 @@
 
 .clearPrompt {display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff3df;border:1px solid #ddc9a7;padding:8px;}
 .clearPrompt button {border:1px solid #bdc5cf;background:white;padding:4px 8px;border-radius:4px;}
+
+/* Wrapped labels keep complete item names/types readable without extra clicks. */
+.growingName {display:grid;flex:1;min-width:0;text-align:left;}
+.growingName > span, .growingName > textarea {grid-area:1 / 1;padding:6px 8px;font:inherit;line-height:18px;white-space:pre-wrap;overflow-wrap:anywhere;box-sizing:border-box;}
+.growingName > span {visibility:hidden;}
+.growingName > textarea {width:100%;height:100%;min-height:30px;resize:none;overflow:hidden;background:transparent;border:0;}
+.typeCell {position:relative;text-align:left;min-height:30px;}
+.typeCell > span {display:block;padding:6px 26px 6px 8px;line-height:18px;overflow-wrap:anywhere;}
+.typeCell::after {content:'▾';position:absolute;right:8px;top:6px;pointer-events:none;}
+.typeCell > select {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.typeCell:focus-within {outline:2px solid #2563eb;outline-offset:-2px;}
