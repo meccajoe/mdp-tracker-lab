@@ -39,7 +39,7 @@ export async function GET(request: Request, { params }: Context) {
   if (!result.data) return json({ error: 'Workbook revision not found.' }, 404);
   try {
     const document = parseQuoteV27(result.data.document);
-    return json({ document, version, latestVersion, history: history.data, canEdit, calculation: calculateQuoteV27(document) });
+    return json({ document, version, latestVersion, history: history.data, canEdit });
   } catch {
     return json({ error: 'This saved workbook is invalid. Its history has been preserved.' }, 422);
   }

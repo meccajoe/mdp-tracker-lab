@@ -31,7 +31,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [error,setError]=useState('');
   const [itemPicker,setItemPicker]=useState<number|null>(null);
   const [learnedUsage,setLearnedUsage]=useState<Record<string,number>>({});
-  useEffect(()=>{let active=true;void loadQuoteLibrary().then(({quotes})=>{const usage:Record<string,number>={};for(const saved of quotes)if(saved.workspaceId!==workspaceId)for(const [name,count] of Object.entries(saved.document.catalogUsage??{}))usage[name]=(usage[name]??0)+count;if(active)setLearnedUsage(usage);}).catch(()=>{});return()=>{active=false;};},[workspaceId]);
+  useEffect(()=>{let active=true,generation=0;const load=()=>{const started=++generation;void loadQuoteLibrary({excludeWorkspaceId:workspaceId,maxAgeMs:60000}).then(({quotes})=>{const usage:Record<string,number>={};for(const saved of quotes)for(const [name,count] of Object.entries(saved.document.catalogUsage??{}))usage[name]=(usage[name]??0)+count;if(active&&started===generation)setLearnedUsage(usage);}).catch(()=>{if(active&&started===generation)setLearnedUsage({});});};const clear=()=>{if(active)setLearnedUsage({});load();};load();window.addEventListener('quote-library-identity-changed',clear);window.addEventListener('quote-workbook-saved',load);return()=>{active=false;window.removeEventListener('quote-library-identity-changed',clear);window.removeEventListener('quote-workbook-saved',load);};},[workspaceId]);
   const usage={...learnedUsage};for(const [name,count] of Object.entries(quote.catalogUsage??{}))usage[name]=(usage[name]??0)+count;
   const filterChoices=quote.lines.filter(line=>`${quoteItemLabel(quote,line.id)} ${line.name}`.toLowerCase().includes(filterQuery.toLowerCase()));
   function setFilter(id:string) {
