@@ -19,7 +19,7 @@ const inputs: { key: keyof Inputs; heading: string }[] = [
 const outputs = [
   ['materialsBudget','Materials / other budget'], ['hoursAllowed','Hours allowed'],
   ['laborBudget','Labor $ (cost)'], ['buildBudget','Build budget'],
-  ['contingency','Contingency'], ['indirect','Indirect levy'], ['margin','Margin'],
+  ['contingency','Contingency'], ['indirect','Indirect levy'], ['waste','Waste levy'], ['margin','Margin'],
 ] as const;
 const headers = ['Item name','Line type',...inputs.map(i=>i.heading),'Support crew',
   'Cost $ (equip / props / expenses / freight / dump fees)','COMPUTED PRICE','Price override','FINAL PRICE',
@@ -61,6 +61,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
   return <div className={styles.sheet}>
     <div className={styles.heading}>
       <h2>Quote Builder — enter ESTIMATES, prices and budgets compute themselves</h2>
+      <p>{quote.pricingVersion==='levies-v1'?'Levy pricing: computed prices include applicable contingency, indirect labor and waste.':'Original workbook pricing. Use Settings to apply new levy pricing.'}</p>
       <p>Yellow cells are editable. ↺ restores a calculated input. Clear a price override to restore the computed price.</p>
       <div className={styles.toolbar}>
         <label>Sales commission % <input type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={quote.commission===0?'':Number((quote.commission*100).toFixed(8))} placeholder="—" onChange={e=>edit(next=>{next.commission=Number(e.target.value)/100;})}/></label>
@@ -96,17 +97,18 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
             <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
             <td className={styles.finalPrice}>{row ? amount(row.finalPrice) : '—'}</td>
             {outputs.map(([key])=><td key={key}>{row ? (key==='hoursAllowed'?numeric(row[key]):amount(row[key])) : '—'}</td>)}
-            <td>{row?.marginPercent != null ? `${(row.marginPercent*100).toFixed(1)}%` : '—'}</td>
+            <td className={row?.belowOverhead?styles.belowOverhead:undefined} title="Red means margin is below the OpEx recovery percentage.">{row?.marginPercent != null ? `${(row.marginPercent*100).toFixed(1)}%` : '—'}</td>
           </tr>;
         })}</tbody>
-        {calculation && <tfoot><tr><th/><th className={styles.frozen}>GRAND TOTAL</th><td colSpan={showDetails?12:5}/><td>{amount(calculation.totals.calculatedPrice)}</td><td/><td>{amount(calculation.totals.price)}</td>{outputs.map(([key])=><td key={key}>{key==='hoursAllowed'?numeric(calculation.totals[key]):amount(calculation.totals[key])}</td>)}<td>{calculation.totals.price ? `${(calculation.totals.margin/calculation.totals.price*100).toFixed(1)}%` : '—'}</td></tr></tfoot>}
+        {calculation && <tfoot><tr><th/><th className={styles.frozen}>GRAND TOTAL</th><td colSpan={showDetails?12:5}/><td>{amount(calculation.totals.calculatedPrice)}</td><td/><td>{amount(calculation.totals.price)}</td>{outputs.map(([key])=><td key={key}>{key==='hoursAllowed'?numeric(calculation.totals[key]):amount(calculation.totals[key])}</td>)}<td className={calculation.totals.price>0&&calculation.totals.margin/calculation.totals.price<quote.settings.opex?styles.belowOverhead:undefined}>{calculation.totals.price ? `${(calculation.totals.margin/calculation.totals.price*100).toFixed(1)}%` : '—'}</td></tr></tfoot>}
       </table>
     </div>
     {calculation && <div className={styles.economics}><h3>Project economics</h3><dl>{[
       ['Total quote (incl. PM fee)',calculation.totals.price],['Total build budget',calculation.totals.buildBudget],
       ['Contingency reserve',calculation.totals.contingency],['Indirect labor levy',calculation.totals.indirect],
-      ['Margin after reserve + levy',calculation.totals.margin],['PM bonus reserve (top tier)',calculation.totals.pmBonus],
-      ['OpEx recovery',calculation.totals.opex],['Planned net',calculation.totals.netProfit],
+      ['Waste levy',calculation.totals.waste],['Commission payout',calculation.totals.commission],
+      ['Margin after reserve + levies',calculation.totals.margin],['PM bonus reserve (top tier)',calculation.totals.pmBonus],
+      ['OpEx recovery',calculation.totals.opex],['Planned net',calculation.totals.netProfit],['Discount check (final − computed)',calculation.totals.discount],
     ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{currency(Number(value))}</dd></div>)}</dl></div>}
   </div>;
 }

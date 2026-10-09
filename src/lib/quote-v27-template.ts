@@ -1,3 +1,4 @@
+import {applyLevyPricing} from './quote-v27';
 import blank from '../data/quote-v27-blank.json';
 import { emptyEstimators } from './quote-v27-estimators';
 import { parseQuoteV27 } from './quote-v27-validation';
@@ -15,5 +16,6 @@ export function createBlankQuoteV27() {
   estimators.travel.otherLineId = 'line-34';
   estimators.shipping.lineId = 'line-41';
   quote.estimators = estimators;
+  applyLevyPricing(quote);
   return quote;
 }

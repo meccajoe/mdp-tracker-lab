@@ -8,7 +8,7 @@ if (Number(process.versions.node.split('.')[0]) !== 24) {
 }
 const suites = [
   ['--experimental-strip-types', '--test', 'tests/quote-v27.test.mjs', 'tests/quote-v27-estimators.test.mjs', 'tests/lab-safety.test.mjs'],
-  ['--import', 'tsx', '--test', 'tests/quote-v27-validation.test.ts', 'tests/quote-v27-blank.test.ts', 'tests/quote-takeoff-grid.test.ts', 'tests/quote-live-catalog.test.ts', 'tests/quote-edit-history.test.ts', 'tests/quote-reusable-items.test.ts', 'tests/capacity.test.ts'],
+  ['--import', 'tsx', '--test', 'tests/quote-v27-validation.test.ts', 'tests/quote-v27-blank.test.ts', 'tests/quote-levy-pricing.test.ts', 'tests/quote-takeoff-grid.test.ts', 'tests/quote-live-catalog.test.ts', 'tests/quote-edit-history.test.ts', 'tests/quote-reusable-items.test.ts', 'tests/capacity.test.ts'],
   ['--import', 'tsx', '--test', 'tests/quote-spreadsheet-import.test.ts'],
   ['node_modules/typescript/bin/tsc', '--noEmit', '--incremental', 'false'],
 ];

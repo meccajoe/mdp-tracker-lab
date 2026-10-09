@@ -1,6 +1,6 @@
 "use client";
 
-import type { QuoteV27, Settings } from '@/lib/quote-v27';
+import { applyLevyPricing, LINE_TYPES, type QuoteV27, type Settings } from '@/lib/quote-v27';
 import styles from './quote-rates.module.css';
 
 type Unit = '%' | '$' | '×' | 'hours' | 'minutes' | 'people';
@@ -12,6 +12,7 @@ const groups: { title: string; rows: Rate[] }[] = [
     {key:'indirect',label:'Indirect labor levy',unit:'%',note:'Share of sell allocated to indirect labor.'},
     {key:'burdenedRateOverride',label:'Pinned labor cost / hour',unit:'$',note:'Optional override. Clear to use the average of trade rates below.'},
     {key:'laborSell',label:'Labor sell rate / hour',unit:'$',note:'Fabrication, graphics installation, stage/pack and disposal labor.'},
+    {key:'waste',label:'Waste levy (% of sell)',unit:'%',note:'Dumpsters and shop waste, 99% job-related. Added on top of every line price, like the indirect levy.'},
   ]},
   { title: 'Fabrication pricing', rows: [
     {key:'materialMarkup',label:'Materials markup',unit:'×',note:'Material cost × this multiplier = client charge.'},
@@ -66,23 +67,34 @@ function RateInput({label,value,unit,onChange,nullable=false}: {
 export function QuoteRates({quote,edit,laborRate}: {
   quote:QuoteV27; edit:(change:(next:QuoteV27)=>void)=>void; laborRate:number|null;
 }) {
+  const levyPricing=quote.pricingVersion==='levies-v1';
+  const levyNotes:Partial<Record<keyof Settings,string>>={
+    opex:'All 2027 overhead, including admin labor, bonuses, shop supplies, machine upkeep and forklifts. PM salaries are inside it.',
+    indirect:'Drivers, runners, warehouse, cleaning: unbilled shop labor (~$430K/yr). Added on top of every line price.',
+    contingency:'Added on top of the price for line types marked Yes in the Contingency? column. Released only by approval; leftovers drop to profit.',
+  };
   function setting(key:keyof Settings,value:number|null) {
     edit(next=>{if(key==='burdenedRateOverride')next.settings[key]=value;else next.settings[key]=value??0;});
   }
   return <div className={styles.sheet}>
     <header className={styles.header}><h2>Quote Template — Settings</h2><p>Yellow cells are editable. Rates are saved with each quote revision.</p></header>
+    {!levyPricing&&<section className={styles.group}><h3>Original workbook pricing</h3><p>This saved quote retains its original pricing. Applying new pricing sets OpEx to 40%, waste to 0.5%, and grosses up computed prices for commission, indirect labor, waste and eligible contingency. Typed price overrides stay unchanged.</p><button type="button" onClick={()=>edit(applyLevyPricing)}>Apply new levy pricing</button></section>}
     <div className={styles.commission}><span>Sales commission</span><RateInput label="Sales commission" unit="%" value={quote.commission} onChange={value=>edit(next=>{next.commission=value??0;})}/><p>Enter 10 for 10%. Zero means no commission.</p></div>
     {groups.map(group=><section key={group.title} aria-label={group.title} className={styles.group}>
       <h3>{group.title}</h3>
       <div className={styles.columnHead} aria-hidden="true"><span>Parameter</span><span>Value</span><span>Notes</span></div>
-      {group.rows.map(row=><div key={row.key} className={styles.row}>
+      {group.rows.filter(row=>levyPricing||row.key!=='waste').map(row=><div key={row.key} className={styles.row}>
         <span className={styles.label}>{row.label}</span>
-        <div><RateInput label={row.label} unit={row.unit} value={quote.settings[row.key]} nullable={row.key==='burdenedRateOverride'} onChange={value=>setting(row.key,value)}/>
+        <div><RateInput label={row.label} unit={row.unit} value={quote.settings[row.key]===null?null:quote.settings[row.key]??0} nullable={row.key==='burdenedRateOverride'} onChange={value=>setting(row.key,value)}/>
           {row.key==='burdenedRateOverride' && quote.settings.burdenedRateOverride!==null && <button type="button" className={styles.restore} onClick={()=>setting(row.key,null)}>Restore calculated rate</button>}</div>
-        <p>{row.note}</p>
+        <p>{levyPricing?(levyNotes[row.key]??row.note):row.note}</p>
       </div>)}
+      {group.title==='Professional services'&&<div className={styles.calculated}><span>PM loaded cost</span><strong>$0.00</strong><span>PM salaries recovered inside the {Number((quote.settings.opex*100).toFixed(4))}% OpEx (one address per dollar).</span></div>}
       {group.title==='Global parameters' && <div className={styles.calculated}><span>Labor cost in use / hour</span><strong>{laborRate===null?'Unavailable':money(laborRate)}</strong><span>{quote.settings.burdenedRateOverride===null?'Calculated from trade wages and burden multiplier.':'Manual rate override in use.'}</span></div>}
     </section>)}
+    {levyPricing&&<section className={styles.group} aria-label="Line type contingency"><h3>Line type contingency</h3>
+      {LINE_TYPES.map(type=><div key={type} className={styles.row}><span className={styles.label}>{type}</span><select aria-label={`Contingency? · ${type}`} value={quote.contingencyByType?.[type]?'Yes':'No'} disabled={type==='Project Management Fee'} onChange={event=>edit(next=>{next.contingencyByType![type]=event.target.value==='Yes';})}><option>Yes</option><option>No</option></select><p>{type==='Project Management Fee'?'PM fee never carries contingency.':'Contingency?'}</p></div>)}
+    </section>}
     <section className={styles.group} aria-label="Trade labor costs"><h3>Trade labor costs</h3>
       <div className={styles.row}><span className={styles.label}>Wage burden multiplier</span><RateInput label="Wage burden multiplier" unit="×" value={quote.settings.burdenMultiplier} onChange={value=>setting('burdenMultiplier',value)}/><p>Base wage × this multiplier = burdened cost.</p></div>
       <div className={styles.tradeHead}><span>Labor type</span><span>Base wage / hour</span><span>Burdened cost / hour</span></div>

@@ -53,6 +53,13 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
         priceOverride:nullable(row.priceOverride)};
     }),
   };
+  if(settings.waste!==undefined)parsed.settings.waste=num(settings.waste);
+  if(v.pricingVersion!==undefined){
+    if(v.pricingVersion!=='levies-v1')throw new Error('Unsupported pricing version.');
+    parsed.pricingVersion=v.pricingVersion;
+    const eligibility=record(v.contingencyByType);
+    parsed.contingencyByType=Object.fromEntries(LINE_TYPES.map(type=>[type,bool(eligibility[type])])) as NonNullable<QuoteV27['contingencyByType']>;
+  }else if(v.contingencyByType!==undefined)throw new Error('Contingency choices require levy pricing.');
   if(v.planning!==undefined)parsed.planning=parsePlanning(v.planning);
   if(v.importNotes!==undefined){if(!Array.isArray(v.importNotes)||v.importNotes.length>10050)throw new Error('Invalid import notes.');parsed.importNotes=v.importNotes.map(note=>text(note,'Import note',5000));}
   if(v.schedule!==undefined)parsed.schedule=parseSchedule(v.schedule);

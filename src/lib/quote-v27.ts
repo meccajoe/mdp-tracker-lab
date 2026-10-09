@@ -16,6 +16,7 @@ export type Inputs = {
   panels: number; rental: number; siteDays: number; travelDays: number; cost: number;
 };
 export type Settings = {
+  waste?: number;
   contingency: number; opex: number; indirect: number; laborSell: number;
   materialMarkup: number; shopDay: number; efficiency: number; graphicsSell: number;
   graphicsCost: number; handlingMinutes: number; handlingCrew: number; designSell: number;
@@ -38,6 +39,8 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
+  pricingVersion?: "levies-v1";
+  contingencyByType?: Record<LineType, boolean>;
   importNotes?: string[];
   schedule?: QuoteSchedule;
   planning?: CapacityOverride;
@@ -52,6 +55,15 @@ export const EMPTY_INPUTS: Inputs = {
   materials: 0, resale: 0, hours: 0, days: 0, sqft: 0, panels: 0,
   rental: 0, siteDays: 0, travelDays: 0, cost: 0,
 };
+
+export const DEFAULT_CONTINGENCY_TYPES: readonly LineType[] = ["Fabrication", "Graphics", "Lead Installer — Install", "Lead Installer — Dismantle", "Installer Days", "Install Support Labor", "Stage / Pack / Prep"];
+/** Explicit adoption only: new drafts or a user-requested reprice; never on load. */
+export function applyLevyPricing(quote: QuoteV27) {
+  quote.pricingVersion = "levies-v1";
+  quote.settings.opex = .40;
+  quote.settings.waste = .005;
+  quote.contingencyByType = Object.fromEntries(LINE_TYPES.map(type=>[type,DEFAULT_CONTINGENCY_TYPES.includes(type)])) as Record<LineType,boolean>;
+}
 
 function nonnegative(value: number, name: string) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
@@ -68,6 +80,17 @@ export function calculateQuoteV27(quote: QuoteV27) {
   if (quote.schemaVersion !== 1 || !quote.assumptionsVersion) throw new Error("Unsupported quote snapshot version.");
   const estimatorResult = quote.estimators ? calculateEstimators(quote, quote.estimators) : null;
   const s = quote.settings;
+  if (quote.pricingVersion !== undefined && quote.pricingVersion !== "levies-v1") throw new Error("Unsupported pricing version.");
+  const levies = quote.pricingVersion === "levies-v1";
+  if (levies && (typeof s.waste !== "number" || !quote.contingencyByType || LINE_TYPES.some(type=>typeof quote.contingencyByType?.[type] !== "boolean"))) throw new Error("Levy pricing requires a waste rate and contingency choice for every line type.");
+  if (levies && quote.contingencyByType?.["Project Management Fee"]) throw new Error("Project Management Fee must not carry contingency.");
+  const wasteRate=levies?s.waste!:0;
+  const contingencyRate=(type:LineType)=>(!levies||quote.contingencyByType![type])?s.contingency:0;
+  const divisor=(type:LineType)=>{
+    const value=1-quote.commission-(levies?s.indirect+wasteRate+contingencyRate(type):0);
+    if(value<=0)throw new Error(`${type}: commission, levies and contingency must total less than 100%.`);
+    return value;
+  };
   for (const [key, value] of Object.entries(s)) {
     if (key === "burdenedRateOverride" && value === null) continue;
     nonnegative(value as number, key);
@@ -75,6 +98,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
   if (s.efficiency === 0) throw new Error("Task-hour efficiency must be greater than zero.");
   for (const key of ["contingency", "opex", "indirect", "pmFee", "pmBonus"] as const)
     if (s[key] > 1) throw new Error(`${key} must be at most 100%.`);
+  if ((s.waste??0)>1) throw new Error("Waste levy must be at most 100%.");
   nonnegative(quote.commission, "Commission");
   if (quote.commission >= 1) throw new Error("Commission must be less than 100%.");
   const catalog = unique(quote.catalog, "Material");
@@ -158,7 +182,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
       case "Installer Days": price = x.cost; hoursAllowed = x.siteDays * s.siteHours; break;
       case "Project Management Fee": break; // Second pass: uses final hard-scope prices.
     }
-    const calculatedPrice = price / (1 - quote.commission);
+    const calculatedPrice = price / divisor(line.type);
     const laborBudget = hoursAllowed * laborRate;
     // Do not silently rescale named trades when efficiency or input overrides differ.
     const tradeHours = { ...(total?.trades ?? {}) };
@@ -171,28 +195,29 @@ export function calculateQuoteV27(quote: QuoteV27) {
   });
   const hardScope = lines.filter(line => !["Project Management Fee", "Travel & Expenses", "Freight"].includes(line.type)).reduce((sum, line) => sum + line.finalPrice, 0);
   for (const line of lines) if (line.type === "Project Management Fee") {
-    // Template N36 applies the fee to already-grossed-up final prices; no second gross-up.
-    line.calculatedPrice = hardScope * s.pmFee;
+    // Legacy N36 had no gross-up. New rules gross up the fee on final hard scope.
+    line.calculatedPrice = hardScope * s.pmFee / (levies ? divisor(line.type) : 1);
     line.finalPrice = line.priceOverride ?? line.calculatedPrice;
   }
   const pricedLines = lines.map(line => {
-    const contingency = line.finalPrice * s.contingency;
+    const contingency = line.finalPrice * contingencyRate(line.type);
     const indirect = line.finalPrice * s.indirect;
+    const waste = line.finalPrice * wasteRate;
     const commission = line.finalPrice * quote.commission;
-    const margin = line.finalPrice - line.buildBudget - contingency - indirect - commission;
-    return { ...line, contingency, indirect, commission, margin, marginPercent: line.finalPrice === 0 ? null : margin / line.finalPrice };
+    const margin = line.finalPrice - line.buildBudget - contingency - indirect - waste - commission;
+    return { ...line, contingency, indirect, waste, commission, margin, belowOverhead:line.finalPrice>0&&margin/line.finalPrice<s.opex, marginPercent: line.finalPrice === 0 ? null : margin / line.finalPrice };
   });
   const totals = pricedLines.reduce((sum, line) => ({
     price: sum.price + line.finalPrice, calculatedPrice: sum.calculatedPrice + line.calculatedPrice,
     materialsBudget: sum.materialsBudget + line.materialsBudget, hoursAllowed: sum.hoursAllowed + line.hoursAllowed,
     laborBudget: sum.laborBudget + line.laborBudget, buildBudget: sum.buildBudget + line.buildBudget,
-    contingency: sum.contingency + line.contingency, indirect: sum.indirect + line.indirect,
+    contingency: sum.contingency + line.contingency, indirect: sum.indirect + line.indirect, waste:sum.waste+line.waste,
     commission: sum.commission + line.commission, margin: sum.margin + line.margin,
-  }), { price: 0, calculatedPrice: 0, materialsBudget: 0, hoursAllowed: 0, laborBudget: 0, buildBudget: 0, contingency: 0, indirect: 0, commission: 0, margin: 0 });
+  }), { price: 0, calculatedPrice: 0, materialsBudget: 0, hoursAllowed: 0, laborBudget: 0, buildBudget: 0, contingency: 0, indirect: 0, waste:0, commission: 0, margin: 0 });
   const tradeHours: Record<string, number> = {};
   for (const line of lines) for (const [id, hours] of Object.entries(line.tradeHours)) tradeHours[id] = (tradeHours[id] ?? 0) + hours;
   const pmBonus = totals.margin * s.pmBonus, opex = totals.price * s.opex;
   for (const value of Object.values(totals)) if (!Number.isFinite(value)) throw new Error("Quote calculation exceeds numeric limits.");
-  return { estimators: estimatorResult, laborRate, takeoffs, lines: pricedLines, tradeHours, totals: { ...totals, pmBonus, opex, netProfit: totals.margin - pmBonus - opex },
+  return { estimators: estimatorResult, laborRate, takeoffs, lines: pricedLines, tradeHours, totals: { ...totals, discount:totals.price-totals.calculatedPrice, pmBonus, opex, netProfit: totals.margin - pmBonus - opex },
     warnings: [...(quote.takeoffs.some(row=>!row.lineId&&(row.quantity||row.hours))?['Some takeoff rows have no item. Assign an Item # or name to include them in the quote.']:[]), ...(estimatorResult?.warnings ?? []), ...lines.filter(line => line.overallocatedTradeHours > 0).map(line => `${line.name}: takeoff trade hours exceed allowed hours by ${line.overallocatedTradeHours}.`)] };
 }

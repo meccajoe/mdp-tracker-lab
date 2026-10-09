@@ -5,6 +5,8 @@ Paul can describe changes to Codex, build and deploy them to a persistent sandbo
 
 ## Product starting point
 
+October 9 authorized pricing change: new quotes gross up rate-card base for commission + indirect + 0.5% waste + contingency on seven eligible types. OpEx becomes 40% but is not grossed up. PM uses final hard-scope base and commission/levies without contingency. Literal price overrides, rate card, burden, PM bonus and historical/Legacy Decoder math remain intact. Existing quotes adopt only through Settings → Apply new levy pricing. Display waste after indirect, margin warning below OpEx, discount check and updated economics. Verified source type list A42:A61 (not requested 43–62). See V27_CALCULATOR.md.
+
 October 8 readability: widen Quote Builder columns after hiding F–L; Item Name and Line Type should be widest with full wrapped text. Expand the table to use wide windows and preserve sensible minimum widths on smaller screens. Keep all existing estimates and pricing unchanged.
 
 October 8 compact Quote Builder: hide source columns F–L by default, with Show estimate details to restore them for imported or exceptional estimates. Retain all underlying inputs/overrides/calculations. Main view shows item/type, materials/resale/hours, other cost, calculated/override/final price and budgets/margins. beMatrix totals still include frame rental and SEG; this is presentation only.

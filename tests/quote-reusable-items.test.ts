@@ -24,7 +24,7 @@ test('beMatrix linked wall includes rental and SEG; unlinked wall contributes no
  q.estimators!.beMatrix.walls=[{id:'wall',lineId:line.id,width:22,height:10,sides:2,sqftOverride:null}];
  const value=calculateQuoteV27(q).lines.find(row=>row.id===line.id)!;
  assert.equal(value.calculatedInputs.sqft,440);assert.equal(value.calculatedInputs.rental,3500);
- assert.equal(value.finalPrice,3500+440*q.settings.graphicsSell);
+ assert.equal(value.finalPrice,(3500+440*q.settings.graphicsSell)/.955);
  q.estimators!.beMatrix.walls[0].lineId=null;
  assert.equal(calculateQuoteV27(q).lines.find(row=>row.id===line.id)!.finalPrice,0);
 });
