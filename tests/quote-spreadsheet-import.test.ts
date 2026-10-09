@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {WorkBook} from 'xlsx';
 import fixture from './fixtures/quote-v27/fonroche.json';
-import {importV27Workbook} from '../src/lib/quote-spreadsheet-import';
+import {importV27Workbook,reviewV27Workbook,repairV27Workbook,emptyImportRepair} from '../src/lib/quote-spreadsheet-import';
+import {parseQuoteV27} from '../src/lib/quote-v27-validation';
 import {capacityProject,capacityLoad,emptyCapacity,quoteDemand} from '../src/lib/capacity';
 
 // Reconstruct the independently extracted source cells, including formula/literal identity.
@@ -57,4 +58,77 @@ test('missing results, unsupported layouts, unassigned rows and mismatched total
  for(const mutate of [(b:WorkBook)=>delete b.Sheets.Settings,(b:WorkBook)=>{b.Sheets['Quote Builder'].P43.v+=1;},(b:WorkBook)=>{b.Sheets['Quote Builder'].B5.v='Unknown';},(b:WorkBook)=>{b.Sheets.Takeoffs.A5.v='Missing parent';},(b:WorkBook)=>{b.Sheets['Quote Builder'].P5={t:'n',f:'formula()'};}]){
   const book=source();mutate(book);assert.throws(()=>importV27Workbook(book,'b'.repeat(64)));
  }
+});
+
+test('unused labels survive in notes, but nonzero totals are never discarded',()=>{
+ const book=source();book.Sheets.Takeoffs.A86={t:'s',v:'Soldier Lights'};
+ const imported=importV27Workbook(book,'c'.repeat(64));
+ assert.equal(imported.demand.price,fixture.expected.price);
+ assert.match(imported.document.takeoffs.find(r=>r.id==='takeoff-86')!.notes!,/Soldier Lights/);
+ assert.match(imported.document.importNotes![0],/unused label/);
+ book.Sheets.Takeoffs.H86={t:'n',v:100};
+ assert.throws(()=>importV27Workbook(book,'c'.repeat(64)));
+ assert.equal(reviewV27Workbook(book).unmatched[0].row,86);
+});
+
+test('repair all missing details on a copy, retain audit notes and reconcile unchanged amounts',()=>{
+ const book=source(),row=book.Sheets.Takeoffs;
+ const originalDescription=row.B5.v,originalItem=row.A5.v;
+ row.B5={t:'s',v:''};row.A5={t:'s',v:'Old name'};delete book.Sheets.Settings.B64;
+ const before=structuredClone(book),repairs=emptyImportRepair();
+ const review=reviewV27Workbook(book);
+ assert.equal(review.missingSettings[0].cell,'B64');assert.equal(review.unmatched[0].needsDescription,true);
+ assert.throws(()=>repairV27Workbook(book,repairs),/Labor burden/);
+ repairs.settings.B64=String(fixture.quote.settings.burdenMultiplier);
+ repairs.items[5]=String(originalItem);repairs.descriptions[5]=String(originalDescription);
+ const repaired=repairV27Workbook(book,repairs);
+ assert.deepEqual(book,before);
+ const imported=importV27Workbook(repaired.book,'d'.repeat(64),repaired.notes);
+ assert.equal(imported.demand.price,fixture.expected.price);assert.equal(imported.demand.shop,60);
+ assert.equal(parseQuoteV27(JSON.parse(JSON.stringify(imported.document))).importNotes?.length,3);
+ repairs.items[5]='Not a quote item';assert.throws(()=>repairV27Workbook(book,repairs),/Choose an existing/);
+ repairs.items[5]=String(originalItem);repairs.descriptions[5]='   ';assert.throws(()=>repairV27Workbook(book,repairs),/Enter Materials/);
+ repaired.book.Sheets['Quote Builder'].P43.v+=100;
+ assert.throws(()=>importV27Workbook(repaired.book,'d'.repeat(64),repaired.notes),/does not reconcile/);
+});
+
+test('zero is a valid corrected setting, not a missing value',()=>{
+ const book=source();delete book.Sheets.Settings.B4;
+ const repairs=emptyImportRepair();repairs.settings.B4='0';
+ assert.equal(importV27Workbook(repairV27Workbook(book,repairs).book,'e'.repeat(64)).document.settings.contingency,0);
+ repairs.settings.B4='-1';assert.throws(()=>repairV27Workbook(book,repairs));
+});
+
+test('older v21 layout retains pinned labor rate, separate PM fee and trade hours',()=>{
+ const book=source(),old=book.Sheets['Quote Builder'],builder:WorkBook['Sheets'][string]={C3:old.C3};
+ for(const [cell,value]of Object.entries(old)){
+  const m=/^([A-X]+)(\d+)$/.exec(cell);if(!m)continue;const row=Number(m[2]);
+  if(row>=5&&row<=41&&row!==36)builder[`${m[1]}${row+7}`]=structuredClone(value);
+ }
+ builder.A52={t:'s',v:'SUBTOTAL (before PM fee)'};builder.A54={t:'s',v:'GRAND TOTAL'};
+ builder.A53={t:'s',v:'Project management fee'};builder.P53={t:'n',v:1250};
+ builder.P54=old.P43;builder.T54=old.T43;book.Sheets['Quote Builder']=builder;
+ const settings=book.Sheets.Settings;settings.A61={t:'s',v:'Project Management is NOT a line type'};
+ settings.B7={t:'n',v:fixture.expected.laborRate};
+ for(const key of Object.keys(settings)){const row=Number(key.slice(1));if(row>=64)delete settings[key];}
+ // Legacy support uses site days × crew; one crew member preserves the baseline.
+ const support=Object.entries(builder).find(([c,v])=>/^B/.test(c)&&v.v==='Install Support Labor')![0].slice(1);
+ builder[`L${support}`]={t:'n',v:1};
+ assert.deepEqual(reviewV27Workbook(book).missingSettings,[]);
+ const imported=importV27Workbook(book,'f'.repeat(64));
+ assert.equal(imported.demand.price,fixture.expected.price);assert.equal(imported.demand.shop,60);
+ assert.equal(imported.document.settings.burdenedRateOverride,fixture.expected.laborRate);
+ assert.equal(imported.demand.trades.Carpentry,44);
+ assert.equal(imported.document.lines.find(l=>l.id==='legacy-pm')?.priceOverride,1250);
+ assert.ok(imported.document.trades.every(t=>t.wage===null));
+ const previousCharge=Number(builder[`P${support}`].v),previousCost=Number(builder[`T${support}`].v);
+ builder[`J${support}`]={t:'n',v:2};builder[`L${support}`]={t:'n',v:3};
+ const charge=6*fixture.quote.settings.supportDay,cost=6*fixture.quote.settings.supportCost;
+ builder[`N${support}`]={t:'n',v:charge,f:'J*L*rate'};builder[`P${support}`]={t:'n',v:charge};
+ builder[`Q${support}`]={t:'n',v:cost};builder[`T${support}`]={t:'n',v:cost};
+ builder.P54={t:'n',v:fixture.expected.price-previousCharge+charge};builder.T54={t:'n',v:fixture.expected.buildBudget-previousCost+cost};
+ const withCrew=importV27Workbook(book,'f'.repeat(64));
+ assert.equal(withCrew.document.lines.find(l=>l.type==='Install Support Labor')?.inputs.siteDays,6);
+ assert.equal(withCrew.demand.price,fixture.expected.price-previousCharge+charge);
+ builder.S53={t:'n',v:5};assert.throws(()=>importV27Workbook(book,'f'.repeat(64)),/PM costs/);
 });

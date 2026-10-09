@@ -38,6 +38,7 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
+  importNotes?: string[];
   schedule?: QuoteSchedule;
   planning?: CapacityOverride;
   estimators?: Estimators;

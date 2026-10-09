@@ -1,5 +1,11 @@
 # Lab status
 
+## Import corrections and older workbook support — October 8, 2026
+- Paul supplied three failing quotes. Added a retained-upload correction form for missing Settings values, Materials & Labor descriptions and parent links; no partial financial/Capacity save. Corrections apply to a copy, source totals still reconcile, audit notes persist and display on reopen. Blank unused labels are retained in Notes instead of blocking; nonzero cached costs/hours never take that path.
+- Added verified Solis v21 layout support: recorded B7 labor rate, no invented trade wages, labor-name trade attribution, legacy support person-days, separate PM price override. Source PM administrative hours are disclosed separately from production demand; nonzero PM costs still block. Pricing engine unchanged.
+- Read-only current exports reconcile: BDNY $128,885.6808, 412 shop / 60 field / 36 design (240 stage/pack shop hours untyped); Fossil $95,066.8304, 331 / 20 / 24 after manual row-5 description; Solis $33,430.2272, 184 / 0 / 16. All source snapshots immutable and parser round-trip verified. No business quote or Google Sheet changed. See SPREADSHEET_IMPORT.md.
+- Local browser: actual Fossil upload → missing-description block → corrected preview → simulated failed-save retry → verified readback passed with isolated memory adapter. 74 tests and TypeScript passed. Deployment and hosted verification pending. Existing shared-roster/library migration blockers unchanged.
+
 ## Spreadsheet quote import — October 8, 2026
 - Added `/quotes/import` and Quotes link: complete v27 XLSX → reconciled preview → explicit dates/status → new saved quote → existing native Capacity. Reads cached source prices, takeoffs/trades/notes/settings, preserving overrides and intermediate blank rows. No live Google integration or schema migration.
 - Source price, build budget, item inputs/hours/budgets and takeoff amounts must reconcile. Duplicate source fingerprint/name checks include all accessible active/archived pages; sequential guard only, not atomic cross-device uniqueness. Failed initial saves reuse returned workspace ID; unknown creation outcomes stop retry. Readback required before success. See SPREADSHEET_IMPORT.md for boundaries.

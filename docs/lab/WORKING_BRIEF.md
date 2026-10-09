@@ -5,6 +5,8 @@ Paul can describe changes to Codex, build and deploy them to a persistent sandbo
 
 ## Product starting point
 
+October 8 import repair: Paul supplied BDNY v27, Fossil Christmas v27 and Solis Table 2 v21 after import failures. Treat the remaining approximately ten spreadsheet quotes as a migration bridge, not an ongoing Sheets integration. Preserve readable data on the import page, resolve missing descriptions/settings or parent links explicitly before saving, and keep strict source price/budget/hour reconciliation. Harmless unused item labels belong in retained notes, not fatal errors. Support the verified v21 layout with pinned recorded labor rate and separate PM fee; do not invent wages or reprice old estimates. See SPREADSHEET_IMPORT.md for source evidence and limits.
+
 October 8: Paul needs existing spreadsheet quotes imported to Quote Builder and native Capacity, prioritizing all currently quoted projects appearing in the schedule. Build a reviewable import with recorded prices, item/trade hours, dates/status, duplicate checks and preserved revisions. Current project source list is pending. Initial v27 XLSX support/limitations are documented in SPREADSHEET_IMPORT.md; it is not an ongoing Google sync or full estimator-detail migration.
 
 October 7 clarification supersedes unconditional Delete: selected cells clear as a whole, while typing/double-click/F2 permits character editing. Item Name drag-fill assigns rows to the existing source item; it must not rename destination items. Quote Builder needs an undoable Clear item control. Keep the workbook frame/header/tabs and selection-sum footer visible while sheet contents scroll.

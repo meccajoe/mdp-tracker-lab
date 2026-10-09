@@ -54,6 +54,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     }),
   };
   if(v.planning!==undefined)parsed.planning=parsePlanning(v.planning);
+  if(v.importNotes!==undefined){if(!Array.isArray(v.importNotes)||v.importNotes.length>10050)throw new Error('Invalid import notes.');parsed.importNotes=v.importNotes.map(note=>text(note,'Import note',5000));}
   if(v.schedule!==undefined)parsed.schedule=parseSchedule(v.schedule);
   if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
   if(v.reusableItemIds!==undefined){

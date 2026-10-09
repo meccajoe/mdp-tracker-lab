@@ -2,7 +2,8 @@
 import {useRef,useState} from 'react';
 import Link from 'next/link';
 import {adaFetch} from '@/lib/ada-client';
-import {importV27Workbook} from '@/lib/quote-spreadsheet-import';
+import {importV27Workbook,reviewV27Workbook,repairV27Workbook,emptyImportRepair} from '@/lib/quote-spreadsheet-import';
+import type {WorkBook} from 'xlsx';
 import {EMPTY_SCHEDULE,FORECAST_STATUSES,parseSchedule,type QuoteSchedule} from '@/lib/quote-schedule';
 import {parseQuoteV27} from '@/lib/quote-v27-validation';
 
@@ -13,14 +14,22 @@ export function QuoteSpreadsheetImport(){
  const [preview,setPreview]=useState<Preview|null>(null),[title,setTitle]=useState(''),[client,setClient]=useState('');
  const [schedule,setSchedule]=useState<QuoteSchedule>({...EMPTY_SCHEDULE}),[error,setError]=useState(''),[busy,setBusy]=useState(false),[saved,setSaved]=useState(''),[workspaceId,setWorkspaceId]=useState(''),[uncertain,setUncertain]=useState(false);
  const guard=useRef(false);
+ const [source,setSource]=useState<{book:WorkBook;hash:string}|null>(null),[review,setReview]=useState<ReturnType<typeof reviewV27Workbook>|null>(null),[repairs,setRepairs]=useState(emptyImportRepair);
+ function check(book:WorkBook,hash:string,corrections=emptyImportRepair()){
+  setPreview(null);setError('');
+  try{const repaired=repairV27Workbook(book,corrections);setPreview(importV27Workbook(repaired.book,hash,repaired.notes));}
+  catch(cause){setError(cause instanceof Error?cause.message:'Spreadsheet could not be checked.');}
+ }
  async function read(file:File|undefined){
   if(!file||guard.current)return;guard.current=true;setBusy(true);setError('');setPreview(null);setSaved('');
+  setSource(null);setReview(null);setRepairs(emptyImportRepair());
   try{
    if(!file.name.toLowerCase().endsWith('.xlsx')||file.size>10_000_000)throw new Error('Choose an .xlsx export under 10 MB.');
    const bytes=await file.arrayBuffer(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
    const XLSX=await import('xlsx');
-   const result=importV27Workbook(XLSX.read(bytes,{type:'array',cellFormula:true,cellHTML:false,cellStyles:false,bookVBA:false}),hash);
-   setPreview(result);setTitle(file.name.replace(/\.xlsx$/i,''));setSchedule({...EMPTY_SCHEDULE});
+   const book=XLSX.read(bytes,{type:'array',cellFormula:true,cellHTML:false,cellStyles:false,bookVBA:false}),issues=reviewV27Workbook(book);
+   setSource({book,hash});setReview(issues);setTitle(file.name.replace(/\.xlsx$/i,''));setSchedule({...EMPTY_SCHEDULE});
+   if(!issues.missingSettings.length&&!issues.unmatched.length)check(book,hash);
   }catch(cause){setError(cause instanceof Error?cause.message:'Spreadsheet could not be read.');}finally{guard.current=false;setBusy(false);}
  }
  async function save(){
@@ -61,10 +70,21 @@ export function QuoteSpreadsheetImport(){
  const inputClass='block mt-1 rounded border px-2 py-1.5 w-full bg-background';
  return <section className="rounded-xl border bg-background p-5 space-y-4" aria-label="Import spreadsheet quote">
   <h2 className="text-lg font-semibold">Import spreadsheet quote</h2>
-  <p className="text-sm text-muted-foreground">In Google Sheets, choose File → Download → Microsoft Excel (.xlsx). Upload the complete v27 workbook. Review one quote at a time; saving adds its dates and labor demand to Capacity.</p>
+  <p className="text-sm text-muted-foreground">In Google Sheets, choose File → Download → Microsoft Excel (.xlsx). Upload the complete v27 or supported v21 workbook. Review one quote at a time; saving adds its dates and labor demand to Capacity.</p>
   <label className="block text-sm">Spreadsheet file<input className={inputClass} type="file" accept=".xlsx" disabled={busy||!!workspaceId||uncertain} onChange={event=>{const file=event.target.files?.[0];event.target.value="";void read(file);}}/></label>
   {error?<p role="alert" className="text-sm text-red-700">{error}</p>:null}
   {uncertain&&!busy?<p role="alert">Creation may have completed. <Link className="underline" href="/quotes">Check Quotes</Link> before starting another import.</p>:null}
+  {source&&review&&(review.missingSettings.length>0||review.unmatched.length>0)?<fieldset disabled={busy||!!workspaceId||uncertain} className="rounded border bg-amber-50 text-slate-900 p-3 space-y-3">
+   <legend className="font-semibold">Review spreadsheet corrections</legend>
+   <p className="text-sm">Your uploaded data is retained on this page. Fill in the missing details below, then check again. Corrections affect this import only and are recorded with the quote. Prices, budgets and hours must still match the spreadsheet before saving.</p>
+   {review.missingSettings.map(issue=><label className="block text-sm" key={issue.cell}>{issue.label} (Settings!{issue.cell})<input className={inputClass} type="number" min="0" step="any" value={repairs.settings[issue.cell]??''} onChange={e=>{const value=e.target.value;setPreview(null);setRepairs(p=>({...p,settings:{...p.settings,[issue.cell]:value}}));}}/></label>)}
+   {review.unmatched.map(issue=><div key={issue.row} className="border-t pt-2 text-sm space-y-2">
+    <p className="font-medium">Takeoffs row {issue.row} · {issue.name||'No item name'} · {issue.description||'Missing Materials & Labor description'}</p>
+    {issue.needsItem?<label className="block">Quote item for row {issue.row}<select className={inputClass} value={repairs.items[issue.row]??''} onChange={e=>{const value=e.target.value;setPreview(null);setRepairs(p=>({...p,items:{...p.items,[issue.row]:value}}));}}><option value="">Choose the matching quote item</option>{review.choices.map(name=><option key={name}>{name}</option>)}</select></label>:null}
+    {issue.needsDescription?<label className="block">Materials & Labor for row {issue.row}<input className={inputClass} value={repairs.descriptions[issue.row]??''} onChange={e=>{const value=e.target.value;setPreview(null);setRepairs(p=>({...p,descriptions:{...p.descriptions,[issue.row]:value}}));}}/></label>:null}
+   </div>)}
+   <button className="rounded border bg-white px-3 py-2" onClick={()=>check(source.book,source.hash,repairs)}>Check corrected import</button>
+  </fieldset>:null}
   {preview?<>
    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
     <label>Quote name<input className={inputClass} value={title} disabled={busy||!!workspaceId} onChange={e=>setTitle(e.target.value)}/></label>
@@ -74,7 +94,7 @@ export function QuoteSpreadsheetImport(){
    </div>
    <div className="rounded border bg-sky-50 p-3 text-sm text-slate-900"><p>{preview.document.lines.length} quote lines · {preview.document.takeoffs.length} takeoff rows · Quote total {preview.demand.price.toLocaleString('en-US',{style:'currency',currency:'USD'})}</p><p>Shop: {preview.demand.shop} hrs · Field: {preview.demand.field} hrs · Design: {preview.demand.design} hrs</p><ul>{Object.entries(preview.demand.trades).map(([trade,hours])=><li key={trade}>{trade}: {hours} hrs</li>)}</ul></div>
    <ul className="text-sm text-muted-foreground list-disc pl-5">{preview.warnings.map(warning=><li key={warning}>{warning}</li>)}</ul>
-   {saved?<p role="status">Saved and reopened successfully. <Link className="underline" href={`/quotes/${saved}`}>Open quote</Link> · <Link className="underline" href="/capacity">View Capacity</Link> · <button className="underline" onClick={()=>{setPreview(null);setSaved('');setWorkspaceId('');setClient('');}}>Import another quote</button></p>:<button className="rounded bg-primary text-primary-foreground px-4 py-2" disabled={busy||uncertain} onClick={()=>void save()}>{busy?'Working…':workspaceId?'Retry saving this quote':'Import quote and add to Capacity'}</button>}
+   {saved?<p role="status">Saved and reopened successfully. <Link className="underline" href={`/quotes/${saved}`}>Open quote</Link> · <Link className="underline" href="/capacity">View Capacity</Link> · <button className="underline" onClick={()=>{setPreview(null);setSource(null);setReview(null);setSaved('');setWorkspaceId('');setClient('');}}>Import another quote</button></p>:<button className="rounded bg-primary text-primary-foreground px-4 py-2" disabled={busy||uncertain} onClick={()=>void save()}>{busy?'Working…':workspaceId?'Retry saving this quote':'Import quote and add to Capacity'}</button>}
    {workspaceId&&!saved?<p className="text-sm">Workspace created. <Link className="underline" href={`/quotes/${workspaceId}`}>Open quote</Link>. Retry saves into this same workspace.</p>:null}
   </>:null}
  </section>;
