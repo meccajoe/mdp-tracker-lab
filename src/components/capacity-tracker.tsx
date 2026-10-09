@@ -3,6 +3,8 @@ import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {adaFetch} from '@/lib/ada-client';
 import {parseQuoteV27} from '@/lib/quote-v27-validation';
+import {loadSavedQuotes,invalidateQuoteLibrary} from '@/lib/quote-library-client';
+import {createVisibleRefresh} from '@/lib/visible-refresh';
 import {FORECAST_STATUSES} from '@/lib/quote-schedule';
 import {capacityLoad,capacityProject,dateString,dayNumber,emptyCapacity,emptyOverride,monday,parseCapacity,rosterCapacity,SHOP_TRADES,SUPPORT_TRADES,type CapacityDocument,type CapacityOverride,type CapacityQuote} from '@/lib/capacity';
 import styles from './capacity-tracker.module.css';
@@ -12,17 +14,30 @@ const money=(value:number)=>value.toLocaleString('en-US',{style:'currency',curre
 function Entry({label,value,onChange,nullable=false}:{label:string;value:number|null;onChange:(value:number|null)=>void;nullable?:boolean}){return <input aria-label={label} type="number" min="0" step="any" key={value??'auto'} defaultValue={value??''} placeholder={nullable?'Quoted':''} onBlur={event=>{const next=event.target.value===''&&nullable?null:Number(event.target.value);if(next!==value)onChange(next);}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}}/>;}
 export function CapacityTracker(){
  const [tab,setTab]=useState('Projects'),[quotes,setQuotes]=useState<SavedQuote[]>([]),[document,setDocument]=useState<CapacityDocument>(emptyCapacity),[version,setVersion]=useState(0),[canEdit,setCanEdit]=useState(false),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[settingsError,setSettingsError]=useState(''),[query,setQuery]=useState(''),[scenario,setScenario]=useState<string[]>([]),[editing,setEditing]=useState<string|null>(null),[plan,setPlan]=useState<CapacityOverride>(emptyOverride);
- const loadQuotes=useCallback(async()=>{
-  const listed:{id:string;title:string}[]=[];let more=true;
-  for(let offset=0;more;offset+=100){const response=await adaFetch(`/api/quote-workspaces?offset=${offset}`),payload=await response.json();if(!response.ok)throw new Error(payload.error||'Quotes could not load.');listed.push(...(payload.workspaces??[]));more=Boolean(payload.hasMore);}
-  const workspaces=Array.from(new Map(listed.map(workspace=>[workspace.id,workspace])).values());
-  const results=await Promise.allSettled(workspaces.map(async workspace=>{const response=await adaFetch(`/api/quote-workspaces/${workspace.id}/workbook`),payload=await response.json();if(!response.ok)throw new Error(workspace.title);return {workspaceId:workspace.id,workspace:workspace.title,version:payload.version,canEdit:payload.canEdit,document:payload.document?parseQuoteV27(payload.document):null};}));
-  setQuotes(results.flatMap(result=>result.status==='fulfilled'?[result.value]:[]));
-  const failed=results.filter(result=>result.status==='rejected').length;setNotice(failed?`${failed} quotes could not load. Totals are incomplete — refresh before planning.`:`Loaded ${results.length} quotes · ${new Date().toLocaleTimeString()}`);
- },[]);
+ const editingRef=useRef(editing);editingRef.current=editing;
+ const refreshRef=useRef<ReturnType<typeof createVisibleRefresh<Awaited<ReturnType<typeof loadSavedQuotes>>>>|null>(null);
+ const loadQuotes=useCallback(async()=>{await refreshRef.current?.request(true);},[]);
  const loadSettings=useCallback(async()=>{const response=await adaFetch('/api/capacity/settings'),payload=await response.json();setSettingsError(response.ok?'':payload.error||'Settings unavailable.');if(payload.document){setDocument(parseCapacity(payload.document));setVersion(payload.version);setCanEdit(Boolean(payload.canEdit));setDirty(false);}},[]);
- useEffect(()=>{void Promise.all([loadQuotes(),loadSettings()]).catch(error=>setError(error.message));},[loadQuotes,loadSettings]);
- useEffect(()=>{const timer=window.setInterval(()=>{if(!editing)void loadQuotes().catch(error=>setError(error.message));},60000);return()=>window.clearInterval(timer);},[loadQuotes,editing]);
+ useEffect(()=>{
+  let mounted=true;
+  const controller=createVisibleRefresh(()=>loadSavedQuotes(),result=>{
+   setQuotes(result.quotes);setError('');
+   setNotice(result.failures?`${result.failures} quotes could not load. Totals are incomplete — refresh before planning.`:`Loaded ${result.quotes.length} quotes · ${new Date().toLocaleTimeString()}`);
+  },error=>{setQuotes([]);setNotice('Totals are unavailable — refresh before planning.');setError(error instanceof Error?error.message:'Quotes could not load.');},()=>window.document.visibilityState==='visible'&&!editingRef.current);
+  refreshRef.current=controller;
+  const visibility=()=>{if(window.document.visibilityState==='hidden')controller.pause();else void controller.request(true);};
+  const saved=()=>{void controller.request(true);};
+  const identity=()=>{setQuotes([]);setScenario([]);setEditing(null);setPlan(emptyOverride());editingRef.current=null;controller.pause();void controller.request(true);};
+  window.document.addEventListener('visibilitychange',visibility);
+  window.addEventListener('quote-workbook-saved',saved);
+  window.addEventListener('quote-library-identity-changed',identity);
+  const timer=window.setInterval(()=>{void controller.request();},60000);
+  void controller.request();
+  void loadSettings().catch(error=>{if(mounted)setError(error.message);});
+  return()=>{mounted=false;controller.dispose();refreshRef.current=null;window.clearInterval(timer);window.document.removeEventListener('visibilitychange',visibility);window.removeEventListener('quote-workbook-saved',saved);window.removeEventListener('quote-library-identity-changed',identity);};
+ },[loadSettings]);
+ const previousEditing=useRef(editing);
+ useEffect(()=>{if(previousEditing.current&&!editing)void refreshRef.current?.request(true);previousEditing.current=editing;},[editing]);
  const dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(editing)dialog.current?.showModal();},[editing]);
  useEffect(()=>{if(!dirty&&!editing)return;const navigate=(event:MouseEvent)=>{if((event.target as HTMLElement).closest('a[href]')&&!window.confirm('Leave without saving capacity changes?')){event.preventDefault();event.stopPropagation();}};window.document.addEventListener('click',navigate,true);const leave=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',leave);return()=>{window.removeEventListener('beforeunload',leave);window.document.removeEventListener('click',navigate,true);};},[dirty,editing]);
@@ -33,7 +48,7 @@ export function CapacityTracker(){
  const weeks=Array.from({length:26},(_,i)=>dateString(dayNumber(document.settings.weekStart)+7*i));
  function change(fn:(next:CapacityDocument)=>void){const next=structuredClone(document);fn(next);setDocument(next);setDirty(true);}
  async function saveSettings(){setBusy(true);setError('');try{const parsed=parseCapacity(document);const response=await adaFetch('/api/capacity/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:parsed})}),payload=await response.json();if(!response.ok)throw new Error(payload.error);setVersion(payload.version);setDirty(false);setNotice('Capacity settings saved.');}catch(error){setError(error instanceof Error?error.message:'Save failed.');}finally{setBusy(false);}}
- async function savePlan(){const quote=quotes.find(quote=>quote.workspaceId===editing);if(!quote?.document)return;setBusy(true);setError('');try{const document=parseQuoteV27({...quote.document,planning:plan});const response=await adaFetch(`/api/quote-workspaces/${quote.workspaceId}/workbook`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:quote.version,document})}),payload=await response.json();if(!response.ok)throw new Error(payload.error);setEditing(null);await loadQuotes();}catch(error){setError(error instanceof Error?error.message:'Plan could not save.');}finally{setBusy(false);}}
+ async function savePlan(){const quote=quotes.find(quote=>quote.workspaceId===editing);if(!quote?.document)return;setBusy(true);setError('');try{const document=parseQuoteV27({...quote.document,planning:plan});const response=await adaFetch(`/api/quote-workspaces/${quote.workspaceId}/workbook`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:quote.version,document})}),payload=await response.json();if(!response.ok)throw new Error(payload.error);previousEditing.current=null;editingRef.current=null;setEditing(null);invalidateQuoteLibrary();await refreshRef.current?.request();}catch(error){setError(error instanceof Error?error.message:'Plan could not save.');}finally{setBusy(false);}}
  const matrixRow=(label:string,values:number[],cap:number|null,percentage=false)=><tr key={label}><th>{label}</th><td>{cap===null?'—':number(cap)}</td>{values.map((value,i)=><td key={i} className={cap!==null&&value>cap?styles.over:cap!==null&&cap>0&&value/cap>.85?styles.near:undefined}>{percentage?(cap?`${number(value/cap*100)}%`:value?'No capacity':'—'):number(value)}</td>)}</tr>;
  return <main className={styles.page}><header><div><h1>Capacity tracker</h1><p>Saved quote names, dates and hours flow here automatically. Updates refresh every 60 seconds.</p></div><Link href="/quotes">Open quotes</Link><Link href="/quotes/import">Import spreadsheet quotes</Link><button onClick={()=>void loadQuotes().catch(error=>setError(error.message))}>Refresh quotes</button></header>
  <nav role="tablist" aria-label="Capacity sections">{['Roster & Settings','Projects','Shop Load','Field Load'].map(name=><button role="tab" aria-selected={tab===name} key={name} onClick={()=>setTab(name)}>{name}</button>)}</nav>

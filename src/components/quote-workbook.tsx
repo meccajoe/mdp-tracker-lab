@@ -1,4 +1,5 @@
 "use client";
+import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {QuoteReusableToolbar} from './quote-reusable-items';
@@ -139,7 +140,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       const response=await adaFetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:version,document:snapshot})});
       const payload=await response.json();
       if(!response.ok){if(response.status===409)autosavePaused.current=true;throw new Error(payload.error||'Save failed. Your edits are still here.');}
-      savedDocument.current=JSON.stringify(snapshot);setVersion(payload.version);
+      savedDocument.current=JSON.stringify(snapshot);setVersion(payload.version);if(!libraryItem)invalidateQuoteLibrary();
       const stillDirty=JSON.stringify(edits.current?.present)!==savedDocument.current;
       setDirty(stillDirty);setMessage(`${automatic?'Autosaved':'Saved'} revision ${payload.version}${stillDirty?' · newer edits pending':''}`);
       setHistory(current=>[{revision:payload.version,created_at:payload.savedAt,created_by_email:'You'},...current].slice(0,20));
