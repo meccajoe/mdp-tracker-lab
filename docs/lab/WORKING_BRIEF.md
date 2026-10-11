@@ -1,5 +1,7 @@
 # Paul's quote and capacity workspace
 
+October 11: global defaults on the main Quotes page affect only subsequently created blank quotes; each quote retains independent settings. Add required human Client/Project names, Date created/Last modified, bulk archive/restore and archive link, independent CLONE copies, and Draft/Final on library and workbook header. Draft/Final is separate from Capacity forecast. Implementation pending hosted migration/sign-in; see QUOTE_MANAGEMENT.md and LAB_STATUS.md. Existing quote data must remain untouched.
+
 ## Goal
 Paul can describe changes to Codex, build and deploy them to a persistent sandbox, and iterate independently. Joe reviews production promotion. Paul joins development before the new quote workspace is finished.
 

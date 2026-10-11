@@ -13,7 +13,7 @@ async function responseBody(response:Response){const body=await response.json();
 export function QuoteSpreadsheetImport(){
  const [preview,setPreview]=useState<Preview|null>(null),[title,setTitle]=useState(''),[client,setClient]=useState('');
  const [schedule,setSchedule]=useState<QuoteSchedule>({...EMPTY_SCHEDULE}),[error,setError]=useState(''),[busy,setBusy]=useState(false),[saved,setSaved]=useState(''),[workspaceId,setWorkspaceId]=useState(''),[uncertain,setUncertain]=useState(false);
- const guard=useRef(false);
+ const guard=useRef(false),requestId=useRef('');
  const [source,setSource]=useState<{book:WorkBook;hash:string}|null>(null),[review,setReview]=useState<ReturnType<typeof reviewV27Workbook>|null>(null),[repairs,setRepairs]=useState(emptyImportRepair);
  function check(book:WorkBook,hash:string,corrections=emptyImportRepair()){
   setPreview(null);setError('');
@@ -35,7 +35,8 @@ export function QuoteSpreadsheetImport(){
  async function save(){
   if(!preview||guard.current)return;guard.current=true;setBusy(true);setError('');
   try{
-   if(!title.trim())throw new Error('Enter a quote name.');
+   if(!title.trim())throw new Error('Enter a Project Name.');
+   if(!client.trim())throw new Error('Enter a Client Name.');
    const checked=parseSchedule(schedule);
    if(!checked.buildStart||!checked.buildFinish||!checked.status||(preview.demand.field>0&&!checked.installDate))throw new Error('Choose build dates, forecast status, and an install date for field labor so Capacity can schedule this quote.');
    const document=parseQuoteV27({...preview.document,schedule:checked});
@@ -53,8 +54,8 @@ export function QuoteSpreadsheetImport(){
      if(!page.hasMore)break;
     }
     // If creation has an unknown outcome, don't retry and risk an extra workspace.
-    setUncertain(true);
-    const created=await responseBody(await adaFetch('/api/quote-workspaces',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:title.trim(),clientName:client.trim()||null})}));
+    setUncertain(true);if(!requestId.current)requestId.current=crypto.randomUUID();
+    const created=await responseBody(await adaFetch('/api/quote-workspaces',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:title.trim(),clientName:client.trim(),initialDocument:document,requestId:requestId.current})}));
     if(!created.workspace?.id)throw new Error('Quote creation was not confirmed. Check Quotes before trying again.');
     id=created.workspace.id;setWorkspaceId(id);setUncertain(false);
    }
@@ -87,14 +88,14 @@ export function QuoteSpreadsheetImport(){
   </fieldset>:null}
   {preview?<>
    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-    <label>Quote name<input className={inputClass} value={title} disabled={busy||!!workspaceId} onChange={e=>setTitle(e.target.value)}/></label>
-    <label>Client (optional)<input className={inputClass} value={client} disabled={busy||!!workspaceId} onChange={e=>setClient(e.target.value)}/></label>
+    <label>Project Name<input className={inputClass} value={title} disabled={busy||!!workspaceId} onChange={e=>setTitle(e.target.value)}/></label>
+    <label>Client Name<input className={inputClass} value={client} disabled={busy||!!workspaceId} onChange={e=>setClient(e.target.value)}/></label>
     {(['buildStart','buildFinish','installDate'] as const).map(key=><label key={key}>{({buildStart:'Build start',buildFinish:'Build finish',installDate:'Install date'})[key]}<input className={inputClass} type="date" defaultValue={schedule[key]} disabled={busy||!!workspaceId} onBlur={e=>{const value=e.target.value;setSchedule(previous=>({...previous,[key]:value}));}}/></label>)}
     <label>Forecast status<select className={inputClass} value={schedule.status} disabled={busy||!!workspaceId} onChange={e=>setSchedule(previous=>({...previous,status:e.target.value as QuoteSchedule['status']}))}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label>
    </div>
    <div className="rounded border bg-sky-50 p-3 text-sm text-slate-900"><p>{preview.document.lines.length} quote lines · {preview.document.takeoffs.length} takeoff rows · Quote total {preview.demand.price.toLocaleString('en-US',{style:'currency',currency:'USD'})}</p><p>Shop: {preview.demand.shop} hrs · Field: {preview.demand.field} hrs · Design: {preview.demand.design} hrs</p><ul>{Object.entries(preview.demand.trades).map(([trade,hours])=><li key={trade}>{trade}: {hours} hrs</li>)}</ul></div>
    <ul className="text-sm text-muted-foreground list-disc pl-5">{preview.warnings.map(warning=><li key={warning}>{warning}</li>)}</ul>
-   {saved?<p role="status">Saved and reopened successfully. <Link className="underline" href={`/quotes/${saved}`}>Open quote</Link> · <Link className="underline" href="/capacity">View Capacity</Link> · <button className="underline" onClick={()=>{setPreview(null);setSource(null);setReview(null);setSaved('');setWorkspaceId('');setClient('');}}>Import another quote</button></p>:<button className="rounded bg-primary text-primary-foreground px-4 py-2" disabled={busy||uncertain} onClick={()=>void save()}>{busy?'Working…':workspaceId?'Retry saving this quote':'Import quote and add to Capacity'}</button>}
+   {saved?<p role="status">Saved and reopened successfully. <Link className="underline" href={`/quotes/${saved}`}>Open quote</Link> · <Link className="underline" href="/capacity">View Capacity</Link> · <button className="underline" onClick={()=>{setPreview(null);setSource(null);setReview(null);setSaved('');setWorkspaceId('');setClient('');requestId.current='';}}>Import another quote</button></p>:<button className="rounded bg-primary text-primary-foreground px-4 py-2" disabled={busy||uncertain} onClick={()=>void save()}>{busy?'Working…':workspaceId?'Retry saving this quote':'Import quote and add to Capacity'}</button>}
    {workspaceId&&!saved?<p className="text-sm">Workspace created. <Link className="underline" href={`/quotes/${workspaceId}`}>Open quote</Link>. Retry saves into this same workspace.</p>:null}
   </>:null}
  </section>;

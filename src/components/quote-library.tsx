@@ -1,326 +1,70 @@
-"use client";
-
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Archive, ArrowRight, Pencil, Plus, RotateCcw, Search, X } from "lucide-react";
-
-import { adaFetch } from "@/lib/ada-client";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { PageShell } from "@/components/ui/page-shell";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-type QuoteStatus = "draft" | "gathering_inputs" | "estimating" | "in_review" | "accepted" | "handed_off" | "archived";
-type QuoteWorkspace = {
-  id: string;
-  title: string;
-  client_name: string | null;
-  contact_name: string | null;
-  tracker_project_id: string | null;
-  status: QuoteStatus;
-  last_activity_at: string;
-  pinned_at: string | null;
-};
-
-const FILTERS: Array<{ value: "all" | QuoteStatus; label: string }> = [
-  { value: "all", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "gathering_inputs", label: "Needs input" },
-  { value: "estimating", label: "Estimating" },
-  { value: "in_review", label: "In review" },
-  { value: "accepted", label: "Accepted" },
-  { value: "handed_off", label: "Handed off" },
-  { value: "archived", label: "Archived" },
-];
-
-function statusLabel(status: QuoteStatus) {
-  return FILTERS.find((filter) => filter.value === status)?.label ?? status;
-}
-
-function formatActivity(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
-}
-
-export function QuoteLibrary() {
-  const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<QuoteWorkspace[]>([]);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<"all" | QuoteStatus>("all");
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editingWorkspace, setEditingWorkspace] = useState<QuoteWorkspace | null>(null);
-  const [renaming, setRenaming] = useState(false);
-  const [mutatingId, setMutatingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("search", query.trim());
-    if (status !== "all") params.set("status", status);
-    const response = await adaFetch(`/api/quote-workspaces?${params.toString()}`);
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setWorkspaces([]);
-      setError(result.error ?? "Quotes could not load.");
-    } else {
-      setWorkspaces(result.workspaces ?? []);
-    }
-    setLoading(false);
-  }, [query, status]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function createQuote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const title = String(form.get("title") ?? "").trim();
-    if (!title) return;
-
-    setCreating(true);
-    setError(null);
-    const response = await adaFetch("/api/quote-workspaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        clientName: String(form.get("clientName") ?? "").trim() || null,
-        contactName: String(form.get("contactName") ?? "").trim() || null,
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-    setCreating(false);
-    if (!response.ok || !result.workspace?.id) {
-      setError(result.error ?? "Quote could not be created.");
-      return;
-    }
-    setCreateOpen(false);
-    router.push(`/quotes/${result.workspace.id}`);
-  }
-
-  async function renameQuote(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editingWorkspace) return;
-    const form = new FormData(event.currentTarget);
-    const title = String(form.get("title") ?? "").trim();
-    if (!title) return;
-
-    setRenaming(true);
-    setError(null);
-    const response = await adaFetch(`/api/quote-workspaces/${editingWorkspace.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, renameOnly: true }),
-    });
-    const result = await response.json().catch(() => ({}));
-    setRenaming(false);
-    if (!response.ok) {
-      setError(result.error ?? "Quote could not be renamed.");
-      return;
-    }
-    setEditingWorkspace(null);
-    await load();
-  }
-
-  async function changeLifecycle(workspace: QuoteWorkspace) {
-    const restoring = workspace.status === "archived";
-    if (!restoring && !window.confirm(`Archive “${workspace.title}”? Its governed history will remain available.`)) return;
-
-    setMutatingId(workspace.id);
-    setError(null);
-    const response = await adaFetch(
-      restoring ? `/api/quote-workspaces/${workspace.id}/restore` : `/api/quote-workspaces/${workspace.id}`,
-      { method: restoring ? "POST" : "DELETE" },
-    );
-    const result = await response.json().catch(() => ({}));
-    setMutatingId(null);
-    if (!response.ok) {
-      setError(result.error ?? `Quote could not be ${restoring ? "restored" : "archived"}.`);
-      return;
-    }
-    await load();
-  }
-
-  return (
-    <PageShell>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Estimating</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">Quotes</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Create and resume quote workspaces before a Tracker project exists.</p>
-        </div>
-        <div className="flex items-center gap-3"><Link href="/quotes/import" className="text-sm underline">Import spreadsheet</Link><Button size="lg" onClick={() => setCreateOpen(true)}>
-          <Plus aria-hidden="true" />
-          New quote
-        </Button></div>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="relative block w-full max-w-md">
-          <span className="sr-only">Search quotes</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search quotes" className="pl-9" />
-        </label>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <span className="text-muted-foreground">Status</span>
-          <select value={status} onChange={(event) => setStatus(event.target.value as "all" | QuoteStatus)} className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40">
-            {FILTERS.map((filter) => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
-          </select>
-        </label>
-      </div>
-
-      {error ? (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={() => void load()}>Try again</Button>
-        </div>
-      ) : null}
-
-      <Card className="overflow-hidden">
-        <div data-slot="quote-library-mobile" className="divide-y md:hidden">
-          {loading ? <p className="px-4 py-10 text-center text-sm text-muted-foreground">Loading quotes…</p> : workspaces.length === 0 ? <EmptyQuotes onCreate={() => setCreateOpen(true)} /> : workspaces.map((workspace) => (
-            <div key={workspace.id} className="p-4 transition-colors hover:bg-accent/40">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <Link href={`/quotes/${workspace.id}`} className="block truncate text-sm font-semibold hover:underline">{workspace.title}</Link>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{workspace.client_name || "Client not set"}</p>
-                </div>
-                <Badge variant="outline">{statusLabel(workspace.status)}</Badge>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <span>{workspace.tracker_project_id ? `Project ${workspace.tracker_project_id}` : "No project required"}</span>
-                <Link href={`/quotes/${workspace.id}`} className="inline-flex items-center gap-1 hover:text-foreground">{formatActivity(workspace.last_activity_at)} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></Link>
-              </div>
-              <div data-slot="quote-library-mobile-actions" className="mt-3 flex justify-end gap-2 border-t border-border/60 pt-3">
-                <QuoteActions workspace={workspace} busy={mutatingId === workspace.id} onRename={setEditingWorkspace} onLifecycle={changeLifecycle} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div data-slot="quote-library-table" className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[30%] pl-4">Quote</TableHead>
-                <TableHead className="w-[18%]">Client</TableHead>
-                <TableHead className="w-[13%]">Status</TableHead>
-                <TableHead className="w-[15%]">Project</TableHead>
-                <TableHead className="w-[10%] text-right">Updated</TableHead>
-                <TableHead className="w-[14%] pr-4 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={6} className="h-28 text-center text-muted-foreground">Loading quotes…</TableCell></TableRow>
-              ) : workspaces.length === 0 ? (
-                <TableRow><TableCell colSpan={6}><EmptyQuotes onCreate={() => setCreateOpen(true)} /></TableCell></TableRow>
-              ) : workspaces.map((workspace) => (
-                <TableRow key={workspace.id}>
-                  <TableCell className="pl-4">
-                    <Link href={`/quotes/${workspace.id}`} className="font-semibold hover:underline">{workspace.title}</Link>
-                    {workspace.contact_name ? <p className="mt-0.5 truncate text-xs text-muted-foreground">Contact: {workspace.contact_name}</p> : null}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{workspace.client_name || "—"}</TableCell>
-                  <TableCell><Badge variant="outline">{statusLabel(workspace.status)}</Badge></TableCell>
-                  <TableCell className="text-muted-foreground">{workspace.tracker_project_id ? `Project ${workspace.tracker_project_id}` : "No project required"}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    <Link href={`/quotes/${workspace.id}`} className="inline-flex items-center gap-1 hover:text-foreground">{formatActivity(workspace.last_activity_at)} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></Link>
-                  </TableCell>
-                  <TableCell data-slot="quote-library-table-actions" className="pr-4 text-right">
-                    <div className="inline-flex gap-1">
-                      <QuoteActions workspace={workspace} busy={mutatingId === workspace.id} onRename={setEditingWorkspace} onLifecycle={changeLifecycle} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-
-      {createOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label="Create quote">
-          <button type="button" aria-label="Close create quote" onClick={() => setCreateOpen(false)} className="absolute inset-0" />
-          <form onSubmit={createQuote} className="relative z-10 w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">New quote</h2>
-                <p className="mt-1 text-sm text-muted-foreground">No project required. Link operational records later through governed handoff.</p>
-              </div>
-              <button type="button" aria-label="Close" onClick={() => setCreateOpen(false)} className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="h-4 w-4" /></button>
-            </div>
-            <label className="mt-5 block text-sm font-medium">Quote name<Input name="title" required autoFocus className="mt-1.5" /></label>
-            <label className="mt-4 block text-sm font-medium">Client <span className="font-normal text-muted-foreground">(optional)</span><Input name="clientName" className="mt-1.5" /></label>
-            <label className="mt-4 block text-sm font-medium">Contact <span className="font-normal text-muted-foreground">(optional)</span><Input name="contactName" className="mt-1.5" /></label>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={creating}>{creating ? "Creating…" : "Create quote"}</Button>
-            </div>
-          </form>
-        </div>
-      ) : null}
-
-      {editingWorkspace ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label="Rename quote">
-          <button type="button" aria-label="Close rename quote" onClick={() => setEditingWorkspace(null)} className="absolute inset-0" />
-          <form onSubmit={renameQuote} className="relative z-10 w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold">Rename quote</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Change the workspace label without altering revisions or evidence.</p>
-              </div>
-              <button type="button" aria-label="Close" onClick={() => setEditingWorkspace(null)} className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"><X className="h-4 w-4" /></button>
-            </div>
-            <label className="mt-5 block text-sm font-medium">Quote name<Input name="title" required autoFocus defaultValue={editingWorkspace.title} className="mt-1.5" /></label>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setEditingWorkspace(null)}>Cancel</Button>
-              <Button type="submit" disabled={renaming}>{renaming ? "Saving…" : "Save name"}</Button>
-            </div>
-          </form>
-        </div>
-      ) : null}
-    </PageShell>
-  );
-}
-
-function EmptyQuotes({ onCreate }: { onCreate: () => void }) {
-  return (
-    <div className="px-4 py-12 text-center">
-      <p className="text-sm font-semibold">No quotes found</p>
-      <p className="mt-1 text-sm text-muted-foreground">Start a quote now; connect it to a project only when the work is ready.</p>
-      <Button variant="outline" className="mt-4" onClick={onCreate}>New quote</Button>
-    </div>
-  );
-}
-
-function QuoteActions({ workspace, busy, onRename, onLifecycle }: {
-  workspace: QuoteWorkspace;
-  busy: boolean;
-  onRename: (workspace: QuoteWorkspace) => void;
-  onLifecycle: (workspace: QuoteWorkspace) => void;
-}) {
-  const archived = workspace.status === "archived";
-  return (
-    <>
-      {!archived ? (
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => onRename(workspace)}>
-          <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Rename
-        </Button>
-      ) : null}
-      <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void onLifecycle(workspace)}>
-        {archived ? <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> : <Archive className="h-3.5 w-3.5" aria-hidden="true" />}
-        {busy ? "Working…" : archived ? "Restore" : "Archive"}
-      </Button>
-    </>
-  );
+'use client';
+import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {adaFetch} from '@/lib/ada-client';
+import {changeQuoteArchives} from '@/lib/quote-bulk-archive';
+import {Button} from './ui/button';
+import {Input} from './ui/input';
+import {PageShell} from './ui/page-shell';
+import {Card} from './ui/card';
+import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from './ui/table';
+type Workspace={id:string;title:string;client_name:string|null;contact_name:string|null;status:string;quote_status:'draft'|'final';status_version:number;workbook_revision:number;created_at:string;last_modified:string};
+const date=(value:string)=>value?new Date(value).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+async function result(response:Response){const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Request failed.');return payload;}
+export function QuoteLibrary({archived=false}:{archived?:boolean}){
+ const router=useRouter();
+ const [rows,setRows]=useState<Workspace[]>([]),[query,setQuery]=useState(''),[status,setStatus]=useState('all'),[loading,setLoading]=useState(true),[ready,setReady]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
+ const [dialog,setDialog]=useState<'create'|'rename'|'clone'|null>(null),[target,setTarget]=useState<Workspace|null>(null);
+ const [pendingArchive,setPendingArchive]=useState<string[]|null>(null);
+ const requestId=useRef(''),guard=useRef(false),loadGeneration=useRef(0);
+ const load=useCallback(async()=>{
+  const generation=++loadGeneration.current;setLoading(true);
+  try{const all:Workspace[]=[];let management=false;for(let offset=0;;offset+=100){const p=await result(await adaFetch(`/api/quote-workspaces?offset=${offset}${archived?'&status=archived':''}`));all.push(...p.workspaces);management=Boolean(p.managementReady);if(!p.hasMore)break;}if(generation===loadGeneration.current){setRows(all);setReady(management);}}
+  catch(e){if(generation===loadGeneration.current)setError(e instanceof Error?e.message:'Quotes could not load.');}
+  finally{if(generation===loadGeneration.current)setLoading(false);}
+ },[archived]);
+ useEffect(()=>{void load();return()=>{loadGeneration.current++;};},[load]);
+ const visible=rows.filter(w=>(status==='all'||w.quote_status===status)&&`${w.title} ${w.client_name??''} ${w.contact_name??''}`.toLowerCase().includes(query.toLowerCase().trim()));
+ function open(kind:'create'|'rename'|'clone',workspace:Workspace|null=null){setDialog(kind);setTarget(workspace);setError('');requestId.current=crypto.randomUUID();}
+ async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(guard.current)return;guard.current=true;setBusy(true);setError('');const form=new FormData(e.currentTarget);
+  try{
+   const payload=dialog==='rename'?{title:String(form.get('title')).trim(),renameOnly:true}:dialog==='clone'?{clientName:String(form.get('clientName')).trim(),requestId:requestId.current,copySchedule:form.get('copySchedule')==='on'}:{title:String(form.get('title')).trim(),clientName:String(form.get('clientName')).trim(),contactName:String(form.get('contactName')??'').trim(),requestId:requestId.current};
+   const p=await result(await adaFetch(dialog==='create'?'/api/quote-workspaces':`/api/quote-workspaces/${target!.id}${dialog==='clone'?'/clone':''}`,{method:dialog==='rename'?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}));
+   setDialog(null);if(dialog==='rename')await load();else router.push(`/quotes/${p.workspace.id}`);
+  }catch(e){setError(e instanceof Error?e.message:'Quote could not be saved.');}finally{setBusy(false);guard.current=false;}
+ }
+ async function lifecycle(ids:string[],restore=false,confirmed=false){if(guard.current||!ids.length)return;if(!restore&&!confirmed){setPendingArchive(ids);return;}setPendingArchive(null);guard.current=true;setBusy(true);setError('');const outcome=await changeQuoteArchives(ids,restore,adaFetch),count=outcome.succeeded.length,failed=outcome.failed;
+  if(outcome.errors.length)setError([...new Set(outcome.errors)].join(' '));
+  setSelected(new Set(failed));setMessage(`${count} quote${count===1?'':'s'} ${restore?'restored':'archived'}.${failed.length?` ${failed.length} could not be changed and remain selected.`:''}`);await load();guard.current=false;setBusy(false);
+ }
+ async function changeStatus(w:Workspace,next:string){if(guard.current)return;guard.current=true;setBusy(true);setError('');try{await result(await adaFetch(`/api/quote-workspaces/${w.id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:next,expectedVersion:w.status_version,expectedRevision:w.workbook_revision})}));await load();}catch(e){setError(e instanceof Error?e.message:'Status could not change.');await load();}finally{guard.current=false;setBusy(false);}}
+ function toggle(id:string,checked:boolean){setSelected(previous=>{const next=new Set(previous);if(checked)next.add(id);else next.delete(id);return next;});}
+ return <PageShell>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase text-muted-foreground">Estimating</p><h1 className="text-2xl font-bold">{archived?'Archived quotes':'Quotes'}</h1></div><div className="flex flex-wrap gap-3 items-center"><Link className="underline" href="/quotes/import">Import spreadsheet</Link><Button onClick={()=>open('create')}>New quote</Button></div></div>
+  <nav aria-label="Quotes sections" className="flex flex-wrap gap-5 border-b pb-3"><Link href="/quotes" aria-current={!archived?'page':undefined} className={!archived?'font-semibold':''}>Quotes</Link><Link href="/quotes/settings">Global settings</Link><Link href="/quotes/archived" aria-current={archived?'page':undefined} className={archived?'font-semibold':''}>Archived quotes</Link></nav>
+  <div className="flex flex-wrap gap-3 items-center"><Input aria-label="Search quotes" placeholder="Search project or client" value={query} onChange={e=>setQuery(e.target.value)} className="max-w-md"/><label>Status <select className="rounded border p-2" aria-label="Filter quote status" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="final">Final</option></select></label><Button variant="outline" disabled={busy||!selected.size} onClick={()=>void lifecycle([...selected],archived)}>{archived?'Restore':'Archive'} selected ({selected.size})</Button></div>
+  {error?<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error} <button className="underline" onClick={()=>{setError('');void load();}}>Reload quotes</button></p>:null}{message?<p role="status">{message}</p>:null}
+  {!loading&&!ready?<p className="text-sm text-amber-800">Global settings, cloning and Draft/Final controls need the lab database update. Existing quotes remain available.</p>:null}
+  {pendingArchive?<div role="alertdialog" aria-label="Archive selected quotes" className="rounded border bg-amber-50 p-4 text-slate-900"><p>Archive {pendingArchive.length} quote{pendingArchive.length===1?'':'s'}? You can restore them from Archived quotes.</p><ul className="my-2 list-disc pl-5">{pendingArchive.map(id=><li key={id}>{rows.find(w=>w.id===id)?.title}</li>)}</ul><Button disabled={busy} onClick={()=>void lifecycle(pendingArchive,false,true)}>Confirm archive</Button> <Button variant="outline" onClick={()=>setPendingArchive(null)}>Cancel archive</Button></div>:null}
+  <Card className="overflow-x-auto"><Table><TableHeader><TableRow>
+   <TableHead><input type="checkbox" aria-label="Select all visible quotes" disabled={busy||loading||!visible.length} checked={!!visible.length&&visible.every(w=>selected.has(w.id))} onChange={e=>{const checked=e.target.checked;setSelected(previous=>{const next=new Set(previous);visible.forEach(w=>checked?next.add(w.id):next.delete(w.id));return next;});}}/></TableHead>
+   {['Project name','Client name','Status','Date created','Last modified','Actions'].map(h=><TableHead key={h}>{h}</TableHead>)}
+  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={7}>Loading quotes…</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={7}>No quotes found.</TableCell></TableRow>:visible.map(w=><TableRow key={w.id}>
+   <TableCell><input type="checkbox" aria-label={`Select ${w.title}`} disabled={busy} checked={selected.has(w.id)} onChange={e=>toggle(w.id,e.target.checked)}/></TableCell>
+   <TableCell><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></TableCell><TableCell>{w.client_name||'—'}</TableCell>
+   <TableCell><select className="rounded border p-1.5" aria-label={`Status · ${w.title}`} disabled={busy||archived||!ready} value={w.quote_status} onChange={e=>void changeStatus(w,e.target.value)}><option value="draft">Draft</option><option value="final" disabled={!w.workbook_revision}>Final</option></select></TableCell>
+   <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
+   <TableCell><div className="flex gap-1">{!archived?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>open('rename',w)}>Rename</Button>:null}<Button size="sm" variant="ghost" disabled={busy||!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</Button><Button size="sm" variant="ghost" disabled={busy} onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</Button></div></TableCell>
+  </TableRow>)}</TableBody></Table></Card>
+  {dialog?<div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label={dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':'Rename quote'}><form className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl" onSubmit={submit}>
+   <h2 className="text-lg font-semibold">{dialog==='create'?'New quote':dialog==='clone'?'Clone quote':'Rename quote'}</h2>
+   {dialog==='clone'?<><p className="mt-3">New project name: <strong>{target?.title} CLONE</strong></p><p className="text-sm mt-2">Copies the latest saved workbook, including its prices and settings, into a new Draft. The source and its revision history stay unchanged.</p></>:<label className="block mt-4">Project Name<Input name="title" autoFocus required maxLength={300} defaultValue={dialog==='rename'?target?.title:''}/></label>}
+   {dialog!=='rename'?<label className="block mt-4">Client Name<Input name="clientName" required maxLength={300} defaultValue={dialog==='clone'?target?.client_name??'':''}/></label>:null}
+   {dialog==='create'?<label className="block mt-4">Contact (optional)<Input name="contactName"/></label>:null}
+   {dialog==='clone'?<label className="block mt-4 text-sm"><input type="checkbox" name="copySchedule"/> Also copy dates and forecast/planning status (may duplicate Capacity demand)</label>:null}
+   {error?<p className="mt-3 text-red-700" role="alert">{error}</p>:null}
+   <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" disabled={busy} onClick={()=>setDialog(null)}>Cancel</Button><Button type="submit" disabled={busy}>{busy?'Saving…':dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':'Save name'}</Button></div>
+  </form></div>:null}
+ </PageShell>;
 }

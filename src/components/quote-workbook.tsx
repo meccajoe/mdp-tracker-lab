@@ -1,4 +1,5 @@
 "use client";
+import {QuoteStatusControl} from "./quote-status-control";
 import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -38,6 +39,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const editGroup = useRef<object|null>(null);
   const savedDocument = useRef('');
   const [pendingInput,setPendingInput] = useState(false);
+  const [quoteStatus,setQuoteStatus]=useState('draft');
   const [version, setVersion] = useState(0);
   const [history, setHistory] = useState<History[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -68,7 +70,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
         next=parseQuoteV27(template.document);
       }
       edits.current = next?newEditHistory(next):null; editGroup.current=null; setDocument(next); setSelected(next?.lines[0]?.id ?? '');
-      setVersion(payload.latestVersion); setHistory(payload.history); setCanEdit(payload.canEdit);
+      setQuoteStatus(payload.quoteStatus??'draft');setVersion(payload.latestVersion); setHistory(payload.history); setCanEdit(payload.canEdit);
       const restoring = Boolean(revision && revision !== payload.latestVersion);
       savedDocument.current=restoring||initializing?'':JSON.stringify(next);setPendingInput(false);
       setDirty(restoring||initializing);
@@ -188,13 +190,14 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     </fieldset>}
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
+    {!libraryItem&&document&&<QuoteStatusControl workspaceId={workspaceId} revision={version} dirty={dirty||pendingInput||saving} onChanged={()=>void load()}/>}
     {document && <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');setTab(name);}}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>}
     </div>
     <div className={styles.sheetViewport}>
     {document && <>
-      <p className="mb-4 text-xs text-muted-foreground">Draft only. No quote is sent or published. Green cells calculate automatically. Pale yellow cells accept input. Pricing overrides take precedence.</p>
+      <p className="mb-4 text-xs text-muted-foreground">{quoteStatus==='final'?'Final quote.':'Draft only.'} No quote is sent or published. Green cells calculate automatically. Pale yellow cells accept input. Pricing overrides take precedence.</p>
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>{!libraryItem&&<button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>}{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction onSummary={setSelectionSummary}><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
@@ -213,7 +216,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       </>}
       {tab==='Settings' && <QuoteRates key={restoreKey} quote={document} edit={edit} laborRate={calculation?.laborRate??null}/>}
       </fieldset></QuoteGridInteraction>
-      {tab==='Client Quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · Draft</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
+      {tab==='Client Quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · {quoteStatus==='final'?'Final':'Draft'}</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
       {tab==='Budget Handoff' && calculation && <><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{['Item #','Item name','Materials / other','Allowed hours','Labor cost','Build budget','Trade hours','Untyped hours'].map(h=><th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>{calculation.lines.filter(line=>line.buildBudget!==0||line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{quoteItemLabel(document,line.id)}</td><td className={cell}>{line.name}</td><td className={cell}>{money(line.materialsBudget)}</td><td className={cell}>{number(line.hoursAllowed)}</td><td className={cell}>{money(line.laborBudget)}</td><td className={cell}>{money(line.buildBudget)}</td><td className={cell}>{Object.entries(line.tradeHours).map(([id,hours])=>`${document.trades.find(t=>t.id===id)?.name}: ${number(hours)}`).join(', ')||'—'}</td><td className={cell}>{number(line.untypedHours)}</td></tr>)}</tbody></table></div><p className="mt-4 font-semibold">Total build budget: {money(calculation.totals.buildBudget)}</p><p className="mt-2 text-sm">Contingency held separately: {money(calculation.totals.contingency)}</p></>}
     </>}
     </div>

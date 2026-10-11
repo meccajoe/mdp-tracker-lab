@@ -1,3 +1,4 @@
+import {missingManagement} from '@/lib/quote-management-server';
 import { createBlankQuoteV27 } from '@/lib/quote-v27-template';
 import { NextResponse } from 'next/server';
 import { requireQuoteProductWorkspaceAccess } from '@/lib/ada-server';
@@ -16,7 +17,10 @@ export async function GET(request: Request, { params }: Context) {
   if (!validId(workspaceId)) return json({ error: 'Invalid workspace ID.' }, 400);
   const access = await requireQuoteProductWorkspaceAccess(workspaceId);
   if (!access.ok) return access.response;
-  const canEdit = access.workspaceLifecycle !== 'archived' && canPerformQuoteAction(access.quoteActor, 'edit_draft');
+  const controls = await access.actorSupabase.from('lab_quote_controls').select('quote_status').eq('workspace_id', workspaceId).maybeSingle();
+  if(controls.error&&!missingManagement(controls.error.code))return json({error:'Quote status could not load.'},500);
+  const quoteStatus=controls.data?.quote_status??'draft';
+  const canEdit = quoteStatus!=='final' && access.workspaceLifecycle !== 'archived' && canPerformQuoteAction(access.quoteActor, 'edit_draft');
   const search = new URL(request.url).searchParams;
   const template = search.get('template');
   if (template) {
@@ -39,7 +43,7 @@ export async function GET(request: Request, { params }: Context) {
   if (!result.data) return json({ error: 'Workbook revision not found.' }, 404);
   try {
     const document = parseQuoteV27(result.data.document);
-    return json({ document, version, latestVersion, history: history.data, canEdit });
+    return json({ document, version, latestVersion, history: history.data, canEdit, quoteStatus });
   } catch {
     return json({ error: 'This saved workbook is invalid. Its history has been preserved.' }, 422);
   }
@@ -67,7 +71,7 @@ export async function POST(request: Request, { params }: Context) {
     engine_version: 'v27-1', created_by: access.actorId, created_by_email: access.actorEmail,
   }).select('revision, created_at').single();
   if (result.error) {
-    if (['PT409', '23505'].includes(result.error.code)) return json({ error: 'A newer revision was saved. Your edits are still here. Download them before reloading the latest revision.' }, 409);
+    if (['PT409', '23505'].includes(result.error.code)) return json({ error: 'The quote was changed or marked Final on another device. Your edits are still here. Download them before reloading the latest revision.' }, 409);
     if (result.error.code === '42501') return json({ error: 'You no longer have permission to save this workbook.' }, 403);
     return json({ error: 'Workbook could not be saved. Your edits are still here.' }, 500);
   }
