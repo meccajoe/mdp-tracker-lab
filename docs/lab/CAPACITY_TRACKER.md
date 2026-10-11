@@ -1,5 +1,8 @@
 # Native lab capacity tracker
 
+## Overview charts — October 11
+The default Overview compares shop-only demand against active primary-trade roster hours with dated weekly paired bars. Select all or individual projects, a local start week, 4/8/13/26 weeks and probability-weighted/committed/full-active demand. Trade charts use the identical forecast basis. Project filtering never scales roster availability. CAD/design and support roster trades are excluded; secondary trade flexibility is not additive. These controls are view state only. Weekly values expose exact plotted hours; missing roster displays Not configured, while missing dates/status and allocation mismatches remain visible. Existing Shop Load and Field Load grids remain available.
+
 ## Item timelines and actual completion — October 11
 Paul confirmed parallel item schedules inside the existing stage windows. Graphics shares Finish/Paint’s 20% window and is separately itemized when quoted. No seventh stage or percentage change. Click a timeline stage to expand all quoted line items; Choose quoted item displays its own timeline on the same date axis. Untouched zero template slots are omitted, while items with quoted values, takeoffs or actual dates remain visible.
 

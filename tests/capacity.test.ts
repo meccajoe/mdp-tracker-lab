@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {dashboardLoad} from '../src/lib/capacity-dashboard';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {allocateHours,capacityLoad,capacityProject,emptyCapacity,emptyOverride,parseCapacity,parsePlanning,quoteDemand,rosterCapacity} from '../src/lib/capacity';
@@ -45,4 +46,22 @@ test('schedule/settings validation preserves old snapshots and rejects invalid d
 });
 test('remaining-hour and status overrides are separate from quote baseline and validate strictly',()=>{
  const source=project(),original=JSON.stringify(source.document),override={...emptyOverride(),status:'In production' as const,remainingShop:20,remainingField:0};const planned=capacityProject(source,override);assert.equal(planned.shop,20);assert.equal(planned.field,0);assert.equal(planned.probability,1);assert.equal(planned.demand.shop,60);assert.equal(JSON.stringify(source.document),original);assert.ok(planned.flags.some(flag=>flag.includes('exceed')));assert.deepEqual(parsePlanning(override),override);assert.throws(()=>parsePlanning({...override,remainingShop:-1}));assert.throws(()=>parsePlanning({...override,status:'whatever'}));
+});
+
+test('dashboard project filters preserve roster capacity and weight trade and total demand consistently',()=>{
+ const a=project('Possible'),b={...project('Closed won'),workspaceId:'two',workspace:'Second'};
+ const config={...settings(),roster:[{id:'a',name:'Shop test',primary:'Carpentry',secondary:'Painting',hours:40,rate:null,active:true,notes:''},{id:'cad',name:'CAD test',primary:'Design / Engineering / CAD',secondary:'',hours:40,rate:null,active:true,notes:''}]};
+ const original=structuredClone([a,b]);
+ const all=dashboardLoad([a,b],config,null,'expected');close(sum(all.load.expected),90);assert.equal(all.capacity.shop,40);
+ const one=dashboardLoad([a,b],config,['one'],'expected');close(sum(one.load.expected),30);assert.equal(one.capacity.shop,40);assert.equal(one.projects.length,1);
+ close(sum(dashboardLoad([a,b],config,[],'full').load.expected),0);
+ const full=dashboardLoad([a,b],config,['one'],'full');close(sum(full.load.expected),60);close(sum(Object.values(full.load.trades).map(sum)),60);
+ close(sum(dashboardLoad([a,b],config,null,'committed').load.expected),60);
+ for(const status of ['Lost','Completed',''])close(sum(dashboardLoad([project(status)],config,null,'full').load.expected),0);
+ assert.deepEqual([a,b],original);
+});
+test('dashboard keeps unplottable demand visible and clips only at the selected date horizon',()=>{
+ const p=project('Closed won');p.schedule={...p.schedule,buildStart:''};
+ assert.deepEqual(dashboardLoad([p],settings(),null,'full').load.unscheduled,['Test only']);
+ const after=dashboardLoad([project('Closed won')],{...settings(),weekStart:'2026-10-19'},null,'full');close(sum(after.load.expected),0);
 });
