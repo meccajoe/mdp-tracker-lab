@@ -1,3 +1,5 @@
+import {parseProductionProgress} from './production-progress';
+import {parseProductionCalendar} from './production-calendar';
 import {parsePlanning} from './capacity';
 import {parseSchedule} from './quote-schedule';
 import { parseEstimators } from './quote-v27-estimators';
@@ -62,6 +64,8 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
   }else if(v.contingencyByType!==undefined)throw new Error('Contingency choices require levy pricing.');
   if(v.planning!==undefined)parsed.planning=parsePlanning(v.planning);
   if(v.importNotes!==undefined){if(!Array.isArray(v.importNotes)||v.importNotes.length>10050)throw new Error('Invalid import notes.');parsed.importNotes=v.importNotes.map(note=>text(note,'Import note',5000));}
+  if(v.productionProgress!==undefined)parsed.productionProgress=parseProductionProgress(v.productionProgress,parsed.lines.map(line=>line.id));
+  if(v.productionCalendar!==undefined)parsed.productionCalendar=parseProductionCalendar(v.productionCalendar);
   if(v.schedule!==undefined)parsed.schedule=parseSchedule(v.schedule);
   if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
   if(v.reusableItemIds!==undefined){

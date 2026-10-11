@@ -8,6 +8,7 @@ export function prequoteSnapshot(source:QuoteV27,lineId:string):QuoteV27 {
  next.lines=[{...structuredClone(original),inputs:{...calculated.calculatedInputs}}];
  next.takeoffs=next.takeoffs.filter(row=>row.lineId===lineId);
  const used=new Set(next.takeoffs.map(row=>row.materialId));next.catalog=next.catalog.filter(material=>used.has(material.id));
+ delete next.productionProgress;delete next.productionCalendar;
  delete next.schedule;delete next.planning;delete next.reusableItemIds;delete next.catalogUsage;
  if(next.estimators){
   const walls=next.estimators.beMatrix.walls.filter(wall=>wall.lineId===lineId);

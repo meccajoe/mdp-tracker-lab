@@ -1,3 +1,5 @@
+import type {ProductionProgress} from './production-progress';
+import type {ProductionCalendar} from './production-calendar';
 import type {CapacityOverride} from './capacity';
 import type {QuoteSchedule} from './quote-schedule';
 import { calculateEstimators, type Estimators } from './quote-v27-estimators.ts';
@@ -43,6 +45,8 @@ export type QuoteV27 = {
   contingencyByType?: Record<LineType, boolean>;
   importNotes?: string[];
   schedule?: QuoteSchedule;
+  productionCalendar?: ProductionCalendar;
+  productionProgress?: ProductionProgress;
   planning?: CapacityOverride;
   estimators?: Estimators;
   reusableItemIds?: string[];
