@@ -1,3 +1,4 @@
+import type {ProductionProgress} from './production-progress';
 import type {ProductionCalendar} from './production-calendar';
 import type {CapacityOverride} from './capacity';
 import type {QuoteSchedule} from './quote-schedule';
@@ -45,6 +46,7 @@ export type QuoteV27 = {
   importNotes?: string[];
   schedule?: QuoteSchedule;
   productionCalendar?: ProductionCalendar;
+  productionProgress?: ProductionProgress;
   planning?: CapacityOverride;
   estimators?: Estimators;
   reusableItemIds?: string[];

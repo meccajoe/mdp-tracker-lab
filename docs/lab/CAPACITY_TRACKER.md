@@ -1,5 +1,14 @@
 # Native lab capacity tracker
 
+## Item timelines and actual completion — October 11
+Paul confirmed parallel item schedules inside the existing stage windows. Graphics shares Finish/Paint’s 20% window and is separately itemized when quoted. No seventh stage or percentage change. Click a timeline stage to expand all quoted line items; Choose quoted item displays its own timeline on the same date axis. Untouched zero template slots are omitted, while items with quoted values, takeoffs or actual dates remain visible.
+
+Stage hours now use the saved quote baseline, not remaining-hour overrides: item takeoff extended hours identify CNC/carpentry/paint/graphics/packing by exact trade mapping. Dedicated CAD and Stage/Pack/Prep lines use their allowed hours once. Shared CAD hours are not assigned across fabrication items. Unknown trades, untyped hours and overallocations remain explicit on item detail. Working days are elapsed stage duration; quoted person-days = stage labor / saved shopDay, with zero shopDay flagged rather than divided. No crew size, holiday, or sequential item scheduling is inferred. Current planning overrides still appear separately.
+
+Optional `productionProgress` stores `{stages: {stageId: ISODate}, items: {lineId: {stageId: ISODate}}}` in the existing workbook revision. Supported stage IDs include graphics as a Finish subtask. Empty dates remove entries; valid range 1900–2200 follows existing schedule policy. Project and item completion are independently entered; no automatic stage closure, hours reduction or status transition. Graphics has its own Actual date when quoted. Quote editing permissions and expectedVersion conflicts remain mandatory, including archived read-only behavior. Previous quote revisions are never updated. Clear item removes its actual dates; reusable-item snapshots omit project progress and calendar.
+
+Local component verification includes expansion, direct item menu, mirrored date fields, save/refresh and unchanged quoted hours; regression tests cover extended hours, CAD no-double-counting, graphics, override mismatch disclosure, snapshot validation, old snapshots, clearing and reusable export. Future Final locking integration must keep operational completion updates possible without enabling commercial repricing; pending branches are not merged as part of this work.
+
 ## Per-project timelines and workweeks — October 11
 Each project name in overall Capacity opens `/capacity/[workspaceId]`; the quote header and Capacity tab link to the same page. It reads only that quote’s latest saved revision under existing membership checks, with visible-only 60-second refresh paused while weekend choices are unsaved. Missing dates/saved quote produce a clear setup message.
 

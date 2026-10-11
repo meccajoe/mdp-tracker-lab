@@ -4,6 +4,7 @@ export function clearQuoteItem(quote:QuoteV27,id:string){
  const index=quote.lines.findIndex(line=>line.id===id);
  if(index<0)throw new Error('Choose an existing quote item.');
  quote.lines[index]={id,name:`Item ${index+1}`,type:'Fabrication',takeoffDriven:true,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null};
+ if(quote.productionProgress)delete quote.productionProgress.items[id];
  quote.takeoffs=quote.takeoffs.filter(row=>row.lineId!==id);
  if(quote.reusableItemIds)quote.reusableItemIds=quote.reusableItemIds.filter(item=>item!==id);
  const e=quote.estimators;if(!e)return;

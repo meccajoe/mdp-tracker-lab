@@ -1,0 +1,39 @@
+'use client';
+import {useEffect,useState,type ReactNode} from 'react';
+import {dateString,dayNumber} from '@/lib/capacity';
+import {projectTimeline} from '@/lib/project-timeline';
+import {validDate} from '@/lib/quote-schedule';
+import type {CompletionDates,ProductionProgress,StageId} from '@/lib/production-progress';
+import type {ItemTimeline} from '@/lib/item-timeline';
+import styles from './project-capacity.module.css';
+
+type Timeline=ReturnType<typeof projectTimeline>;
+type Stage=Timeline['stages'][number];
+const number=(n:number)=>n.toLocaleString('en-US',{maximumFractionDigits:2});
+const date=(v:string)=>v?new Date(`${v}T00:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}):'Not set';
+const stageHours=(hours:Partial<Record<StageId,number>>,id:StageId)=>id==='finish'&&hours.graphics!==undefined?(hours.finish??0)+hours.graphics:hours[id];
+const stageName=(stage:Stage,hours:Partial<Record<StageId,number>>)=>stage.id==='finish'&&hours.graphics!==undefined?'Finish / Paint + Graphics':stage.name;
+const effort=(hours:number|undefined,hoursPerDay:number)=>hours===undefined?'—':hoursPerDay>0?number(hours/hoursPerDay):'Set shop day hours';
+function ActualDate({value,label,disabled,onChange}:{value?:string;label:string;disabled:boolean;onChange:(value:string)=>void}){
+  const [draft,setDraft]=useState(value??'');
+  useEffect(()=>setDraft(value??''),[value]);
+  return <input type="date" aria-label={`Actual completion — ${label}`} value={draft} disabled={disabled} min="1900-01-01" max="2200-12-31" onInput={e=>{const next=e.currentTarget.value;setDraft(next);if(e.currentTarget.validity.valid&&(!next||validDate(next)))onChange(next);}} onBlur={e=>{
+    const next=e.currentTarget.value;if(e.currentTarget.validity.valid&&(!next||validDate(next))){setDraft(next);onChange(next);}else setDraft(value??'');
+  }}/>;
+}
+export function StageTable({timeline,hours,actual,hoursPerDay,disabled,onActual,label}:{timeline:Timeline;hours:Partial<Record<StageId,number>>;actual:CompletionDates;hoursPerDay:number;disabled:boolean;onActual:(stage:StageId,value:string)=>void;label:string}){
+  return <div className={styles.tableScroll}><table><caption>{label} — stage targets and quoted labor</caption><thead><tr><th>Stage</th><th>Share</th><th>Working days</th><th>Quoted working hours</th><th>Quoted person-days</th><th>Start</th><th>Target finish</th><th>Actual</th></tr></thead><tbody>{timeline.stages.map(stage=><tr key={stage.id}><th><span className={styles.dot} style={{background:stage.color}}/>{stageName(stage,hours)}</th><td>{stage.percent}%</td><td>{number(stage.workdays)}</td><td>{stageHours(hours,stage.id)===undefined?'—':number(stageHours(hours,stage.id)!)}{stage.id==='finish'&&hours.graphics!==undefined?<small>Finish/Paint: {number(hours.finish??0)} h · Graphics: {number(hours.graphics)} h</small>:null}</td><td>{effort(stageHours(hours,stage.id),hoursPerDay)}</td><td>{date(stage.start)}</td><td>{date(stage.finish)}<small>{stage.milestone}</small></td><td><ActualDate key={`${label}-${stage.id}`} value={actual[stage.id]} label={`${label} · ${stage.name}`} disabled={disabled} onChange={value=>onActual(stage.id,value)}/>{stage.id==='finish'&&hours.graphics!==undefined?<label className={styles.graphicsActual}>Graphics actual<ActualDate value={actual.graphics} label={`${label} · Graphics`} disabled={disabled} onChange={value=>onActual('graphics',value)}/></label>:null}</td></tr>)}</tbody></table></div>;
+}
+export function ItemStageRows({items,stage,progress,hoursPerDay,disabled,onActual,onSelect}:{items:ItemTimeline[];stage:Stage;progress:ProductionProgress;hoursPerDay:number;disabled:boolean;onActual:(stage:StageId,value:string,itemId:string)=>void;onSelect:(id:string)=>void}){
+  return <div className={styles.tableScroll}><table><caption>{stage.name} — all quoted items · {number(stage.workdays)} working days available per item</caption><thead><tr><th>Item</th><th>Quoted working hours</th><th>Quoted person-days</th><th>Target window</th><th>Actual</th></tr></thead><tbody>{items.map(item=><tr key={item.id}><th><button onClick={()=>onSelect(item.id)}>Item {item.number} — {item.name}</button></th><td>{stageHours(item.stages,stage.id)===undefined?'—':number(stageHours(item.stages,stage.id)!)}{stage.id==='finish'&&item.stages.graphics!==undefined?<small>Finish/Paint: {number(item.stages.finish??0)} h · Graphics: {number(item.stages.graphics)} h</small>:null}</td><td>{effort(stageHours(item.stages,stage.id),hoursPerDay)}</td><td>{date(stage.start)} – {date(stage.finish)}</td><td><ActualDate value={progress.items[item.id]?.[stage.id]} label={`Item ${item.number} — ${item.name} · ${stage.name}`} disabled={disabled} onChange={value=>onActual(stage.id,value,item.id)}/>{stage.id==='finish'&&item.stages.graphics!==undefined?<label className={styles.graphicsActual}>Graphics actual<ActualDate value={progress.items[item.id]?.graphics} label={`Item ${item.number} — ${item.name} · Graphics`} disabled={disabled} onChange={value=>onActual('graphics',value,item.id)}/></label>:null}</td></tr>)}</tbody></table>{!items.length?<p>No quoted items yet.</p>:null}</div>;
+}
+export function ProductionTimeline({timeline,install,hours={},actual={},renderStage}:{timeline:Timeline;install:string;hours?:Partial<Record<StageId,number>>;actual?:CompletionDates;renderStage?:(stage:Stage)=>ReactNode}){
+  const span=timeline.axisEnd-timeline.axisStart;
+  const position=(day:number)=>(day-timeline.axisStart)/span*100;
+  const ticks=Array.from(new Set(Array.from({length:5},(_,i)=>Math.round(timeline.axisStart+(span-1)*i/4))));
+  const content=(stage:Stage)=><><div><strong>{renderStage?'▸ ':''}{stageName(stage,hours)}</strong><small>{stage.percent}% · {date(stage.start)} – {date(stage.finish)}</small><small>{number(stage.workdays)} working days · {stageHours(hours,stage.id)===undefined?'No quoted hours':`${number(stageHours(hours,stage.id)!)} quoted hours`}{stage.id==='finish'&&hours.graphics!==undefined?` · Graphics: ${number(hours.graphics)} h`:''}{actual[stage.id]?` · Actual: ${date(actual[stage.id]!)}`:''}</small></div><div className={styles.track}><div className={styles.bar} style={{left:`${position(stage.from)}%`,width:`${Math.max(.35,(stage.to-stage.from)/span*100)}%`,background:!renderStage&&stageHours(hours,stage.id)===undefined?'transparent':stage.color,opacity:!renderStage&&stageHours(hours,stage.id)===undefined?.25:1}} title={`${stage.name}: ${stage.start} to ${stage.finish}`}/><span className={styles.flag} style={{left:`${position(stage.to)}%`}} title={`${stage.milestone}: ${stage.finish}`}>◆</span><span className={styles.milestone}>{!renderStage&&stageHours(hours,stage.id)===undefined?'No quoted allocation':stage.milestone}{actual[stage.id]?' · Completed':''}</span></div></>;
+  return <div className={styles.timeline} aria-label="Dated production timeline"><div className={styles.axis}><span>Stage / milestone</span><div>{ticks.map((day,i)=><span key={day} style={{left:`${position(day)}%`,transform:i===0?'none':i===ticks.length-1?'translateX(-100%)':'translateX(-50%)'}}>{dateString(day).slice(5)}</span>)}</div></div>
+    {timeline.stages.map(stage=>renderStage?<details key={stage.id} className={styles.stageDisclosure}><summary className={styles.trackRow} aria-label={`Expand ${stage.name} items`}>{content(stage)}</summary><div className={styles.expandedStage}>{renderStage(stage)}</div></details>:<div className={styles.trackRow} key={stage.id}>{content(stage)}</div>)}
+    {install?<div className={styles.trackRow}><div><strong>Install</strong><small>{date(install)} · separate milestone</small></div><div className={styles.track}><span className={styles.installFlag} style={{left:`${position(dayNumber(install)+.5)}%`}}>◆</span><span className={styles.milestone}>Installation</span></div></div>:null}
+  </div>;
+}

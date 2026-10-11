@@ -2,6 +2,8 @@
 
 October 11 project capacity: each quoted project has /capacity/[workspaceId] with dated six-stage timeline (CAD15%, Purchasing5%, CNC10%, Carpentry40%, Finish20%, Packing10%). Paul confirmed weekdays with project-specific Saturday and Sunday toggles. Save choices in independent quote revisions; adjust overall shop allocation to enabled days without changing prices/hours. Install is separate. See CAPACITY_TRACKER.md. This work is independent of pending quote-management/CAD branches and needs no new migration.
 
+October 11 item detail: expandable project stages show all quoted items, separate item selector shows parallel timelines inside the project windows. Graphics shares Finish/Paint dates but separate hours/completion date. Stage tables show working days, quoted hours/person-days and manually entered Actual completion dates for project stages and item stages. CAD service hours remain on their quoted line, counted once. Preserve quote budgets and append revisions for progress.
+
 ## Goal
 Paul can describe changes to Codex, build and deploy them to a persistent sandbox, and iterate independently. Joe reviews production promotion. Paul joins development before the new quote workspace is finished.
 
