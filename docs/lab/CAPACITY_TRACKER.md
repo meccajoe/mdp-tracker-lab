@@ -1,5 +1,18 @@
 # Native lab capacity tracker
 
+## Per-project timelines and workweeks — October 11
+Each project name in overall Capacity opens `/capacity/[workspaceId]`; the quote header and Capacity tab link to the same page. It reads only that quote’s latest saved revision under existing membership checks, with visible-only 60-second refresh paused while weekend choices are unsaved. Missing dates/saved quote produce a clear setup message.
+
+Paul approved default weekdays plus independent **Saturday work necessary** and **Sunday work necessary** toggles for each project. An explicit Save workweek appends the complete existing workbook with optional `productionCalendar: {saturday:boolean,sunday:boolean}` under the existing edit rights and expectedVersion check. A stale-save conflict retains choices; no business data is overwritten and no new database migration is required. Old snapshots without the field remain byte-schema compatible and default to weekdays. The legacy global `settings.allocation` field still parses for compatibility, but no longer controls production; its UI selector is replaced by per-project workweek guidance.
+
+Timeline shares are CAD/Drawings15%, Purchasing/Production Ramp Up5%, CNC10%, Carpentry/Assembly40%, Finish/Paint20%, Final Prep/Packing10%. Apply them to the inclusive enabled days between quote Build start and Build finish, using fractional days to avoid dropping stages on short jobs. Install is a separate dated milestone. Enabling weekends changes stage boundaries inside the same build dates; it does not move install/build finish or increase quoted hours. Milestones are targets, not tracked completion. Holidays are not inferred.
+
+Overall weekly shop demand and trades distribute across each project’s enabled workdays while preserving totals. Stage percentages do not divide labor, and the overall weekly load is not redistributed by stage. Stage details use quoted design plus exact mapped named shop trade hours, respecting remaining trade overrides. Unrecognized/untyped hours remain separate; no hours are invented for Purchasing. Field installation remains calendar-based on the install estimate (or the existing explicit build-window mode). Weekend toggles never increase roster capacity or apply overtime pricing.
+
+Tests cover 20-day exact dates/shares, four weekend combinations, one-day/weekend-only/missing/inverted dates, DST, persisted calendar validation, protected latest-revision reads, independent weekly distribution, baseline pricing preservation and trade mapping. Local UI verifies toggle/save/refresh. No operational Tracker project is auto-created or linked; these pages follow the existing quote-driven Capacity project list.
+
+Pending unrelated branches: `codex/quote-management` and dependent `codex/cad-turnover`. When integrating, retain this optional calendar field in clone/import/snapshot parsing and keep existing revision conflict checks. Their Final read-only control is reused automatically via the workbook read route.
+
 Reference read October 5, 2026: Mecca_Capacity_Tracker_v5, spreadsheet `1M1Wmk4ZPGQhu8kVLfXFRh8tp_hrHp7EQMJxkDj9ps_M`. Read native metadata plus bounded Roster & Settings, Projects, Shop Load, Field Load ranges and allocation formulas. This is a native lab implementation, not a Google Sheets write-back or ongoing roster integration.
 
 ## Data and formulas

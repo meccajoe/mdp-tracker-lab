@@ -37,3 +37,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Locally rendered PDF samples and visual checks
+/output/pdf/
+/tmp/pdfs/

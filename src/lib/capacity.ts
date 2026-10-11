@@ -1,3 +1,4 @@
+import {isProductionDay,productionDays,WEEKDAYS,type ProductionCalendar} from './production-calendar';
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
 import {EMPTY_SCHEDULE,FORECAST_STATUSES,validDate,type ForecastStatus} from './quote-schedule';
 export const SHOP_TRADES=['Carpentry','CNC + cutting','Assembly','Painting','Finish','Graphic Install','Vinyl Install','Electrical','Metal Work','Crate & pack','Sculpting'];
@@ -65,12 +66,12 @@ export function capacityProject(source:CapacityQuote,override:CapacityOverride=s
  return {...source,schedule,status,probability:probability(status),committed:isCommitted(status),demand,shop,field,trades,untyped:Math.max(0,shop-Object.values(trades).reduce((sum,n)=>sum+n,0)),flags};
 }
 /** Exact day-overlap allocation, preserving demand across partial weeks and DST changes. */
-export function allocateHours(hours:number,start:string,finish:string,weekStart:string,count=26,mode:'weekdays'|'calendar'='weekdays'){
+export function allocateHours(hours:number,start:string,finish:string,weekStart:string,count=26,mode:'weekdays'|'calendar'|ProductionCalendar='weekdays'){
  const buckets=Array<number>(count).fill(0);
  if(!validDate(start)||!validDate(finish)||finish<start||!validDate(weekStart))return buckets;
  const first=dayNumber(start),last=dayNumber(finish),grid=dayNumber(weekStart);
  let divisor=0;const days:number[]=[];
- for(let day=first;day<=last;day++){const weekday=new Date(day*86400000).getUTCDay();if(mode==='weekdays'&&(weekday===0||weekday===6))continue;divisor++;days.push(day);}
+ for(let day=first;day<=last;day++){if(mode!=='calendar'&&!isProductionDay(day,mode==='weekdays'?WEEKDAYS:mode))continue;divisor++;days.push(day);}
  if(!divisor)return buckets;
  for(const day of days){const index=Math.floor((day-grid)/7);if(index>=0&&index<count)buckets[index]+=hours/divisor;}
  return buckets;
@@ -85,10 +86,10 @@ export function capacityLoad(projects:ReturnType<typeof capacityProject>[],setti
  const unscheduled:string[]=[];
  for(const project of projects){
   if(!project.probability)continue;
-  let start=project.schedule.buildStart,finish=project.schedule.buildFinish,mode=settings.allocation;
+  let start=project.schedule.buildStart,finish=project.schedule.buildFinish,mode:'calendar'|ProductionCalendar=project.document?.productionCalendar??WEEKDAYS;
   if(kind==='field'&&settings.fieldAllocation==='install'){start=project.schedule.installDate;finish=start&&validDate(start)?dateString(dayNumber(start)+Math.max(1,Math.ceil(project.demand.fieldDays))-1):'';mode='calendar';}
   const total=kind==='shop'?project.shop:project.field;
-  if(!start||!finish||finish<start||(mode==='weekdays'&&Array.from({length:Math.max(0,dayNumber(finish)-dayNumber(start)+1)},(_,i)=>new Date((dayNumber(start)+i)*86400000).getUTCDay()).every(day=>day===0||day===6))){if(total>0)unscheduled.push(project.workspace);continue;}
+  if(!start||!finish||finish<start||(mode!=='calendar'&&!productionDays(start,finish,mode).length)){if(total>0)unscheduled.push(project.workspace);continue;}
   const parts=allocateHours(total,start,finish,settings.weekStart,26,mode),scenarioWeight=project.committed?1:scenarioIds.includes(project.workspaceId)?1:project.probability;
   parts.forEach((hours,i)=>{(project.committed?committed:pipeline)[i]+=hours*project.probability;scenario[i]+=hours*scenarioWeight;});
   if(kind==='shop')for(const [trade,hours] of Object.entries({...project.trades,'Untyped / other':project.untyped})){const values=allocateHours(hours,start,finish,settings.weekStart,26,mode);const bucket=trades[trade]??Array<number>(26).fill(0);values.forEach((hours,i)=>bucket[i]+=hours*project.probability);trades[trade]=bucket;}
