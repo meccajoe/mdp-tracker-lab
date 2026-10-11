@@ -9,7 +9,7 @@ const TRADE_STAGES:Record<string,StageId>={
   'graphics':'graphics','graphic install':'graphics','graphics install':'graphics','vinyl install':'graphics',
   'crate & pack':'packing','crate and pack':'packing','packing':'packing','final prep':'packing','stage / pack / prep':'packing',
 };
-export const stageForTrade=(name:string)=>TRADE_STAGES[name.trim().toLowerCase()];
+export const stageForTrade=(name:string)=>{const key=name.trim().toLowerCase();return Object.hasOwn(TRADE_STAGES,key)?TRADE_STAGES[key]:undefined;};
 export type ItemTimeline={id:string;number:number;name:string;type:string;hours:number;stages:Partial<Record<StageId,number>>;trades:Record<string,number>;other:Record<string,number>;untyped:number;overallocated:number};
 /** Use the same extended takeoff hours and unique trade-name fallback as Capacity.
  * Never scale named trades to overrides or spread a shared CAD fee across items. */
@@ -19,7 +19,7 @@ export function itemTimelines(quote:QuoteV27):ItemTimeline[]{
     const rows=calculation.takeoffs.filter(row=>row.lineId===line.id);
     const quoted=line.finalPrice!==0||line.buildBudget!==0||line.hoursAllowed!==0||rows.length>0||Object.values(line.inputs).some(n=>n!==0)||Boolean(quote.productionProgress?.items[line.id]);
     if(!quoted)return [];
-    const trades:Record<string,number>={},other:Record<string,number>={},stages:Partial<Record<StageId,number>>={};
+    const trades:Record<string,number>=Object.create(null),other:Record<string,number>=Object.create(null),stages:Partial<Record<StageId,number>>={};
     for(const row of rows){
       if(!row.extendedHours)continue;
       const matches=row.tradeId?quote.trades.filter(t=>t.id===row.tradeId):quote.trades.filter(t=>t.name.toLowerCase()===row.description.toLowerCase());

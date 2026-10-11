@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
-import {itemTimelines,quotedStageHours} from '../src/lib/item-timeline';
+import {itemTimelines,quotedStageHours,stageForTrade} from '../src/lib/item-timeline';
 import {emptyProgress,setCompletionDate} from '../src/lib/production-progress';
 import {parseQuoteV27} from '../src/lib/quote-v27-validation';
 import {calculateQuoteV27} from '../src/lib/quote-v27';
@@ -45,4 +45,10 @@ test('cleared and reusable items do not carry stale completion dates to the next
   const q=fixture();q.productionProgress=setCompletionDate(emptyProgress(),'cnc','2026-10-11',q.lines[0].id);q.productionCalendar={saturday:true,sunday:true};
   const reusable=prequoteSnapshot(q,q.lines[0].id);assert.equal(reusable.productionProgress,undefined);assert.equal(reusable.productionCalendar,undefined);
   clearQuoteItem(q,q.lines[0].id);assert.deepEqual(q.productionProgress.items,{});parseQuoteV27(q);
+});
+
+test('trade labels and item IDs never resolve inherited object properties',()=>{
+  assert.equal(stageForTrade('constructor'),undefined);assert.equal(stageForTrade('__proto__'),undefined);
+  const p=setCompletionDate(emptyProgress(),'cnc','2026-10-11','__proto__');
+  assert.ok(Object.hasOwn(p.items,'__proto__'));assert.equal(p.items['__proto__'].cnc,'2026-10-11');assert.equal(Object.hasOwn(Object.prototype,'cnc'),false);
 });

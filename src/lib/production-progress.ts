@@ -20,7 +20,9 @@ export function parseProductionProgress(value:unknown,lineIds:readonly string[])
   }))};
 }
 export function setCompletionDate(progress:ProductionProgress,stage:StageId,date:string,itemId?:string):ProductionProgress{
-  const next=structuredClone(progress),target=itemId?(next.items[itemId]??={}):next.stages;
+  const next=structuredClone(progress);
+  if(itemId)next.items={...next.items,[itemId]:{...(Object.hasOwn(next.items,itemId)?next.items[itemId]:{})}};
+  const target=itemId?next.items[itemId]:next.stages;
   if(date)target[stage]=date;else delete target[stage];
   if(itemId&&!Object.keys(target).length)delete next.items[itemId];
   return next;
