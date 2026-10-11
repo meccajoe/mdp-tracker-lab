@@ -9,7 +9,7 @@ import {capacityProject,type CapacityQuote} from '@/lib/capacity';
 import {WEEKDAYS,type ProductionCalendar} from '@/lib/production-calendar';
 import {projectTimeline} from '@/lib/project-timeline';
 import {emptyProgress,setCompletionDate,type ProductionProgress,type StageId} from '@/lib/production-progress';
-import {itemTimelines,quotedStageHours} from '@/lib/item-timeline';
+import {itemTimelines,quotedStageHours,isBuildTimelineItem} from '@/lib/item-timeline';
 import {ProductionTimeline,StageTable,ItemStageRows} from './production-timeline';
 import styles from './project-capacity.module.css';
 
@@ -55,8 +55,9 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
   }
   const project=useMemo(()=>source?capacityProject(source):null,[source]);
   const timeline=project?projectTimeline(project.schedule,calendar):null;
-  const items=useMemo(()=>source?.document?itemTimelines(source.document):[],[source]);
-  const hours=useMemo(()=>quotedStageHours(items),[items]);
+  const allItems=useMemo(()=>source?.document?itemTimelines(source.document):[],[source]);
+  const items=useMemo(()=>allItems.filter(isBuildTimelineItem),[allItems]);
+  const hours=useMemo(()=>quotedStageHours(allItems),[allItems]);
   const selected=items.find(item=>item.id===selectedItem)??items[0];
   const actual=(stage:StageId,value:string,itemId?:string)=>{setProgress(p=>setCompletionDate(p,stage,value,itemId));setNotice('');};
   function discard(){setProgress(source?.document?.productionProgress??emptyProgress());setCalendar({...saved});dirtyRef.current=false;void refresh.current?.request(true);setNotice('');}
@@ -77,10 +78,10 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
         {timeline.warnings.map(w=><p className={styles.warning} key={w}>{w}</p>)}
         {timeline.workdays>0?<ProductionTimeline timeline={timeline} install={project.schedule.installDate} hours={hours} actual={progress.stages} renderStage={stage=><ItemStageRows items={items} stage={stage} progress={progress} hoursPerDay={source.document!.settings.shopDay} disabled={!source.canEdit||saving} onActual={actual} onSelect={id=>{setSelectedItem(id);document.getElementById('item-timeline')?.scrollIntoView({behavior:'smooth'});}}/>}/>:null}
         <StageTable timeline={timeline} hours={hours} actual={progress.stages} hoursPerDay={source.document.settings.shopDay} disabled={!source.canEdit||saving} onActual={(stage,value)=>actual(stage,value)} label="Project"/>
-        <p>Click a stage to expand its quoted items. Working days describe the stage window; quoted hours describe labor effort. Person-days use this quote’s {number(source.document.settings.shopDay)}-hour shop day. Item schedules run in parallel within those windows. Actual dates are manually reported completion, independent of targets and quoted hours.</p>
+        <p>Click a stage to expand its build items. Working days describe the stage window; quoted hours describe labor effort. Person-days use this quote’s {number(source.document.settings.shopDay)}-hour shop day. Item schedules run in parallel within those windows. Actual dates are manually reported completion, independent of targets and quoted hours.</p>
       </section>
       <section id="item-timeline" className={styles.panel} aria-label="Item timeline"><h2>Item timeline</h2>
-        <label className={styles.itemPicker}>Choose quoted item <select aria-label="Choose quoted item" value={selected?.id??''} onChange={e=>setSelectedItem(e.target.value)}>{items.map(item=><option key={item.id} value={item.id}>Item {item.number} — {item.name}</option>)}</select></label>
+        <label className={styles.itemPicker}>Choose build item <select aria-label="Choose build item" value={selected?.id??''} onChange={e=>setSelectedItem(e.target.value)}>{items.map(item=><option key={item.id} value={item.id}>Item {item.number} — {item.name}</option>)}</select></label>
         {selected?<><h3>Item {selected.number} — {selected.name}</h3><p>{selected.type} · {number(selected.hours)} quoted allowed hours. Shared design hours remain on the quoted CAD line; they are not duplicated across build items.</p>
           {timeline.workdays>0?<ProductionTimeline timeline={timeline} install="" hours={selected.stages} actual={progress.items[selected.id]??{}}/>:null}
           <StageTable timeline={timeline} hours={selected.stages} actual={progress.items[selected.id]??{}} hoursPerDay={source.document.settings.shopDay} disabled={!source.canEdit||saving} onActual={(stage,value)=>actual(stage,value,selected.id)} label={`Item ${selected.number} — ${selected.name}`}/>
@@ -89,7 +90,7 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
           {selected.untyped>0?<p className={styles.warning}>{number(selected.untyped)} allowed hours are not attributed to a production stage. These may be field/service hours or unassigned shop labor.</p>:null}
           {Object.entries(selected.other).map(([name,value])=><p key={name}>{name}: {number(value)} h — no default stage assignment.</p>)}
           {selected.overallocated>0?<p className={styles.warning}>Trade detail exceeds allowed hours by {number(selected.overallocated)} h. Review quote overrides; hours have not been silently rescaled.</p>:null}
-        </>:<p>No quoted items yet. Add materials or labor to the quote to populate item timelines.</p>}
+        </>:<p>No build items yet. Add materials or labor to the quote to populate item timelines.</p>}
 
       </section>
       <section className={styles.details}><div className={styles.panel}><h2>Project planning detail</h2><p>Forecast: <strong>{project.status||'Not set'}</strong> · {number(project.probability*100)}% probability</p><p>Quoted shop baseline: {number(project.demand.shop)} hours · Current planning shop hours: {number(project.shop)}</p>{project.document?.planning?.notes?<p>{project.document.planning.notes}</p>:null}{project.flags.map(flag=><p className={styles.warning} key={flag}>{flag}</p>)}<p>Field work remains tied to the install estimate. Weekend choices control the production/build calendar; they do not add staff capacity or change quoted hours.</p></div><div className={styles.panel}><h2>Quoted hours and completion</h2><p>Stage and item tables use the saved quote’s labor estimates. Remaining-hour planning overrides stay separate and do not rewrite the quoted item breakdown.</p><p>Project-stage completion is entered separately from item completion; finishing one item does not mark the entire stage complete. Your team can edit Actual dates with its existing quote editing access.</p></div></section>

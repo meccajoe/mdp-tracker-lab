@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
-import {itemTimelines,quotedStageHours,stageForTrade} from '../src/lib/item-timeline';
+import {itemTimelines,quotedStageHours,stageForTrade,isBuildTimelineItem} from '../src/lib/item-timeline';
 import {emptyProgress,setCompletionDate} from '../src/lib/production-progress';
 import {parseQuoteV27} from '../src/lib/quote-v27-validation';
 import {calculateQuoteV27} from '../src/lib/quote-v27';
@@ -56,4 +56,13 @@ test('trade labels and item IDs never resolve inherited object properties',()=>{
 test('a quoted Graphics line appears in Finish even without separate trade rows',()=>{
   const q=createBlankQuoteV27();q.lines[0].type='Graphics';q.lines[0].overrides.sqft=100;
   const item=itemTimelines(q)[0];assert.equal(item.stages.graphics,0);assert.equal(quotedStageHours([item]).graphics,0);
+});
+
+ test('schedule lists exclude service lines without losing project CAD hours or changing quote data',()=>{
+  const q=fixture(),before=structuredClone(q),all=itemTimelines(q);
+  assert.deepEqual(all.filter(isBuildTimelineItem).map(i=>i.name),['Golden Arch','Cabinet']);
+  assert.equal(quotedStageHours(all).cad,12);
+  for(const type of ['Fabrication','Graphics','beMatrix / SEG','Props / Resale'])assert.equal(isBuildTimelineItem({...all[0],type}),true);
+  for(const type of ['Design / Engineering / CAD','Installer Days','Project Management Fee','Freight','Stage / Pack / Prep','Equipment Rental'])assert.equal(isBuildTimelineItem({...all[0],type}),false);
+  assert.deepEqual(q,before);
 });

@@ -11,6 +11,8 @@ const TRADE_STAGES:Record<string,StageId>={
 };
 export const stageForTrade=(name:string)=>{const key=name.trim().toLowerCase();return Object.hasOwn(TRADE_STAGES,key)?TRADE_STAGES[key]:undefined;};
 export type ItemTimeline={id:string;number:number;name:string;type:string;hours:number;stages:Partial<Record<StageId,number>>;trades:Record<string,number>;other:Record<string,number>;untyped:number;overallocated:number};
+/** Display build deliverables only; retain service rows when totaling project hours. */
+export const isBuildTimelineItem=(item:ItemTimeline)=>['Fabrication','Graphics','beMatrix / SEG','Props / Resale'].includes(item.type);
 /** Use the same extended takeoff hours and unique trade-name fallback as Capacity.
  * Never scale named trades to overrides or spread a shared CAD fee across items. */
 export function itemTimelines(quote:QuoteV27):ItemTimeline[]{
