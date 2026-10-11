@@ -3,6 +3,9 @@ assertLabEnvironment(process.env);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingIncludes: {
+    "/api/quote-workspaces/*/status": ["./src/assets/cad-fonts/*.ttf"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: [
       { key: "X-Robots-Tag", value: "noindex, nofollow" },

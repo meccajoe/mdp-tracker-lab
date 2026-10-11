@@ -3,6 +3,7 @@ import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
 import {useRouter} from 'next/navigation';
 import {adaFetch} from '@/lib/ada-client';
+import {QuoteCadDownload} from './quote-cad-download';
 import {changeQuoteArchives} from '@/lib/quote-bulk-archive';
 import {Button} from './ui/button';
 import {Input} from './ui/input';
@@ -55,7 +56,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
    <TableCell><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></TableCell><TableCell>{w.client_name||'—'}</TableCell>
    <TableCell><select className="rounded border p-1.5" aria-label={`Status · ${w.title}`} disabled={busy||archived||!ready} value={w.quote_status} onChange={e=>void changeStatus(w,e.target.value)}><option value="draft">Draft</option><option value="final" disabled={!w.workbook_revision}>Final</option></select></TableCell>
    <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
-   <TableCell><div className="flex gap-1">{!archived?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>open('rename',w)}>Rename</Button>:null}<Button size="sm" variant="ghost" disabled={busy||!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</Button><Button size="sm" variant="ghost" disabled={busy} onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</Button></div></TableCell>
+   <TableCell><div className="flex flex-wrap gap-1">{w.quote_status==='final'?<QuoteCadDownload workspaceId={w.id} version={w.status_version}/>:null}{!archived?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>open('rename',w)}>Rename</Button>:null}<Button size="sm" variant="ghost" disabled={busy||!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</Button><Button size="sm" variant="ghost" disabled={busy} onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</Button></div></TableCell>
   </TableRow>)}</TableBody></Table></Card>
   {dialog?<div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label={dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':'Rename quote'}><form className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl" onSubmit={submit}>
    <h2 className="text-lg font-semibold">{dialog==='create'?'New quote':dialog==='clone'?'Clone quote':'Rename quote'}</h2>

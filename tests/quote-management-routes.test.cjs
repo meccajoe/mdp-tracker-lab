@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function load(path,imports){const source=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>{if(!(name in imports))throw Error(name);return imports[name]},Response,Request,URL,TextEncoder});return module.exports;}
+function load(path,imports){const source=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>{if(!(name in imports))throw Error(name);return imports[name]},Response,Request,URL,TextEncoder,Buffer,Uint8Array});return module.exports;}
 const json=(body,status=200)=>Response.json(body,{status});
 const management={labManagementGuard:()=>null,managementJson:json,missingManagement:code=>code==='PGRST205',managementError:error=>json({error:error.message},error.code==='PT409'?409:503)};
 function query(data,error=null){const q={then:resolve=>Promise.resolve({data,error}).then(resolve)};for(const name of ['select','eq','in','is','order','limit','insert'])q[name]=()=>q;q.single=q.maybeSingle=()=>Promise.resolve({data,error});return q;}
@@ -13,16 +13,33 @@ test('create requires both names, freezes defaults through atomic RPC, and passe
  await post({title:'Import',clientName:'Client',requestId:id,initialDocument:{originalPricing:true}});assert.equal(calls[1].args.p_defaults_revision,null);assert.equal(calls[1].args.p_document.originalPricing,true);
 });
 test('Draft/Final requires workspace edit authorization and expected status and workbook versions',async()=>{
- let permitted=false,calls=[];const actor={ok:true,actorSupabase:{rpc:(name,args)=>{calls.push(args);return query({quote_status:'final',version:5})}}};
- const route=load('src/app/api/quote-workspaces/[workspaceId]/status/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async(_id,action)=>{assert.equal(action,'edit_draft');return permitted?actor:{ok:false,response:json({error:'Forbidden'},403)}}},'@/lib/quote-permissions':{},'@/lib/quote-management-server':management});
+ let permitted=false,calls=[];const actor={ok:true,actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Project',client_name:'Client'}:{revision:10,document:{}}),rpc:(name,args)=>{calls.push({...args,rpcName:name});return query({quote_status:'final',version:5})}}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/status/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:()=>({})},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-test')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async(_id,action)=>{assert.equal(action,'edit_draft');return permitted?actor:{ok:false,response:json({error:'Forbidden'},403)}}},'@/lib/quote-permissions':{},'@/lib/quote-management-server':management});
  const post=b=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify(b)}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await post({status:'final',expectedVersion:4,expectedRevision:10})).status,403);assert.equal(calls.length,0);permitted=true;
  assert.equal((await post({status:'accepted',expectedVersion:4,expectedRevision:10})).status,400);
- assert.equal((await post({status:'final',expectedVersion:4,expectedRevision:10})).status,200);assert.equal(calls[0].p_expected_version,4);assert.equal(calls[0].p_expected_revision,10);
+ assert.equal((await post({status:'final',expectedVersion:4,expectedRevision:10})).status,200);assert.equal(calls[0].p_expected_version,4);assert.equal(calls[0].p_expected_revision,10);assert.equal(calls[0].rpcName,'finalize_lab_quote_with_cad');assert.equal(Buffer.from(calls[0].p_pdf_base64,'base64').toString(),'%PDF-test');
 });
 test('clone requires source access, uses latest saved source, and preserves its pricing instead of globals',async()=>{
  let permitted=false,calls=[];const actor={ok:true,actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Original',client_name:'Client',contact_name:null}:{revision:8,document:{priceOverride:123}}),rpc:(name,args)=>{calls.push(args);return query({id})}}};
  const route=load('src/app/api/quote-workspaces/[workspaceId]/clone/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-defaults':{cloneQuoteDocument:(d,copy)=>({...d,copy}),requiredQuoteNames:x=>x},'@/lib/quote-management-server':management});
  const post=()=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({requestId:id})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await post()).status,403);assert.equal(calls.length,0);permitted=true;assert.equal((await post()).status,201);assert.equal(calls[0].p_title,'Original CLONE');assert.equal(calls[0].p_source_revision,8);assert.equal(calls[0].p_defaults_revision,null);assert.equal(calls[0].p_document.priceOverride,123);assert.equal(calls[0].p_document.copy,false);
+});
+test('CAD generation failure leaves Final unset, and stale finalization reports a conflict',async()=>{
+ let renderFails=true,calls=0;
+ const actor={ok:true,actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Project',client_name:'Client'}:{revision:10,document:{}}),rpc:()=>{calls++;return query(null,{code:'PT409',message:'Stale quote'});}}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/status/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:()=>({})},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>{if(renderFails)throw Error('render failed');return Buffer.from('%PDF-test')}},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>actor},'@/lib/quote-permissions':{},'@/lib/quote-management-server':management});
+ const post=()=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({status:'final',expectedVersion:4,expectedRevision:10})}),{params:Promise.resolve({workspaceId:id})});
+ assert.equal((await post()).status,422);assert.equal(calls,0);renderFails=false;assert.equal((await post()).status,409);assert.equal(calls,1);
+});
+test('CAD download enforces membership, current Final version and returns the stored private PDF',async()=>{
+ let permitted=false,status='final',version=2,pdf=Buffer.from('%PDF-1.7 stored snapshot').toString('base64');
+ const actor={ok:true,actorSupabase:{from:t=>query(t==='lab_quote_controls'?{quote_status:status,version}:{pdf_base64:pdf,project_name:'Golden Arch',workbook_revision:8})}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/cad-turnover/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-management-server':management});
+ const get=(v=2)=>route.GET(new Request('https://lab.test?version='+v),{params:Promise.resolve({workspaceId:id})});
+ assert.equal((await get()).status,403);permitted=true;assert.equal((await get(1)).status,409);
+ status='draft';assert.equal((await get()).status,409);status='final';
+ const response=await get();assert.equal(response.headers.get('Content-Type'),'application/pdf');assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.match(response.headers.get('Content-Disposition'),/Golden-Arch-CAD-Turnover-r8.pdf/);assert.equal(await response.text(),'%PDF-1.7 stored snapshot');
+ pdf=Buffer.from('corrupt').toString('base64');assert.equal((await get()).status,500);
 });
