@@ -1,5 +1,9 @@
 # Lab status
 
+## Build-only schedule lists — October 11, 2026
+- Expanded stage details and item timeline selector now show build deliverables (Fabrication, Graphics, beMatrix / SEG, Props / Resale). Standalone CAD, install, PM and other service rows are excluded from these lists. Project stage-hour aggregation still includes service hours, including CAD and packing. No saved data, dates, revisions or pricing changed.
+- Added regression coverage for build/service filtering, retained CAD totals and immutable quote data. Deployment verification pending below.
+
 ## Item timelines and actual completion — October 11, 2026
 - Paul requested expandable project stages listing quoted items, a separate item timeline selector, quoted working hours/days including CAD, and manual Actual completion dates. Confirmed items run in parallel within parent stage windows. Clarified Graphics shares Finish/Paint dates and is called out separately when quoted; six stage percentages remain unchanged.
 - Added item-level saved-quote trade aggregation by stable line ID (extended takeoff hours; exact unique trade-name fallback), CAD service-line hours counted once, separate graphics hours/dates inside Finish. Stage tables distinguish elapsed working days from labor hours and person-days (quote shopDay). Missing/unmapped labor stays disclosed rather than invented or scaled. Active/valued/linked quote lines populate lists; untouched blank template slots do not. Item bar fill highlights quoted allocations, while no-allocation stages remain outlined. Global weekly allocation stays across enabled build days, not stage windows.
