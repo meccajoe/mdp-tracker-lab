@@ -52,3 +52,8 @@ test('trade labels and item IDs never resolve inherited object properties',()=>{
   const p=setCompletionDate(emptyProgress(),'cnc','2026-10-11','__proto__');
   assert.ok(Object.hasOwn(p.items,'__proto__'));assert.equal(p.items['__proto__'].cnc,'2026-10-11');assert.equal(Object.hasOwn(Object.prototype,'cnc'),false);
 });
+
+test('a quoted Graphics line appears in Finish even without separate trade rows',()=>{
+  const q=createBlankQuoteV27();q.lines[0].type='Graphics';q.lines[0].overrides.sqft=100;
+  const item=itemTimelines(q)[0];assert.equal(item.stages.graphics,0);assert.equal(quotedStageHours([item]).graphics,0);
+});

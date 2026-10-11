@@ -29,6 +29,7 @@ export function itemTimelines(quote:QuoteV27):ItemTimeline[]{
     // their trade detail as descriptive, not additional stage labor.
     if(line.type==='Design / Engineering / CAD')stages.cad=line.hoursAllowed;
     else if(line.type==='Stage / Pack / Prep')stages.packing=line.hoursAllowed;
+    else if(line.type==='Graphics'&&!Object.keys(trades).length)stages.graphics=line.hoursAllowed;
     else for(const [name,hours] of Object.entries(trades)){
       const stage=stageForTrade(name);
       if(stage)stages[stage]=(stages[stage]??0)+hours;else other[name]=hours;
