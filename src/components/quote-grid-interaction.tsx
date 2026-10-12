@@ -28,7 +28,7 @@ export function QuoteGridInteraction({children,onSummary}:{children:ReactNode;on
       const p=point(e.target);if(!p)return;e.preventDefault();
       const rows=p.table.querySelectorAll('tbody tr');const r=p.row+(e.key==='ArrowDown'?1:e.key==='ArrowUp'?-1:0),c=p.column+(e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0);
       const cell=(rows?.[r] as HTMLTableRowElement|undefined)?.cells[c];if(!cell)return;
-      const target=cell.querySelector<HTMLElement>('input,textarea,select,button')??cell;target.tabIndex=target===cell?-1:target.tabIndex;target.focus();
+      const target=cell.querySelector<HTMLElement>('input,textarea,select,button:not([data-quote-item-menu])')??cell;target.tabIndex=target===cell?-1:target.tabIndex;target.focus();
       if(target instanceof HTMLInputElement&&target.type!=='number')target.select();
     }}>
     {children}
