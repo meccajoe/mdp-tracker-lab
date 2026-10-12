@@ -1,5 +1,9 @@
 # Lab status
 
+## Hosted storage verification — October 12, 2026
+- Paul reported Joe applied pending migrations. Authenticated hosted catalog now showed copy-ready state (previous missing-schema blocker cleared). Completed Paul’s previously authorized one-time import: 701 entries, and verified 701 persisted after full page reload. Tracker is now active catalog source. No existing quote modified. Z Clips still needs unit/cost; automatic manual-add and catalog-edit snapshot behavior previously verified locally, not re-tested hosted today. Screenshot /private/tmp/tracker-catalog-live.png.
+- Hosted prequote library loads a persisted LAB TEST Prequote cabinet Oct 12 revision 1 without setup error. Capacity Roster & Settings loads without missing-storage error but contains zero staff; available capacity remains unconfigured. This verifies application reads, not a full SQL migration/security audit or roster write test. CSV download completion remains unverified.
+
 ## Shared Tracker catalog — October 11, 2026
 - Paul chose a one-time Google Materials DB copy, Tracker as subsequent source, automatic manual Takeoff entries, sortable Google Sheet DB / Added from Takeoff provenance, and CSV export instead of sync. Built shared versioned storage/RLS, atomic one-time import, duplicate-safe adds, optimistic edits, full export and catalog UI at /quotes/catalog and quote Materials DB. Existing quotes preserve snapshot prices.
 - Read source: 700 valid entries plus Z Clips missing unit/cost; preserve Z Clips as incomplete rather than inventing zero or losing its name. No Sheet writes. Hosted copy NOT done: new 20261012010000_lab_materials_catalog.sql requires Joe, then Copy Google Sheet DB into Tracker in catalog. Before activation read-only Google selections remain explicitly marked pending; after activation Google is never read for normal catalog selections.
