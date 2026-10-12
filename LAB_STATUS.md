@@ -1,5 +1,9 @@
 # Lab status
 
+## Capacity chart tiles — October 11, 2026
+- Replaced the single trade selector with an always-visible responsive grid: combined shop tile plus every standard/custom trade and untyped hours. Three columns on desktop, two on medium widths and one on small screens. Compact charts retain every weekly bar, thin date labels on longer horizons, expose complete dates/values in Weekly values, and show per-tile period totals. Shared project/date/forecast controls and all calculations unchanged. No saved quote or roster edits.
+- 122 tests plus TypeScript passed. Local sample browser verified all trade charts render simultaneously, original 1,050h needed / 960h available totals and 26-week window propagation. Hosted deployment verification pending.
+
 ## Capacity overview charts — October 11, 2026
 - Paul requested dated bar charts comparing available vs needed labor, combined and per trade, with all/specific project selection. Confirmed shop trades only; CAD and install remain separate. Added default Overview tab, 4/8/13/26-week local date window, project checkbox picker, expected/committed/full-active forecast modes, period metrics, combined and selectable-trade paired bars, over-capacity highlighting and accessible weekly values.
 - Filters change demand only; full roster availability stays fixed. Trades and totals share the same forecast weighting and exact existing project workweek allocation. Explicit CAD/design and support roster trades are excluded from combined shop availability; secondary skills never add extra hours. Missing roster capacity remains Not configured; missing dates/status and trade-overallocation stay disclosed. Quotes, saved schedules, roster revisions and prices are unchanged. No schema migration added.
