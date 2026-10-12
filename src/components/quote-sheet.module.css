@@ -62,3 +62,7 @@
 .typeCell:focus-within {outline:2px solid #2563eb;outline-offset:-2px;}
 
 .sheet td.belowOverhead { color: #b42318; background: #fff0ee; font-weight: 700; }
+
+.itemNumber {display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.itemMenuButton {width:22px;height:26px;flex-shrink:0;font-size:18px;border-radius:4px;cursor:pointer;}
+.itemMenuButton:hover {background:#dce5ef;}

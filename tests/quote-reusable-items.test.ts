@@ -64,3 +64,32 @@ test('clearing an item resets its slot, removes its rows/links, preserves other 
  const frame=next.lines.find(line=>line.type==='beMatrix / SEG')!;next.estimators!.beMatrix.walls=[{id:'test',lineId:frame.id,width:10,height:8,sides:1,sqftOverride:null}];clearQuoteItem(next,frame.id);assert.equal(next.estimators!.beMatrix.walls.length,0);assert.doesNotThrow(()=>parseQuoteV27(next));
  const installer=next.estimators!.install.lead.lineId!;clearQuoteItem(next,installer);assert.equal(next.estimators!.install.lead.lineId,null);assert.doesNotThrow(()=>parseQuoteV27(next));
 });
+
+import {cloneQuoteItem,deleteQuoteItem} from '../src/lib/quote-item-actions';
+test('item clone preserves recorded costs and overrides with independent rows; delete cleans links',()=>{
+ const q=createBlankQuoteV27();q.lines[0].name='Golden Arch';
+ const material=q.catalog[0];applySheetCells(q,50,q.lines[0].id,0,2,[[material.name,'2']],null);
+ applySheetCells(q,50,q.lines[0].id,0,0,[[q.lines[0].id]],null);
+ q.takeoffs[0].unitCostOverride=17;q.lines[0].priceOverride=1234;
+ const original=structuredClone(q),id=cloneQuoteItem(q,q.lines[0].id);
+ assert.equal(q.lines[1].name,'Golden Arch CLONE');assert.notEqual(id,q.lines[0].id);
+ assert.deepEqual(q.takeoffs[0],original.takeoffs[0]);assert.equal(q.takeoffs[1].lineId,id);
+ assert.notEqual(q.takeoffs[0].id,q.takeoffs[1].id);assert.equal(q.takeoffs[1].unitCostOverride,17);
+ assert.equal(calculateQuoteV27(parseQuoteV27(q)).lines[1].finalPrice,1234);
+ q.takeoffs[1].quantity=9;assert.equal(q.takeoffs[0].quantity,2);
+ deleteQuoteItem(q,id);assert.deepEqual(q,original);parseQuoteV27(q);
+});
+test('cloning linked estimators preserves effective inputs and independent beMatrix walls',()=>{
+ const q=createBlankQuoteV27(),frame=q.lines.find(line=>line.type==='beMatrix / SEG')!;
+ q.estimators!.beMatrix.walls=[{id:'frame',lineId:frame.id,width:22,height:10,sides:2,sqftOverride:null}];
+ const before=calculateQuoteV27(q).lines.find(line=>line.id===frame.id)!;
+ const id=cloneQuoteItem(q,frame.id);assert.equal(q.estimators!.beMatrix.walls.length,2);
+ assert.equal(calculateQuoteV27(parseQuoteV27(q)).lines.find(line=>line.id===id)!.finalPrice,before.finalPrice);
+ deleteQuoteItem(q,frame.id);assert.equal(q.estimators!.beMatrix.walls.length,1);
+ assert.equal(q.estimators!.beMatrix.walls[0].lineId,id);parseQuoteV27(q);
+ q.estimators!.install.lead.installDays=5;
+ const lead=q.estimators!.install.lead.lineId!,leadBefore=calculateQuoteV27(q).lines.find(line=>line.id===lead)!;
+ const clonedLead=cloneQuoteItem(q,lead);
+ assert.equal(calculateQuoteV27(parseQuoteV27(q)).lines.find(line=>line.id===clonedLead)!.finalPrice,leadBefore.finalPrice);
+ deleteQuoteItem(q,lead);assert.equal(q.estimators!.install.lead.lineId,null);parseQuoteV27(q);
+});

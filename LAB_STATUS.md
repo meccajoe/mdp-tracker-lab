@@ -1,5 +1,11 @@
 # Lab status
 
+## Quote Builder header and item menu — October 11, 2026
+- Moved sales commission into the shared date/forecast header. Removed the Quote Builder instruction box and obsolete item-clear picker. Each row now has a small menu left of Item #: Clone, Delete, Save as prequote item. Delete requires an accessible confirmation dialog and removes its linked takeoffs/estimator links/progress; prior revisions and Undo/Redo remain intact. Library editor disallows clone/delete to preserve its single-item contract.
+- Clone inserts a separate named CLONE after the source, retains recorded prices/manual overrides and takeoff rows, copies linked beMatrix walls with new IDs, and freezes effective service inputs without reassigning original install/travel links. No inventory refresh, pricing-rule change, database migration or business quote edits.
+- Lab tests and TypeScript passed; production webpack build passed using placeholder lab-only keys. Actual component browser on a synthetic local adapter verified clone, cancel, confirmed delete, Undo/Redo and commission 10% save revision 2. Hosted deployment/acceptance pending below.
+
+
 ## Spreadsheet staff roster — October 11, 2026
 - Paul authorized replicating the attached Mecca_Capacity_Tracker_v5.xlsx roster, including staff data. Read Roster & Settings A12:G72 and summary formulas I12:K27; 39 staff rows, 32 active, 1,080 blended shop / 40 I&D hours per week. Repeated Temp names stay separate IDs; inactive staff, blank wages, secondary trades and notes preserved. Personnel names/wages are not committed to Git or bundled in the site.
 - Added strict client-side v5 roster import into an empty draft only, with header/row/numeric/Yes-No validation and bounds. No quote, schedule or shared roster overwritten; saving still uses existing expectedVersion and append-only settings API. Missing-storage imports are explicitly unsaved previews. UI matches source columns with Yes/No active controls, dollar prefix, sticky name/header, inactive shading and adjacent calculated primary/flex table (stacked on smaller screens).
