@@ -3,6 +3,8 @@ import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
 import {applyVisibleSheetCells,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
+import {adaFetch} from '@/lib/ada-client';
+import {manualCatalogInput} from '@/lib/tracker-catalog';
 import {useQuoteCatalog} from './use-quote-catalog';
 import styles from './quote-takeoffs.module.css';
 import {loadQuoteLibrary} from '@/lib/quote-library-client';
@@ -31,6 +33,8 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [selectionEnd,setSelectionEnd]=useState<Cell|null>(null);
   const [end,setEnd]=useState<number|null>(null);
   const [endColumn,setEndColumn]=useState<number|null>(null);
+  const costEntered=useRef(new Set<string>()),catalogSent=useRef(new Set<string>());
+  const [catalogNotice,setCatalogNotice]=useState('');
   const [error,setError]=useState('');
   const [itemPicker,setItemPicker]=useState<number|null>(null);
   const [learnedUsage,setLearnedUsage]=useState<Record<string,number>>({});
@@ -68,13 +72,22 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     if(key==='unitCostOverride')return saved&&(row.description!==EMPTY_TAKEOFF_DESCRIPTION||row.quantity||row.unitCostOverride)?(row.unitCostOverride??catalog.get(row.materialId??'')?.unitCost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
     return saved?String((key==='sections'?row[key]:row[key]||'')??''):'';
   }
+  async function addManual(row:Takeoff){
+    const input=manualCatalogInput(row);if(!input||!costEntered.current.has(row.id)||!live.materials)return;if(!live.initialized){setCatalogNotice('This entry is saved in your quote. Automatic catalog saving starts after Tracker catalog setup and import.');return;}
+    const key=JSON.stringify(input);if(catalogSent.current.has(key))return;catalogSent.current.add(key);
+    try{const response=await adaFetch('/api/quotes/catalog',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',...input})}),data=await response.json();if(!response.ok)throw new Error(data.error);setCatalogNotice(data.created?`Added ${input.name} to Tracker catalog.`:`${input.name} already exists in Tracker catalog. Its stored price was not changed.`);window.dispatchEvent(new Event('tracker-catalog-changed'));}
+    catch(error){catalogSent.current.delete(key);setCatalogNotice(`Catalog save failed: ${error instanceof Error?error.message:'Try editing the row again.'} The quote entry is retained.`);}
+  }
   function apply(row:number,column:number,values:string[][],picked=false) {
     if(readOnly)return false;
     try {
       if(values.some(cells=>column+cells.length>columns.length))throw new Error('Paste extends beyond the visible worksheet columns.');
       const trial=structuredClone(quote);
       applyVisibleSheetCells(trial,rowCount,defaultItem,visibleIndices,row,column,values,live.materials);
-      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;if(picked){const name=values[0][0];next.catalogUsage={...next.catalogUsage,[name]:(next.catalogUsage?.[name]??0)+1};}});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');return true;
+      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;if(picked){const name=values[0][0];next.catalogUsage={...next.catalogUsage,[name]:(next.catalogUsage?.[name]??0)+1};}});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');
+      const touched=visibleIndices.filter(index=>index>=row).slice(0,values.length);
+      touched.forEach((index,i)=>{const costIndex=columns.indexOf('unitCostOverride')-column;if(costIndex>=0&&costIndex<values[i].length&&values[i][costIndex].trim()!=='')costEntered.current.add(trial.takeoffs[index].id);void addManual(trial.takeoffs[index]);});
+      return true;
     } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
   }
   function finish() {
@@ -110,7 +123,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
     <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor in Labor hrs. Double-click or F2 edits text; Delete clears a selected cell. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
     {calculation?.lines.filter(line=>line.type==='beMatrix / SEG'&&(!filterItem||line.id===filterItem)&&(line.inputs.rental||line.inputs.sqft)).map(line=><p key={line.id}><strong>{line.name}</strong>: frame rental ${line.inputs.rental.toFixed(2)} + SEG ({line.inputs.sqft} sq. ft.) ${(line.inputs.sqft*quote.settings.graphicsSell).toFixed(2)} · Final quote ${line.finalPrice.toFixed(2)}. Dimensions and destination are set in beMatrix Estimator.</p>)}
-    {error&&<p role="alert">{error}</p>}
+    {error&&<p role="alert">{error}</p>}{catalogNotice&&<p role="status">{catalogNotice}</p>}
     <div ref={scrollRef} className={styles.scroll}
       onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=drag.current.column<=1?drag.current.column:Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
       onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);setEndColumn(null);}}
@@ -171,6 +184,6 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       </table>
     </div>
 
-    <p>Blank sections = 1. Clear unit cost to restore the recorded catalog price; 0 is an explicit override. Live choices refresh every 15 seconds. Use latest price for selected row to update an existing selection. Saved rows do not reprice automatically.</p>
+    <p>Blank sections = 1. Clear unit cost to restore the recorded catalog price; 0 is an explicit override. Tracker catalog choices refresh every 15 seconds. Custom names are added after a unit and explicit unit cost are entered. Use latest price for selected row to update an existing selection. Saved rows do not reprice automatically.</p>
   </div>;
 }

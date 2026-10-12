@@ -4,7 +4,7 @@ export const MATERIALS_SHEET_ID = '1Z34DH5kc3c7K9g-yOUyzF_sEhhNPFZeIdfh1gMTNL-0'
 export const MATERIALS_SHEET_GID = '1318845246';
 export const MATERIALS_CSV_URL = `https://docs.google.com/spreadsheets/d/${MATERIALS_SHEET_ID}/export?format=csv&gid=${MATERIALS_SHEET_GID}`;
 
-export function parseCatalogCsv(csv: string): { materials: Material[]; warnings: string[] } {
+export function parseCatalogCsv(csv: string): { materials: Material[]; warnings: string[]; incomplete: {name:string;unit:string;unitCost:null}[] } {
   if (csv.length > 2_000_000 || /^\s*</.test(csv)) throw new Error('Materials DB did not return a valid CSV export.');
   const rows: string[][] = []; let row: string[] = [], cell = '', quoted = false;
   for (let i = 0; i < csv.length; i++) {
@@ -22,7 +22,7 @@ export function parseCatalogCsv(csv: string): { materials: Material[]; warnings:
   if (cell || row.length) { row.push(cell.replace(/\r$/, '')); rows.push(row); }
   const header = rows[3]?.map(value => value.trim());
   if (header?.[0] !== 'Description' || header?.[1] !== 'Unit' || header?.[2] !== 'Unit cost $' || header?.[3] !== 'Type') throw new Error('Materials DB column headings changed.');
-  const materials: Material[] = [], warnings: string[] = [];
+  const materials: Material[] = [], warnings: string[] = [], incomplete: {name:string;unit:string;unitCost:null}[] = [];
   const names = new Set<string>(), duplicates = new Set<string>();
   for (let index = 4; index < Math.min(rows.length,1004); index++) {
     const [rawName='', rawUnit='', rawCost='', rawType=''] = rows[index];
@@ -31,7 +31,7 @@ export function parseCatalogCsv(csv: string): { materials: Material[]; warnings:
     const costText = rawCost.replace(/[$,\s]/g, '');
     const unitCost = kind === 'Labor' && !costText ? 0 : Number(costText);
     if (name.length>2000 || unit.length>200 || (!costText && kind !== 'Labor') || !Number.isFinite(unitCost) || unitCost<0 || unitCost>1e12) {
-      warnings.push(`Row ${index+1}: incomplete or invalid description, type, unit or price; excluded.`); continue;
+      warnings.push(`Row ${index+1}: ${name} needs a valid unit/cost before it can be selected.`); if(name.length<=2000&&unit.length<=200)incomplete.push({name,unit,unitCost:null}); continue;
     }
     if (names.has(name)) duplicates.add(name);
     names.add(name);
@@ -42,7 +42,7 @@ export function parseCatalogCsv(csv: string): { materials: Material[]; warnings:
   if (duplicates.size) warnings.push(`${duplicates.size} duplicate descriptions excluded; make descriptions unique in Materials DB.`);
   const unique = materials.filter(material => !duplicates.has(material.name));
   if (!unique.length || unique.length > 2000) throw new Error('Materials DB must contain 1–2000 valid unique entries.');
-  return {materials: unique,warnings};
+  return {materials: unique,warnings,incomplete};
 }
 
 export async function fetchLiveCatalog(fetcher: typeof fetch = fetch) {

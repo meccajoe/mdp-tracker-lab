@@ -204,7 +204,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction onSummary={setSelectionSummary}><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
       {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
       {tab==='Capacity'&&<div className="rounded border bg-white p-4"><h2>Capacity handoff</h2><p>The quote name, header dates, forecast status and calculated shop/trade hours appear in the Capacity tracker after saving. Planning overrides remain separate from quote inputs.</p><a className="underline" href={`/capacity/${workspaceId}`}>Open this project’s capacity & timeline</a> · <a className="underline" href="/capacity">All projects</a></div>}
-      {tab==='Materials DB'&&<QuoteMaterialsDB quote={document}/>}
+      {tab==='Materials DB'&&<QuoteMaterialsDB/>}
       {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
 
       <QuoteGridInteraction onSummary={setSelectionSummary}><fieldset className="min-w-0" disabled={!canEdit || busy}>
