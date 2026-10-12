@@ -1,13 +1,14 @@
 'use client';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
-import {useMemo,useRef,useState,type CSSProperties} from 'react';
+import {useEffect,useMemo,useRef,useState,type CSSProperties} from 'react';
 import {moveToVerticalCell} from './quote-cell-navigation';
 import type {Material} from '@/lib/quote-v27';
 import styles from './quote-takeoffs.module.css';
 export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,hidePrice=false,onPick,clearWholeCell=false}:{value:string;label:string;materials:Material[];usage:Record<string,number>;disabled:boolean;commit:(value:string,selected:boolean)=>boolean;hidePrice?:boolean;clearWholeCell?:boolean;onPick?:(id:string)=>boolean}) {
   const [position,setPosition]=useState<CSSProperties>({});
-  const input=useRef<HTMLInputElement>(null);
+  const input=useRef<HTMLInputElement>(null),list=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(-1);
+  useEffect(()=>{if(!open)return;const close=(event:PointerEvent)=>{const target=event.target as Node;if(!input.current?.contains(target)&&!list.current?.contains(target)){setOpen(false);input.current?.blur();}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[open]);
   const choices=useMemo(()=>materials.filter(m=>m.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>(usage[b.name]??0)-(usage[a.name]??0)),[materials,query,usage]);
   function choose(material:Material){const name=material.name;if(onPick?onPick(material.id):commit(name,true)){if(input.current)input.current.value=name;setOpen(false);setIndex(-1);}}
   return <><input aria-label={label} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={open?`${label}-choices`:undefined} aria-activedescendant={open&&index>=0?`${label}-choice-${index}`:undefined} ref={input} defaultValue={value} disabled={disabled}
@@ -24,7 +25,7 @@ export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,h
       else if(open&&(e.key==='Enter'||e.key==='Tab')&&index>=0&&choices[index]){e.preventDefault();e.stopPropagation();const element=e.currentTarget;choose(choices[index]);if(e.key==='Tab')moveToVerticalCell(element,e.shiftKey?-1:1);}
       else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setOpen(false);if(input.current)input.current.value=value;}
       else if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}
-    }}/>{open&&<div className={styles.materialList} style={position} role="listbox" id={`${label}-choices`} aria-label="Materials and labor choices">
+    }}/>{open&&<div ref={list} className={styles.materialList} style={position} role="listbox" id={`${label}-choices`} aria-label="Materials and labor choices">
       <div className={styles.listHint}>Type to search · ↑ ↓ then Enter to select · Escape to close</div>
       {choices.map((m,i)=><button type="button" role="option" aria-selected={index===i} id={`${label}-choice-${i}`} key={m.id} ref={element=>{if(element&&index===i)element.scrollIntoView({block:'nearest'});}} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(m)}><span>{m.name}</span><small>{m.unit}{!hidePrice&&` · $${m.unitCost.toFixed(2)}`}</small></button>)}
       {!choices.length&&<p>No match. Enter keeps your custom text.</p>}

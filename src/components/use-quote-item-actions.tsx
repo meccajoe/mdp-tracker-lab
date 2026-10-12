@@ -8,19 +8,20 @@ import {AlertDialog,AlertDialogContent,AlertDialogTitle,AlertDialogDescription,A
 import styles from './quote-sheet.module.css';
 
 /** Shared whole-item actions for Quote Builder and Takeoffs; one dialog per worksheet. */
-export function useQuoteItemActions({quote,edit,readOnly,libraryItem=false,onChanged}:{
- quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;readOnly:boolean;libraryItem?:boolean;onChanged?:()=>void;
+export function useQuoteItemActions({quote,edit,readOnly,libraryItem=false,onChanged,onAddExisting}:{
+ quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;readOnly:boolean;libraryItem?:boolean;onChanged?:()=>void;onAddExisting?:()=>void;
 }){
  const [pendingDelete,setPendingDelete]=useState<string|null>(null);
  const [notice,setNotice]=useState(''),[error,setError]=useState(''),[saving,setSaving]=useState(false);
  function menu(id:string,label:string){
   const line=quote.lines.find(line=>line.id===id);
-  if(!line||libraryItem)return null;
-  return <DropdownMenu><DropdownMenuTrigger data-quote-item-menu disabled={readOnly||saving} aria-label={label} title={`Actions for ${line.name}`} className={styles.itemMenuButton}>⋮</DropdownMenuTrigger>
+  if(libraryItem||(!line&&!onAddExisting))return null;
+  return <DropdownMenu><DropdownMenuTrigger data-quote-item-menu disabled={readOnly||saving} aria-label={label} title={line?`Actions for ${line.name}`:'Add an existing item'} className={styles.itemMenuButton}>⋮</DropdownMenuTrigger>
    <DropdownMenuContent className="min-w-48" onKeyDown={event=>event.stopPropagation()}>
-    <DropdownMenuItem disabled={readOnly} onClick={()=>{try{edit(next=>{cloneQuoteItem(next,id);});setError('');onChanged?.();}catch(error){setError(error instanceof Error?error.message:'Could not clone item.');}}}>Clone</DropdownMenuItem>
-    <DropdownMenuItem disabled={readOnly} onClick={()=>setPendingDelete(id)}>Delete</DropdownMenuItem>
-    <DropdownMenuItem disabled={readOnly||saving} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line.name} to the Prequote items library.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save as prequote item</DropdownMenuItem>
+    {onAddExisting&&<DropdownMenuItem disabled={readOnly} onClick={onAddExisting}>Add Existing Item</DropdownMenuItem>}
+    <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{try{edit(next=>{cloneQuoteItem(next,id);});setError('');onChanged?.();}catch(error){setError(error instanceof Error?error.message:'Could not clone item.');}}}>Clone</DropdownMenuItem>
+    <DropdownMenuItem disabled={readOnly||!line} onClick={()=>setPendingDelete(id)}>Delete</DropdownMenuItem>
+    <DropdownMenuItem disabled={readOnly||saving||!line} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line?.name} to the Prequote items library.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save as prequote item</DropdownMenuItem>
    </DropdownMenuContent>
   </DropdownMenu>;
  }
