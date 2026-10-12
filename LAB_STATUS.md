@@ -1,5 +1,9 @@
 # Lab status
 
+## Takeoffs item menu — October 11, 2026
+- Added the same three-dot whole-item actions next to each assigned Takeoffs Item #. Blank/unassigned rows have no item menu. Shared one action hook with Quote Builder to retain Clone, confirmed Delete, Save as prequote item and Undo/Redo behavior. Actions affect all linked rows, not only the clicked takeoff row. Item filtering/selection clears after clone/delete; cell assignment, keyboard editing and drag-fill remain separate. No pricing or storage changes.
+- 126 lab tests plus TypeScript passed. Local actual-component check assigned Item 1 to a row, cloned its row, cancelled delete, confirmed delete and undid it. Menu visually checked beside Item #. Hosted verification pending.
+
 ## Quote Builder header and item menu — October 11, 2026
 - Moved sales commission into the shared date/forecast header. Removed the Quote Builder instruction box and obsolete item-clear picker. Each row now has a small menu left of Item #: Clone, Delete, Save as prequote item. Delete requires an accessible confirmation dialog and removes its linked takeoffs/estimator links/progress; prior revisions and Undo/Redo remain intact. Library editor disallows clone/delete to preserve its single-item contract.
 - Clone inserts a separate named CLONE after the source, retains recorded prices/manual overrides and takeoff rows, copies linked beMatrix walls with new IDs, and freezes effective service inputs without reassigning original install/travel links. No inventory refresh, pricing-rule change, database migration or business quote edits.

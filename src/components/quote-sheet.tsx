@@ -1,12 +1,9 @@
 "use client";
 import {useState} from "react";
-import {cloneQuoteItem,deleteQuoteItem} from "@/lib/quote-item-actions";
+import {useQuoteItemActions} from "./use-quote-item-actions";
 
 import { calculateQuoteV27, LINE_TYPES, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
 import styles from './quote-sheet.module.css';
-import {savePrequoteItem} from './quote-reusable-items';
-import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from './ui/dropdown-menu';
-import {AlertDialog,AlertDialogContent,AlertDialogTitle,AlertDialogDescription,AlertDialogFooter,AlertDialogCancel,AlertDialogAction} from './ui/alert-dialog';
 
 type Calculation = ReturnType<typeof calculateQuoteV27>;
 const amount = (n: number) => n.toLocaleString('en-US', {style:'currency',currency:'USD'});
@@ -38,10 +35,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
   readOnly?: boolean;
   libraryItem?: boolean;
 }) {
-  const [pendingClear,setPendingClear]=useState<string|null>(null);
-  const [notice,setNotice]=useState('');
-  const [actionError,setActionError]=useState('');
-  const [savingItem,setSavingItem]=useState(false);
+  const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem});
   const [showDetails,setShowDetails]=useState(false);
   const visibleInputs=showDetails?inputs:inputs.slice(0,3);
   // Keep workbook letters stable when estimator-detail columns F–L are collapsed.
@@ -70,14 +64,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
       {onAdd&&<button type="button" onClick={onAdd}>Add item</button>}
       <button type="button" aria-expanded={showDetails} onClick={()=>{setShowDetails(value=>!value);onViewChange?.();}}>{showDetails?'Hide estimate details':'Show estimate details'}</button>
     </div>
-    {notice&&<p role="status">{notice}</p>}{actionError&&<p role="alert">{actionError}</p>}
-    <AlertDialog open={pendingClear!==null} onOpenChange={open=>{if(!open)setPendingClear(null);}}>
-      <AlertDialogContent onKeyDown={event=>event.stopPropagation()}>
-        <AlertDialogTitle>Are you sure you want to delete this item?</AlertDialogTitle>
-        <AlertDialogDescription>{quote.lines.find(line=>line.id===pendingClear)?.name} and its linked takeoff rows will be removed. Undo restores the item.</AlertDialogDescription>
-        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction disabled={readOnly} onClick={()=>{if(pendingClear&&!readOnly){edit(next=>deleteQuoteItem(next,pendingClear));setPendingClear(null);}}}>Delete item</AlertDialogAction></AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    {itemActions.feedback}
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
       <table key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{minWidth:tableWidth}}>
         <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
@@ -89,13 +76,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
           const row=rows.get(line.id);
           return <tr key={line.id} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
             <th scope="row" className={styles.rowNumber}><div className={styles.itemNumber}>
-              <DropdownMenu><DropdownMenuTrigger disabled={readOnly||savingItem} aria-label={`Item ${index+1} actions · ${line.name}`} className={styles.itemMenuButton}>⋮</DropdownMenuTrigger>
-                <DropdownMenuContent className="min-w-48" onKeyDown={event=>event.stopPropagation()}>
-                  <DropdownMenuItem disabled={libraryItem} onClick={()=>{try{edit(next=>{cloneQuoteItem(next,line.id);});setActionError('');}catch(error){setActionError(error instanceof Error?error.message:'Could not clone item.');}}}>Clone</DropdownMenuItem>
-                  <DropdownMenuItem disabled={libraryItem} onClick={()=>setPendingClear(line.id)}>Delete</DropdownMenuItem>
-                  <DropdownMenuItem disabled={libraryItem} onClick={async()=>{setSavingItem(true);setActionError('');try{await savePrequoteItem(quote,line.id);setNotice(`Saved ${line.name} to the Prequote items library.`);}catch(error){setActionError(error instanceof Error?error.message:'Could not save item.');}finally{setSavingItem(false);}}}>Save as prequote item</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu><span>{`Item ${index+1}`}</span></div></th>
+              {itemActions.menu(line.id,`Item ${index+1} actions · ${line.name}`)}<span>{`Item ${index+1}`}</span></div></th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{line.name+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} value={line.name} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
             <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{line.type}</span><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></div></td>
             {visibleInputs.map(({key,heading})=>inputCell(line,key,heading))}

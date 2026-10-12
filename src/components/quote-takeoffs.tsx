@@ -7,6 +7,7 @@ import {useQuoteCatalog} from './use-quote-catalog';
 import styles from './quote-takeoffs.module.css';
 import {loadQuoteLibrary} from '@/lib/quote-library-client';
 import {QuoteReusableItems} from './quote-reusable-items';
+import {useQuoteItemActions} from './use-quote-item-actions';
 import {QuoteMaterialCell} from './quote-material-cell';
 const columns=SHEET_COLUMNS.filter(key=>key!=='tradeId');
 const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes'];
@@ -37,6 +38,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   function setFilter(id:string) {
     setFilterItem(id);setFilterOpen(false);setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;
   }
+  const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem,onChanged:()=>setFilter('')});
   const drag=useRef<{row:number;column:number;end:number;endColumn:number;value:string}|null>(null);
   const live=useQuoteCatalog();
   const calculation=useMemo(()=>{
@@ -78,6 +80,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     }
   }
   return <div className={styles.sheet}>
+    {itemActions.feedback}
     <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong>{!libraryItem&&<button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>}
       <button disabled={readOnly||quote.takeoffs.length>=5000} onClick={()=>{const id=filterItem||(active?rows[active[0]].lineId:selected);edit(next=>{const last=next.takeoffs.findLastIndex(row=>row.lineId===id);const added=takeoffWorksheetRows({...next,takeoffs:[]},5,id).map(row=>({...row,id:crypto.randomUUID()}));next.takeoffs.splice(last+1,0,...added.slice(0,5000-next.takeoffs.length));});setActive(null);setSelectionEnd(null);}}>Insert 5 blank rows after item</button>
       <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(!active)return;const index=active[0];edit(next=>{next.takeoffs.splice(index,1);});setActive(null);setSelectionEnd(null);setItemPicker(null);}}>Delete selected row</button>
@@ -120,20 +123,20 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
           const filling=active&&end!==null&&c>=Math.min(active[1],endColumn??active[1])&&c<=Math.max(active[1],endColumn??active[1])&&r>=Math.min(active[0],end)&&r<=Math.max(active[0],end);
           const lookedUp=(key==='unit'&&row.unit===undefined||key==='unitCostOverride'&&row.unitCostOverride===null)&&row.materialId;
           return <td key={key} data-takeoff-row={r} data-takeoff-column={c} className={`${key==='description'?styles.descriptionCell:''} ${protectedCell||lookedUp?styles.computed:''} ${isActive?styles.active:''} ${filling||inSelection?styles.filling:''}`}
-            onMouseDown={e=>{if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
+            onMouseDown={e=>{if((e.target as HTMLElement).closest('[data-quote-item-menu],[role=menu]'))return;if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
             tabIndex={protectedCell?-1:undefined}
-            onKeyDownCapture={e=>{if((e.key==='Delete'||e.key==='Backspace')&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!readOnly&&!e.nativeEvent.isComposing){
+            onKeyDownCapture={e=>{if((e.target as HTMLElement).closest('[data-quote-item-menu],[role=menu]'))return;if((e.key==='Delete'||e.key==='Backspace')&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!readOnly&&!e.nativeEvent.isComposing){
               if(protectedCell||key==='description'||isEditingText(e.target))return;
               e.preventDefault();e.stopPropagation();
               if(e.target instanceof HTMLInputElement)e.target.value=key==='unitCostOverride'&&row.materialId?(catalog.get(row.materialId)?.unitCost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
               apply(r,c,[['']]);setItemPicker(null);
             }}}
-            onFocus={()=>setActive([r,c])} onPaste={e=>{
+            onFocus={e=>{if(!(e.target as HTMLElement).closest('[data-quote-item-menu],[role=menu]'))setActive([r,c]);}} onPaste={e=>{
               const text=e.clipboardData.getData('text/plain');
               if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
             }}>
             {protectedCell?display:key==='description'?<QuoteMaterialCell key={`${restoreKey}-${display}`} clearWholeCell value={display} label={`Materials & Labor row ${r+1}`} materials={choices} usage={usage} disabled={readOnly} commit={(name,picked)=>{return apply(r,c,[[name]],picked);}}/>:key==='lineId'?<>
-              <button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button><button type="button" className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
+              <div className={styles.itemNumberCell}>{itemActions.menu(row.lineId,`Item actions row ${r+1} · ${display}`)}<button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button></div><button type="button" className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
               {itemPicker===r&&<div role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
                 <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map(line=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name===quoteItemLabel(quote,line.id)?'Name this item…':line.name}</span></button>)}</div>

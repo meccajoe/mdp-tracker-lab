@@ -79,3 +79,6 @@
 
 .itemChoice {padding-right:20px;}
 .itemArrow {position:absolute;right:0;top:0;width:18px;height:21px;color:#53627b;}
+
+.itemNumberCell {display:flex;align-items:center;padding-right:18px;}
+.itemNumberCell .itemChoice {flex:1;min-width:0;width:auto;padding-right:0;}
