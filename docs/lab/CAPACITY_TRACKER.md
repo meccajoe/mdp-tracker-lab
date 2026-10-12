@@ -1,5 +1,8 @@
 # Native lab capacity tracker
 
+## Staff roster import — October 11
+Paul authorized importing the attached v5 staff roster. Roster & Settings now has a client-side .xlsx importer for an empty roster, a source-aligned staff table and primary/flex capacity summary. Imports preserve duplicate names as separate IDs and keep active/inactive status, wages, hours and notes. No staff values are in source code. Review then save through existing versioned settings storage. If the missing migration has not been applied, import is a read-only browser-session preview, explicitly unsaved; reopen requires selecting the source file again. Import does not replace existing staff or import the spreadsheet week-start or project sheets.
+
 ## Overview charts — October 11
 The default Overview compares shop-only demand against active primary-trade roster hours with dated weekly paired bars. Select all or individual projects, a local start week, 4/8/13/26 weeks and probability-weighted/committed/full-active demand. Trade charts use the identical forecast basis. Combined and all trade charts appear together in responsive tiles (October 11 follow-up); no trade dropdown is required. Each tile retains weekly bars and an expandable exact-values table. Project filtering never scales roster availability. CAD/design and support roster trades are excluded; secondary trade flexibility is not additive. These controls are view state only. Weekly values expose exact plotted hours; missing roster displays Not configured, while missing dates/status and allocation mismatches remain visible. Existing Shop Load and Field Load grids remain available.
 

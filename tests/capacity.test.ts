@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {utils} from 'xlsx';
+import {importCapacityRoster} from '../src/lib/capacity-roster-import';
 import {dashboardLoad} from '../src/lib/capacity-dashboard';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -64,4 +66,20 @@ test('dashboard keeps unplottable demand visible and clips only at the selected 
  const p=project('Closed won');p.schedule={...p.schedule,buildStart:''};
  assert.deepEqual(dashboardLoad([p],settings(),null,'full').load.unscheduled,['Test only']);
  const after=dashboardLoad([project('Closed won')],{...settings(),weekStart:'2026-10-19'},null,'full');close(sum(after.load.expected),0);
+});
+
+function rosterBook(){
+ const sheet=utils.aoa_to_sheet([...Array.from({length:11},()=>[]),['Name','Primary trade','Secondary trade (flex)','Hours / week','Hourly rate $','Active? (Yes/No)','Notes'],['Sample carpenter','Carpentry','Assembly',40,25,'Yes','Sample'],['Temp worker','Carpentry','',20,20,'No',''],['Temp worker','Painting','Finish',32,null,'Yes','']]);
+ return {SheetNames:['Roster & Settings'],Sheets:{'Roster & Settings':sheet}};
+}
+test('roster import preserves staff, duplicate names, inactive rows, blank wages and source workbook',()=>{
+ const book=rosterBook(),before=structuredClone(book);let id=0;
+ const rows=importCapacityRoster(book,()=>String(++id));
+ assert.equal(rows.length,3);assert.equal(rows[1].active,false);assert.equal(rows[2].rate,null);assert.notEqual(rows[1].id,rows[2].id);assert.equal(rows[0].notes,'Sample');
+ assert.equal(rosterCapacity(rows).shop,72);assert.equal(rosterCapacity(rows).flex.Assembly,40);assert.deepEqual(book,before);
+});
+test('roster import refuses wrong layouts, partial staff, invalid hours, statuses and uncached formulas',()=>{
+ for(const [cell,value] of [['A12','Wrong header'],['A13',''],['D13',-1],['D13',169],['F13','Maybe']] as const){const b=rosterBook();b.Sheets['Roster & Settings'][cell]={v:value,t:typeof value==='number'?'n':'s'};assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));}
+ const b=rosterBook();b.Sheets['Roster & Settings'].D13={t:'n',f:'1+1'};assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));
+ b.Sheets['Roster & Settings']['!fullref']='A1:K400';assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));
 });

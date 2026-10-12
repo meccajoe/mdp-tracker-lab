@@ -1,0 +1,35 @@
+'use client';
+import {useRef,useState} from 'react';
+import {rosterCapacity,SHOP_TRADES,SUPPORT_TRADES,type RosterPerson} from '@/lib/capacity';
+import {importCapacityRoster} from '@/lib/capacity-roster-import';
+import styles from './capacity-roster.module.css';
+const number=(n:number)=>n.toLocaleString('en-US',{maximumFractionDigits:1});
+function NumericCell({label,value,nullable=false,onChange}:{label:string;value:number|null;nullable?:boolean;onChange:(n:number|null)=>void}){
+ return <input aria-label={label} type="number" min="0" step="any" key={value??'empty'} defaultValue={value??''} onBlur={e=>{const raw=e.currentTarget.value,n=raw===''&&nullable?null:Number(raw);if(n!==value)onChange(n);}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();}}/>;
+}
+export function CapacityRoster({roster,disabled,storageUnavailable,onChange}:{roster:RosterPerson[];disabled:boolean;storageUnavailable:boolean;onChange:(roster:RosterPerson[])=>void}){
+ const [importing,setImporting]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+ const input=useRef<HTMLInputElement>(null);
+ const capacity=rosterCapacity(roster),trades=Array.from(new Set([...SHOP_TRADES,...SUPPORT_TRADES,...roster.flatMap(person=>[person.primary,person.secondary]).filter(Boolean)]));
+ const update=(index:number,patch:Partial<RosterPerson>)=>onChange(roster.map((person,i)=>i===index?{...person,...patch}:person));
+ async function importFile(file:File){
+  setImporting(true);setError('');setMessage('');
+  try{
+   if(roster.length)throw new Error('The current roster already contains staff. Import is available for an empty roster so existing staff cannot be overwritten or duplicated.');
+   if(!file.name.toLowerCase().endsWith('.xlsx')||file.size>5*1024*1024)throw new Error('Choose an .xlsx workbook smaller than 5 MB.');
+   const XLSX=await import('xlsx'),book=XLSX.read(await file.arrayBuffer(),{type:'array',sheetRows:314});
+   const people=importCapacityRoster(book,()=>crypto.randomUUID());onChange(people);
+   setMessage(`${people.length} staff rows loaded from ${file.name}. ${storageUnavailable?'Preview only — shared roster setup is required before saving.':'Review the roster, then Save roster & settings to share it across devices.'}`);
+  }catch(e){setError(e instanceof Error?e.message:'Roster import failed.');}finally{setImporting(false);if(input.current)input.current.value='';}
+ }
+ return <section aria-label="Shop staff roster" className={styles.section}>
+ <div className={styles.heading}><div><h2>Shop roster</h2><p>{roster.length} staff · {roster.filter(p=>p.active).length} active · {number(capacity.shop)} shop hours/week · {number(capacity.field)} installation hours/week</p></div><label className={styles.import}>Import spreadsheet roster<input ref={input} aria-label="Import spreadsheet roster" type="file" accept=".xlsx" disabled={importing||roster.length>0||(disabled&&!storageUnavailable)} onChange={e=>{const file=e.target.files?.[0];if(file)void importFile(file);}}/></label></div>
+ {message&&<p role="status" className={styles.notice}>{message}</p>}{error&&<p role="alert" className={styles.error}>{error}</p>}
+ <div className={styles.layout}><div><fieldset disabled={disabled||importing}><div className={styles.scroll}><table className={styles.roster} aria-label="Capacity roster"><thead><tr>{['Name','Primary trade','Secondary trade (flex)','Hours / week','Hourly rate $','Active?','Notes',''].map((label,i)=><th key={i}>{label}</th>)}</tr></thead><tbody>{roster.map((person,index)=><tr key={person.id} className={!person.active?styles.inactive:undefined}>
+ <td><input aria-label={`Name person ${index+1}`} value={person.name} onChange={e=>update(index,{name:e.target.value})}/></td>
+ {(['primary','secondary'] as const).map(key=><td key={key}><select aria-label={`${key==='primary'?'Primary trade':'Secondary trade'} person ${index+1}`} value={person[key]} onChange={e=>update(index,{[key]:e.target.value})}><option value="">{key==='primary'?'Choose trade':'None'}</option>{trades.map(trade=><option key={trade}>{trade}</option>)}</select></td>)}
+ <td><NumericCell label={`Weekly hours person ${index+1}`} value={person.hours} onChange={hours=>update(index,{hours:hours??0})}/></td><td><span className={styles.currency}>$<NumericCell label={`Hourly rate person ${index+1}`} value={person.rate} nullable onChange={rate=>update(index,{rate})}/></span></td>
+ <td><select aria-label={`Active person ${index+1}`} value={person.active?'Yes':'No'} onChange={e=>update(index,{active:e.target.value==='Yes'})}><option>Yes</option><option>No</option></select></td><td><input aria-label={`Notes person ${index+1}`} value={person.notes} onChange={e=>update(index,{notes:e.target.value})}/></td><td><button aria-label={`Remove person ${index+1}`} onClick={()=>onChange(roster.filter((_,i)=>i!==index))}>Remove</button></td></tr>)}</tbody></table></div><button onClick={()=>onChange([...roster,{id:crypto.randomUUID(),name:'New person',primary:'Carpentry',secondary:'',hours:40,rate:null,active:true,notes:''}])}>Add person</button></fieldset>{!roster.length&&<p>Import the Roster & Settings tab from your capacity workbook, or add staff individually.</p>}</div>
+ <aside><h2>Weekly capacity</h2><p>Calculated from active staff</p><div className={styles.scroll}><table aria-label="Weekly roster capacity"><thead><tr><th>Trade</th><th>Primary hrs/wk</th><th>Flex hrs/wk</th></tr></thead><tbody>{trades.map(trade=><tr key={trade}><th>{trade}</th><td>{number(capacity.primary[trade]??0)}</td><td>{number(capacity.flex[trade]??0)}</td></tr>)}<tr className={styles.total}><th>Blended shop</th><td>{number(capacity.shop)}</td><td>Counted once</td></tr><tr className={styles.total}><th>Installation (I&D)</th><td>{number(capacity.field)}</td><td>Separate</td></tr></tbody></table></div><p>Flex hours can shift between trades; they do not increase total available hours. I&D, Driver/Pickups and Facility stay outside blended shop capacity. Wages are reference values and do not change quote pricing.</p></aside></div>
+ </section>;
+}
