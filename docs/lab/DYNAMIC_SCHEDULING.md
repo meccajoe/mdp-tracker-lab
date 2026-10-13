@@ -14,7 +14,11 @@ Capacity uses saved schedule daily shop demand or the generated proposal. CAD an
 
 Actual completed, optional actual hours, delay reason and notes support baseline variance review and CSV export. Tune assumptions manually using multiple comparable jobs. There is no hidden automatic learning. Guidebook: `/capacity/guidebook`.
 
-## Joe: activate shared storage
+## Shared storage activation
+
+**Applied and verified October 13, 2026** in lab project gkvaeqlqrthztobxitvn through Paul’s signed-in dashboard. Migration history is recorded. Hosted schedule save, approval, actuals and reload passed on the dedicated test quote. The roster also loads persisted data. The steps below are retained as deployment history; do not rerun the migration.
+
+### Original activation steps
 
 1. Pull the latest **meccajoe/mdp-tracker-lab** main branch.
 2. Open Supabase SQL Editor for **gkvaeqlqrthztobxitvn** only.
@@ -23,7 +27,7 @@ Actual completed, optional actual hours, delay reason and notes support baseline
 5. In Tracker Lab, open a dedicated test quote's Capacity page. Save a proposal, reopen it, approve/save, record an actual completion and reopen again. Check a second signed-in device sees the same schedule revision. Verify a Final quote can save operational progress without changing its quote revision or prices.
 6. Try a stale save from two tabs: the second must report a conflict and retain its local draft. Do not overwrite customer test data.
 
-Until this migration is applied, proposals and guidebook are available but shared schedule saving/approval/actual persistence is disabled. Earlier capacity settings migrations are still prerequisites for the roster.
+Shared schedule saving, approval and actual persistence are now enabled. Earlier capacity settings storage is present and the existing roster was verified without alteration.
 
 ## Verification
 
