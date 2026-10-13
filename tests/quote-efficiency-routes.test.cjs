@@ -10,19 +10,19 @@ function load(path,imports){
 }
 const id='11111111-1111-4111-8111-111111111111';
 const policy=load('src/lib/quote-permissions.ts',{});
-function fixture({role='owner',revision=4,rows,memberError=false,workspaceError=false,ok=true}={}){
+function fixture({role='owner',revision=4,rows,memberError=false,workspaceError=false,quoteStatus='draft',controlsError=null,ok=true}={}){
   const calls=[];
   const membershipRows=[{workspace_id:id,workspace_role:role}];
   const workspaceRows=rows??[{id,title:'Synthetic',status:'draft',lifecycle_status:'draft',archived_at:null,quote_workbook_revisions:[{revision}]}];
   function client(actor){return {from(table){
     const entry={actor,table,operations:[]};calls.push(entry);
-    const result={data:table==='quote_workspace_members'?membershipRows:workspaceRows,error:(table==='quote_workspace_members'?memberError:workspaceError)?{message:'Fail'}:null};
+    const result={data:table==='quote_workspace_members'?membershipRows:table==='lab_quote_controls'?[{workspace_id:id,quote_status:quoteStatus}]:workspaceRows,error:table==='lab_quote_controls'?controlsError:(table==='quote_workspace_members'?memberError:workspaceError)?{message:'Fail'}:null};
     const query={then(resolve){return Promise.resolve(result).then(resolve);}};
     for(const name of ['select','eq','is','order','range','in','neq','limit','gt'])query[name]=(...args)=>{entry.operations.push([name,...args]);return query;};
     return query;
   }}};
   const access={ok,actorId:'joe',actorEmail:'joe@lab.test',actorRole:null,supabase:client(false),actorSupabase:client(true),response:Response.json({error:'Forbidden'},{status:403})};
-  const route=load('src/app/api/quote-workspaces/manifest/route.ts',{'next/server':next,'@/lib/ada-server':{requireQuoteProductAccess:async()=>access},'@/lib/quote-permissions':policy});
+  const route=load('src/app/api/quote-workspaces/manifest/route.ts',{'next/server':next,'@/lib/ada-server':{requireQuoteProductAccess:async()=>access},'@/lib/quote-permissions':policy,'@/lib/quote-management-server':load('src/lib/quote-management-server.ts',{'next/server':next})});
   return {calls,get:url=>route.GET(new Request('https://lab.test'+(url??'/api/quote-workspaces/manifest')))};
 }
 test('manifest uses verified actor RLS for bounded latest revisions, exact membership and private no-store',async()=>{
@@ -45,4 +45,15 @@ test('saved workbook GET validates once without redundant calculation; POST reta
   const route=load('src/app/api/quote-workspaces/[workspaceId]/workbook/route.ts',{'next/server':next,'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>({ok:true,workspaceLifecycle:'draft',quoteActor:{email:'joe',workspaceRole:'owner',isActiveMember:true,capabilities:[]},actorId:'joe',actorEmail:'joe',actorSupabase:{from:()=>query}})},'@/lib/quote-permissions':policy,'@/lib/quote-v27':{calculateQuoteV27:()=>{calculated++;return {price:1};}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>{parsed++;return d;}},'@/lib/quote-management-server':{missingManagement:()=>false},'@/lib/quote-v27-template':{createBlankQuoteV27:()=>({})},'@/data/quote-v27-fonroche.json':{}});
   const context={params:Promise.resolve({workspaceId:id})};const get=await(await route.GET(new Request('https://lab.test'),context)).json();assert.equal(parsed,1);assert.equal(calculated,0);assert.equal('calculation' in get,false);
   const post=await route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({expectedVersion:2,document:{fixture:true}})}),context);assert.equal(post.status,201);assert.equal(calculated,1);assert.equal(inserted.revision,3);assert.equal((await post.json()).calculation.price,1);
+});
+
+test('manifest refresh respects Final commercial locks with an actor-scoped bounded controls read',async()=>{
+ const f=fixture({quoteStatus:'final'}),body=await(await f.get()).json();assert.equal(body.workspaces[0].canEdit,false);assert.equal(body.workspaces[0].revision,4);
+ const controls=f.calls.find(c=>c.table==='lab_quote_controls');assert.equal(controls.actor,true);assert.equal(JSON.stringify(controls.operations.find(x=>x[0]==='in')),JSON.stringify(['in','workspace_id',[id]]));assert.ok(controls.operations.some(x=>x[0]==='limit'&&x[1]===100));
+ assert.equal((await(await fixture({quoteStatus:'draft'}).get()).json()).workspaces[0].canEdit,true);
+});
+test('manifest controls failures fail closed, while known absent setup preserves existing draft behavior',async()=>{
+ assert.equal((await fixture({controlsError:{code:'42501'}}).get()).status,500);
+ assert.equal((await(await fixture({controlsError:{code:'42P01'}}).get()).json()).workspaces[0].canEdit,true);
+ assert.equal((await(await fixture({role:'viewer',controlsError:{code:'42P01'}}).get()).json()).workspaces[0].canEdit,false);
 });
