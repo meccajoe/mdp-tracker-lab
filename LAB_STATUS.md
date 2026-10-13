@@ -1,5 +1,10 @@
 # Lab status
 
+## Capacity usability — October 12, 2026
+- Added ascending/descending sorting for all seven roster data columns, preserving original person identity for edits/removal and null-last wages. Sorting is view-only, available to read-only users. Added labeled red weekly capacity lines on combined/per-trade chart tiles, including true zero capacity; missing roster remains explicitly unconfigured, unassigned hours have no invented trade capacity.
+- Renamed visible capacity Untyped labels to Unassigned shop hours, with explanation of total minus allocated trade hours and quote/planning review guidance. Internal keys and all calculations unchanged. Refined capacity navigation, panels, controls, focus/hover states and narrow-screen navigation. Memoized load calculations/chart rendering and deferred offscreen chart painting. No saved quote/roster mutation.
+- 129 lab tests plus TypeScript passed. Local sample browser verified 120h combined line, 20/40/60h trade lines, numeric descending roster sort and editing the correct original row after sorting. Production build and hosted deployment verification follow. Performance changes reduce redundant work; no measured speedup claim.
+
 ## Hosted storage verification — October 12, 2026
 - Paul reported Joe applied pending migrations. Authenticated hosted catalog now showed copy-ready state (previous missing-schema blocker cleared). Completed Paul’s previously authorized one-time import: 701 entries, and verified 701 persisted after full page reload. Tracker is now active catalog source. No existing quote modified. Z Clips still needs unit/cost; automatic manual-add and catalog-edit snapshot behavior previously verified locally, not re-tested hosted today. Screenshot /private/tmp/tracker-catalog-live.png.
 - Hosted prequote library loads a persisted LAB TEST Prequote cabinet Oct 12 revision 1 without setup error. Capacity Roster & Settings loads without missing-storage error but contains zero staff; available capacity remains unconfigured. This verifies application reads, not a full SQL migration/security audit or roster write test. CSV download completion remains unverified.

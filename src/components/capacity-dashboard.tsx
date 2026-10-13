@@ -1,12 +1,12 @@
 'use client';
-import {useId,useMemo,useState} from 'react';
+import {memo,useId,useMemo,useState} from 'react';
 import {dashboardLoad,type CapacityProject,type DemandBasis} from '@/lib/capacity-dashboard';
 import {dateString,dayNumber,monday,SHOP_TRADES,SUPPORT_TRADES,type CapacitySettings} from '@/lib/capacity';
 import styles from './capacity-dashboard.module.css';
 const number=(value:number)=>value.toLocaleString('en-US',{maximumFractionDigits:1});
 const date=(value:string)=>new Date(`${value}T00:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
 const total=(values:number[])=>values.reduce((sum,value)=>sum+value,0);
-function LaborChart({title,weeks,needed,available}:{title:string;weeks:string[];needed:number[];available:number|null}){
+const LaborChart=memo(function LaborChart({title,weeks,needed,available}:{title:string;weeks:string[];needed:number[];available:number|null}){
  const id=useId(),max=Math.max(1,available??0,...needed)*1.12;
  const width=440,height=210,left=48,right=10,top=20,bottom=44,plot=height-top-bottom,step=(width-left-right)/weeks.length;
  const y=(value:number)=>top+plot-value/max*plot;
@@ -14,10 +14,10 @@ function LaborChart({title,weeks,needed,available}:{title:string;weeks:string[];
  <div className={styles.chartScroll}><svg viewBox={`0 0 ${width} ${height}`}  role="img" aria-labelledby={`${id}-title ${id}-description`}><title id={`${id}-title`}>{title}</title><desc id={`${id}-description`}>Weekly labor hours from {weeks[0]} through {dateString(dayNumber(weeks.at(-1)!)+6)}. Available capacity {available===null?'not configured':`${number(available)} hours per week`}. Exact values follow in Weekly values.</desc>
  {[0,.25,.5,.75,1].map(fraction=><g key={fraction}><line x1={left} x2={width-right} y1={y(max*fraction)} y2={y(max*fraction)} stroke="#e2e8ef"/><text x={left-8} y={y(max*fraction)+4} textAnchor="end" fill="#68798c" fontSize="11">{number(max*fraction)}</text></g>)}
  <text x="8" y="12" fill="#68798c" fontSize="10">HOURS</text>
- {weeks.map((week,i)=>{const x=left+step*i+step/2,bar=Math.min(22,step*.28),demand=needed[i]??0,excess=available===null?0:Math.max(0,demand-available);return <g key={week}><title>{date(week)}–{date(dateString(dayNumber(week)+6))}: {number(demand)} needed; {available===null?'capacity not configured':`${number(available)} available; ${number(excess)} over`}</title>{available!==null&&<rect x={x-bar-2} y={y(available)} width={bar} height={available/max*plot} rx="2" fill="#bdd2e4"/>}<rect x={x+2} y={y(demand)} width={bar} height={demand/max*plot} rx="2" fill="#326f83"/>{excess>0&&<rect x={x+2} y={y(demand)} width={bar} height={excess/max*plot} rx="2" fill="#cc6557"/>}{(i%Math.ceil(weeks.length/6)===0||i===weeks.length-1)&&<><text x={x} y={height-26} textAnchor="middle" fill="#435469" fontSize="11">{date(week)}</text><text x={x} y={height-10} textAnchor="middle" fill="#7a8796" fontSize="10">{week.slice(0,4)}</text></>}</g>;})}</svg></div>
- {available===null&&<p className={styles.warning}>Set available hours in Roster & Settings.</p>}
+ {weeks.map((week,i)=>{const x=left+step*i+step/2,bar=Math.min(22,step*.28),demand=needed[i]??0,excess=available===null?0:Math.max(0,demand-available);return <g key={week}><title>{date(week)}–{date(dateString(dayNumber(week)+6))}: {number(demand)} needed; {available===null?'capacity not configured':`${number(available)} available; ${number(excess)} over`}</title>{available!==null&&<rect x={x-bar-2} y={y(available)} width={bar} height={available/max*plot} rx="2" fill="#bdd2e4"/>}<rect x={x+2} y={y(demand)} width={bar} height={demand/max*plot} rx="2" fill="#326f83"/>{excess>0&&<rect x={x+2} y={y(demand)} width={bar} height={excess/max*plot} rx="2" fill="#cc6557"/>}{(i%Math.ceil(weeks.length/6)===0||i===weeks.length-1)&&<><text x={x} y={height-26} textAnchor="middle" fill="#435469" fontSize="11">{date(week)}</text><text x={x} y={height-10} textAnchor="middle" fill="#7a8796" fontSize="10">{week.slice(0,4)}</text></>}</g>;})}{available!==null&&<g aria-label={`Capacity limit: ${number(available)} hours per week`}><line x1={left} x2={width-right} y1={y(available)} y2={y(available)} stroke="#c62828" strokeWidth="2"/><text x={width-right} y={y(available)-5} textAnchor="end" fill="#a51f25" fontSize="10">Capacity {number(available)} h/week</text></g>}</svg></div>
+ {available===null&&<p className={styles.warning}>{title==='Unassigned shop hours'?'No trade capacity applies until these hours are assigned.':'Set available hours in Roster & Settings to show the red capacity line.'}</p>}
  <details className={styles.values}><summary>Weekly values</summary><div className={styles.chartScroll}><table><caption>{title} — hours by week</caption><thead><tr><th>Week</th><th>Available hours</th><th>Needed hours</th><th>Over capacity</th></tr></thead><tbody>{weeks.map((week,i)=><tr key={week}><th>{date(week)}–{date(dateString(dayNumber(week)+6))}, {week.slice(0,4)}</th><td>{available===null?'Not configured':number(available)}</td><td>{number(needed[i]??0)}</td><td>{available===null?'—':number(Math.max(0,(needed[i]??0)-available))}</td></tr>)}</tbody></table></div></details></section>;
-}
+},(a,b)=>a.title===b.title&&a.available===b.available&&a.weeks.join()===b.weeks.join()&&a.needed.join()===b.needed.join());
 export function CapacityDashboard({projects,settings,settingsUnavailable=false}:{projects:CapacityProject[];settings:CapacitySettings;settingsUnavailable?:boolean}){
  const [selected,setSelected]=useState<string[]|null>(null),[search,setSearch]=useState(''),[start,setStart]=useState(''),[count,setCount]=useState(8),[basis,setBasis]=useState<DemandBasis>('expected');
  const weekStart=start||settings.weekStart;
@@ -41,10 +41,11 @@ export function CapacityDashboard({projects,settings,settingsUnavailable=false}:
  {load.unscheduled.length>0&&<p className={styles.warning}>Not plotted — missing or unusable build dates: {load.unscheduled.join(', ')}.</p>}
  {missingStatus.length>0&&<p className={styles.warning}>No forecast status — excluded from demand: {missingStatus.map(p=>p.workspace).join(', ')}.</p>}
  {mismatches.length>0&&<p className={styles.warning}>Trade hours exceed total shop hours on {mismatches.map(p=>p.workspace).join(', ')}. Reconcile these quote allocations; trade graphs have not been scaled to hide the difference.</p>}
- <div className={styles.tradeHeading}><h2>Shop capacity at a glance</h2><div className={styles.legend}><span><i className={styles.available}/>Available</span><span><i className={styles.needed}/>Needed</span><span><i className={styles.over}/>Over capacity</span></div></div>
+ <details className={styles.projectPicker}><summary>What are unassigned shop hours?</summary><p>These are total shop hours that have not been allocated to a trade. For example, 100 shop hours minus 80 assigned trade hours leaves 20 unassigned. They are already included in combined shop demand, not added twice. Review the quote’s labor/trade allocations or its remaining-hours planning override to assign them.</p></details>
+ <div className={styles.tradeHeading}><h2>Shop capacity at a glance</h2><div className={styles.legend}><span><i className={styles.capacityLine}/>Capacity limit</span><span><i className={styles.available}/>Available</span><span><i className={styles.needed}/>Needed</span><span><i className={styles.over}/>Over capacity</span></div></div>
  <div className={styles.chartGrid}>
  <LaborChart title="All shop trades combined" weeks={weeks} needed={needed} available={available}/>
- {tradeNames.map(name=><LaborChart key={name} title={name} weeks={weeks} needed={(load.trades[name]??Array(26).fill(0)).slice(0,count)} available={name==='Untyped / other'||!rosterConfigured?null:capacity.primary[name]??0}/>)}
+ {tradeNames.map(name=><LaborChart key={name} title={name==='Untyped / other'?'Unassigned shop hours':name} weeks={weeks} needed={(load.trades[name]??Array(26).fill(0)).slice(0,count)} available={name==='Untyped / other'||!rosterConfigured?null:capacity.primary[name]??0}/>)}
  </div>
  <p className={styles.explanation}>Available hours use active primary-trade roster hours once per week. Secondary skills are shared flexibility, not extra capacity. Shop demand follows each project’s build workweek; CAD and field installation remain separate. These view controls do not change saved quotes, roster settings, or project schedules.</p>
  </div>;
