@@ -26,6 +26,7 @@ export function createQuoteLibraryCache(fetcher:Fetcher,parse:(value:unknown)=>Q
       await manifestFlight.catch(()=>{});return manifest(maxAgeMs);
     }
     const started=epoch,actor=identity,startedInvalidation=invalidation;
+    let supersededBySave=false;
     const work=(async()=>{
       const rows:QuoteManifestEntry[]=[],seen=new Set<string>();let cursor:string|null=null;
       do{
@@ -44,12 +45,15 @@ export function createQuoteLibraryCache(fetcher:Fetcher,parse:(value:unknown)=>Q
         cursor=next;
       }while(cursor);
       if(started!==epoch)throw new Error('Quote identity changed. Refresh again.');
-      if(startedInvalidation!==invalidation)throw new Error('Quotes changed during refresh. Read again.');
+      if(startedInvalidation!==invalidation){supersededBySave=true;throw new Error('Quotes changed during refresh. Read again.');}
       for(const key of documents.keys())if(!rows.some(row=>row.id===key))documents.delete(key);
       snapshot={rows,at:now()};return rows;
     })();
     manifestFlight=work;flightInvalidation=startedInvalidation;
-    try{return await work;}catch(error){if(started===epoch){snapshot=null;documents.clear();}throw error;}
+    // A successful but superseded read must refresh permission metadata again.
+    // Keep opaque immutable documents for that fresh read; actual failures still
+    // discard everything, and no document is returned without a valid manifest.
+    try{return await work;}catch(error){if(started===epoch){snapshot=null;if(!supersededBySave)documents.clear();}throw error;}
     finally{if(manifestFlight===work)manifestFlight=null;}
   }
   async function load({excludeWorkspaceId,maxAgeMs=0}:{excludeWorkspaceId?:string;maxAgeMs?:number}={}){

@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server';
 import {requireQuoteProductAccess} from '@/lib/ada-server';
 import {canPerformQuoteAction, type QuoteWorkspaceRole} from '@/lib/quote-permissions';
+import {missingManagement} from '@/lib/quote-management-server';
 
 export const dynamic='force-dynamic';
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
@@ -34,10 +35,18 @@ export async function GET(request:Request){
   const result=await query;
   if(result.error)return json({error:'Quote revision manifest could not load.'},500);
   const rows=result.data??[];
-  const workspaces=rows.slice(0,100).map(row=>({
+  const page=rows.slice(0,100);
+  const finalQuotes=new Set<string>();
+  if(page.length){
+    const controls=await access.actorSupabase.from('lab_quote_controls').select('workspace_id, quote_status')
+      .in('workspace_id',page.map(row=>row.id)).limit(100);
+    if(controls.error&&!missingManagement(controls.error.code))return json({error:'Quote status could not load.'},500);
+    for(const row of controls.data??[])if(row.quote_status==='final')finalQuotes.add(row.workspace_id);
+  }
+  const workspaces=page.map(row=>({
     id:row.id,title:row.title,lifecycle:row.lifecycle_status,
     revision:row.quote_workbook_revisions?.[0]?.revision??0,
-    canEdit:canPerformQuoteAction({email:access.actorEmail,systemRole:access.actorRole,
+    canEdit:!finalQuotes.has(row.id)&&canPerformQuoteAction({email:access.actorEmail,systemRole:access.actorRole,
       workspaceRole:roles.get(row.id)??null,isActiveMember:roles.has(row.id),capabilities:[]},'edit_draft'),
   }));
   return json({actorKey,workspaces,nextCursor:rows.length>100?workspaces[99].id:null});

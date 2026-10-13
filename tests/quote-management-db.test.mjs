@@ -16,7 +16,7 @@ test('quote management: atomic creation, frozen defaults, idempotency, cloning i
  grant select on ada_quote_workspaces,quote_workspace_members,quote_user_capabilities to authenticated;
  create function create_quote_workspace(p_title text,p_project uuid,p_client text,p_contact text,p_deal text) returns ada_quote_workspaces language plpgsql security definer as $$declare w ada_quote_workspaces;begin insert into ada_quote_workspaces(title,client_name,contact_name) values(p_title,p_client,p_contact) returning * into w;insert into quote_workspace_members values(w.id,auth.uid(),current_quote_actor_email(),'owner',null);return w;end;$$;
  insert into quote_user_capabilities values('${owner}','paul@meccadesign.com','create_workspace',null);`);
- await db.exec(workbook);await db.exec(migration);
+ await db.exec(workbook);await db.exec(migration);await db.exec(readFileSync('supabase/migrations/20261012180000_lab_production_schedules.sql','utf8'));
  async function actor(id=owner,email='paul@meccadesign.com'){await db.exec('reset role;set role authenticated;');await db.query("select set_config('test.uid',$1,false),set_config('test.email',$2,false)",[id,email]);}
  await actor();
  const defaults=(n)=>db.query('insert into lab_quote_settings_revisions values($1,$2,$3,$4,now())',[n,{settings:{laborSell:110+n}},owner,'paul@meccadesign.com']);
@@ -31,7 +31,19 @@ test('quote management: atomic creation, frozen defaults, idempotency, cloning i
  const append=(workspace,revision=2)=>db.query('insert into quote_workbook_revisions(workspace_id,revision,document,created_by,created_by_email) values($1,$2,$3,$4,$5)',[workspace,revision,{...doc,edited:true},owner,'paul@meccadesign.com']);
  await append(clone.id);assert.equal((await db.query('select count(*)::int as n from quote_workbook_revisions where workspace_id=$1',[id])).rows[0].n,1);
  const status=(value,version=0,revision=1)=>db.query('select * from set_lab_quote_status($1,$2,$3,$4)',[id,value,version,revision]);
- await assert.rejects(status('final',0,0),e=>e.code==='PT409');await status('final');await assert.rejects(append(id),e=>e.code==='PT409');await assert.rejects(status('draft'),e=>e.code==='PT409');await status('draft',1);await append(id);
+ await assert.rejects(status('final',0,0),e=>e.code==='PT409');await status('final');await assert.rejects(append(id),e=>e.code==='PT409');
+ // Dedicated disposable Final fixture: operational progress never rewrites commercial history.
+ const commercialBefore=JSON.stringify((await db.query('select revision,document from quote_workbook_revisions where workspace_id=$1 order by revision',[id])).rows);
+ const task={id:'synthetic-task',itemId:'synthetic-item',item:'Synthetic acceptance',stage:'carpentry',trade:'Carpentry',hours:8,start:'2026-10-13',finish:'2026-10-13',daily:[{date:'2026-10-13',hours:8}],predecessors:[],locked:false};
+ const plan={engine:'item-flow-1',quoteVersion:1,status:'approved',calendar:{saturday:false,sunday:false},rampDays:1,rules:{},tasks:[task],baseline:[task],actuals:{},notes:'Synthetic test only'};
+ const saveSchedule=(revision,document)=>db.query('insert into lab_production_schedule_revisions(workspace_id,revision,document,created_by,created_by_email) values($1,$2,$3,$4,$5)',[id,revision,document,owner,'paul@meccadesign.com']);
+ await saveSchedule(1,plan);await saveSchedule(2,{...plan,baseline:[],actuals:{[task.id]:{completed:'2026-10-14',hours:null,reason:'On plan',notes:'Synthetic completion only'}}});
+ await assert.rejects(saveSchedule(2,plan),e=>e.code==='PT409');
+ const progress=(await db.query('select document from lab_production_schedule_revisions where workspace_id=$1 and revision=2',[id])).rows[0].document;
+ assert.equal(progress.actuals[task.id].completed,'2026-10-14');assert.equal(progress.actuals[task.id].hours,null);assert.deepEqual(progress.baseline,[task]);
+ assert.equal((await db.query('select quote_status from lab_quote_controls where workspace_id=$1',[id])).rows[0].quote_status,'final');
+ assert.equal(JSON.stringify((await db.query('select revision,document from quote_workbook_revisions where workspace_id=$1 order by revision',[id])).rows),commercialBefore);
+ await assert.rejects(status('draft'),e=>e.code==='PT409');await status('draft',1);await append(id);
  // A failed initial revision rolls the workspace and request marker back together.
  await assert.rejects(create('00000000-0000-4000-8000-000000000013',2,null,null,{bad:true}));
  assert.equal((await db.query("select count(*)::int as n from lab_quote_controls where creation_request_id='00000000-0000-4000-8000-000000000013'")).rows[0].n,0);
