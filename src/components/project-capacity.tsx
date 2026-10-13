@@ -12,6 +12,7 @@ import {emptyProgress,setCompletionDate,type ProductionProgress,type StageId} fr
 import {itemTimelines,quotedStageHours,isBuildTimelineItem} from '@/lib/item-timeline';
 import {ProductionTimeline,StageTable,ItemStageRows} from './production-timeline';
 import styles from './project-capacity.module.css';
+import {ProductionPlanner} from './production-planner';
 
 type Project=CapacityQuote&{client:string;version:number;canEdit:boolean};
 const number=(n:number)=>n.toLocaleString('en-US',{maximumFractionDigits:2});
@@ -70,11 +71,13 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
       <section className={styles.cards} aria-label="Project dates and capacity">
         {[['Build start',date(project.schedule.buildStart)],['Build finish',date(project.schedule.buildFinish)],['Install',date(project.schedule.installDate)],['Shop hours',number(project.shop)],['Field hours',number(project.field)],['Design hours',number(project.demand.design)]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}
       </section>
+      <ProductionPlanner workspaceId={workspaceId} quote={source.document} quoteVersion={source.version}/>
+      <details className={styles.panel}><summary>Percentage reference and earlier completion records</summary><p>These retained records use the original fixed stage percentages. Use the production schedule above for current operational planning and actuals.</p>
       <section className={styles.panel} aria-label="Project workweek"><h2>Project workweek</h2><div className={styles.controls}>
         <span>Monday–Friday</span><label><input type="checkbox" checked={calendar.saturday} disabled={!source.canEdit||saving} onChange={e=>setCalendar({...calendar,saturday:e.target.checked})}/> Saturday work necessary</label><label><input type="checkbox" checked={calendar.sunday} disabled={!source.canEdit||saving} onChange={e=>setCalendar({...calendar,sunday:e.target.checked})}/> Sunday work necessary</label>
         <button disabled={!source.canEdit||!dirty||saving} onClick={()=>void save()}>{saving?'Saving…':'Save capacity changes'}</button>{dirty?<button disabled={saving} onClick={discard}>Discard changes / reload</button>:null}
       </div><p>{dirty?'Unsaved changes. Save to share completion dates and update Capacity.':'Weekend choices apply only to this project.'} Build and install dates stay fixed; stage boundaries and shop-hour distribution adjust to the enabled days. Holidays are not excluded automatically.</p>{!source.canEdit?<p>This quote is read-only; capacity changes require quote editing access.</p>:null}</section>
-      <section className={styles.panel} aria-label="Default production timeline"><h2>Default production timeline</h2><p>{timeline.workdays} working days · Sequential production stages · Percentages describe elapsed working time, not shares of labor hours.</p>
+      <section className={styles.panel} aria-label="Default production timeline"><h2>Percentage reference timeline</h2><p>{timeline.workdays} working days · Sequential production stages · Percentages describe elapsed working time, not shares of labor hours.</p>
         {timeline.warnings.map(w=><p className={styles.warning} key={w}>{w}</p>)}
         {timeline.workdays>0?<ProductionTimeline timeline={timeline} install={project.schedule.installDate} hours={hours} actual={progress.stages} renderStage={stage=><ItemStageRows items={items} stage={stage} progress={progress} hoursPerDay={source.document!.settings.shopDay} disabled={!source.canEdit||saving} onActual={actual} onSelect={id=>{setSelectedItem(id);document.getElementById('item-timeline')?.scrollIntoView({behavior:'smooth'});}}/>}/>:null}
         <StageTable timeline={timeline} hours={hours} actual={progress.stages} hoursPerDay={source.document.settings.shopDay} disabled={!source.canEdit||saving} onActual={(stage,value)=>actual(stage,value)} label="Project"/>
@@ -93,6 +96,7 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
         </>:<p>No build items yet. Add materials or labor to the quote to populate item timelines.</p>}
 
       </section>
+      </details>
       <section className={styles.details}><div className={styles.panel}><h2>Project planning detail</h2><p>Forecast: <strong>{project.status||'Not set'}</strong> · {number(project.probability*100)}% probability</p><p>Quoted shop baseline: {number(project.demand.shop)} hours · Current planning shop hours: {number(project.shop)}</p>{project.document?.planning?.notes?<p>{project.document.planning.notes}</p>:null}{project.flags.map(flag=><p className={styles.warning} key={flag}>{flag}</p>)}<p>Field work remains tied to the install estimate. Weekend choices control the production/build calendar; they do not add staff capacity or change quoted hours.</p></div><div className={styles.panel}><h2>Quoted hours and completion</h2><p>Stage and item tables use the saved quote’s labor estimates. Remaining-hour planning overrides stay separate and do not rewrite the quoted item breakdown.</p><p>Project-stage completion is entered separately from item completion; finishing one item does not mark the entire stage complete. Your team can edit Actual dates with its existing quote editing access.</p></div></section>
       {dirty?<div className={styles.saveBar} role="status"><span>Unsaved capacity changes</span><button disabled={saving||!source.canEdit} onClick={()=>void save()}>{saving?'Saving…':'Save capacity changes'}</button><button disabled={saving} onClick={discard}>Discard changes / reload</button></div>:null}
     </>:null}

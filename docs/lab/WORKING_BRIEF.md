@@ -83,3 +83,5 @@ Trade definitions should cover the live catalog instead of hardcoding only the w
 ## First acceptance loop
 Recreate Fonroche; alter quantity, cost, labor and price override; save/reopen; verify quote and budget changes; feed trade hours into capacity; move dates and status; verify totals and no duplication.
 Then let Paul change the workflow through Codex. Do not expand into a full scheduling system before this loop works.
+
+October 12 scheduling: use dynamic item/trade dependency proposals, proposed until approved, preserving quoted dates and flagging staffing shortages. Keep first approved baseline, manual date/hour actuals and reasons, preview recalculation, retain overrides. Shared operational revisions permit progress on Final quotes without changing commercial data. See DYNAMIC_SCHEDULING.md and /capacity/guidebook for activation/training and first-version limits.

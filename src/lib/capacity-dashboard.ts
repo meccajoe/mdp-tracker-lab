@@ -7,5 +7,5 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const ids=selected===null?null:new Set(selected);
  const included=projects.filter(project=>ids===null||ids.has(project.workspaceId));
  const weighted=included.map(project=>({...project,probability:basis==='committed'?(project.committed?1:0):basis==='full'?(project.probability>0?1:0):project.probability}));
- return {projects:included,load:capacityLoad(weighted,settings,'shop'),capacity:rosterCapacity(settings.roster.filter(person=>isShopRosterTrade(person.primary)))};
+ return {projects:included,load:capacityLoad(weighted,settings,'shop',[],true),capacity:rosterCapacity(settings.roster.filter(person=>isShopRosterTrade(person.primary)))};
 }

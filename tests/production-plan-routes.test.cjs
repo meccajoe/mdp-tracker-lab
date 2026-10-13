@@ -1,0 +1,20 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+test('schedule routes enforce lab membership, append revisions, and surface conflicts without changing quotes',async()=>{
+ let permitted=false,error=null,inserted=null,reads=0;
+ const query={select(){return this;},eq(){return this;},order(){return this;},limit(){return this;},insert(value){inserted=value;return this;},async maybeSingle(){return {data:null,error};},async single(){return {data:{revision:inserted.revision,document:inserted.document},error};}};
+ const actor={ok:true,workspaceLifecycle:'active',quoteActor:{},actorId:'actor',actorEmail:'test@example.test',actorSupabase:{from(table){assert.equal(table,'lab_production_schedule_revisions');reads++;return query;}}};
+ const env={NEXT_PUBLIC_SUPABASE_URL:'https://gkvaeqlqrthztobxitvn.supabase.co'};
+ const imports={'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:Response.json({}, {status:403})}},'@/lib/quote-permissions':{canPerformQuoteAction:()=>true},'@/lib/production-plan':{parseProductionPlan:v=>{if(!v||v.invalid)throw Error('Invalid');return v;}}};
+ const source=ts.transpileModule(fs.readFileSync('src/app/api/quote-workspaces/[workspaceId]/production-plan/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+ const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>imports[name],Response,Request,TextEncoder,process:{env}});
+ const context={params:Promise.resolve({workspaceId:'00000000-0000-4000-8000-000000000001'})};
+ const post=body=>module.exports.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify(body)}),context);
+ assert.equal((await module.exports.GET(null,context)).status,403);assert.equal(reads,0);
+ permitted=true;assert.equal((await module.exports.GET(null,context)).status,200);
+ error={code:'42P01'};assert.equal((await module.exports.GET(null,context)).status,503);error=null;
+ assert.equal((await post({expectedVersion:-1,document:{}})).status,400);
+ assert.equal((await post({expectedVersion:0,document:{invalid:true}})).status,400);
+ assert.equal((await post({expectedVersion:0,document:{status:'proposed'}})).status,201);assert.equal(inserted.revision,1);
+ error={code:'PT409'};assert.equal((await post({expectedVersion:0,document:{}})).status,409);
+ env.NEXT_PUBLIC_SUPABASE_URL='https://other.supabase.co';assert.equal((await module.exports.GET(null,context)).status,403);
+});
