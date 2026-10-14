@@ -35,3 +35,7 @@ Shared schedule saving, approval and actual persistence are now enabled. Earlier
 - `PGLITE_MODULE=/path/to/@electric-sql/pglite/dist/index.js node --test tests/production-plan-db.test.mjs`: disposable database only; membership/RLS, append sequencing, stale conflict, protected baseline, archived/anonymous restrictions. Never targets hosted data.
 - Local actual-component synthetic adapter verifies proposed → approved → saved, actual completion and hours, measured variance and recalculation.
 - Production webpack build uses lab-only placeholder keys; hosted deploy and storage activation are separate checks.
+
+## Integrated workback extension — October 13, 2026
+
+Quote Final now persists preliminary workback in the existing operational revision document. The Workback Schedule tab adds a whole-day six-stage reference, BOM-derived milestones, confirmed client obligations, editable locks/actuals, separate project due date and private client PDF. Closed Won activates but does not auto-approve. Existing approved labor plans and quote prices remain unchanged until explicit operational approval. See WORKBACK_SCHEDULE.md and the expanded in-app guidebook. Holidays/nonworking days are now configurable; earlier “no holidays” notes above describe the original engine release.

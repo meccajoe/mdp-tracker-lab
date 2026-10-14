@@ -3,7 +3,7 @@ assertLabEnvironment(process.env);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  outputFileTracingIncludes: {"/api/quote-workspaces/*/status": ["./src/assets/cad-fonts/*.ttf"], "/api/quote-workspaces/*/cad-turnover": ["./src/assets/cad-fonts/*.ttf"]},
+  outputFileTracingIncludes: {"/api/quote-workspaces/*/workback": ["./src/assets/cad-fonts/*.ttf"], "/api/quote-workspaces/*/status": ["./src/assets/cad-fonts/*.ttf"], "/api/quote-workspaces/*/cad-turnover": ["./src/assets/cad-fonts/*.ttf"]},
   async headers() {
     return [{ source: "/:path*", headers: [
       { key: "X-Robots-Tag", value: "noindex, nofollow" },

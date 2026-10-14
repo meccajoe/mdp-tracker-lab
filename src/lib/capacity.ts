@@ -1,3 +1,4 @@
+import {parseWorkbackPolicy,type WorkbackPolicy} from './workback-model';
 import {proposeProductionPlan,emptyPlan,type ProductionPlan} from './production-plan';
 import {isProductionDay,productionDays,WEEKDAYS,type ProductionCalendar} from './production-calendar';
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
@@ -5,7 +6,7 @@ import {EMPTY_SCHEDULE,FORECAST_STATUSES,validDate,type ForecastStatus} from './
 export const SHOP_TRADES=['Carpentry','CNC + cutting','Assembly','Painting','Finish','Graphic Install','Vinyl Install','Electrical','Metal Work','Crate & pack','Sculpting'];
 export const SUPPORT_TRADES=['I&D','Driver/Pickups','Facility'];
 export type RosterPerson={id:string;name:string;primary:string;secondary:string;hours:number;rate:number|null;active:boolean;notes:string};
-export type CapacitySettings={weekStart:string;allocation:'weekdays'|'calendar';fieldAllocation:'install'|'build';roster:RosterPerson[]};
+export type CapacitySettings={workback?:WorkbackPolicy;weekStart:string;allocation:'weekdays'|'calendar';fieldAllocation:'install'|'build';roster:RosterPerson[]};
 export type CapacityOverride={status:ForecastStatus|'';remainingShop:number|null;remainingField:number|null;remainingTrades:Record<string,number>;notes:string};
 export type CapacityDocument={settings:CapacitySettings};
 export const emptyOverride=():CapacityOverride=>({status:'',remainingShop:null,remainingField:null,remainingTrades:{},notes:''});
@@ -22,7 +23,7 @@ export function parseCapacity(value:unknown):CapacityDocument {
  if(!validDate(s.weekStart)||monday(s.weekStart)!==s.weekStart||!['weekdays','calendar'].includes(String(s.allocation))||!['install','build'].includes(String(s.fieldAllocation))||!Array.isArray(s.roster)||s.roster.length>300)fail();
  const roster=(s.roster as unknown[]).map(v=>{const r=object(v);if(typeof r.active!=='boolean')fail();return {id:text(r.id,200),name:text(r.name),primary:text(r.primary,200),secondary:text(r.secondary,200),hours:num(r.hours),rate:r.rate===null?null:num(r.rate),active:r.active as boolean,notes:text(r.notes)};});
  if(roster.some(r=>!r.id||!r.name.trim()||!r.primary.trim()||r.hours>168)||new Set(roster.map(r=>r.id)).size!==roster.length)fail();
- return {settings:{weekStart:s.weekStart as string,allocation:s.allocation as CapacitySettings['allocation'],fieldAllocation:s.fieldAllocation as CapacitySettings['fieldAllocation'],roster}};
+ return {settings:{...(s.workback?{workback:parseWorkbackPolicy(s.workback)}:{}),weekStart:s.weekStart as string,allocation:s.allocation as CapacitySettings['allocation'],fieldAllocation:s.fieldAllocation as CapacitySettings['fieldAllocation'],roster}};
 }
 export function parsePlanning(value:unknown):CapacityOverride {
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid capacity plan.');

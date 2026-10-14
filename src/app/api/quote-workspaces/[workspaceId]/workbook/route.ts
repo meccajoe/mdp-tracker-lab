@@ -1,3 +1,4 @@
+import {persistWorkback} from '@/lib/workback-server';
 import {missingManagement} from '@/lib/quote-management-server';
 import { createBlankQuoteV27 } from '@/lib/quote-v27-template';
 import { NextResponse } from 'next/server';
@@ -75,5 +76,7 @@ export async function POST(request: Request, { params }: Context) {
     if (result.error.code === '42501') return json({ error: 'You no longer have permission to save this workbook.' }, 403);
     return json({ error: 'Workbook could not be saved. Your edits are still here.' }, 500);
   }
-  return json({ version: result.data.revision, savedAt: result.data.created_at, calculation }, 201);
+  let workbackWarning='';
+  try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{workbackWarning='Quote saved. Workback refresh needs attention; open Workback Schedule and regenerate. Existing schedule retained.';}
+  return json({ workbackWarning, version: result.data.revision, savedAt: result.data.created_at, calculation }, 201);
 }

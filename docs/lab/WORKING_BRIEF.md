@@ -1,5 +1,7 @@
 # Paul's quote and capacity workspace
 
+October 13 workback: Paul requested integrated Final → persisted preliminary workback → editable internal milestones → client schedule/PDF. Reuse existing quote BOM/labor and schedule history. Exact whole-day six-stage baseline (15/5/10/40/20/10), configurable nonworking dates and offsets, per-item requirements, no invented approvals/lead times. Closed Won activates while retaining PM approval (explicitly confirmed). Post-award/approved working dates stay intact until reviewed; do not reprice or rewrite saved quotes. See WORKBACK_SCHEDULE.md.
+
 October 11: global defaults on the main Quotes page affect only subsequently created blank quotes; each quote retains independent settings. Add required human Client/Project names, Date created/Last modified, bulk archive/restore and archive link, independent CLONE copies, and Draft/Final on library and workbook header. Draft/Final is separate from Capacity forecast. Implementation pending hosted migration/sign-in; see QUOTE_MANAGEMENT.md and LAB_STATUS.md. Existing quote data must remain untouched.
 
 

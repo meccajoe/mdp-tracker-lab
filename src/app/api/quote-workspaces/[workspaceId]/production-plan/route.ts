@@ -18,6 +18,11 @@ export async function POST(request:Request,{params}:Context){
  const {workspaceId}=await params,a=await access(workspaceId,true);if(!a.ok)return a.response;
  let plan,version;
  try{const raw=await request.text();if(new TextEncoder().encode(raw).length>1800000)throw new Error('Schedule is too large.');const body=JSON.parse(raw);version=body.expectedVersion;if(!Number.isSafeInteger(version)||version<0||version>=2147483647)throw new Error('Invalid schedule revision.');plan=parseProductionPlan(body.document);}catch(e){return json({error:e instanceof Error?e.message:'Invalid schedule.'},400);}
+ const prior=await a.actorSupabase.from('lab_production_schedule_revisions').select('revision,document').eq('workspace_id',workspaceId).order('revision',{ascending:false}).limit(1).maybeSingle();
+ if(prior.error)return json({error:'Schedule changed or could not load; reload before saving.'},409);
+ if((prior.data?.revision??0)!==version)return json({error:'Schedule changed on another device; reload before saving.'},409);
+ // Workback has its own authoritative server actions; older planner clients cannot erase or forge it.
+ if(prior.data?.document?.workback)plan.workback=parseProductionPlan(prior.data.document).workback;else delete plan.workback;
  const result=await a.actorSupabase.from('lab_production_schedule_revisions').insert({workspace_id:workspaceId,revision:version+1,document:plan,created_by:a.actorId,created_by_email:a.actorEmail}).select('revision,document').single();
  if(result.error)return json({error:['PT409','23505'].includes(result.error.code)?'Schedule changed on another device. Your draft is retained; reload before saving.':'Schedule could not save; your draft is retained.'},['PT409','23505'].includes(result.error.code)?409:403);
  return json({version:result.data.revision,document:result.data.document},201);

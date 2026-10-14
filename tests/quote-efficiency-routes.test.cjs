@@ -6,7 +6,7 @@ const ts=require('typescript');
 const next={NextResponse:{json:(body,options)=>Response.json(body,options)}};
 function load(path,imports){
   const source=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,target:ts.ScriptTarget.ES2020}}).outputText;
-  const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>{if(!(name in imports))throw new Error(name);return imports[name];},URL,Response,TextEncoder,Map});return module.exports;
+  imports['@/lib/workback-server']??={persistWorkback:async()=>({changed:false})};const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>{if(!(name in imports))throw new Error(name);return imports[name];},URL,Response,TextEncoder,Map});return module.exports;
 }
 const id='11111111-1111-4111-8111-111111111111';
 const policy=load('src/lib/quote-permissions.ts',{});

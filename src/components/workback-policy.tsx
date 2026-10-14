@@ -1,0 +1,10 @@
+'use client';
+import {DEADLINES,type WorkbackPolicy} from '@/lib/workback-model';
+import {PRODUCTION_STAGES} from '@/lib/project-timeline';
+export function WorkbackPolicyEditor({value,onChange,disabled=false}:{value:WorkbackPolicy;onChange:(v:WorkbackPolicy)=>void;disabled?:boolean}){
+ return <fieldset disabled={disabled} className="space-y-3 rounded border p-3"><legend>Workback calendar and defaults</legend><p className="text-xs">Offsets are working days before the affected activity. Existing schedules retain their own settings. No automatic rush fees.</p>
+ <label className="block">Holidays / nonworking dates (one YYYY-MM-DD per line)<textarea aria-label="Workback nonworking dates" className="block w-full border p-2" defaultValue={value.holidays.join('\n')} onBlur={e=>onChange({...value,holidays:e.target.value.split(/[\n,]/).map(s=>s.trim()).filter(Boolean)})}/></label>
+ <div className="flex flex-wrap gap-3">{PRODUCTION_STAGES.map((s,i)=><label key={s.id}>{s.name}<span className="block text-xs">Share % / minimum days</span><input aria-label={`${s.name} allocation percent`} className="w-16 border" type="number" value={value.percent[i]} onChange={e=>onChange({...value,percent:value.percent.map((n,j)=>i===j?Number(e.target.value):n)})}/><input aria-label={`${s.name} minimum days`} className="w-16 border" type="number" min="0" value={value.minimum[i]} onChange={e=>onChange({...value,minimum:value.minimum.map((n,j)=>i===j?Number(e.target.value):n)})}/></label>)}</div>
+ <div className="flex flex-wrap gap-3">{DEADLINES.map(k=><label key={k}>{k.replace(/([A-Z])/g,' $1')}<input aria-label={`${k} working-day offset`} className="ml-2 w-16 border" type="number" min="0" max="365" value={value.offsets[k]} onChange={e=>onChange({...value,offsets:{...value.offsets,[k]:Number(e.target.value)}})}/></label>)}</div>
+ <label className="block">Client conditions<textarea aria-label="Client schedule conditions" className="block min-h-40 w-full border p-2" value={value.conditions} onChange={e=>onChange({...value,conditions:e.target.value})}/></label></fieldset>;
+}

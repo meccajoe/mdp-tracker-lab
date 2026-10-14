@@ -1,6 +1,7 @@
+import {parseWorkback,type Workback} from './workback-model';
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
 import {stageForTrade} from './item-timeline';
-import {productionDays,WEEKDAYS,type ProductionCalendar} from './production-calendar';
+import {productionDays,WEEKDAYS,parseProductionCalendar,type ProductionCalendar} from './production-calendar';
 import {validDate} from './quote-schedule';
 
 export const PLAN_ENGINE='item-flow-1';
@@ -10,7 +11,7 @@ export const STAGE_NAMES:Record<PlanStage,string>={cad:'CAD / Drawings',purchasi
 export type PlanTask={id:string;itemId:string;item:string;stage:PlanStage;trade:string;hours:number;start:string;finish:string;daily:{date:string;hours:number}[];predecessors:string[];locked:boolean};
 export type TaskRule={start?:string;finish?:string;locked?:boolean;dailyHours?:number;lagDays?:number;remainingHours?:number;predecessors?:string[]};
 export type TaskActual={completed:string;hours:number|null;reason:string;notes:string};
-export type ProductionPlan={engine:string;quoteVersion:number;status:'proposed'|'approved';calendar:ProductionCalendar;rampDays:number;rules:Record<string,TaskRule>;tasks:PlanTask[];baseline:PlanTask[];actuals:Record<string,TaskActual>;notes:string};
+export type ProductionPlan={workback?:Workback;engine:string;quoteVersion:number;status:'proposed'|'approved';calendar:ProductionCalendar;rampDays:number;rules:Record<string,TaskRule>;tasks:PlanTask[];baseline:PlanTask[];actuals:Record<string,TaskActual>;notes:string};
 export const emptyPlan=():ProductionPlan=>({engine:PLAN_ENGINE,quoteVersion:0,status:'proposed',calendar:{...WEEKDAYS},rampDays:1,rules:{},tasks:[],baseline:[],actuals:{},notes:''});
 export type PlannerRoster={primary:string;hours:number;active:boolean}[];
 const day=(date:string)=>Date.parse(date+'T00:00:00Z')/86400000;
@@ -121,5 +122,5 @@ export function parseProductionPlan(value:unknown):ProductionPlan{
   return [id,rule];}));
  const actuals=Object.fromEntries(Object.entries(obj(root.actuals)).map(([id,v])=>{str(id,400);const a=obj(v);return [id,{completed:date(a.completed),hours:a.hours===null?null:num(a.hours),reason:str(a.reason,200),notes:str(a.notes)}];}));
  if(Object.keys(rules).length>3000||Object.keys(actuals).length>3000)fail();
- return {engine:str(root.engine,100),quoteVersion:num(root.quoteVersion),status:root.status as ProductionPlan['status'],calendar:{saturday:cal.saturday as boolean,sunday:cal.sunday as boolean},rampDays:num(root.rampDays,365),rules,tasks:tasks(root.tasks),baseline:tasks(root.baseline),actuals,notes:str(root.notes,10000)};
+ return {...(root.workback?{workback:parseWorkback(root.workback)}:{}),engine:str(root.engine,100),quoteVersion:num(root.quoteVersion),status:root.status as ProductionPlan['status'],calendar:parseProductionCalendar(cal),rampDays:num(root.rampDays,365),rules,tasks:tasks(root.tasks),baseline:tasks(root.baseline),actuals,notes:str(root.notes,10000)};
 }

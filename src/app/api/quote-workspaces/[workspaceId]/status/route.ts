@@ -1,3 +1,4 @@
+import {persistWorkback} from '@/lib/workback-server';
 import {parseQuoteV27} from '@/lib/quote-v27-validation';
 import {buildCadTurnover} from '@/lib/quote-cad-turnover';
 import {renderCadTurnoverPdf} from '@/lib/quote-cad-pdf';
@@ -32,6 +33,7 @@ export async function POST(request:Request,{params}:Context){
    pdfBase64=Buffer.from(await renderCadTurnoverPdf(report)).toString('base64');
   }catch{return json({error:'CAD Turnover could not be generated. Status has not changed. Check the saved quote data and try again.'},422);}
  }
+ if(body.status==='final'){try{await persistWorkback(actor.actorSupabase,workspaceId,actor.actorId,actor.actorEmail,{force:true});}catch(e){return json({error:e instanceof Error?e.message:'Workback generation failed; status unchanged.'},409);}}
  const result=pdfBase64!==undefined
   ?await actor.actorSupabase.rpc('finalize_lab_quote_with_cad',{p_workspace_id:workspaceId,p_expected_version:body.expectedVersion,p_expected_revision:body.expectedRevision,p_pdf_base64:pdfBase64,p_project_name:projectName,p_client_name:clientName}).single()
   :await actor.actorSupabase.rpc('set_lab_quote_status',{p_workspace_id:workspaceId,p_status:body.status,p_expected_version:body.expectedVersion,p_expected_revision:body.expectedRevision}).single();

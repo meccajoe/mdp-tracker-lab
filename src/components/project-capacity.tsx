@@ -12,6 +12,7 @@ import {emptyProgress,setCompletionDate,type ProductionProgress,type StageId} fr
 import {itemTimelines,quotedStageHours,isBuildTimelineItem} from '@/lib/item-timeline';
 import {ProductionTimeline,StageTable,ItemStageRows} from './production-timeline';
 import styles from './project-capacity.module.css';
+import {WorkbackSchedule} from './workback-schedule';
 import {ProductionPlanner} from './production-planner';
 
 type Project=CapacityQuote&{client:string;version:number;canEdit:boolean};
@@ -71,7 +72,7 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
       <section className={styles.cards} aria-label="Project dates and capacity">
         {[['Build start',date(project.schedule.buildStart)],['Build finish',date(project.schedule.buildFinish)],['Install',date(project.schedule.installDate)],['Shop hours',number(project.shop)],['Field hours',number(project.field)],['Design hours',number(project.demand.design)]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}
       </section>
-      <ProductionPlanner workspaceId={workspaceId} quote={source.document} quoteVersion={source.version}/>
+      <details><summary>Workback Schedule — overview, internal milestones and client PDF</summary><WorkbackSchedule workspaceId={workspaceId}/></details><ProductionPlanner workspaceId={workspaceId} quote={source.document} quoteVersion={source.version}/>
       <details className={styles.panel}><summary>Percentage reference and earlier completion records</summary><p>These retained records use the original fixed stage percentages. Use the production schedule above for current operational planning and actuals.</p>
       <section className={styles.panel} aria-label="Project workweek"><h2>Project workweek</h2><div className={styles.controls}>
         <span>Monday–Friday</span><label><input type="checkbox" checked={calendar.saturday} disabled={!source.canEdit||saving} onChange={e=>setCalendar({...calendar,saturday:e.target.checked})}/> Saturday work necessary</label><label><input type="checkbox" checked={calendar.sunday} disabled={!source.canEdit||saving} onChange={e=>setCalendar({...calendar,sunday:e.target.checked})}/> Sunday work necessary</label>

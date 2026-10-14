@@ -1,4 +1,5 @@
 "use client";
+import {WorkbackSchedule} from './workback-schedule';
 import {QuoteStatusControl} from "./quote-status-control";
 import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 
@@ -54,6 +55,8 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const [error, setError] = useState('');
   const [selectionSummary,setSelectionSummary]=useState('');
   const [tab, setTab] = useState('Quote Builder');
+  const [workbackOpened,setWorkbackOpened]=useState(false);
+  const [workbackDirty,setWorkbackDirty]=useState(false);
   const [selected, setSelected] = useState('');
   const endpoint = libraryItem?`/api/prequote-items/${workspaceId}`:`/api/quote-workspaces/${workspaceId}/workbook`;
   const load = useCallback(async (revision?: number) => {
@@ -80,7 +83,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     finally { setBusy(false); }
   }, [endpoint,libraryItem]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { onDirtyChange(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onDirtyChange(dirty||workbackDirty); }, [dirty, workbackDirty, onDirtyChange]);
   useEffect(() => {
     if (!dirty) return;
     const unload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
@@ -145,6 +148,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       if(!response.ok){if(response.status===409)autosavePaused.current=true;throw new Error(payload.error||'Save failed. Your edits are still here.');}
       savedDocument.current=JSON.stringify(snapshot);setVersion(payload.version);if(!libraryItem)invalidateQuoteLibrary();
       const stillDirty=JSON.stringify(edits.current?.present)!==savedDocument.current;
+      if(payload.workbackWarning)setError(payload.workbackWarning);
       setDirty(stillDirty);setMessage(`${automatic?'Autosaved':'Saved'} revision ${payload.version}${stillDirty?' · newer edits pending':''}`);
       setHistory(current=>[{revision:payload.version,created_at:payload.savedAt,created_by_email:'You'},...current].slice(0,20));
     }catch(e){setError(e instanceof Error?e.message:'Save failed. Your edits are still here.');}
@@ -194,7 +198,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
     {!libraryItem&&document&&<QuoteStatusControl workspaceId={workspaceId} revision={version} dirty={dirty||pendingInput||saving} onChanged={()=>void load()}/>}
-    {document && <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');setTab(name);}}>{name}</button>)}</div>
+    {document && <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Workback Schedule','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');if(name==='Workback Schedule')setWorkbackOpened(true);setTab(name);}}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>}
     </div>
@@ -205,6 +209,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>{!libraryItem&&<button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>}{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction onSummary={setSelectionSummary}><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
       {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
+      {workbackOpened&&<div hidden={tab!=='Workback Schedule'}><WorkbackSchedule key={workspaceId} workspaceId={workspaceId} onDirtyChange={setWorkbackDirty}/></div>}
       {tab==='Capacity'&&<div className="rounded border bg-white p-4"><h2>Capacity handoff</h2><p>The quote name, header dates, forecast status and calculated shop/trade hours appear in the Capacity tracker after saving. Planning overrides remain separate from quote inputs.</p><a className="underline" href={`/capacity/${workspaceId}`}>Open this project’s capacity & timeline</a> · <a className="underline" href="/capacity">All projects</a></div>}
       {tab==='Materials DB'&&<QuoteMaterialsDB/>}
       {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}

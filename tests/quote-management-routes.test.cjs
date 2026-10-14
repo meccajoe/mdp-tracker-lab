@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function load(path,imports){const source=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>{if(!(name in imports))throw Error(name);return imports[name]},Response,Request,URL,TextEncoder,Buffer,Uint8Array});return module.exports;}
+function load(path,imports){const source=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;imports['@/lib/workback-server']??={persistWorkback:async()=>({changed:false})};const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>{if(!(name in imports))throw Error(name);return imports[name]},Response,Request,URL,TextEncoder,Buffer,Uint8Array});return module.exports;}
 const json=(body,status=200)=>Response.json(body,{status});
 const management={labManagementGuard:()=>null,managementJson:json,missingManagement:code=>code==='PGRST205',managementError:error=>json({error:error.message},error.code==='PT409'?409:503)};
 function query(data,error=null){const q={then:resolve=>Promise.resolve({data,error}).then(resolve)};for(const name of ['select','eq','in','is','order','limit','insert'])q[name]=()=>q;q.single=q.maybeSingle=()=>Promise.resolve({data,error});return q;}
@@ -56,4 +56,11 @@ test('older Final quotes render CAD without writes and reject concurrent status 
  const get=()=>route.GET(new Request('https://lab.test?version=2'),{params:Promise.resolve({workspaceId:id})});
  assert.equal(await (await get()).text(),'%PDF-generated');
  controlsReads=0;changed=true;assert.equal((await get()).status,409);
+});
+test('Final generates workback first and fails visibly if schedule persistence fails',async()=>{
+ let schedules=0,finals=0,fail=true;
+ const actor={ok:true,actorId:'actor',actorEmail:'actor',actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Project',client_name:'Client'}:{revision:10,document:{}}),rpc:()=>{finals++;return query({quote_status:'final',version:1})}}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/status/route.ts',{'@/lib/workback-server':{persistWorkback:async(...args)=>{assert.equal(args[4].force,true);schedules++;if(fail)throw Error('Schedule storage unavailable')}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:()=>({})},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-test')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>actor},'@/lib/quote-permissions':{},'@/lib/quote-management-server':management});
+ const post=()=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({status:'final',expectedVersion:0,expectedRevision:10})}),{params:Promise.resolve({workspaceId:id})});
+ assert.equal((await post()).status,409);assert.equal(finals,0);fail=false;assert.equal((await post()).status,200);assert.equal(schedules,2);assert.equal(finals,1);
 });
