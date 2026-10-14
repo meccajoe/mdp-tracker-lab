@@ -9,7 +9,7 @@ import {prequoteSnapshot} from '../src/lib/quote-prequote';
 const close=(a:number,b:number)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 const cents=(n:number)=>Number(n.toFixed(2));
 function example(type:LineType='Fabrication'){
- const q=createBlankQuoteV27();delete q.estimators;
+ const q=createBlankQuoteV27();applyLevyPricing(q);delete q.estimators;
  q.settings.burdenedRateOverride=39.27;
  q.lines=[{id:'example',name:'Example',type,takeoffDriven:false,inputs:{...EMPTY_INPUTS,materials:1000,hours:10,cost:1000},overrides:{},priceOverride:null}];
  return q;
@@ -64,4 +64,47 @@ test('historical snapshots retain prices until explicit adoption; budgets, hours
  close(after.totals.buildBudget,before.totals.buildBudget);assert.deepEqual(after.tradeHours,before.tradeHours);
  const nextDemand=quoteDemand(q);assert.equal(nextDemand.shop,demand.shop);assert.equal(nextDemand.field,demand.field);assert.equal(nextDemand.design,demand.design);close(nextDemand.price,after.totals.price);
  assert.equal(JSON.stringify(original),snapshot);
+});
+
+import {cloneQuoteDocument,quoteDefaults,quoteFromDefaults} from '../src/lib/quote-defaults';
+test('new pricing rounds computed sells upward, preserves exact overrides and leaves cost precision intact',()=>{
+ const q=example();q.pricingVersion='scoped-levies-v2';
+ let l=calculateQuoteV27(q).lines[0];
+ assert.equal(l.finalPrice,3514);assert.equal(l.buildBudget,1392.7);
+ close(l.contingency,175.7);close(l.indirect,140.56);close(l.waste,17.57);
+ q.commission=.1;assert.equal(calculateQuoteV27(q).lines[0].finalPrice,3951);
+ q.lines[0].priceOverride=3000.25;l=calculateQuoteV27(parseQuoteV27(JSON.parse(JSON.stringify(q)))).lines[0];
+ assert.equal(l.finalPrice,3000.25);assert.equal(l.calculatedPrice,3951);
+ q.lines[0].priceOverride=0;assert.equal(calculateQuoteV27(q).lines[0].finalPrice,0);
+});
+test('new pricing scopes both levies to four types while preserving independent contingency eligibility',()=>{
+ const q=example();q.pricingVersion='scoped-levies-v2';
+ for(const type of LINE_TYPES){
+  q.lines[0].type=type;const l=calculateQuoteV27(q).lines[0];
+  const eligible=['Fabrication','beMatrix / SEG','Props / Resale','Equipment Rental'].includes(type);
+  close(l.indirect,eligible?l.finalPrice*.04:0);close(l.waste,eligible?l.finalPrice*.005:0);
+  close(l.contingency,DEFAULT_CONTINGENCY_TYPES.includes(type)?l.finalPrice*.05:0);
+  assert.equal(l.finalPrice,Math.ceil(l.finalPrice));
+ }
+ q.lines[0].type='Freight';const l=calculateQuoteV27(q).lines[0];
+ assert.equal(l.finalPrice,1600);assert.equal(l.margin,600);
+});
+test('new PM fee uses final rounded hard scope and commission, without levies or contingency',()=>{
+ const q=example();q.pricingVersion='scoped-levies-v2';
+ q.lines.push({...q.lines[0],id:'pm',type:'Project Management Fee',inputs:{...EMPTY_INPUTS}});
+ let r=calculateQuoteV27(q);assert.equal(r.lines[1].finalPrice,106);
+ q.commission=.1;r=calculateQuoteV27(q);assert.equal(r.lines[1].finalPrice,132);
+ assert.deepEqual([r.lines[1].indirect,r.lines[1].waste,r.lines[1].contingency],[0,0,0]);
+ q.lines[0].priceOverride=3000.25;r=calculateQuoteV27(q);assert.equal(r.lines[1].finalPrice,101);
+});
+test('new blank quotes use current policy even with old global defaults; existing saves and clones keep old math',()=>{
+ const old=example(),before=JSON.stringify(old),oldResult=calculateQuoteV27(old);
+ const defaults=quoteDefaults(old),defaultsBefore=JSON.stringify(defaults);
+ const fresh=quoteFromDefaults(defaults);
+ assert.equal(createBlankQuoteV27().pricingVersion,'scoped-levies-v2');assert.equal(fresh.pricingVersion,'scoped-levies-v2');
+ assert.deepEqual(fresh.settings,old.settings);assert.equal(JSON.stringify(defaults),defaultsBefore);
+ for(const saved of [parseQuoteV27(JSON.parse(before)),cloneQuoteDocument(old)]){
+  assert.equal(saved.pricingVersion,'levies-v1');assert.deepEqual(calculateQuoteV27(saved),oldResult);
+ }
+ assert.equal(JSON.stringify(old),before);
 });

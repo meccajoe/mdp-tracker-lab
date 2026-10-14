@@ -41,7 +41,7 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
-  pricingVersion?: "levies-v1";
+  pricingVersion?: "levies-v1" | "scoped-levies-v2";
   contingencyByType?: Record<LineType, boolean>;
   importNotes?: string[];
   schedule?: QuoteSchedule;
@@ -79,19 +79,22 @@ function unique<T extends { id: string }>(rows: T[], name: string) {
   return map;
 }
 
-/** Preserve full precision until display, except Excel's two-decimal blended labor rate. */
+/** Historical versions retain precision; v2 rounds each computed selling price upward. */
 export function calculateQuoteV27(quote: QuoteV27) {
   if (quote.schemaVersion !== 1 || !quote.assumptionsVersion) throw new Error("Unsupported quote snapshot version.");
   const estimatorResult = quote.estimators ? calculateEstimators(quote, quote.estimators) : null;
   const s = quote.settings;
-  if (quote.pricingVersion !== undefined && quote.pricingVersion !== "levies-v1") throw new Error("Unsupported pricing version.");
-  const levies = quote.pricingVersion === "levies-v1";
+  if (quote.pricingVersion !== undefined && quote.pricingVersion !== "levies-v1" && quote.pricingVersion !== "scoped-levies-v2") throw new Error("Unsupported pricing version.");
+  const scoped = quote.pricingVersion === "scoped-levies-v2";
+  const levies = quote.pricingVersion === "levies-v1" || scoped;
+  const levyApplies=(type:LineType)=>!scoped||(["Fabrication","beMatrix / SEG","Props / Resale","Equipment Rental"] as LineType[]).includes(type);
+  const sell=(value:number)=>scoped?Math.ceil(value):value;
   if (levies && (typeof s.waste !== "number" || !quote.contingencyByType || LINE_TYPES.some(type=>typeof quote.contingencyByType?.[type] !== "boolean"))) throw new Error("Levy pricing requires a waste rate and contingency choice for every line type.");
   if (levies && quote.contingencyByType?.["Project Management Fee"]) throw new Error("Project Management Fee must not carry contingency.");
   const wasteRate=levies?s.waste!:0;
   const contingencyRate=(type:LineType)=>(!levies||quote.contingencyByType![type])?s.contingency:0;
   const divisor=(type:LineType)=>{
-    const value=1-quote.commission-(levies?s.indirect+wasteRate+contingencyRate(type):0);
+    const value=1-quote.commission-(levies?(levyApplies(type)?s.indirect+wasteRate:0)+contingencyRate(type):0);
     if(value<=0)throw new Error(`${type}: commission, levies and contingency must total less than 100%.`);
     return value;
   };
@@ -186,7 +189,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
       case "Installer Days": price = x.cost; hoursAllowed = x.siteDays * s.siteHours; break;
       case "Project Management Fee": break; // Second pass: uses final hard-scope prices.
     }
-    const calculatedPrice = price / divisor(line.type);
+    const calculatedPrice = sell(price / divisor(line.type));
     const laborBudget = hoursAllowed * laborRate;
     // Do not silently rescale named trades when efficiency or input overrides differ.
     const tradeHours = { ...(total?.trades ?? {}) };
@@ -200,13 +203,13 @@ export function calculateQuoteV27(quote: QuoteV27) {
   const hardScope = lines.filter(line => !["Project Management Fee", "Travel & Expenses", "Freight"].includes(line.type)).reduce((sum, line) => sum + line.finalPrice, 0);
   for (const line of lines) if (line.type === "Project Management Fee") {
     // Legacy N36 had no gross-up. New rules gross up the fee on final hard scope.
-    line.calculatedPrice = hardScope * s.pmFee / (levies ? divisor(line.type) : 1);
+    line.calculatedPrice = sell(hardScope * s.pmFee / (levies ? divisor(line.type) : 1));
     line.finalPrice = line.priceOverride ?? line.calculatedPrice;
   }
   const pricedLines = lines.map(line => {
     const contingency = line.finalPrice * contingencyRate(line.type);
-    const indirect = line.finalPrice * s.indirect;
-    const waste = line.finalPrice * wasteRate;
+    const indirect = levyApplies(line.type)?line.finalPrice * s.indirect:0;
+    const waste = levyApplies(line.type)?line.finalPrice * wasteRate:0;
     const commission = line.finalPrice * quote.commission;
     const margin = line.finalPrice - line.buildBudget - contingency - indirect - waste - commission;
     return { ...line, contingency, indirect, waste, commission, margin, belowOverhead:line.finalPrice>0&&margin/line.finalPrice<s.opex, marginPercent: line.finalPrice === 0 ? null : margin / line.finalPrice };

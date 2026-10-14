@@ -17,5 +17,6 @@ export function createBlankQuoteV27() {
   estimators.shipping.lineId = 'line-41';
   quote.estimators = estimators;
   applyLevyPricing(quote);
+  quote.pricingVersion = "scoped-levies-v2";
   return quote;
 }

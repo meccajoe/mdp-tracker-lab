@@ -67,10 +67,12 @@ function RateInput({label,value,unit,onChange,nullable=false}: {
 export function QuoteRates({quote,edit,laborRate}: {
   quote:QuoteV27; edit:(change:(next:QuoteV27)=>void)=>void; laborRate:number|null;
 }) {
-  const levyPricing=quote.pricingVersion==='levies-v1';
+  const scoped=quote.pricingVersion==='scoped-levies-v2';
+  const levyPricing=quote.pricingVersion==='levies-v1'||scoped;
   const levyNotes:Partial<Record<keyof Settings,string>>={
     opex:'All 2027 overhead, including admin labor, bonuses, shop supplies, machine upkeep and forklifts. PM salaries are inside it.',
-    indirect:'Drivers, runners, warehouse, cleaning: unbilled shop labor (~$430K/yr). Added on top of every line price.',
+    indirect:scoped?'Drivers, runners, warehouse and cleaning. Charged only on Fabrication, beMatrix/SEG, Props/Decor and Equipment.':'Drivers, runners, warehouse, cleaning: unbilled shop labor (~$430K/yr). Added on top of every line price.',
+    waste:scoped?'Shop waste. Charged only on Fabrication, beMatrix/SEG, Props/Decor and Equipment.':undefined,
     contingency:'Added on top of the price for line types marked Yes in the Contingency? column. Released only by approval; leftovers drop to profit.',
   };
   function setting(key:keyof Settings,value:number|null) {
@@ -78,6 +80,7 @@ export function QuoteRates({quote,edit,laborRate}: {
   }
   return <div className={styles.sheet}>
     <header className={styles.header}><h2>Quote Template — Settings</h2><p>Yellow cells are editable. Rates are saved with each quote revision.</p></header>
+    {scoped&&<p>New-quote pricing: computed selling prices round up to whole dollars. Indirect and waste levies apply only to Fabrication, beMatrix/SEG, Props/Decor and Equipment. Contingency follows the selections below. Manual price overrides stay exact.</p>}
     {!levyPricing&&<section className={styles.group}><h3>Original workbook pricing</h3><p>This saved quote retains its original pricing. Applying new pricing sets OpEx to 40%, waste to 0.5%, and grosses up computed prices for commission, indirect labor, waste and eligible contingency. Typed price overrides stay unchanged.</p><button type="button" onClick={()=>edit(applyLevyPricing)}>Apply new levy pricing</button></section>}
     <div className={styles.commission}><span>Sales commission</span><RateInput label="Sales commission" unit="%" value={quote.commission} onChange={value=>edit(next=>{next.commission=value??0;})}/><p>Enter 10 for 10%. Zero means no commission.</p></div>
     {groups.map(group=><section key={group.title} aria-label={group.title} className={styles.group}>

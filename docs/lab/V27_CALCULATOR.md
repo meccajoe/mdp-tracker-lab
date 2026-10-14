@@ -1,5 +1,13 @@
 # v27 calculation foundation
 
+## New-quote scoped levies and upward selling prices — October 13, 2026
+
+New blank quotes use `pricingVersion: scoped-levies-v2`. After the rate card and percentage-of-sell gross-up, round each computed line selling price upward with `Math.ceil`. Indirect and waste apply only to Fabrication, beMatrix / SEG, Props / Resale (UI Props/Decor), and Equipment Rental (UI Equipment). Other types have neither deduction nor gross-up for those levies. Contingency still follows the saved type map; commission applies as before. PM is computed from other final hard-scope selling prices, excluding Freight/Travel & Expenses, then commission-grossed-up and rounded upward, without indirect/waste or contingency.
+
+Manual selling-price overrides remain literal, including cents and zero. Costs, rates, budgets and margin deductions retain precision. New quotes seeded from older global defaults retain those settings but use v2. Saved quotes, clones, reusable snapshots and spreadsheet imports are never upgraded on read/save. Undefined-version legacy and levies-v1 calculations remain unchanged; the existing explicit legacy adoption action remains v1. No database migration.
+
+Regression examples with default rates and no commission: fabrication base $3,180 becomes $3,514; with 10% commission it becomes $3,951. Freight cost $1,000 sells at $1,600 with $600 margin and no levies. PM on the $3,514 fabrication line is $106. A $3,000.25 override stays $3,000.25.
+
 ## Explicit blank takeoff assignments and day grid — October 5, 2026
 
 New worksheet rows use an empty `lineId` until explicitly assigned, including intermediate rows materialized by an edit farther down. Parser accepts only this empty unassigned state or a valid existing ID. Unassigned row costs/hours are displayed but excluded from item rollups, with a warning for quantity/hours. Existing assigned rows and formulas are unchanged. BOM uses recorded takeoff costs grouped by material name/unit, applies section multipliers and excludes hour units; unassigned material demand is labeled Unassigned.

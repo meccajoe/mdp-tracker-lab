@@ -57,7 +57,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
   };
   if(settings.waste!==undefined)parsed.settings.waste=num(settings.waste);
   if(v.pricingVersion!==undefined){
-    if(v.pricingVersion!=='levies-v1')throw new Error('Unsupported pricing version.');
+    if(v.pricingVersion!=='levies-v1'&&v.pricingVersion!=='scoped-levies-v2')throw new Error('Unsupported pricing version.');
     parsed.pricingVersion=v.pricingVersion;
     const eligibility=record(v.contingencyByType);
     parsed.contingencyByType=Object.fromEntries(LINE_TYPES.map(type=>[type,bool(eligibility[type])])) as NonNullable<QuoteV27['contingencyByType']>;
