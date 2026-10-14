@@ -138,7 +138,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
       <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
-        <thead><tr><th>#</th>{headers.map(h=><th key={h} style={{position:'relative'}}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
+        <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
         <tbody>{visibleRows.map(({row,index:r})=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
           const isActive=active?.[0]===r&&active[1]===c;

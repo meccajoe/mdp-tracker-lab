@@ -73,7 +73,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
         <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
         <thead>
           <tr className={styles.letters}><th aria-label="Item number"/>{visibleHeaders.map(({index})=><th key={index} scope="col" className={index===0?styles.frozen:undefined}>{String.fromCharCode(65+index)}</th>)}</tr>
-          <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined} style={{position:'relative'}}>{label}<QuoteColumnResize label={label}/></th>)}</tr>
+          <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined} style={{position:index===0?'sticky':'relative'}}>{label}<QuoteColumnResize label={label}/></th>)}</tr>
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
           const row=rows.get(line.id);
