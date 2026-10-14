@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBlankQuoteV27 } from '../src/lib/quote-v27-template';
-import { applyTakeoffCells, applyVisibleSheetCells } from '../src/lib/quote-takeoff-grid';
+import { applyTakeoffCells, applyVisibleSheetCells, applyTakeoffViewCells, TAKEOFF_VIEW_COLUMNS, isLaborTakeoff } from '../src/lib/quote-takeoff-grid';
 import { calculateQuoteV27 } from '../src/lib/quote-v27';
 import { parseQuoteV27 } from '../src/lib/quote-v27-validation';
 function fixture() {
@@ -140,4 +140,23 @@ test('BOM combines names and units while preserving each recorded price and sect
  const rows=quoteBOM(q);
  assert.equal(rows.length,1);assert.equal(rows[0].quantity,7);assert.equal(rows[0].cost,75);assert.equal(rows[0].unitCost,10);
  assert.deepEqual(rows[0].items,[q.lines[0].name,q.lines[1].name]);
+});
+
+test('visible Quantity edits hours for labor without changing saved material quantities or row identity',()=>{
+ const q=fixture();q.takeoffs[0].unit='hours';q.takeoffs[0].hours=12;q.takeoffs[0].quantity=2;
+ const qty=TAKEOFF_VIEW_COLUMNS.indexOf('quantity');
+ applyTakeoffViewCells(q,50,'',[0,1,2],0,qty,[['20']],null);
+ assert.equal(q.takeoffs[0].hours,20);assert.equal(q.takeoffs[0].quantity,2);
+ assert.equal(q.takeoffs[0].id,'row-0');assert.equal(isLaborTakeoff(q,q.takeoffs[0]),true);
+ applyTakeoffViewCells(q,50,'',[0,1,2],1,qty,[['8']],null);
+ assert.equal(q.takeoffs[1].quantity,8);assert.equal(q.takeoffs[1].hours,0);
+ assert.deepEqual(parseQuoteV27(JSON.parse(JSON.stringify(q))).takeoffs,q.takeoffs);
+});
+test('labor paste resolves unit before Quantity, filtered fill stays atomic',()=>{
+ const q=fixture(),qty=TAKEOFF_VIEW_COLUMNS.indexOf('quantity');
+ applyTakeoffViewCells(q,50,'',[0,2],0,qty,[['5','hours'],['7','hours']],null);
+ assert.equal(q.takeoffs[0].hours,5);assert.equal(q.takeoffs[2].hours,7);assert.equal(q.takeoffs[1].hours,0);
+ const before=structuredClone(q);
+ assert.throws(()=>applyTakeoffViewCells(q,50,'',[0,2],0,qty,[['10'],['-1']],null));
+ assert.deepEqual(q,before);
 });

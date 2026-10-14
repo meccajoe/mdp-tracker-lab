@@ -11,6 +11,7 @@ import styles from './quote-sheet.module.css';
 export function useQuoteItemActions({quote,edit,readOnly,libraryItem=false,onChanged,onAddExisting}:{
  quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;readOnly:boolean;libraryItem?:boolean;onChanged?:()=>void;onAddExisting?:()=>void;
 }){
+ const [rename,setRename]=useState<string|null>(null),[name,setName]=useState('');
  const [pendingDelete,setPendingDelete]=useState<string|null>(null);
  const [notice,setNotice]=useState(''),[error,setError]=useState(''),[saving,setSaving]=useState(false);
  function menu(id:string,label:string){
@@ -20,12 +21,14 @@ export function useQuoteItemActions({quote,edit,readOnly,libraryItem=false,onCha
    <DropdownMenuContent className="min-w-48" onKeyDown={event=>event.stopPropagation()}>
     {onAddExisting&&<DropdownMenuItem disabled={readOnly} onClick={onAddExisting}>Add Existing Item</DropdownMenuItem>}
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{try{edit(next=>{cloneQuoteItem(next,id);});setError('');onChanged?.();}catch(error){setError(error instanceof Error?error.message:'Could not clone item.');}}}>Clone</DropdownMenuItem>
+    <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{setRename(id);setName(line?.name??'');}}>Rename item</DropdownMenuItem>
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>setPendingDelete(id)}>Delete</DropdownMenuItem>
     <DropdownMenuItem disabled={readOnly||saving||!line} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line?.name} to the Prequote items library.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save as prequote item</DropdownMenuItem>
    </DropdownMenuContent>
   </DropdownMenu>;
  }
  const feedback=<>{notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
+  <AlertDialog open={rename!==null} onOpenChange={open=>{if(!open)setRename(null);}}><AlertDialogContent onKeyDown={e=>e.stopPropagation()}><AlertDialogTitle>Rename item</AlertDialogTitle><AlertDialogDescription>This name updates every linked takeoff row and the Quote Builder item. Existing saved revisions stay unchanged.</AlertDialogDescription><label>Item name<input className="w-full rounded border p-2" autoFocus value={name} maxLength={2000} onChange={e=>setName(e.target.value)}/></label><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction disabled={readOnly||!name.trim()||quote.lines.some(l=>l.id!==rename&&l.name.toLowerCase()===name.trim().toLowerCase())} onClick={()=>{edit(next=>{next.lines.find(l=>l.id===rename)!.name=name.trim();});setRename(null);}}>Save name</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   <AlertDialog open={pendingDelete!==null} onOpenChange={open=>{if(!open)setPendingDelete(null);}}>
    <AlertDialogContent onKeyDown={event=>event.stopPropagation()}>
     <AlertDialogTitle>Are you sure you want to delete this item?</AlertDialogTitle>

@@ -66,3 +66,5 @@
 .itemNumber {display:flex;align-items:center;gap:3px;white-space:nowrap;}
 .itemMenuButton {width:22px;height:26px;flex-shrink:0;font-size:18px;border-radius:4px;cursor:pointer;}
 .itemMenuButton:hover {background:#dce5ef;}
+
+.marginDetail{position:relative;cursor:help;border-bottom:1px dotted #64748b}.marginPopup{display:none;position:fixed;right:24px;bottom:55px;width:300px;padding:14px;background:#fff;color:#243649;border:1px solid #b9cbd7;box-shadow:0 8px 24px #1233;z-index:70;text-align:left;white-space:normal;font-size:12px;line-height:1.6}.marginPopup>span{display:block}.marginDetail:hover .marginPopup,.marginDetail:focus .marginPopup{display:block}

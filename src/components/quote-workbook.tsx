@@ -4,6 +4,7 @@ import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {QuoteReusableToolbar} from './quote-reusable-items';
+import {QuoteEconomics} from './quote-economics';
 import {QuoteBOM,QuoteMaterialsDB} from './quote-reference-sheets';
 import {EMPTY_SCHEDULE,FORECAST_STATUSES,parseSchedule} from '@/lib/quote-schedule';
 import { QuoteEstimators } from '@/components/quote-estimators';
@@ -168,6 +169,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     onBlurCapture={()=>{editGroup.current=null;setPendingInput(false);}}
     onInputCapture={e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)setPendingInput(true);}}
     onKeyDownCapture={e=>{if((e.metaKey||e.ctrlKey)&&!e.altKey&&(e.key.toLowerCase()==='z'||e.key.toLowerCase()==='y')){e.preventDefault();travelEdits(e.key.toLowerCase()==='y'||e.shiftKey?'redo':'undo');}}}>
+    {calculation&&<QuoteEconomics calculation={calculation}/>}
     <div className={styles.frameHeader}>
     {!!document?.importNotes?.length&&<details className="mb-2 text-xs"><summary>Spreadsheet import corrections ({document.importNotes.length})</summary><ul className="max-h-32 overflow-y-auto">{document.importNotes.map((note,index)=><li key={index}>{note}</li>)}</ul></details>}
     {document?.assumptionsVersion.startsWith('xlsx-v27-')&&<p className="mb-2 text-xs text-amber-800">Imported spreadsheet: prices and takeoffs were reconciled at import. Later edits, including applying new levy pricing, can change those totals. Install, travel, shipping and beMatrix detail sheets were not imported; their recorded outputs remain in Quote Builder. Keep the original workbook for those details.</p>}

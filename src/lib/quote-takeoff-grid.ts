@@ -145,3 +145,28 @@ export function applyVisibleSheetCells(quote:QuoteV27,count:number,selected:stri
   for(const [i,cells] of values.entries())applySheetCells(next,count,selected,visibleIndices[offset+i],column,[cells],liveMaterials);
   quote.takeoffs=next.takeoffs;quote.catalog=next.catalog;quote.lines=next.lines;
 }
+
+/** Quantity is the labor-hours editor only on labor rows; storage remains compatible. */
+export function isLaborTakeoff(quote:QuoteV27,row:QuoteV27['takeoffs'][number]) {
+ const unit=row.unit??quote.catalog.find(m=>m.id===row.materialId)?.unit??'';
+ return !!row.tradeId||/^(hours?|hrs?)$/i.test(unit.trim())||(!row.quantity&&row.hours>0)||quote.trades.some(t=>t.name.toLowerCase()===row.description.toLowerCase());
+}
+export const TAKEOFF_VIEW_COLUMNS=SHEET_COLUMNS.filter(key=>key!=='tradeId'&&key!=='hours');
+export function applyTakeoffViewCells(quote:QuoteV27,count:number,selected:string,indices:number[],start:number,column:number,values:string[][],live:QuoteV27['catalog']|null){
+ const offset=indices.indexOf(start);if(offset<0||offset+values.length>indices.length)throw new Error('Add more visible rows before pasting.');
+ const next=structuredClone(quote);
+ values.forEach((cells,r)=>{
+  const index=indices[offset+r];
+  // Resolve description/unit first so a rectangular paste with Qty before Unit
+  // still writes labor into the existing hours field.
+  const unitOffset=TAKEOFF_VIEW_COLUMNS.indexOf('unit')-column;
+  if(unitOffset>=0&&unitOffset<cells.length)applySheetCells(next,count,selected,index,SHEET_COLUMNS.indexOf('unit'),[[cells[unitOffset]]],live);
+  cells.forEach((value,c)=>{
+   let key=TAKEOFF_VIEW_COLUMNS[column+c] as SheetColumn;if(!key)throw new Error('Paste extends beyond the worksheet.');
+   const row=next.takeoffs[index]??takeoffWorksheetRows(next,index+1,selected)[index];
+   if(key==='quantity'&&isLaborTakeoff(next,row))key='hours';
+   applySheetCells(next,count,selected,index,SHEET_COLUMNS.indexOf(key),[[value]],live);
+  });
+ });
+ quote.takeoffs=next.takeoffs;quote.catalog=next.catalog;quote.lines=next.lines;
+}

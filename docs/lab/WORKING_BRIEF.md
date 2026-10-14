@@ -85,3 +85,7 @@ Recreate Fonroche; alter quantity, cost, labor and price override; save/reopen; 
 Then let Paul change the workflow through Codex. Do not expand into a full scheduling system before this loop works.
 
 October 12 scheduling: use dynamic item/trade dependency proposals, proposed until approved, preserving quoted dates and flagging staffing shortages. Keep first approved baseline, manual date/hour actuals and reasons, preview recalculation, retain overrides. Shared operational revisions permit progress on Final quotes without changing commercial data. See DYNAMIC_SCHEDULING.md and /capacity/guidebook for activation/training and first-version limits.
+
+## October 13 quote usability update
+Stable-ID whole-item renaming, labor entry through Qty (stored hours preserved), persistent economics with percentages and margin detail, project/per-item BOM, four persistent Quotes section links, list sorting and session-only resizable columns. CAD Turnover integrated from reviewed 1ebf7ea files; its migration was applied and recorded on the authorized lab. Older Final quotes support read-only PDF generation; new finalizations store immutable PDFs atomically. Preserve source quotes and catalog snapshots.
+Two business details remain unanswered: display-only vs actual whole-dollar selling-price rounding, and adoption scope for limiting indirect/waste to Fabrication, beMatrix, Props/Decor and Equipment. Do not silently reprice existing quotes. Existing levies-v1/contingency math remains unchanged pending those answers.

@@ -1,6 +1,9 @@
 'use client';
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
+import {QuoteCadDownload} from './quote-cad-download';
+import {QuoteSectionNav} from './quote-section-nav';
+import {QuoteColumnResize} from './quote-column-resize';
 import {useRouter} from 'next/navigation';
 import {adaFetch} from '@/lib/ada-client';
 import {changeQuoteArchives} from '@/lib/quote-bulk-archive';
@@ -25,7 +28,8 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
   finally{if(generation===loadGeneration.current)setLoading(false);}
  },[archived]);
  useEffect(()=>{void load();return()=>{loadGeneration.current++;};},[load]);
- const visible=rows.filter(w=>(status==='all'||w.quote_status===status)&&`${w.title} ${w.client_name??''} ${w.contact_name??''}`.toLowerCase().includes(query.toLowerCase().trim()));
+ const [sort,setSort]=useState<{key:keyof Workspace|'cad';direction:number}>({key:'last_modified',direction:-1});
+ const visible=rows.filter(w=>(status==='all'||w.quote_status===status)&&`${w.title} ${w.client_name??''} ${w.contact_name??''}`.toLowerCase().includes(query.toLowerCase().trim())).sort((a,b)=>sort.direction*String(a[sort.key==='cad'?'quote_status':sort.key]??'').localeCompare(String(b[sort.key==='cad'?'quote_status':sort.key]??''),undefined,{numeric:true,sensitivity:'base'}));
  function open(kind:'create'|'rename'|'clone',workspace:Workspace|null=null){setDialog(kind);setTarget(workspace);setError('');requestId.current=crypto.randomUUID();}
  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();if(guard.current)return;guard.current=true;setBusy(true);setError('');const form=new FormData(e.currentTarget);
   try{
@@ -42,19 +46,20 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
  function toggle(id:string,checked:boolean){setSelected(previous=>{const next=new Set(previous);if(checked)next.add(id);else next.delete(id);return next;});}
  return <PageShell>
   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase text-muted-foreground">Estimating</p><h1 className="text-2xl font-bold">{archived?'Archived quotes':'Quotes'}</h1></div><div className="flex flex-wrap gap-3 items-center"><Link className="underline" href="/quotes/import">Import spreadsheet</Link><Button onClick={()=>open('create')}>New quote</Button></div></div>
-  <nav aria-label="Quotes sections" className="flex flex-wrap gap-5 border-b pb-3"><Link href="/quotes" aria-current={!archived?'page':undefined} className={!archived?'font-semibold':''}>Quotes</Link><Link href="/quotes/settings">Global settings</Link><Link href="/quotes/catalog">Materials catalog</Link><Link href="/quotes/archived" aria-current={archived?'page':undefined} className={archived?'font-semibold':''}>Archived quotes</Link></nav>
+  <QuoteSectionNav/>
   <div className="flex flex-wrap gap-3 items-center"><Input aria-label="Search quotes" placeholder="Search project or client" value={query} onChange={e=>setQuery(e.target.value)} className="max-w-md"/><label>Status <select className="rounded border p-2" aria-label="Filter quote status" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="final">Final</option></select></label><Button variant="outline" disabled={busy||!selected.size} onClick={()=>void lifecycle([...selected],archived)}>{archived?'Restore':'Archive'} selected ({selected.size})</Button></div>
   {error?<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error} <button className="underline" onClick={()=>{setError('');void load();}}>Reload quotes</button></p>:null}{message?<p role="status">{message}</p>:null}
   {!loading&&!ready?<p className="text-sm text-amber-800">Global settings, cloning and Draft/Final controls need the lab database update. Existing quotes remain available.</p>:null}
   {pendingArchive?<div role="alertdialog" aria-label="Archive selected quotes" className="rounded border bg-amber-50 p-4 text-slate-900"><p>Archive {pendingArchive.length} quote{pendingArchive.length===1?'':'s'}? You can restore them from Archived quotes.</p><ul className="my-2 list-disc pl-5">{pendingArchive.map(id=><li key={id}>{rows.find(w=>w.id===id)?.title}</li>)}</ul><Button disabled={busy} onClick={()=>void lifecycle(pendingArchive,false,true)}>Confirm archive</Button> <Button variant="outline" onClick={()=>setPendingArchive(null)}>Cancel archive</Button></div>:null}
-  <Card className="overflow-x-auto"><Table><TableHeader><TableRow>
+  <Card className="overflow-x-auto"><Table style={{tableLayout:'fixed',minWidth:1000}}><colgroup>{[44,240,180,110,130,130,140,260].map((width,i)=><col key={i} style={{width}}/>)}</colgroup><TableHeader><TableRow>
    <TableHead><input type="checkbox" aria-label="Select all visible quotes" disabled={busy||loading||!visible.length} checked={!!visible.length&&visible.every(w=>selected.has(w.id))} onChange={e=>{const checked=e.target.checked;setSelected(previous=>{const next=new Set(previous);visible.forEach(w=>checked?next.add(w.id):next.delete(w.id));return next;});}}/></TableHead>
-   {['Project name','Client name','Status','Date created','Last modified','Actions'].map(h=><TableHead key={h}>{h}</TableHead>)}
-  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={7}>Loading quotes…</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={7}>No quotes found.</TableCell></TableRow>:visible.map(w=><TableRow key={w.id}>
+   {[['Project name','title'],['Client name','client_name'],['Status','quote_status'],['Date created','created_at'],['Last modified','last_modified'],['CAD Turnover','cad'],['Actions','']].map(([h,key])=><TableHead key={h} style={{position:'relative'}} aria-sort={sort.key===key?(sort.direction===1?'ascending':'descending'):undefined}>{key?<button onClick={()=>setSort({key:key as keyof Workspace|'cad',direction:sort.key===key?-sort.direction:1})}>{h} {sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</button>:h}<QuoteColumnResize label={h}/></TableHead>)}
+  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={8}>Loading quotes…</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={8}>No quotes found.</TableCell></TableRow>:visible.map(w=><TableRow key={w.id}>
    <TableCell><input type="checkbox" aria-label={`Select ${w.title}`} disabled={busy} checked={selected.has(w.id)} onChange={e=>toggle(w.id,e.target.checked)}/></TableCell>
    <TableCell><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></TableCell><TableCell>{w.client_name||'—'}</TableCell>
    <TableCell><select className="rounded border p-1.5" aria-label={`Status · ${w.title}`} disabled={busy||archived||!ready} value={w.quote_status} onChange={e=>void changeStatus(w,e.target.value)}><option value="draft">Draft</option><option value="final" disabled={!w.workbook_revision}>Final</option></select></TableCell>
    <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
+   <TableCell>{w.quote_status==='final'?<QuoteCadDownload workspaceId={w.id} version={w.status_version}/>:<span className="text-xs text-muted-foreground">Available when Final</span>}</TableCell>
    <TableCell><div className="flex gap-1">{!archived?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>open('rename',w)}>Rename</Button>:null}<Button size="sm" variant="ghost" disabled={busy||!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</Button><Button size="sm" variant="ghost" disabled={busy} onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</Button></div></TableCell>
   </TableRow>)}</TableBody></Table></Card>
   {dialog?<div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label={dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':'Rename quote'}><form className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl" onSubmit={submit}>

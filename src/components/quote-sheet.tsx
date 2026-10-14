@@ -3,12 +3,12 @@ import {useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
 
 import { calculateQuoteV27, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
+import {QuoteColumnResize} from './quote-column-resize';
 import styles from './quote-sheet.module.css';
 
 type Calculation = ReturnType<typeof calculateQuoteV27>;
 const amount = (n: number) => n.toLocaleString('en-US', {style:'currency',currency:'USD'});
 const numeric = (n: number) => n === 0 ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 2 });
-const currency = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const inputs: { key: keyof Inputs; heading: string }[] = [
   {key:'materials',heading:'Fab material cost $'}, {key:'resale',heading:'Resale parts $ (in item)'},
   {key:'hours',heading:'Hours'}, {key:'days',heading:'Fab days (1 person)'},
@@ -18,6 +18,7 @@ const inputs: { key: keyof Inputs; heading: string }[] = [
 ];
 const builderTypes=[['Fabrication','Fabrication'],['beMatrix / SEG','Bematrix/SEG'],['Props / Resale','Props/Decor'],['Equipment Rental','Equipment']] as const;
 const typeLabel=(type:string)=>builderTypes.find(([value])=>value===type)?.[1]??type;
+function MarginDetail({row,children}:{row:Calculation['lines'][number];children:React.ReactNode}){return <span className={styles.marginDetail} tabIndex={0}>{children}<span role="tooltip" className={styles.marginPopup}><strong>{row.name} · Margin breakdown</strong>{[['Final price',row.finalPrice],['− Materials / other budget',row.materialsBudget],['− Labor budget',row.laborBudget],['− Contingency',row.contingency],['− Indirect levy',row.indirect],['− Waste levy',row.waste],['− Commission',row.commission],['= Margin',row.margin]].map(([label,value])=><span key={label}>{label}: {amount(Number(value))}</span>)}</span></span>;}
 const outputs = [
   ['materialsBudget','Materials / other budget'], ['hoursAllowed','Hours allowed'],
   ['laborBudget','Labor $ (cost)'], ['buildBudget','Build budget'],
@@ -72,7 +73,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
         <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
         <thead>
           <tr className={styles.letters}><th aria-label="Item number"/>{visibleHeaders.map(({index})=><th key={index} scope="col" className={index===0?styles.frozen:undefined}>{String.fromCharCode(65+index)}</th>)}</tr>
-          <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined}>{label}</th>)}</tr>
+          <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined} style={{position:'relative'}}>{label}<QuoteColumnResize label={label}/></th>)}</tr>
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
           const row=rows.get(line.id);
@@ -87,19 +88,13 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
             <td>{row ? amount(row.calculatedPrice) : '—'}</td>
             <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
             <td className={styles.finalPrice}>{row ? amount(row.finalPrice) : '—'}</td>
-            {outputs.map(([key])=><td key={key}>{row ? (key==='hoursAllowed'?numeric(row[key]):amount(row[key])) : '—'}</td>)}
-            <td className={row?.belowOverhead?styles.belowOverhead:undefined} title="Red means margin is below the OpEx recovery percentage.">{row?.marginPercent != null ? `${(row.marginPercent*100).toFixed(1)}%` : '—'}</td>
+            {outputs.map(([key])=><td key={key}>{row ? (key==='hoursAllowed'?numeric(row[key]):key==='margin'?<MarginDetail row={row}>{amount(row.margin)}</MarginDetail>:amount(row[key])) : '—'}</td>)}
+            <td className={row?.belowOverhead?styles.belowOverhead:undefined} title="Red means margin is below the OpEx recovery percentage.">{row?.marginPercent != null ? <MarginDetail row={row}>{`${(row.marginPercent*100).toFixed(1)}%`}</MarginDetail> : '—'}</td>
           </tr>;
         })}</tbody>
         {calculation && <tfoot><tr><th/><th className={styles.frozen}>GRAND TOTAL</th><td colSpan={showDetails?12:5}/><td>{amount(calculation.totals.calculatedPrice)}</td><td/><td>{amount(calculation.totals.price)}</td>{outputs.map(([key])=><td key={key}>{key==='hoursAllowed'?numeric(calculation.totals[key]):amount(calculation.totals[key])}</td>)}<td className={calculation.totals.price>0&&calculation.totals.margin/calculation.totals.price<quote.settings.opex?styles.belowOverhead:undefined}>{calculation.totals.price ? `${(calculation.totals.margin/calculation.totals.price*100).toFixed(1)}%` : '—'}</td></tr></tfoot>}
       </table>
     </div>
-    {calculation && <div className={styles.economics}><h3>Project economics</h3><dl>{[
-      ['Total quote (incl. PM fee)',calculation.totals.price],['Total build budget',calculation.totals.buildBudget],
-      ['Contingency reserve',calculation.totals.contingency],['Indirect labor levy',calculation.totals.indirect],
-      ['Waste levy',calculation.totals.waste],['Commission payout',calculation.totals.commission],
-      ['Margin after reserve + levies',calculation.totals.margin],['PM bonus reserve (top tier)',calculation.totals.pmBonus],
-      ['OpEx recovery',calculation.totals.opex],['Planned net',calculation.totals.netProfit],['Discount check (final − computed)',calculation.totals.discount],
-    ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{currency(Number(value))}</dd></div>)}</dl></div>}
+
   </div>;
 }

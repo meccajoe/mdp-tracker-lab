@@ -2,17 +2,18 @@
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
-import {applyVisibleSheetCells,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,SHEET_COLUMNS,type SheetColumn} from '@/lib/quote-takeoff-grid';
+import {applyTakeoffViewCells,isLaborTakeoff,TAKEOFF_VIEW_COLUMNS,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,type SheetColumn} from '@/lib/quote-takeoff-grid';
 import {adaFetch} from '@/lib/ada-client';
 import {manualCatalogInput} from '@/lib/tracker-catalog';
 import {useQuoteCatalog} from './use-quote-catalog';
+import {QuoteColumnResize} from './quote-column-resize';
 import styles from './quote-takeoffs.module.css';
 import {loadQuoteLibrary} from '@/lib/quote-library-client';
 import {QuoteExistingItemDialog} from './quote-existing-item-dialog';
 import {useQuoteItemActions} from './use-quote-item-actions';
 import {QuoteMaterialCell} from './quote-material-cell';
-const columns=SHEET_COLUMNS.filter(key=>key!=='tradeId');
-const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Labor hrs','Ext hrs','Notes'];
+const columns=TAKEOFF_VIEW_COLUMNS;
+const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Ext hrs','Notes'];
 type Cell=[number,number];
 export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false}: {
   libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
@@ -63,6 +64,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
     if(key==='itemName'){const name=quote.lines.find(line=>line.id===row.lineId)?.name??'';return name===quoteItemLabel(quote,row.lineId)?'':name;}
+    if(key==='quantity'&&isLaborTakeoff(quote,row))return saved&&row.hours?String(row.hours):'';
     if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
     if(key==='unit')return row.unit??catalog.get(row.materialId??'')?.unit??'';
     if(key==='tradeId')return quote.trades.find(trade=>trade.id===row.tradeId)?.name??'';
@@ -83,7 +85,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     try {
       if(values.some(cells=>column+cells.length>columns.length))throw new Error('Paste extends beyond the visible worksheet columns.');
       const trial=structuredClone(quote);
-      applyVisibleSheetCells(trial,rowCount,defaultItem,visibleIndices,row,column,values,live.materials);
+      applyTakeoffViewCells(trial,rowCount,defaultItem,visibleIndices,row,column,values,live.materials);
       edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;if(picked){const name=values[0][0];next.catalogUsage={...next.catalogUsage,[name]:(next.catalogUsage?.[name]??0)+1};}});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');
       const touched=visibleIndices.filter(index=>index>=row).slice(0,values.length);
       touched.forEach((index,i)=>{const costIndex=columns.indexOf('unitCostOverride')-column;if(costIndex>=0&&costIndex<values[i].length&&values[i][costIndex].trim()!=='')costEntered.current.add(trial.takeoffs[index].id);void addManual(trial.takeoffs[index]);});
@@ -121,7 +123,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
 
     <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
     {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
-    <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor in Labor hrs. Double-click or F2 edits text; Delete clears a selected cell. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
+    <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor hours in Qty when the row is labor. Double-click or F2 edits text; Delete clears a selected cell. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
     {calculation?.lines.filter(line=>line.type==='beMatrix / SEG'&&(!filterItem||line.id===filterItem)&&(line.inputs.rental||line.inputs.sqft)).map(line=><p key={line.id}><strong>{line.name}</strong>: frame rental ${line.inputs.rental.toFixed(2)} + SEG ({line.inputs.sqft} sq. ft.) ${(line.inputs.sqft*quote.settings.graphicsSell).toFixed(2)} · Final quote ${line.finalPrice.toFixed(2)}. Dimensions and destination are set in beMatrix Estimator.</p>)}
     {error&&<p role="alert">{error}</p>}{catalogNotice&&<p role="status">{catalogNotice}</p>}
     <div ref={scrollRef} className={styles.scroll}
@@ -130,13 +132,13 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       onCopy={e=>{
       if(!active||!selectionEnd)return;e.preventDefault();const copied=[];
       for(const r of visibleIndices.filter(index=>index>=Math.min(active[0],selectionEnd[0])&&index<=Math.max(active[0],selectionEnd[0]))) {
-        const cells=[];for(let c=Math.min(active[1],selectionEnd[1]);c<=Math.max(active[1],selectionEnd[1]);c++)cells.push(valueAt(r,SHEET_COLUMNS[c]));
+        const cells=[];for(let c=Math.min(active[1],selectionEnd[1]);c<=Math.max(active[1],selectionEnd[1]);c++)cells.push(valueAt(r,columns[c]));
         copied.push(cells.join('\t'));
       }
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
-      <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,70,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
-        <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h==='Labor hrs'?'Labor hrs (per section)':h}</th>)}</tr></thead>
+      <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
+        <thead><tr><th>#</th>{headers.map(h=><th key={h} style={{position:'relative'}}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
         <tbody>{visibleRows.map(({row,index:r})=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
           const isActive=active?.[0]===r&&active[1]===c;
