@@ -60,3 +60,15 @@ test('CAD includes an aggregated BOM plus per-item detail, excludes empty worksh
  assert.equal(report.items[0].materials[0].quantity,14);
  assert.equal(report.warnings.some(w=>w.includes('Unassigned')),false);
 });
+
+test('CAD excludes non-fabrication lines and their materials from aggregate BOM without renumbering',()=>{
+ const q=cadFixture();
+ for(const type of ['Design / Engineering / CAD','Project Management Fee','Equipment Rental','Props / Resale','Freight'] as const){
+  const line={...structuredClone(q.lines[0]),id:type,name:type,type};q.lines.push(line);
+  q.takeoffs.push({...q.takeoffs[0],id:type,lineId:type,description:'Excluded '+type});
+ }
+ const before=JSON.stringify(q),report=buildCadTurnover(q,meta);
+ assert.deepEqual(report.items.map(i=>i.number),[1,2,3]);
+ assert.equal(report.bom.some(m=>m.description.startsWith('Excluded')),false);
+ assert.equal(JSON.stringify(q),before);
+});

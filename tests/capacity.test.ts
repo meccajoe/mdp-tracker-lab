@@ -1,7 +1,7 @@
 import test from 'node:test';
 import {utils} from 'xlsx';
 import {importCapacityRoster} from '../src/lib/capacity-roster-import';
-import {dashboardLoad} from '../src/lib/capacity-dashboard';
+import {capacityViewRange,dashboardLoad} from '../src/lib/capacity-dashboard';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {allocateHours,capacityLoad,capacityProject,emptyCapacity,emptyOverride,parseCapacity,parsePlanning,quoteDemand,rosterCapacity} from '../src/lib/capacity';
@@ -82,4 +82,16 @@ test('roster import refuses wrong layouts, partial staff, invalid hours, statuse
  for(const [cell,value] of [['A12','Wrong header'],['A13',''],['D13',-1],['D13',169],['F13','Maybe']] as const){const b=rosterBook();b.Sheets['Roster & Settings'][cell]={v:value,t:typeof value==='number'?'n':'s'};assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));}
  const b=rosterBook();b.Sheets['Roster & Settings'].D13={t:'n',f:'1+1'};assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));
  b.Sheets['Roster & Settings']['!fullref']='A1:K400';assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));
+});
+
+test('custom view dates cover whole weeks and support demand beyond the old 26-week limit',()=>{
+ assert.deepEqual(capacityViewRange('2026-10-07','2026-10-20'),{weekStart:'2026-10-05',count:3});
+ assert.equal(capacityViewRange('2026-10-07',''),null);
+ assert.equal(capacityViewRange('2026-10-07','2026-10-06'),null);
+ assert.equal(capacityViewRange('2026-10-07','2030-10-06'),null);
+ const p=project('Closed won');p.document!.schedule={...p.document!.schedule!,buildStart:'2027-06-07',buildFinish:'2027-06-18'};
+ const future=capacityProject({workspaceId:'future',workspace:'Future test',document:p.document!});
+ const result=dashboardLoad([future],settings(),null,'full',52);
+ assert.equal(result.load.expected.length,52);close(sum(result.load.expected),60);
+ close(sum(result.load.expected.slice(0,26)),0);
 });

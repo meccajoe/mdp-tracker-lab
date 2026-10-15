@@ -22,7 +22,7 @@ test('Draft/Final requires workspace edit authorization and expected status and 
 });
 test('clone requires source access, uses latest saved source, and preserves its pricing instead of globals',async()=>{
  let permitted=false,calls=[];const actor={ok:true,actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Original',client_name:'Client',contact_name:null}:{revision:8,document:{priceOverride:123}}),rpc:(name,args)=>{calls.push(args);return query({id})}}};
- const route=load('src/app/api/quote-workspaces/[workspaceId]/clone/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:()=>({})},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-defaults':{cloneQuoteDocument:(d,copy)=>({...d,copy}),requiredQuoteNames:x=>x},'@/lib/quote-management-server':management});
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/clone/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:(_q,meta)=>meta},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-defaults':{cloneQuoteDocument:(d,copy)=>({...d,copy}),requiredQuoteNames:x=>x},'@/lib/quote-management-server':management});
  const post=()=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({requestId:id})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await post()).status,403);assert.equal(calls.length,0);permitted=true;assert.equal((await post()).status,201);assert.equal(calls[0].p_title,'Original CLONE');assert.equal(calls[0].p_source_revision,8);assert.equal(calls[0].p_defaults_revision,null);assert.equal(calls[0].p_document.priceOverride,123);assert.equal(calls[0].p_document.copy,false);
 });
@@ -33,15 +33,16 @@ test('CAD generation failure leaves Final unset, and stale finalization reports 
  const post=()=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({status:'final',expectedVersion:4,expectedRevision:10})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await post()).status,422);assert.equal(calls,0);renderFails=false;assert.equal((await post()).status,409);assert.equal(calls,1);
 });
-test('CAD download enforces membership, current Final version and returns the stored private PDF',async()=>{
- let permitted=false,status='final',version=2,pdf=Buffer.from('%PDF-1.7 stored snapshot').toString('base64');
- const actor={ok:true,actorSupabase:{from:t=>query(t==='lab_quote_controls'?{quote_status:status,version}:{pdf_base64:pdf,project_name:'Golden Arch',workbook_revision:8})}};
- const route=load('src/app/api/quote-workspaces/[workspaceId]/cad-turnover/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:()=>({})},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-management-server':management});
+test('CAD download enforces membership, current Final version and renders the pinned finalized revision without rewriting its PDF',async()=>{
+ let permitted=false,status='final',version=2;
+ const filters=[];const actor={ok:true,actorSupabase:{from:t=>{const q=query(t==='lab_quote_controls'?{quote_status:status,version}:t==='quote_workbook_revisions'?{document:{},revision:8}:t==='ada_quote_workspaces'?{title:'Renamed',client_name:'Client'}:{project_name:'Golden Arch',workbook_revision:8});q.eq=(key,value)=>{filters.push([t,key,value]);return q;};return q;}}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/cad-turnover/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:(_q,meta)=>meta},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-management-server':management});
  const get=(v=2)=>route.GET(new Request('https://lab.test?version='+v),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await get()).status,403);permitted=true;assert.equal((await get(1)).status,409);
  status='draft';assert.equal((await get()).status,409);status='final';
- const response=await get();assert.equal(response.headers.get('Content-Type'),'application/pdf');assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.match(response.headers.get('Content-Disposition'),/Golden-Arch-CAD-Turnover-r8.pdf/);assert.equal(await response.text(),'%PDF-1.7 stored snapshot');
- pdf=Buffer.from('corrupt').toString('base64');assert.equal((await get()).status,500);
+ const response=await get();assert.equal(response.headers.get('Content-Type'),'application/pdf');assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.match(response.headers.get('Content-Disposition'),/Golden-Arch-CAD-Turnover-r8.pdf/);assert.equal(await response.text(),'%PDF-generated');
+ assert.ok(filters.some(([table,key,value])=>table==='quote_workbook_revisions'&&key==='revision'&&value===8));
+
 });
 test('older Final quotes render CAD without writes and reject concurrent status changes',async()=>{
  let controlsReads=0,changed=false;
@@ -52,7 +53,7 @@ test('older Final quotes render CAD without writes and reject concurrent status 
   if(t==='quote_workbook_revisions')return query({revision:8,document:{}});
   throw Error('Unexpected table');
  },rpc:()=>{throw Error('Download must not write');}}};
- const route=load('src/app/api/quote-workspaces/[workspaceId]/cad-turnover/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:()=>({})},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>actor},'@/lib/quote-management-server':management});
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/cad-turnover/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:(_q,meta)=>meta},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>actor},'@/lib/quote-management-server':management});
  const get=()=>route.GET(new Request('https://lab.test?version=2'),{params:Promise.resolve({workspaceId:id})});
  assert.equal(await (await get()).text(),'%PDF-generated');
  controlsReads=0;changed=true;assert.equal((await get()).status,409);

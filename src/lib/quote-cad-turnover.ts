@@ -21,6 +21,7 @@ export function buildCadTurnover(quote:QuoteV27, meta:Omit<CadTurnover,'schedule
   if(walls.some(w=>!w.lineId&&(w.width||w.height||w.sqft)))warnings.push('Unlinked beMatrix walls are excluded from item instructions. Confirm their intended quote item.');
   const items:CadItem[]=[];
   quote.lines.forEach((line,index)=>{
+    if(!['Fabrication','beMatrix / SEG'].includes(line.type))return;
     const calculated=result.lines[index];
     const rows=quote.takeoffs.flatMap((row,i)=>row.lineId===line.id&&meaningful(row)?[{...row,row:i+1}]:[]);
     const linkedWalls=walls.filter(w=>w.lineId===line.id);
@@ -61,7 +62,7 @@ export function buildCadTurnover(quote:QuoteV27, meta:Omit<CadTurnover,'schedule
     else if(calculated.hoursAllowed)item.summary+=` The quote includes ${cadNumber(calculated.hoursAllowed)} labor hours; trade detail is not recorded.`;
     items.push(item);
   });
-  if(!items.length)warnings.push('No active quoted items or detailed takeoffs were recorded.');
+  if(!items.length)warnings.push('No fabrication or beMatrix items with quoted scope were recorded.');
   const schedule=quote.schedule?[['Build start',quote.schedule.buildStart],['Build finish',quote.schedule.buildFinish],['Install',quote.schedule.installDate]].map(([label,value])=>`${label}: ${value||'not set'}`):['Build and install dates: not set'];
   const grouped=new Map<string,{description:string;unit:string;quantity:number}>();for(const item of items)for(const material of item.materials){const key=JSON.stringify([material.description,material.unit]);const group=grouped.get(key)??{description:material.description,unit:material.unit,quantity:0};group.quantity+=material.quantity;grouped.set(key,group);}
   return {...meta,schedule,items,warnings,bom:[...grouped.values()]};

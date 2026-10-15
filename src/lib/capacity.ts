@@ -85,8 +85,8 @@ export function rosterCapacity(roster:RosterPerson[]){
  for(const person of roster.filter(p=>p.active)){primary[person.primary]=(primary[person.primary]??0)+person.hours;if(person.secondary&&person.secondary!==person.primary)flex[person.secondary]=(flex[person.secondary]??0)+person.hours;if(!SUPPORT_TRADES.includes(person.primary))shop+=person.hours;if(person.primary==='I&D')field+=person.hours;}
  return {primary,flex,shop,field};
 }
-export function capacityLoad(projects:ReturnType<typeof capacityProject>[],settings:CapacitySettings,kind:'shop'|'field',scenarioIds:string[]=[],dynamicSchedule=false){
- const committed=Array<number>(26).fill(0),pipeline=Array<number>(26).fill(0),scenario=Array<number>(26).fill(0),trades:Record<string,number[]>={};
+export function capacityLoad(projects:ReturnType<typeof capacityProject>[],settings:CapacitySettings,kind:'shop'|'field',scenarioIds:string[]=[],dynamicSchedule=false,count=26){
+ const committed=Array<number>(count).fill(0),pipeline=Array<number>(count).fill(0),scenario=Array<number>(count).fill(0),trades:Record<string,number[]>={};
  const unscheduled:string[]=[];
  for(const project of projects){
   if(!project.probability)continue;
@@ -94,27 +94,27 @@ export function capacityLoad(projects:ReturnType<typeof capacityProject>[],setti
   if(kind==='field'&&settings.fieldAllocation==='install'){start=project.schedule.installDate;finish=start&&validDate(start)?dateString(dayNumber(start)+Math.max(1,Math.ceil(project.demand.fieldDays))-1):'';mode='calendar';}
   const total=kind==='shop'?project.shop:project.field;
   if(!start||!finish||finish<start||(mode!=='calendar'&&!productionDays(start,finish,mode).length)){if(total>0)unscheduled.push(project.workspace);continue;}
-  let parts=allocateHours(total,start,finish,settings.weekStart,26,mode);
+  let parts=allocateHours(total,start,finish,settings.weekStart,count,mode);
   let scheduledTrades:Record<string,number[]>|null=null;
   if(kind==='shop'&&dynamicSchedule&&project.document){
    const proposal=project.productionPlan?.tasks??proposeProductionPlan(project.document,settings.roster,{...emptyPlan(),calendar:project.document.productionCalendar??WEEKDAYS}).tasks;
    const shopTasks=proposal.filter(t=>t.stage!=='cad');
    if(shopTasks.some(t=>t.daily.reduce((n,d)=>n+d.hours,0)<t.hours-.000001))unscheduled.push(project.workspace);
-   const bucket=(entries:{date:string;hours:number}[])=>{const values=Array<number>(26).fill(0);for(const e of entries){const i=Math.floor((dayNumber(e.date)-dayNumber(settings.weekStart))/7);if(i>=0&&i<26)values[i]+=e.hours;}return values;};
+   const bucket=(entries:{date:string;hours:number}[])=>{const values=Array<number>(count).fill(0);for(const e of entries){const i=Math.floor((dayNumber(e.date)-dayNumber(settings.weekStart))/7);if(i>=0&&i<count)values[i]+=e.hours;}return values;};
    if(shopTasks.length&&(project.productionPlan||project.demand.overallocated<.000001)){
     scheduledTrades={};
-    for(const task of shopTasks){const name=task.trade==='Unassigned shop hours'?'Untyped / other':task.trade;const values=bucket(task.daily);const existing=scheduledTrades[name]??Array<number>(26).fill(0);scheduledTrades[name]=existing.map((n,i)=>n+values[i]);}
+    for(const task of shopTasks){const name=task.trade==='Unassigned shop hours'?'Untyped / other':task.trade;const values=bucket(task.daily);const existing=scheduledTrades[name]??Array<number>(count).fill(0);scheduledTrades[name]=existing.map((n,i)=>n+values[i]);}
     // Explicit project remaining-trade overrides take precedence over task estimates.
-    for(const [trade,hours] of Object.entries(project.document.planning?.remainingTrades??{})){const source=shopTasks.filter(t=>t.trade===trade),base=source.reduce((n,t)=>n+t.hours,0);scheduledTrades[trade]=base?(scheduledTrades[trade]??Array(26).fill(0)).map(n=>n*hours/base):allocateHours(hours,start,finish,settings.weekStart,26,mode);}
-    parts=Array.from({length:26},(_,i)=>Object.values(scheduledTrades!).reduce((n,v)=>n+v[i],0));
+    for(const [trade,hours] of Object.entries(project.document.planning?.remainingTrades??{})){const source=shopTasks.filter(t=>t.trade===trade),base=source.reduce((n,t)=>n+t.hours,0);scheduledTrades[trade]=base?(scheduledTrades[trade]??Array(count).fill(0)).map(n=>n*hours/base):allocateHours(hours,start,finish,settings.weekStart,count,mode);}
+    parts=Array.from({length:count},(_,i)=>Object.values(scheduledTrades!).reduce((n,v)=>n+v[i],0));
     const taskTotal=shopTasks.reduce((n,t)=>n+t.hours,0)+Object.entries(project.document.planning?.remainingTrades??{}).reduce((n,[trade,hours])=>n+hours-shopTasks.filter(t=>t.trade===trade).reduce((s,t)=>s+t.hours,0),0),remaining=project.document.planning?.remainingShop;
     if(remaining!=null&&taskTotal>0)parts=parts.map(n=>n*remaining/taskTotal);
    }
   }
   const scenarioWeight=project.committed?1:scenarioIds.includes(project.workspaceId)?1:project.probability;
   parts.forEach((hours,i)=>{(project.committed?committed:pipeline)[i]+=hours*project.probability;scenario[i]+=hours*scenarioWeight;});
-  if(scheduledTrades){for(const [trade,values] of Object.entries(scheduledTrades)){const bucket=trades[trade]??Array<number>(26).fill(0);values.forEach((hours,i)=>bucket[i]+=hours*project.probability);trades[trade]=bucket;}}
-  else if(kind==='shop')for(const [trade,hours] of Object.entries({...project.trades,'Untyped / other':project.untyped})){const values=allocateHours(hours,start,finish,settings.weekStart,26,mode);const bucket=trades[trade]??Array<number>(26).fill(0);values.forEach((hours,i)=>bucket[i]+=hours*project.probability);trades[trade]=bucket;}
+  if(scheduledTrades){for(const [trade,values] of Object.entries(scheduledTrades)){const bucket=trades[trade]??Array<number>(count).fill(0);values.forEach((hours,i)=>bucket[i]+=hours*project.probability);trades[trade]=bucket;}}
+  else if(kind==='shop')for(const [trade,hours] of Object.entries({...project.trades,'Untyped / other':project.untyped})){const values=allocateHours(hours,start,finish,settings.weekStart,count,mode);const bucket=trades[trade]??Array<number>(count).fill(0);values.forEach((hours,i)=>bucket[i]+=hours*project.probability);trades[trade]=bucket;}
  }
  return {committed,pipeline,expected:committed.map((hours,i)=>hours+pipeline[i]),scenario,trades,unscheduled};
 }

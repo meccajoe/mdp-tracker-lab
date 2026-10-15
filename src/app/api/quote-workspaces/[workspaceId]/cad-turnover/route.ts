@@ -14,22 +14,23 @@ export async function GET(request:Request,{params}:{params:Promise<{workspaceId:
   const expected=new URL(request.url).searchParams.get('version');
   if(controls.data?.quote_status!=='final'||(expected!==null&&String(controls.data.version)!==expected))return json({error:'This quote changed or is no longer Final. Reload the Quotes page.'},409);
   const artifact=await actor.actorSupabase.from('lab_cad_turnovers')
-    .select('pdf_base64,project_name,workbook_revision').eq('workspace_id',workspaceId).eq('status_version',controls.data.version).maybeSingle();
+    .select('project_name,client_name,workbook_revision,created_at').eq('workspace_id',workspaceId).eq('status_version',controls.data.version).maybeSingle();
   if(artifact.error)return json({error:missingManagement(artifact.error.code)?'CAD Turnover needs the lab database update.':'CAD Turnover could not load.'},503);
-  let saved=artifact.data;
-  // Older Final quotes are immutable too. Render their latest saved revision without
-  // changing status, creating a quote revision, or requiring a Draft/Final cycle.
-  if(!saved){
-    const [workbook,workspace]=await Promise.all([
-      actor.actorSupabase.from('quote_workbook_revisions').select('document,revision').eq('workspace_id',workspaceId).order('revision',{ascending:false}).limit(1).maybeSingle(),
-      actor.actorSupabase.from('ada_quote_workspaces').select('title,client_name').eq('id',workspaceId).maybeSingle(),
-    ]);
-    if(workbook.error||workspace.error||!workbook.data||!workspace.data)return json({error:'The saved quote could not load for CAD Turnover.'},503);
-    try{
-      const report=buildCadTurnover(parseQuoteV27(workbook.data.document),{workspaceId,project:workspace.data.title,client:workspace.data.client_name??'',revision:workbook.data.revision,generatedAt:new Date().toISOString()});
-      saved={pdf_base64:Buffer.from(await renderCadTurnoverPdf(report)).toString('base64'),project_name:workspace.data.title,workbook_revision:workbook.data.revision};
-    }catch{return json({error:'CAD Turnover could not be generated from this saved quote.'},422);}
-  }
+  // Render the current CAD-only presentation from the exact finalized revision.
+  // Retain original stored PDFs and all quote revisions without rewriting either.
+  const artifactMeta=artifact.data;
+  let revisionQuery=actor.actorSupabase.from('quote_workbook_revisions').select('document,revision').eq('workspace_id',workspaceId);
+  if(artifactMeta)revisionQuery=revisionQuery.eq('revision',artifactMeta.workbook_revision);
+  const [workbook,workspace]=await Promise.all([
+    revisionQuery.order('revision',{ascending:false}).limit(1).maybeSingle(),
+    actor.actorSupabase.from('ada_quote_workspaces').select('title,client_name').eq('id',workspaceId).maybeSingle(),
+  ]);
+  if(workbook.error||workspace.error||!workbook.data||!workspace.data)return json({error:'The saved quote could not load for CAD Turnover.'},503);
+  let saved;
+  try{
+    const report=buildCadTurnover(parseQuoteV27(workbook.data.document),{workspaceId,project:artifactMeta?.project_name??workspace.data.title,client:artifactMeta?.client_name??workspace.data.client_name??'',revision:workbook.data.revision,generatedAt:artifactMeta?.created_at??new Date().toISOString()});
+    saved={pdf_base64:Buffer.from(await renderCadTurnoverPdf(report)).toString('base64'),project_name:report.project,workbook_revision:workbook.data.revision};
+  }catch{return json({error:'CAD Turnover could not be generated from this saved quote.'},422);}
   const current=await actor.actorSupabase.from('lab_quote_controls').select('quote_status,version').eq('workspace_id',workspaceId).maybeSingle();
   if(current.error)return json({error:'Quote status could not be verified.'},503);
   if(current.data?.quote_status!=='final'||current.data.version!==controls.data.version)return json({error:'This quote changed. Reload the Quotes page.'},409);

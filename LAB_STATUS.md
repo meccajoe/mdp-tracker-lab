@@ -1,5 +1,12 @@
 # Lab status
 
+## Capacity and CAD polish — October 15, 2026
+- Capacity tiles now show only needed-hours bars (overage highlighted) and the red capacity line. Added custom start/end view dates covering complete Monday–Sunday weeks, explicitly labeled, up to 104 weeks; presets retained. Variable horizon propagates through daily schedule/trade aggregation, not just chart slicing. View controls do not save or change quotes/roster.
+- Fixed Final Line Type blur: disabled opacity had exposed the native select over its wrapped display label. Native select remains invisible in read-only mode; displayed label stays crisp.
+- CAD turnover includes Fabrication and beMatrix/SEG only (default interpretation pending Paul's optional clarification); excludes service, Props/Decor and Equipment lines and their BOM. Downloads render current presentation from the artifact-pinned finalized revision and original project/client metadata; original stored PDF and all quote data remain immutable. No migration required.
+- 164 lab tests plus TypeScript and production build passed. Synthetic actual-component browser verified custom Oct 21–Nov 6 range → Oct 19–Nov 8 weekly display, 3 weeks/120h capacity, and disabled select opacity 0. CAD PDF generated and visually inspected; regression tests cover filter, BOM exclusion, preserved numbering, pinned revision and access/status checks. Hosted release verification pending.
+
+
 ## Integrated production workback — October 13, 2026
 - Extends existing operational schedule revisions with a Workback Schedule tab in quotes and project Capacity: dated six-stage whole-day baseline, BOM/labor milestones, confirmed client obligations, generated/manual/actual dates, prerequisites, owners, custom/removed tasks, proposal comparison and client-safe PDF. Exact 25-day split 4/1/3/10/5/2; configurable holidays, minimums, shares, deadline offsets and conditions. Due date is separate operational input because the quote only had build and install dates.
 - Final automatically generates/persists preliminary workback; subsequent quote saves refresh recommendations. Paul explicitly confirmed Closed Won activates but retains PM approval. Existing approved schedules/client dates remain working until approval; original baseline, first approval, quote pricing and all earlier revisions preserved. Older planner writes preserve workback metadata. No new migration: existing production schedule and capacity settings JSON support this extension.
