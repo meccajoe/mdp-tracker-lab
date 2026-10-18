@@ -1,6 +1,6 @@
 export const FORECAST_STATUSES=['Not likely','Possible','Likely','Highly likely','Closed won','In production','Lost','Completed'] as const;
 export type ForecastStatus=typeof FORECAST_STATUSES[number];
-export type QuoteSchedule={installDate:string;buildStart:string;buildFinish:string;status:ForecastStatus|''};
+export type QuoteSchedule={installDate:string;buildStart:string;buildFinish:string;status:ForecastStatus|'';dueDate?:string;shipDate?:string};
 export const EMPTY_SCHEDULE:QuoteSchedule={installDate:'',buildStart:'',buildFinish:'',status:''};
 export function validDate(value:unknown):value is string {
  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
@@ -11,6 +11,7 @@ export function parseSchedule(value:unknown):QuoteSchedule {
  const row=value as Record<string,unknown>,schedule={...EMPTY_SCHEDULE};
  for(const key of ['installDate','buildStart','buildFinish'] as const){if(row[key]!==''&&!validDate(row[key]))throw new Error(`Choose a valid ${key} date.`);schedule[key]=row[key] as string;}
  if(row.status!==''&&!FORECAST_STATUSES.includes(row.status as ForecastStatus))throw new Error('Choose a valid forecast status.');
+ for(const key of ['dueDate','shipDate'] as const){if(row[key]!==undefined){if(row[key]!==''&&!validDate(row[key]))throw new Error(`Choose a valid ${key} date.`);schedule[key]=row[key] as string;}}
  schedule.status=row.status as QuoteSchedule['status'];
  if(schedule.buildStart&&schedule.buildFinish&&schedule.buildFinish<schedule.buildStart)throw new Error('Build finish must be on or after build start.');
  return schedule;

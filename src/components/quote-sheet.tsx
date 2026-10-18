@@ -77,6 +77,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
           const row=rows.get(line.id);
+          const install=['Lead Installer — Install','Lead Installer — Dismantle','Install Support Labor','Installer Days'].includes(line.type);
           return <tr key={line.id} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
             <th scope="row" className={styles.rowNumber}><div className={styles.itemNumber}>
               {itemActions.menu(line.id,`Item ${index+1} actions · ${line.name}`)}<span>{`Item ${index+1}`}</span></div></th>
@@ -88,7 +89,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
             <td>{row ? amount(row.calculatedPrice) : '—'}</td>
             <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
             <td className={styles.finalPrice}>{row ? amount(row.finalPrice) : '—'}</td>
-            {outputs.map(([key])=><td key={key}>{row ? (key==='hoursAllowed'?numeric(row[key]):key==='margin'?<MarginDetail row={row}>{amount(row.margin)}</MarginDetail>:amount(row[key])) : '—'}</td>)}
+            {outputs.map(([key])=><td key={key} title={install&&['laborBudget','buildBudget'].includes(key)?'Installation costs remain in project economics; review Install Labor for details.':undefined}>{install&&['laborBudget','buildBudget'].includes(key)?'':row ? (key==='hoursAllowed'?numeric(row[key]):key==='margin'?<MarginDetail row={row}>{amount(row.margin)}</MarginDetail>:amount(row[key])) : '—'}</td>)}
             <td className={row?.belowOverhead?styles.belowOverhead:undefined} title="Red means margin is below the OpEx recovery percentage.">{row?.marginPercent != null ? <MarginDetail row={row}>{`${(row.marginPercent*100).toFixed(1)}%`}</MarginDetail> : '—'}</td>
           </tr>;
         })}</tbody>

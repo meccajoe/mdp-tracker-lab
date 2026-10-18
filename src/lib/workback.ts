@@ -26,7 +26,7 @@ export function generateWorkback(quote:QuoteV27,quoteVersion:number,plan:Product
  const previous=plan.workback,settings=previous?.policy??policy,calendar={...plan.calendar,holidays:settings.holidays};
  const base=workbackBaseline(quote,settings,calendar),warnings:WorkbackSnapshot['warnings']=[],tasks:WorkbackTask[]=[];
  const warn=(severity:'info'|'risk'|'critical',message:string)=>warnings.push({severity,message});
- const days=productionDays(quote.schedule?.buildStart??'',quote.schedule?.buildFinish??'',calendar),due=previous?.dueDate??'',finish=quote.schedule?.buildFinish??'',install=quote.schedule?.installDate??'';
+ const days=productionDays(quote.schedule?.buildStart??'',quote.schedule?.buildFinish??'',calendar),due=quote.schedule?.dueDate??previous?.dueDate??'',finish=quote.schedule?.buildFinish??'',install=quote.schedule?.installDate??'';
  if(!days.length)warn('critical','Enter valid production start and finish dates. No dates or feasibility have been invented.');
  else {if(days.length<6)warn('critical','Compressed production window: some stages have zero working days.');else if(days.length<15)warn('risk','Production window is substantially shorter than the 25-business-day planning reference.');if(days[0]!==day(quote.schedule!.buildStart)||days.at(-1)!==day(finish))warn('risk','A production boundary falls on a nonworking day. Timeline uses the first/last working day; confirm dates or enable the necessary workday.');}
  if(settings.minimum.reduce((a,b)=>a+b,0)>days.length)warn('critical','Minimum stage durations do not fit. Baseline preserves the actual available days; resolve compressed stages.');
@@ -91,6 +91,7 @@ export function generateWorkback(quote:QuoteV27,quoteVersion:number,plan:Product
  for(const id of Object.keys(previous?.edits??{}))if(!ids.includes(id))warn('risk',`Saved manual milestone ${id} is no longer in quoted scope. Its override/history is retained for review.`);
  const active=['Closed won','In production'].includes(quote.planning?.status||quote.schedule?.status||'');
  const w:Workback=previous?structuredClone(previous):{schema:1,policy:settings,dueDate:due,requirements:{},workingEdits:{},edits:{},custom:[],original:workbackBaseline(quote,{...settings,percent:STAGE_PERCENT,minimum:[0,0,0,0,0,0]},calendar),current,proposed:null,baseline:null,active};
+ w.dueDate=due;
  w.active=active;
  if(previous&&(previous.baseline||previous.active||active)){w.proposed=JSON.stringify(current)===JSON.stringify(previous.current)&&JSON.stringify(w.edits)===JSON.stringify(w.workingEdits)?null:current;}else{w.current=current;w.proposed=null;w.workingEdits=structuredClone(w.edits);}
  return {workback:w,proposal,calendar};

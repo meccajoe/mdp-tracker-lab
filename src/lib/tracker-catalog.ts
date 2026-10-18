@@ -1,7 +1,7 @@
 import type {Material,Takeoff} from './quote-v27';
-export type CatalogEntry=Omit<Material,'unitCost'>&{unitCost:number|null}&{itemId:string;revision:number;source:'Google Sheet DB'|'Added from Takeoff'};
-export function catalogMaterial(row:{item_id:string;revision:number;name:string;unit:string;unit_cost:number|string|null;source:CatalogEntry['source']}):CatalogEntry {
- return {id:`tracker-${row.item_id}-v${row.revision}`,itemId:row.item_id,revision:row.revision,name:row.name,unit:row.unit,unitCost:row.unit_cost===null?null:Number(row.unit_cost),source:row.source};
+export type CatalogEntry=Omit<Material,'unitCost'>&{unitCost:number|null}&{itemId:string;revision:number;deletedAt?:string|null;source:'Google Sheet DB'|'Added from Takeoff'};
+export function catalogMaterial(row:{item_id:string;revision:number;name:string;unit:string;unit_cost:number|string|null;source:CatalogEntry['source'];deleted_at?:string|null}):CatalogEntry {
+ return {id:`tracker-${row.item_id}-v${row.revision}`,itemId:row.item_id,revision:row.revision,name:row.name,unit:row.unit,unitCost:row.unit_cost===null?null:Number(row.unit_cost),source:row.source,...(row.deleted_at!==undefined?{deletedAt:row.deleted_at}:{})};
 }
 export function catalogInput(value:unknown){
  const row=value as Record<string,unknown>;

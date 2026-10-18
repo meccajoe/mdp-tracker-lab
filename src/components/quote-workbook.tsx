@@ -55,6 +55,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const [error, setError] = useState('');
   const [selectionSummary,setSelectionSummary]=useState('');
   const [tab, setTab] = useState('Quote Builder');
+  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('tab');if(requested==='BOM'||requested==='Budget Handoff')setTab(requested);},[workspaceId]);
   const [workbackOpened,setWorkbackOpened]=useState(false);
   const [workbackDirty,setWorkbackDirty]=useState(false);
   const [selected, setSelected] = useState('');
@@ -190,7 +191,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       </div>
     </div>
     {document&&!libraryItem&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
-      {([['installDate','Install date'],['buildStart','Build start date'],['buildFinish','Build finish date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
+      {([['buildStart','Build Start'],['buildFinish','Build Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
       <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,status:event.target.value as typeof EMPTY_SCHEDULE.status};})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label>
       <label className="text-xs">Sales commission %<input className={`${control} block w-28`} type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={document.commission===0?'':Number((document.commission*100).toFixed(8))} placeholder="—" onChange={event=>edit(next=>{next.commission=Number(event.target.value)/100;})}/></label>
       <a className="text-xs underline" href={`/capacity/${workspaceId}`}>Project capacity & timeline</a>

@@ -13,9 +13,10 @@ export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,h
   function choose(material:Material){const name=material.name;if(onPick?onPick(material.id):commit(name,true)){if(input.current)input.current.value=name;setOpen(false);setIndex(-1);}}
   return <><input aria-label={label} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={open?`${label}-choices`:undefined} aria-activedescendant={open&&index>=0?`${label}-choice-${index}`:undefined} ref={input} defaultValue={value} disabled={disabled}
     onFocus={e=>{selectTextCell(e.currentTarget);const rect=e.currentTarget.getBoundingClientRect();const width=Math.min(480,window.innerWidth-24);setPosition({position:'fixed',left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12)),width,...(rect.bottom>window.innerHeight*.55?{bottom:window.innerHeight-rect.top,top:'auto'}:{top:rect.bottom,bottom:'auto'})});setOpen(false);setQuery('');setIndex(-1);}}
-    onMouseUp={e=>{if(!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}
-    onClick={e=>{if(e.detail===1)selectTextCell(e.currentTarget);}}
-    onDoubleClick={e=>editTextCell(e.currentTarget)}
+    onMouseDown={e=>{if(e.detail>=2)editTextCell(e.currentTarget);}}
+    onMouseUp={e=>{if(e.detail<2&&!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}
+    onClick={e=>{if(e.detail===1&&!isEditingText(e.currentTarget))selectTextCell(e.currentTarget);}}
+    onDoubleClick={e=>{editTextCell(e.currentTarget);const cursor=e.currentTarget.selectionEnd??e.currentTarget.value.length;e.currentTarget.setSelectionRange(cursor,cursor);}}
     onChange={e=>{editTextCell(e.currentTarget);setQuery(e.target.value);setIndex(-1);setOpen(Boolean(e.target.value.trim()));}}
     onBlur={e=>{setOpen(false);const text=e.currentTarget.value;if(text!==value&&!commit(text,false))e.currentTarget.value=value;}}
     onKeyDown={e=>{

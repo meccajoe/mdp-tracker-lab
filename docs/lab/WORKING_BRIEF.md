@@ -93,3 +93,6 @@ Stable-ID whole-item renaming, labor entry through Qty (stored hours preserved),
 October 13 clarification: new blank quotes use actual upward whole-dollar computed selling prices and indirect/waste limited to Fabrication, beMatrix/SEG, Props/Decor and Equipment. Existing quotes/clones/imports retain saved pricing, including cents; manual overrides stay literal. Contingency remains independent. See V27_CALCULATOR.md.
 
 October 15 polish: capacity demand bars plus red capacity line, custom date view in complete labeled weeks (up to 104). Final Line Type native overlay stays invisible. CAD downloads include Fabrication/beMatrix build scope only, using pinned finalized quote revision and preserving archived artifacts; no pricing or roster changes.
+
+### October 18 quote updates
+Quotes list provides BOM/Budget Handoff access and Forecast Status. Header adds Due/Ship dates; explicit quote Due Date governs new workback proposals while protecting approved schedules. Install budget/cost cells are display-only blanks: all costs remain in profit/handoff. Catalog removal is recoverable, never rewrites quote snapshots; migration 20261018120000 applied in lab. See LAB_STATUS for verification.

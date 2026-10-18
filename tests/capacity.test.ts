@@ -95,3 +95,12 @@ test('custom view dates cover whole weeks and support demand beyond the old 26-w
  assert.equal(result.load.expected.length,52);close(sum(result.load.expected),60);
  close(sum(result.load.expected.slice(0,26)),0);
 });
+
+test('new quote header dates round-trip without adding fields to historical schedules',()=>{
+ const old={installDate:'2026-10-30',buildStart:'2026-10-05',buildFinish:'2026-10-20',status:'Likely'};
+ assert.deepEqual(parseSchedule(old),old);
+ const dates={...old,dueDate:'2026-10-25',shipDate:'2026-10-26'};
+ assert.deepEqual(parseSchedule(dates),dates);
+ assert.throws(()=>parseSchedule({...dates,shipDate:'2026-02-30'}));
+ assert.deepEqual(parseSchedule({...dates,dueDate:'',shipDate:''}),{...dates,dueDate:'',shipDate:''});
+});

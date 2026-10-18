@@ -1,6 +1,7 @@
 'use client';
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
+import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from './ui/dropdown-menu';
 import {QuoteCadDownload} from './quote-cad-download';
 import {QuoteSectionNav} from './quote-section-nav';
 import {QuoteColumnResize} from './quote-column-resize';
@@ -12,7 +13,7 @@ import {Input} from './ui/input';
 import {PageShell} from './ui/page-shell';
 import {Card} from './ui/card';
 import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from './ui/table';
-type Workspace={id:string;title:string;client_name:string|null;contact_name:string|null;status:string;quote_status:'draft'|'final';status_version:number;workbook_revision:number;created_at:string;last_modified:string};
+type Workspace={id:string;title:string;client_name:string|null;contact_name:string|null;status:string;quote_status:'draft'|'final';status_version:number;forecast_status:string;workbook_revision:number;created_at:string;last_modified:string};
 const date=(value:string)=>value?new Date(value).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
 async function result(response:Response){const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Request failed.');return payload;}
 export function QuoteLibrary({archived=false}:{archived?:boolean}){
@@ -51,16 +52,19 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
   {error?<p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error} <button className="underline" onClick={()=>{setError('');void load();}}>Reload quotes</button></p>:null}{message?<p role="status">{message}</p>:null}
   {!loading&&!ready?<p className="text-sm text-amber-800">Global settings, cloning and Draft/Final controls need the lab database update. Existing quotes remain available.</p>:null}
   {pendingArchive?<div role="alertdialog" aria-label="Archive selected quotes" className="rounded border bg-amber-50 p-4 text-slate-900"><p>Archive {pendingArchive.length} quote{pendingArchive.length===1?'':'s'}? You can restore them from Archived quotes.</p><ul className="my-2 list-disc pl-5">{pendingArchive.map(id=><li key={id}>{rows.find(w=>w.id===id)?.title}</li>)}</ul><Button disabled={busy} onClick={()=>void lifecycle(pendingArchive,false,true)}>Confirm archive</Button> <Button variant="outline" onClick={()=>setPendingArchive(null)}>Cancel archive</Button></div>:null}
-  <Card className="overflow-x-auto"><Table style={{tableLayout:'fixed',minWidth:1000}}><colgroup>{[44,240,180,110,130,130,140,260].map((width,i)=><col key={i} style={{width}}/>)}</colgroup><TableHeader><TableRow>
+  <Card className="overflow-x-auto"><Table style={{tableLayout:'fixed',minWidth:1000}}><colgroup>{[44,280,170,100,145,120,120,130,80,130].map((width,i)=><col key={i} style={{width}}/>)}</colgroup><TableHeader><TableRow>
    <TableHead><input type="checkbox" aria-label="Select all visible quotes" disabled={busy||loading||!visible.length} checked={!!visible.length&&visible.every(w=>selected.has(w.id))} onChange={e=>{const checked=e.target.checked;setSelected(previous=>{const next=new Set(previous);visible.forEach(w=>checked?next.add(w.id):next.delete(w.id));return next;});}}/></TableHead>
-   {[['Project name','title'],['Client name','client_name'],['Status','quote_status'],['Date created','created_at'],['Last modified','last_modified'],['CAD Turnover','cad'],['Actions','']].map(([h,key])=><TableHead key={h} style={{position:'relative'}} aria-sort={sort.key===key?(sort.direction===1?'ascending':'descending'):undefined}>{key?<button onClick={()=>setSort({key:key as keyof Workspace|'cad',direction:sort.key===key?-sort.direction:1})}>{h} {sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</button>:h}<QuoteColumnResize label={h}/></TableHead>)}
-  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={8}>Loading quotes…</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={8}>No quotes found.</TableCell></TableRow>:visible.map(w=><TableRow key={w.id}>
+   {[['Project name','title'],['Client name','client_name'],['Status','quote_status'],['Forecast Status','forecast_status'],['Date created','created_at'],['Last modified','last_modified'],['CAD Turnover','cad'],['BOM',''],['Budget Handoff','']].map(([h,key])=><TableHead key={h} style={{position:'relative'}} aria-sort={sort.key===key?(sort.direction===1?'ascending':'descending'):undefined}>{key?<button onClick={()=>setSort({key:key as keyof Workspace|'cad',direction:sort.key===key?-sort.direction:1})}>{h} {sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</button>:h}<QuoteColumnResize label={h}/></TableHead>)}
+  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={10}>Loading quotes…</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={10}>No quotes found.</TableCell></TableRow>:visible.map(w=><TableRow key={w.id}>
    <TableCell><input type="checkbox" aria-label={`Select ${w.title}`} disabled={busy} checked={selected.has(w.id)} onChange={e=>toggle(w.id,e.target.checked)}/></TableCell>
-   <TableCell><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></TableCell><TableCell>{w.client_name||'—'}</TableCell>
+   <TableCell><div className="flex items-center gap-2"><DropdownMenu><DropdownMenuTrigger disabled={busy} aria-label={`Quote actions · ${w.title}`} className="rounded px-2 py-1 hover:bg-slate-100">⋮</DropdownMenuTrigger><DropdownMenuContent>
+     {!archived&&<DropdownMenuItem onClick={()=>open('rename',w)}>Rename</DropdownMenuItem>}<DropdownMenuItem disabled={!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</DropdownMenuItem><DropdownMenuItem onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</DropdownMenuItem>
+    </DropdownMenuContent></DropdownMenu><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></div></TableCell><TableCell>{w.client_name||'—'}</TableCell>
    <TableCell><select className="rounded border p-1.5" aria-label={`Status · ${w.title}`} disabled={busy||archived||!ready} value={w.quote_status} onChange={e=>void changeStatus(w,e.target.value)}><option value="draft">Draft</option><option value="final" disabled={!w.workbook_revision}>Final</option></select></TableCell>
+   <TableCell>{w.forecast_status||'Not Set'}</TableCell>
    <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
    <TableCell>{w.quote_status==='final'?<QuoteCadDownload workspaceId={w.id} version={w.status_version}/>:<span className="text-xs text-muted-foreground">Available when Final</span>}</TableCell>
-   <TableCell><div className="flex gap-1">{!archived?<Button size="sm" variant="ghost" disabled={busy} onClick={()=>open('rename',w)}>Rename</Button>:null}<Button size="sm" variant="ghost" disabled={busy||!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</Button><Button size="sm" variant="ghost" disabled={busy} onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</Button></div></TableCell>
+   {['BOM','Budget Handoff'].map(tab=><TableCell key={tab}>{w.workbook_revision?<Link className="underline text-teal-800" href={`/quotes/${w.id}?tab=${encodeURIComponent(tab)}`}>Open {tab}</Link>:<span className="text-xs text-muted-foreground">No saved workbook</span>}</TableCell>)}
   </TableRow>)}</TableBody></Table></Card>
   {dialog?<div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label={dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':'Rename quote'}><form className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl" onSubmit={submit}>
    <h2 className="text-lg font-semibold">{dialog==='create'?'New quote':dialog==='clone'?'Clone quote':'Rename quote'}</h2>

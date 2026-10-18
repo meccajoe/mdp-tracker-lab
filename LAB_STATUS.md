@@ -1,5 +1,12 @@
 # Lab status
 
+## Quote navigation, dates and catalog recovery — October 18, 2026
+- Quotes list now has BOM/Budget Handoff links, Forecast Status and a three-dot menu beside each project name (Rename/Clone/Archive or Restore). Global Settings and Materials Catalog capitalization updated.
+- Quote header date order: Build Start, Build Finish, Due Date, Ship Date, Install Date. Optional new fields preserve old snapshots. Quote due date drives workback recommendations; approved schedules remain protected. Old operational due dates remain when the quote has no due-date field.
+- Paul confirmed Install Labor Cost/Build Budget should be blank on Quote Builder only. Calculator, economics, totals and Budget Handoff retain the costs. Materials & Labor double-click enters caret editing; single-click selected cell still clears with Delete.
+- Catalog deletion is recoverable via Deleted materials/Restore, excludes selections/export and preserves existing quote snapshots. Applied 20261018120000_lab_catalog_soft_delete.sql to lab gkvaeqlqrthztobxitvn; function/column verified and exact migration recorded. Do not replay. No catalog entries or customer quotes changed.
+- 166 lab tests plus TypeScript and production build passed. Disposable database verifies delete/restore history, permissions and stale revision rejection; route verifies selection filtering and actions. Actual component browser verified double-click Backspace removes one letter, and selected-cell Backspace clears the cell. Deployment/hosted checks pending.
+
 ## Capacity and CAD polish — October 15, 2026
 - Capacity tiles now show only needed-hours bars (overage highlighted) and the red capacity line. Added custom start/end view dates covering complete Monday–Sunday weeks, explicitly labeled, up to 104 weeks; presets retained. Variable horizon propagates through daily schedule/trade aggregation, not just chart slicing. View controls do not save or change quotes/roster.
 - Fixed Final Line Type blur: disabled opacity had exposed the native select over its wrapped display label. Native select remains invisible in read-only mode; displayed label stays crisp.

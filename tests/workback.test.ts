@@ -73,3 +73,11 @@ test('dependency cycles, locked conflicts, missing tasks and missing staffing do
  p.workback.edits[a.id]={start:'',finish:'',actual:'',owner:'',notes:'',removed:false,dependencies:[b.id]};p.workback.edits[b.id]={start:'',finish:'',actual:'',owner:'',notes:'',removed:false,dependencies:[a.id]};
  assert.ok(generate(q,p).current.warnings.some(w=>w.severity==='critical'&&w.message.includes('Cyclic')));
 });
+test('quote due date drives new recommendations without replacing an approved schedule',()=>{
+ const q=quote(),p=emptyPlan();p.workback=generate(q);p.workback.dueDate='2026-12-10';
+ assert.equal(generate(q,p).dueDate,'2026-12-10');
+ p.workback.baseline=structuredClone(p.workback.current);const approved=structuredClone(p.workback.current);
+ q.schedule!.dueDate='2026-12-03';const w=generate(q,p);
+ assert.equal(w.dueDate,'2026-12-03');assert.deepEqual(w.current,approved);assert.ok(w.proposed);assert.ok(w.proposed.warnings.some(w=>w.message.includes('due date')));
+ q.schedule!.dueDate='';assert.equal(generate(q,p).dueDate,'');
+});
