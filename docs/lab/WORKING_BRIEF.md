@@ -99,3 +99,5 @@ Quotes list provides BOM/Budget Handoff access and Forecast Status. Header adds 
 
 ### October 18 capacity follow-up
 Forecast Status editable from Quotes and Capacity Projects, updates quote forecast and clears only a conflicting planning status override. Final commercial values stay locked via narrow guard. Finish/Paint is one staffing pool; retain historical trade identities, combine capacity and prevent double-counted flex. Capacity Projects columns all sortable. Draft/Final remains distinct.
+
+October 18 Team Schedule: only Closed won/In production; primary then secondary skills, one shared per-person daily/weekly capacity. Separate proposed/approved global schedule snapshots; quote prices, roster and project baselines unchanged. See guidebook section 8 and LAB_STATUS.

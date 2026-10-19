@@ -1,5 +1,11 @@
 # Lab status
 
+## Named-person Team Schedule — October 18, 2026
+- Paul confirmed only Closed won / In production, primary skills first and secondary skills as shared remaining availability. New Capacity → Team Schedule generates a saved proposal across all accessible committed quotes, with daily employee/item/trade rows, filters, time-off exceptions and shortages. Explicit approval retains previous approved history. No quote, roster or project-plan mutation.
+- Daily hours are weekly roster hours / 5, capped per day and week across jobs. Weekend work requires project permission plus employee availability. Finish/Paint aliases share skills. Dependencies, planned CAD readiness, lag and approved task windows respected; no clock-time shifts or partial-batch engine. Unassigned trades and staffing gaps remain explicit. Aggregate remaining-work overrides must be resolved at task level; stale approved project plans block generation pending review.
+- Added append-only lab_team_schedule_revisions, membership-scoped access, source-version checks and immutable approval of latest proposal. Tested 20261018160000_lab_team_schedules.sql applied to authorized lab; exact history recorded. Do not replay.
+- Six engine/source tests plus API authorization/staleness tests, disposable database checks, existing lab suite/TypeScript and production build pass. Hosted deployment and save/reopen verification pending. Guidebook v3 adds training workflow and assumptions.
+
 ## Forecast controls and shared Finish/Paint capacity — October 18, 2026
 - Forecast Status is editable on Quotes and Capacity → Projects. Narrow endpoint appends a revision with only schedule status and cleared conflicting planning-status override; remaining hours, pricing, dates and history preserved. Effective status shown consistently. Capacity refreshes after saves/on visibility/60-second polling. Draft/Final remains separate.
 - Applied tested 20261018140000_lab_final_forecast.sql in lab; exact migration history saved and guard verified. Final permits only forecast metadata changes; commercial data, engine and dates remain locked. CAD artifacts retain pinned finalized revisions. No historical rows rewritten.

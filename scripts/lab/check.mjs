@@ -7,9 +7,9 @@ if (Number(process.versions.node.split('.')[0]) !== 24) {
   process.exit(1);
 }
 const suites = [
-  ['--test', 'tests/quote-management-routes.test.cjs', 'tests/quote-efficiency-routes.test.cjs', 'tests/project-capacity-route.test.cjs', 'tests/production-plan-routes.test.cjs', 'tests/workback-routes.test.cjs', 'tests/tracker-catalog-routes.test.cjs'],
+  ['--test', 'tests/quote-management-routes.test.cjs', 'tests/quote-efficiency-routes.test.cjs', 'tests/project-capacity-route.test.cjs', 'tests/production-plan-routes.test.cjs', 'tests/workback-routes.test.cjs', 'tests/team-schedule-routes.test.cjs', 'tests/tracker-catalog-routes.test.cjs'],
   ['--experimental-strip-types', '--test', 'tests/quote-v27.test.mjs', 'tests/quote-v27-estimators.test.mjs', 'tests/lab-safety.test.mjs'],
-  ['--import', 'tsx', '--test', 'tests/quote-v27-validation.test.ts', 'tests/quote-v27-blank.test.ts', 'tests/quote-levy-pricing.test.ts', 'tests/quote-defaults.test.ts', 'tests/quote-library-cache.test.ts', 'tests/visible-refresh.test.ts', 'tests/quote-takeoff-grid.test.ts', 'tests/quote-live-catalog.test.ts', 'tests/tracker-catalog.test.ts', 'tests/quote-edit-history.test.ts', 'tests/quote-reusable-items.test.ts', 'tests/capacity.test.ts', 'tests/project-timeline.test.ts', 'tests/item-timeline.test.ts', 'tests/production-plan.test.ts', 'tests/workback.test.ts', 'tests/quote-cad-turnover.test.ts'],
+  ['--import', 'tsx', '--test', 'tests/quote-v27-validation.test.ts', 'tests/quote-v27-blank.test.ts', 'tests/quote-levy-pricing.test.ts', 'tests/quote-defaults.test.ts', 'tests/quote-library-cache.test.ts', 'tests/visible-refresh.test.ts', 'tests/quote-takeoff-grid.test.ts', 'tests/quote-live-catalog.test.ts', 'tests/tracker-catalog.test.ts', 'tests/quote-edit-history.test.ts', 'tests/quote-reusable-items.test.ts', 'tests/capacity.test.ts', 'tests/project-timeline.test.ts', 'tests/item-timeline.test.ts', 'tests/production-plan.test.ts', 'tests/team-schedule.test.ts', 'tests/workback.test.ts', 'tests/quote-cad-turnover.test.ts'],
   ['--import', 'tsx', '--test', 'tests/quote-spreadsheet-import.test.ts'],
   ['node_modules/typescript/bin/tsc', '--noEmit', '--incremental', 'false'],
 ];

@@ -1,0 +1,58 @@
+import {capacityTrade} from './capacity-trades';
+import {dayNumber,dateString,monday,type RosterPerson} from './capacity';
+import {isProductionDay,type ProductionCalendar} from './production-calendar';
+import {validDate} from './quote-schedule';
+export type TeamOptions={start:string;finish:string;priority:string[];availability:{personId:string;date:string;hours:number}[]};
+export type TeamTask={key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;calendar:ProductionCalendar;completed:string;external:boolean};
+export type TeamPerson=Pick<RosterPerson,'id'|'name'|'primary'|'secondary'|'hours'|'active'>;
+export type TeamAllocation={taskKey:string;workspaceId:string;project:string;item:string;trade:string;personId:string;person:string;date:string;hours:number;secondary:boolean};
+export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number};
+const EPS=.000001;
+export function parseTeamOptions(value:unknown):TeamOptions{
+ const o=value as TeamOptions;
+ if(!o||!validDate(o.start)||!validDate(o.finish)||o.finish<o.start||dayNumber(o.finish)-dayNumber(o.start)>365||!Array.isArray(o.priority)||o.priority.length>500||o.priority.some(id=>typeof id!=='string'||id.length>100)||new Set(o.priority).size!==o.priority.length||!Array.isArray(o.availability)||o.availability.length>3000)throw Error('Choose a date range of at most one year and valid scheduling options.');
+ const availability=o.availability.map(a=>{if(!a||typeof a.personId!=='string'||!validDate(a.date)||a.date<o.start||a.date>o.finish||typeof a.hours!=='number'||!Number.isFinite(a.hours)||a.hours<0||a.hours>24)throw Error('Check employee availability dates and hours.');return {personId:a.personId,date:a.date,hours:a.hours};});
+ if(new Set(availability.map(a=>a.personId+'|'+a.date)).size!==availability.length)throw Error('Use one availability entry per person per date.');
+ return {start:o.start,finish:o.finish,priority:[...o.priority],availability};
+}
+const skill=(s:string)=>capacityTrade(s).trim().toLowerCase();
+export function personDayHours(person:TeamPerson,date:string,options:TeamOptions){
+ const override=options.availability.find(a=>a.personId===person.id&&a.date===date);
+ const weekday=new Date(date+'T00:00:00Z').getUTCDay();
+ return person.active?Math.min(24,person.hours/5,override?.hours??(weekday===0||weekday===6?0:person.hours/5)):0;
+}
+/** Deterministic daily allocation across the complete included workload; no commercial mutation. */
+export function scheduleTeam(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions):TeamResult{
+ options=parseTeamOptions(options);
+ if(tasks.length>5000||roster.length>300||new Set(tasks.map(t=>t.key)).size!==tasks.length||new Set(roster.map(p=>p.id)).size!==roster.length)throw Error('Schedule is too large or contains duplicate IDs.');
+ for(const a of options.availability){const person=roster.find(p=>p.id===a.personId);if(!person||a.hours>Math.min(24,person.hours/5))throw Error('Availability cannot exceed the employee’s normal daily hours. Update the roster for a different workweek.');}
+ const people=roster.filter(p=>p.active&&p.hours>0),allocations:TeamAllocation[]=[],warnings:string[]=[];
+ const remaining=new Map(tasks.map(t=>[t.key,t.completed||t.external?0:t.hours]));
+ const done=new Map(tasks.filter(t=>t.completed||t.external||t.hours<=EPS).map(t=>[t.key,t.completed||(t.hours<=EPS&&!t.external?dateString(dayNumber(options.start)-1):t.finish)]));
+ const all=new Map(tasks.map(t=>[t.key,t]));
+ const weekUsed=new Map<string,number>();
+ const ordered=[...tasks].sort((a,b)=>{
+  const rank=(id:string)=>{const i=options.priority.indexOf(id);return i<0?options.priority.length:i;};
+  return rank(a.workspaceId)-rank(b.workspaceId)||a.deadline.localeCompare(b.deadline)||a.finish.localeCompare(b.finish)||a.key.localeCompare(b.key);
+ });
+ for(const t of tasks){if(!validDate(t.start)||!validDate(t.finish)||!validDate(t.deadline)||!Number.isFinite(t.hours)||t.hours<0||!Number.isFinite(t.dailyLimit)||t.dailyLimit<=0)throw Error('Invalid task hours.');if(t.external&&!t.completed)warnings.push(`${t.project}: CAD prerequisite uses its planned finish (${t.finish||'missing'}); confirm readiness.`);}
+ for(let day=dayNumber(options.start);day<=dayNumber(options.finish);day++){
+  const date=dateString(day),dailyUsed=new Map<string,number>(),taskUsed=new Map<string,number>();
+  // Primary assignments across all jobs first; secondary skills only use remaining person-hours.
+  for(const secondary of [false,true])for(const task of ordered){
+   if((remaining.get(task.key)??0)<=EPS||task.external||date<task.start||date>task.deadline||task.fixed&&date>task.finish||!isProductionDay(day,task.calendar))continue;
+   if(task.predecessors.some(id=>{const completed=done.get(id);if(!all.has(id)||!completed||completed>=date)return true;let gap=0;for(let d=dayNumber(completed)+1;d<day;d++)if(isProductionDay(d,task.calendar))gap++;return gap<(task.lagDays??0);}))continue;
+   const eligible=people.filter(p=>secondary?skill(p.primary)!==skill(task.trade)&&skill(p.secondary)===skill(task.trade):skill(p.primary)===skill(task.trade)).sort((a,b)=>(dailyUsed.get(a.id)??0)-(dailyUsed.get(b.id)??0)||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+   for(const person of eligible){
+    const weekKey=person.id+'|'+monday(date),room=Math.min(personDayHours(person,date,options)-(dailyUsed.get(person.id)??0),person.hours-(weekUsed.get(weekKey)??0),task.dailyLimit-(taskUsed.get(task.key)??0));
+    const hours=Math.min(remaining.get(task.key)??0,room);if(hours<=EPS)continue;
+    allocations.push({taskKey:task.key,workspaceId:task.workspaceId,project:task.project,item:task.item,trade:task.trade,personId:person.id,person:person.name,date,hours,secondary});
+    if(allocations.length>50000)throw Error('Too many assignments. Shorten the date range.');
+    dailyUsed.set(person.id,(dailyUsed.get(person.id)??0)+hours);weekUsed.set(weekKey,(weekUsed.get(weekKey)??0)+hours);taskUsed.set(task.key,(taskUsed.get(task.key)??0)+hours);remaining.set(task.key,(remaining.get(task.key)??0)-hours);
+    if((remaining.get(task.key)??0)<=EPS){done.set(task.key,date);break;}
+   }
+  }
+ }
+ const unfilled=tasks.filter(t=>!t.external&&(remaining.get(t.key)??0)>EPS).map(t=>({taskKey:t.key,project:t.project,item:t.item,trade:t.trade,hours:remaining.get(t.key)!,reason:t.predecessors.some(id=>!done.get(id))?'Prerequisite unfinished or missing':!people.some(p=>skill(p.primary)===skill(t.trade)||skill(p.secondary)===skill(t.trade))?'No active employee with this trade':t.deadline<options.start?'Build deadline is before this schedule':t.start>options.finish?'Task starts beyond this schedule':t.fixed?'Insufficient availability inside fixed task dates':'Insufficient eligible hours before deadline or end of view'}));
+ return {allocations,unfilled,warnings:[...new Set(warnings)],people,options,totalHours:tasks.filter(t=>!t.external&&!t.completed).reduce((n,t)=>n+t.hours,0),assignedHours:allocations.reduce((n,a)=>n+a.hours,0)};
+}
