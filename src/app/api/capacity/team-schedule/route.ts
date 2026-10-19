@@ -1,7 +1,7 @@
 import {requireQuoteProductAccess} from '@/lib/ada-server';
 import {teamSources} from '@/lib/team-schedule-server';
 import {buildTeamSchedule} from '@/lib/team-schedule-source';
-import {parseTeamOptions} from '@/lib/team-schedule';
+import {parseTeamOptions,sameTeamSources} from '@/lib/team-schedule';
 export const dynamic='force-dynamic';
 export const maxDuration=60;
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
@@ -14,7 +14,7 @@ export async function GET(){
  const db=a.actorSupabase;
  const [latest,approved]=await Promise.all([db.from('lab_team_schedule_revisions').select('revision,document,created_at').order('revision',{ascending:false}).limit(1).maybeSingle(),db.from('lab_team_schedule_revisions').select('revision,document,created_at').eq('status','approved').order('revision',{ascending:false}).limit(1).maybeSingle()]);
  if(latest.error||approved.error)return json({error:'Team schedule storage is unavailable. Apply the lab team-schedule migration first.'},503);
- try{const current=await teamSources(db);return json({latest:latest.data,approved:approved.data,stale:latest.data?JSON.stringify(latest.data.document.sources)!==JSON.stringify(current.sources):false,approvedStale:approved.data?JSON.stringify(approved.data.document.sources)!==JSON.stringify(current.sources):false});}catch(e){return json({error:e instanceof Error?e.message:'Sources unavailable.'},503);}
+ try{const current=await teamSources(db);return json({latest:latest.data,approved:approved.data,stale:latest.data?!sameTeamSources(latest.data.document.sources,current.sources):false,approvedStale:approved.data?!sameTeamSources(approved.data.document.sources,current.sources):false});}catch(e){return json({error:e instanceof Error?e.message:'Sources unavailable.'},503);}
 }
 export async function POST(request:Request){
  const a=await access();if(!a.ok)return a.response;
@@ -31,7 +31,7 @@ export async function POST(request:Request){
    document={engine:'team-daily-1',sources:current.sources,result};status='proposed';
   }else if(body.action==='approve'){
    if(!latest.data||latest.data.status!=='proposed')throw Error('Generate a proposal first.');
-   if(JSON.stringify(latest.data.document.sources)!==JSON.stringify(current.sources))return json({error:'Quotes, schedules or roster changed. Generate a fresh proposal before approval.'},409);
+   if(!sameTeamSources(latest.data.document.sources,current.sources))return json({error:'Quotes, schedules or roster changed. Generate a fresh proposal before approval.'},409);
    document=latest.data.document;status='approved';
   }else throw Error('Unknown action.');
   const saved=await db.from('lab_team_schedule_revisions').insert({revision:body.expectedVersion+1,status,document,created_by:a.actorId,created_by_email:a.actorEmail}).select('revision').single();

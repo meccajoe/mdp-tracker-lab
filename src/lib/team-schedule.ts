@@ -56,3 +56,7 @@ export function scheduleTeam(tasks:TeamTask[],roster:TeamPerson[],options:TeamOp
  const unfilled=tasks.filter(t=>!t.external&&(remaining.get(t.key)??0)>EPS).map(t=>({taskKey:t.key,project:t.project,item:t.item,trade:t.trade,hours:remaining.get(t.key)!,reason:t.predecessors.some(id=>!done.get(id))?'Prerequisite unfinished or missing':!people.some(p=>skill(p.primary)===skill(t.trade)||skill(p.secondary)===skill(t.trade))?'No active employee with this trade':t.deadline<options.start?'Build deadline is before this schedule':t.start>options.finish?'Task starts beyond this schedule':t.fixed?'Insufficient availability inside fixed task dates':'Insufficient eligible hours before deadline or end of view'}));
  return {allocations,unfilled,warnings:[...new Set(warnings)],people,options,totalHours:tasks.filter(t=>!t.external&&!t.completed).reduce((n,t)=>n+t.hours,0),assignedHours:allocations.reduce((n,a)=>n+a.hours,0)};
 }
+export function sameTeamSources(a:unknown,b:unknown){
+ const canonical=(value:unknown)=>{const s=value as {roster:number;quotes:{id:string;quote:number;plan:number}[]};return JSON.stringify([s.roster,s.quotes.map(q=>[q.id,q.quote,q.plan]).sort((x,y)=>String(x[0]).localeCompare(String(y[0])))]);};
+ try{return canonical(a)===canonical(b);}catch{return false;}
+}

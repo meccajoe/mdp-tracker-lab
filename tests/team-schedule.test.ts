@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {scheduleTeam,parseTeamOptions,type TeamTask,type TeamPerson,type TeamOptions} from '../src/lib/team-schedule';
+import {scheduleTeam,parseTeamOptions,sameTeamSources,type TeamTask,type TeamPerson,type TeamOptions} from '../src/lib/team-schedule';
 const options:TeamOptions={start:'2026-10-19',finish:'2026-10-23',priority:[],availability:[]};
 const person:TeamPerson={id:'p',name:'Pat',primary:'Carpentry',secondary:'Paint',hours:40,active:true};
 const task=(key:string,extra:Partial<TeamTask>={}):TeamTask=>({key,workspaceId:key,project:key,item:'Wall',trade:'Carpentry',hours:24,start:options.start,finish:options.finish,deadline:options.finish,fixed:false,dailyLimit:8,predecessors:[],calendar:{saturday:false,sunday:false},completed:'',external:false,...extra});
@@ -41,3 +41,5 @@ test('zero remaining tasks do not block successors and lag follows actual alloca
  const r=scheduleTeam([task('zero',{hours:0}),task('one',{hours:8,predecessors:['zero']}),task('two',{hours:8,predecessors:['one'],lagDays:1})],[person],options);
  assert.deepEqual(r.allocations.map(a=>a.date),['2026-10-19','2026-10-21']);
 });
+
+test('database JSON key order does not falsely mark saved sources stale',()=>{assert.equal(sameTeamSources({roster:1,quotes:[{id:'a',quote:2,plan:3}]},{quotes:[{plan:3,quote:2,id:'a'}],roster:1}),true);assert.equal(sameTeamSources({roster:1,quotes:[]},{roster:2,quotes:[]}),false);});
