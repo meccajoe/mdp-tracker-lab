@@ -6,7 +6,7 @@ const TRADE_STAGES:Record<string,StageId>={
   'cnc':'cnc','cnc + cutting':'cnc','cnc cutting':'cnc','cnc + cut':'cnc','cnc/cutting':'cnc',
   'carpentry':'carpentry','assembly':'carpentry','carpentry/assembly':'carpentry',
   'finish':'finish','painting':'finish','paint':'finish','finish/paint':'finish','finish / paint':'finish','finishing':'finish',
-  'graphics':'graphics','graphic install':'graphics','graphics install':'graphics','vinyl install':'graphics',
+  'graphics':'graphics','graphic install':'graphics','graphics install':'graphics','vinyl install':'graphics','graphic / vinyl install':'graphics',
   'crate & pack':'packing','crate and pack':'packing','packing':'packing','final prep':'packing','stage / pack / prep':'packing',
 };
 export const stageForTrade=(name:string)=>{const key=name.trim().toLowerCase();return Object.hasOwn(TRADE_STAGES,key)?TRADE_STAGES[key]:undefined;};

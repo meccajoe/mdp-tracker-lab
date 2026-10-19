@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {emptyPlan} from '../src/lib/production-plan';
 import {utils} from 'xlsx';
 import {importCapacityRoster} from '../src/lib/capacity-roster-import';
 import {capacityViewRange,dashboardLoad} from '../src/lib/capacity-dashboard';
@@ -115,4 +116,21 @@ test('Finish/Paint demand and overrides combine across saved tasks without doubl
  const plan={engine:'item-flow-1',quoteVersion:1,status:'approved' as const,calendar:{saturday:false,sunday:false},rampDays:1,rules:{},baseline:[],actuals:{},notes:'',tasks:[{id:'paint',itemId:'a',item:'A',stage:'finish' as const,trade:'Painting',hours:12,start:'2026-10-05',finish:'2026-10-05',daily:[{date:'2026-10-05',hours:12}],predecessors:[],locked:false},{id:'finish',itemId:'b',item:'B',stage:'finish' as const,trade:'Finish',hours:8,start:'2026-10-06',finish:'2026-10-06',daily:[{date:'2026-10-06',hours:8}],predecessors:[],locked:false}]};
  const p=capacityProject({...source,productionPlan:plan});assert.equal(p.trades['Finish / Paint'],10);
  const load=capacityLoad([p],settings(),'shop',[],true);assert.equal(sum(load.trades['Finish / Paint']),10);assert.equal(sum(load.expected),10);assert.equal(load.trades.Painting,undefined);assert.equal(load.trades.Finish,undefined);
+});
+
+test('packing and installation consume one shared pool, with matching weighted and filtered demand',()=>{
+ const p=project('Closed won');p.productionPlan={...emptyPlan(),tasks:[{id:'pack',itemId:'x',item:'Pack',stage:'packing',trade:'Crate & pack',hours:30,start:'2026-10-19',finish:'2026-10-23',daily:[{date:'2026-10-19',hours:30}],predecessors:[],locked:false}]};
+ const config={...settings(),roster:[{id:'crew',name:'Crew',primary:'I&D',secondary:'Crate & pack',hours:40,rate:null,active:true,notes:''},{id:'shop',name:'Shop',primary:'Carpentry',secondary:'',hours:40,rate:null,active:true,notes:''}]};
+ const original=JSON.stringify(p),r=dashboardLoad([p],config,null,'expected');
+ assert.equal(r.sharedCapacity,40);assert.equal(r.packing[2],30);assert.equal(r.fieldLoad.expected[2],40);assert.equal(r.sharedNeeded[2],70);assert.equal(r.shopAvailable[2],40);assert.equal(r.fieldAvailable[2],10);assert.equal(r.shopAvailable[0],80);
+ const excluded=dashboardLoad([p],config,[],'expected');assert.equal(sum(excluded.sharedNeeded),0);assert.equal(excluded.sharedCapacity,40);assert.equal(excluded.shopAvailable[2],40);assert.equal(excluded.fieldAvailable[2],10);
+ const weighted=dashboardLoad([{...p,committed:false,probability:.5}],config,null,'expected');assert.equal(weighted.sharedNeeded[2],35);assert.equal(weighted.shopAvailable[2],60);assert.equal(weighted.fieldAvailable[2],25);
+ assert.equal(JSON.stringify(p),original);
+});
+test('graphic and vinyl labor combine once, including shared flex and combined remaining overrides',()=>{
+ const base={id:'a',name:'A',primary:'Graphic Install',secondary:'Vinyl Install',hours:40,rate:null,active:true,notes:''};
+ const cap=rosterCapacity([base,{...base,id:'b',primary:'Vinyl Install',hours:32}]);assert.equal(cap.primary['Graphic / Vinyl Install'],72);assert.equal(cap.flex['Graphic / Vinyl Install'],undefined);
+ const p=project('Closed won');p.productionPlan={...emptyPlan(),tasks:['Graphic Install','Vinyl Install'].map((trade,i)=>({id:String(i),itemId:'x',item:'Graphics',stage:'graphics' as const,trade,hours:10,start:'2026-10-05',finish:'2026-10-05',daily:[{date:'2026-10-05',hours:10}],predecessors:[],locked:false}))};
+ p.document!.planning={...emptyOverride(),remainingTrades:{'Graphic / Vinyl Install':12,'Vinyl Install':8}};
+ const load=capacityLoad([p],settings(),'shop',[],true);assert.equal(sum(load.trades['Graphic / Vinyl Install']),12);assert.equal(Object.keys(load.trades).length,1);
 });

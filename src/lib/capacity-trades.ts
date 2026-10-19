@@ -1,5 +1,6 @@
 /** Shared staffing pool; original roster and quote trade names remain intact. */
 export function capacityTrade(name:string):string {
+ if(['graphic install','graphics install','vinyl install','graphic / vinyl install'].includes(name.trim().toLowerCase()))return 'Graphic / Vinyl Install';
  return ['paint','painting','finish','finishing','finish / paint'].includes(name.trim().toLowerCase())?'Finish / Paint':name;
 }
 export function capacityTradeHours(hours:Record<string,number>):Record<string,number>{
@@ -8,6 +9,6 @@ export function capacityTradeHours(hours:Record<string,number>):Record<string,nu
 
 export function remainingTradeHours(base:Record<string,number>,overrides:Record<string,number>):Record<string,number>{
  const result=capacityTradeHours({...base,...overrides});
- if(overrides['Finish / Paint']!==undefined)result['Finish / Paint']=overrides['Finish / Paint'];
+ for(const pool of ['Finish / Paint','Graphic / Vinyl Install'])if(overrides[pool]!==undefined)result[pool]=overrides[pool];
  return result;
 }

@@ -103,3 +103,5 @@ Forecast Status editable from Quotes and Capacity Projects, updates quote foreca
 October 18 Team Schedule: only Closed won/In production; primary then secondary skills, one shared per-person daily/weekly capacity. Separate proposed/approved global schedule snapshots; quote prices, roster and project baselines unchanged. See guidebook section 8 and LAB_STATUS.
 
 October 18 Team Schedule display: default visual Gantt across all committed projects in the saved snapshot. Toggle Project/Trade/Person, filter by any of those dimensions; retain unscheduled jobs without invented bars. This is presentation only, preserving proposal/approval and hours.
+
+October 18 capacity pools: Field Load uses dated bar tiles. Graphic Install/Vinyl Install are one pool. I&D covers Crate & pack as well as field work: shared demand = packing + installation; shop/field available hours account for the other workload across all projects. Preserve raw quote trades and schedules; retain existing field allocation dates. This reporting change does not approve or rewrite named staff assignments.
