@@ -1,5 +1,12 @@
 # Lab status
 
+## Forecast controls and shared Finish/Paint capacity — October 18, 2026
+- Forecast Status is editable on Quotes and Capacity → Projects. Narrow endpoint appends a revision with only schedule status and cleared conflicting planning-status override; remaining hours, pricing, dates and history preserved. Effective status shown consistently. Capacity refreshes after saves/on visibility/60-second polling. Draft/Final remains separate.
+- Applied tested 20261018140000_lab_final_forecast.sql in lab; exact migration history saved and guard verified. Final permits only forecast metadata changes; commercial data, engine and dates remain locked. CAD artifacts retain pinned finalized revisions. No historical rows rewritten.
+- Finish/Paint share charts, roster summary, project trade totals and proposal staffing. Existing trade names/task IDs and approved schedules remain; aliases combine at capacity boundaries. Primary/flex in same pool is counted once. Combined remaining-hours override replaces the pool while historical individual overrides retain their meaning.
+- All Capacity Projects columns sortable, including scenario checkbox, dates, numeric totals, flags and every trade. Quote status header renamed Forecast Status.
+- 170 lab tests and TypeScript passed; production build passed; disposable database confirms Final forecast changes, stale rejection and commercial/date/engine lock. Hosted deployment checks pending.
+
 ## Quote navigation, dates and catalog recovery — October 18, 2026
 - Quotes list now has BOM/Budget Handoff links, Forecast Status and a three-dot menu beside each project name (Rename/Clone/Archive or Restore). Global Settings and Materials Catalog capitalization updated.
 - Quote header date order: Build Start, Build Finish, Due Date, Ship Date, Install Date. Optional new fields preserve old snapshots. Quote due date drives workback recommendations; approved schedules remain protected. Old operational due dates remain when the quote has no due-date field.

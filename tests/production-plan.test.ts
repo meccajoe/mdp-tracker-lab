@@ -18,3 +18,10 @@ test('purchasing delay applies once after CAD, and zero remaining work has no ph
  assert.equal(next.tasks.find(t=>t.id===carp.id)?.finish,'');
  assert.throws(()=>parseProductionPlan({...base,rampDays:1.5}));
 });
+test('Finish and Painting tasks keep stable identities but share one staffing budget',()=>{
+ const q=quote();q.trades.push({id:'finish',name:'Finish',wage:20});q.takeoffs=q.takeoffs.filter(r=>r.tradeId==='1');q.takeoffs[1].tradeId='finish';q.takeoffs[1].description='Finish';
+ const result=proposeProductionPlan(q,[{primary:'Painting',hours:40,active:true}]);
+ assert.ok(result.tasks.some(t=>t.trade==='Finish'));assert.ok(result.tasks.some(t=>t.trade==='Painting'));
+ const totals:Record<string,number>={};for(const task of result.tasks)for(const d of task.daily)totals[d.date]=(totals[d.date]??0)+d.hours;
+ assert.ok(Object.values(totals).every(h=>h<=8.000001));assert.ok(!result.warnings.some(w=>w.includes('no active primary')));
+});

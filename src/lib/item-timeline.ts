@@ -5,7 +5,7 @@ const TRADE_STAGES:Record<string,StageId>={
   'cad':'cad','drawings':'cad','design':'cad','design / engineering / cad':'cad',
   'cnc':'cnc','cnc + cutting':'cnc','cnc cutting':'cnc','cnc + cut':'cnc','cnc/cutting':'cnc',
   'carpentry':'carpentry','assembly':'carpentry','carpentry/assembly':'carpentry',
-  'finish':'finish','painting':'finish','paint':'finish','finish/paint':'finish',
+  'finish':'finish','painting':'finish','paint':'finish','finish/paint':'finish','finish / paint':'finish','finishing':'finish',
   'graphics':'graphics','graphic install':'graphics','graphics install':'graphics','vinyl install':'graphics',
   'crate & pack':'packing','crate and pack':'packing','packing':'packing','final prep':'packing','stage / pack / prep':'packing',
 };

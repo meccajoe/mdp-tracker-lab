@@ -6,6 +6,8 @@ import {QuoteCadDownload} from './quote-cad-download';
 import {QuoteSectionNav} from './quote-section-nav';
 import {QuoteColumnResize} from './quote-column-resize';
 import {useRouter} from 'next/navigation';
+import {FORECAST_STATUSES} from '@/lib/quote-schedule';
+import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 import {adaFetch} from '@/lib/ada-client';
 import {changeQuoteArchives} from '@/lib/quote-bulk-archive';
 import {Button} from './ui/button';
@@ -44,6 +46,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
   setSelected(new Set(failed));setMessage(`${count} quote${count===1?'':'s'} ${restore?'restored':'archived'}.${failed.length?` ${failed.length} could not be changed and remain selected.`:''}`);await load();guard.current=false;setBusy(false);
  }
  async function changeStatus(w:Workspace,next:string){if(guard.current)return;guard.current=true;setBusy(true);setError('');try{await result(await adaFetch(`/api/quote-workspaces/${w.id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:next,expectedVersion:w.status_version,expectedRevision:w.workbook_revision})}));await load();}catch(e){setError(e instanceof Error?e.message:'Status could not change.');await load();}finally{guard.current=false;setBusy(false);}}
+ async function changeForecast(w:Workspace,status:string){if(guard.current)return;guard.current=true;setBusy(true);setError('');try{const p=await result(await adaFetch(`/api/quote-workspaces/${w.id}/forecast`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,expectedVersion:w.workbook_revision})}));invalidateQuoteLibrary();setMessage(p.warning||'Forecast saved. Capacity uses the updated status.');await load();}catch(e){setError(e instanceof Error?e.message:'Forecast could not save.');await load();}finally{guard.current=false;setBusy(false);}}
  function toggle(id:string,checked:boolean){setSelected(previous=>{const next=new Set(previous);if(checked)next.add(id);else next.delete(id);return next;});}
  return <PageShell>
   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase text-muted-foreground">Estimating</p><h1 className="text-2xl font-bold">{archived?'Archived quotes':'Quotes'}</h1></div><div className="flex flex-wrap gap-3 items-center"><Link className="underline" href="/quotes/import">Import spreadsheet</Link><Button onClick={()=>open('create')}>New quote</Button></div></div>
@@ -61,7 +64,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
      {!archived&&<DropdownMenuItem onClick={()=>open('rename',w)}>Rename</DropdownMenuItem>}<DropdownMenuItem disabled={!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</DropdownMenuItem><DropdownMenuItem onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</DropdownMenuItem>
     </DropdownMenuContent></DropdownMenu><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></div></TableCell><TableCell>{w.client_name||'—'}</TableCell>
    <TableCell><select className="rounded border p-1.5" aria-label={`Status · ${w.title}`} disabled={busy||archived||!ready} value={w.quote_status} onChange={e=>void changeStatus(w,e.target.value)}><option value="draft">Draft</option><option value="final" disabled={!w.workbook_revision}>Final</option></select></TableCell>
-   <TableCell>{w.forecast_status||'Not Set'}</TableCell>
+   <TableCell><select aria-label={`Forecast Status · ${w.title}`} className="rounded border p-1.5 max-w-full" disabled={busy||archived||!w.workbook_revision} value={w.forecast_status} onChange={e=>void changeForecast(w,e.target.value)}><option value="">Not Set</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></TableCell>
    <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
    <TableCell>{w.quote_status==='final'?<QuoteCadDownload workspaceId={w.id} version={w.status_version}/>:<span className="text-xs text-muted-foreground">Available when Final</span>}</TableCell>
    {['BOM','Budget Handoff'].map(tab=><TableCell key={tab}>{w.workbook_revision?<Link className="underline text-teal-800" href={`/quotes/${w.id}?tab=${encodeURIComponent(tab)}`}>Open {tab}</Link>:<span className="text-xs text-muted-foreground">No saved workbook</span>}</TableCell>)}

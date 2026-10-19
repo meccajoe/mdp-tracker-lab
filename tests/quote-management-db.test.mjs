@@ -16,7 +16,7 @@ test('quote management: atomic creation, frozen defaults, idempotency, cloning i
  grant select on ada_quote_workspaces,quote_workspace_members,quote_user_capabilities to authenticated;
  create function create_quote_workspace(p_title text,p_project uuid,p_client text,p_contact text,p_deal text) returns ada_quote_workspaces language plpgsql security definer as $$declare w ada_quote_workspaces;begin insert into ada_quote_workspaces(title,client_name,contact_name) values(p_title,p_client,p_contact) returning * into w;insert into quote_workspace_members values(w.id,auth.uid(),current_quote_actor_email(),'owner',null);return w;end;$$;
  insert into quote_user_capabilities values('${owner}','paul@meccadesign.com','create_workspace',null);`);
- await db.exec(workbook);await db.exec(migration);await db.exec(readFileSync('supabase/migrations/20261011140000_lab_cad_turnover.sql','utf8'));
+ await db.exec(workbook);await db.exec(migration);await db.exec(readFileSync('supabase/migrations/20261018140000_lab_final_forecast.sql','utf8'));await db.exec(readFileSync('supabase/migrations/20261011140000_lab_cad_turnover.sql','utf8'));
  async function actor(id=owner,email='paul@meccadesign.com'){await db.exec('reset role;set role authenticated;');await db.query("select set_config('test.uid',$1,false),set_config('test.email',$2,false)",[id,email]);}
  await actor();
  const defaults=(n)=>db.query('insert into lab_quote_settings_revisions values($1,$2,$3,$4,now())',[n,{settings:{laborSell:110+n}},owner,'paul@meccadesign.com']);
@@ -44,6 +44,17 @@ test('quote management: atomic creation, frozen defaults, idempotency, cloning i
  assert.equal((await db.query('select count(*)::int as n from lab_cad_turnovers where workspace_id=$1',[id])).rows[0].n,2);
  await status('draft',5,3);
  await assert.rejects(db.exec("update lab_cad_turnovers set project_name='Wrong'"),e=>e.code==='42501');
+ // Final accepts only forecast changes; commercial data, dates and engine stay locked.
+ await status('final',6,3);
+ const forecast={...doc,edited:true,schedule:{buildStart:'',buildFinish:'',installDate:'',status:'Likely'}};
+ const forecastSave=(document,revision=4,engine='v27-1')=>db.query('insert into quote_workbook_revisions(workspace_id,revision,document,engine_version,created_by,created_by_email) values($1,$2,$3,$4,$5,$6)',[id,revision,document,engine,owner,'paul@meccadesign.com']);
+ await forecastSave(forecast);
+ await assert.rejects(forecastSave({...forecast,settings:{laborSell:1}},5),e=>e.code==='PT409');
+ await assert.rejects(forecastSave({...forecast,schedule:{...forecast.schedule,buildStart:'2026-10-01'}},5),e=>e.code==='PT409');
+ await assert.rejects(forecastSave({...forecast,schedule:{...forecast.schedule,status:'bad'}},5),e=>e.code==='PT409');
+ await assert.rejects(forecastSave(forecast,5,'changed'),e=>e.code==='PT409');
+ await assert.rejects(forecastSave(forecast),e=>e.code==='PT409');
+ assert.equal((await db.query('select quote_status from lab_quote_controls where workspace_id=$1',[id])).rows[0].quote_status,'final');
  // A failed initial revision rolls the workspace and request marker back together.
  await assert.rejects(create('00000000-0000-4000-8000-000000000013',2,null,null,{bad:true}));
  assert.equal((await db.query("select count(*)::int as n from lab_quote_controls where creation_request_id='00000000-0000-4000-8000-000000000013'")).rows[0].n,0);

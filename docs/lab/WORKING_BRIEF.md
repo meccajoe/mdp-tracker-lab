@@ -96,3 +96,6 @@ October 15 polish: capacity demand bars plus red capacity line, custom date view
 
 ### October 18 quote updates
 Quotes list provides BOM/Budget Handoff access and Forecast Status. Header adds Due/Ship dates; explicit quote Due Date governs new workback proposals while protecting approved schedules. Install budget/cost cells are display-only blanks: all costs remain in profit/handoff. Catalog removal is recoverable, never rewrites quote snapshots; migration 20261018120000 applied in lab. See LAB_STATUS for verification.
+
+### October 18 capacity follow-up
+Forecast Status editable from Quotes and Capacity Projects, updates quote forecast and clears only a conflicting planning status override. Final commercial values stay locked via narrow guard. Finish/Paint is one staffing pool; retain historical trade identities, combine capacity and prevent double-counted flex. Capacity Projects columns all sortable. Draft/Final remains distinct.

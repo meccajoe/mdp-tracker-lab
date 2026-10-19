@@ -63,3 +63,6 @@ This is quote-driven capacity planning. It does not automatically create operati
 
 ## Hosted acceptance, October 5
 Feature commit 22ffcad deployed successfully. Dedicated lab quote d33f7c70-4fb5-4df2-92e0-2106a1351a24 saved schedule/trade demand as revision 3, automatically appeared in all four capacity views, then received a separate Completed planning override in revision 4 to remove test demand. Date reopening and weighted shop/field allocation passed. Shared roster migration remains unapplied and the UI correctly disables its saving. Native calendar popup inspection could not complete; manual/date input persistence passed. Business quotes were only read by the capacity listing, never modified.
+
+## October 18 forecast and shared finishing pool
+Quotes and Capacity Projects expose Forecast Status selections. Each change appends a quote revision, preserving commercial values and remaining-hour overrides, and clears any conflicting planning-status override so the selected forecast controls demand. Final quotes allow only forecast metadata changes; CAD remains pinned. Existing approved schedules remain intact. Finish, Painting, Paint, Finishing and Finish / Paint share capacity under Finish / Paint. Original task IDs/roster names stay stored; proposal staffing uses one pool. All Projects columns support ascending/descending sorting.

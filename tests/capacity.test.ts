@@ -38,7 +38,7 @@ test('install demand uses install dates; build mode remains explicitly available
 test('roster secondary skills do not double count shop or support capacity',()=>{
  const base={id:'a',name:'Test person',primary:'Carpentry',secondary:'Painting',hours:40,rate:null,active:true,notes:''};
  const result=rosterCapacity([base,{...base,id:'b',primary:'I&D',secondary:''},{...base,id:'c',primary:'Driver/Pickups',secondary:''},{...base,id:'d',active:false}]);
- assert.equal(result.shop,40);assert.equal(result.field,40);assert.equal(result.flex.Painting,40);assert.equal(result.primary.Carpentry,40);
+ assert.equal(result.shop,40);assert.equal(result.field,40);assert.equal(result.flex['Finish / Paint'],40);assert.equal(result.primary.Carpentry,40);
 });
 test('schedule/settings validation preserves old snapshots and rejects invalid dates/configuration',()=>{
  assert.ok(parseQuoteV27(fresh()));assert.throws(()=>parseSchedule({...EMPTY_SCHEDULE,buildStart:'2026-02-29'}));assert.throws(()=>parseSchedule({...EMPTY_SCHEDULE,buildStart:'2026-10-10',buildFinish:'2026-10-09'}));
@@ -103,4 +103,16 @@ test('new quote header dates round-trip without adding fields to historical sche
  assert.deepEqual(parseSchedule(dates),dates);
  assert.throws(()=>parseSchedule({...dates,shipDate:'2026-02-30'}));
  assert.deepEqual(parseSchedule({...dates,dueDate:'',shipDate:''}),{...dates,dueDate:'',shipDate:''});
+});
+test('Finish and Paint share primary capacity without counting the same persons flex twice',()=>{
+ const base={id:'a',name:'Sample',primary:'Painting',secondary:'Finish',hours:40,rate:null,active:true,notes:''};
+ const result=rosterCapacity([base,{...base,id:'b',primary:'Finish',secondary:'Painting',hours:32}]);
+ assert.equal(result.shop,72);assert.deepEqual(result.primary,{'Finish / Paint':72});assert.deepEqual(result.flex,{});
+});
+test('Finish/Paint demand and overrides combine across saved tasks without double counting',()=>{
+ const source=project('Closed won'),q=source.document!;
+ q.planning={...emptyOverride(),remainingTrades:{Painting:5,'Finish / Paint':10}};
+ const plan={engine:'item-flow-1',quoteVersion:1,status:'approved' as const,calendar:{saturday:false,sunday:false},rampDays:1,rules:{},baseline:[],actuals:{},notes:'',tasks:[{id:'paint',itemId:'a',item:'A',stage:'finish' as const,trade:'Painting',hours:12,start:'2026-10-05',finish:'2026-10-05',daily:[{date:'2026-10-05',hours:12}],predecessors:[],locked:false},{id:'finish',itemId:'b',item:'B',stage:'finish' as const,trade:'Finish',hours:8,start:'2026-10-06',finish:'2026-10-06',daily:[{date:'2026-10-06',hours:8}],predecessors:[],locked:false}]};
+ const p=capacityProject({...source,productionPlan:plan});assert.equal(p.trades['Finish / Paint'],10);
+ const load=capacityLoad([p],settings(),'shop',[],true);assert.equal(sum(load.trades['Finish / Paint']),10);assert.equal(sum(load.expected),10);assert.equal(load.trades.Painting,undefined);assert.equal(load.trades.Finish,undefined);
 });
