@@ -1,5 +1,9 @@
 # Lab status
 
+## Team Schedule Gantt — October 18, 2026
+- Added default Project Gantt showing every committed project in the saved schedule, including zero-assignment jobs. Trade/Person grouping, project/person/trade filters and Show all, dated daily bars, weekends/today, larger-day option and clickable assignment detail. Daily list remains in a disclosure. Unassigned hours are badges, never fabricated dated/person assignments; Finish/Paint grouping shares a lane.
+- Presentation-only: no migration, schedule regeneration, quote edits or approval changes. Historical snapshots render directly; stale-source warning remains. Three new grouping tests cover empty projects, real date gaps, totals, trade aliases, filters and duplicate employee names. Lab suite/TypeScript passed; build/deployment/browser verification pending.
+
 ## Named-person Team Schedule — October 18, 2026
 - Paul confirmed only Closed won / In production, primary skills first and secondary skills as shared remaining availability. New Capacity → Team Schedule generates a saved proposal across all accessible committed quotes, with daily employee/item/trade rows, filters, time-off exceptions and shortages. Explicit approval retains previous approved history. No quote, roster or project-plan mutation.
 - Daily hours are weekly roster hours / 5, capped per day and week across jobs. Weekend work requires project permission plus employee availability. Finish/Paint aliases share skills. Dependencies, planned CAD readiness, lag and approved task windows respected; no clock-time shifts or partial-batch engine. Unassigned trades and staffing gaps remain explicit. Aggregate remaining-work overrides must be resolved at task level; stale approved project plans block generation pending review.
