@@ -25,3 +25,10 @@ test('Finish and Painting tasks keep stable identities but share one staffing bu
  const totals:Record<string,number>={};for(const task of result.tasks)for(const d of task.daily)totals[d.date]=(totals[d.date]??0)+d.hours;
  assert.ok(Object.values(totals).every(h=>h<=8.000001));assert.ok(!result.warnings.some(w=>w.includes('no active primary')));
 });
+
+test('stage/pack/prep uses I&D staffing without changing quoted trade or prices',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:'2026-10-19',buildFinish:'2026-10-23',installDate:'',status:'Closed won'};
+ q.lines[0].type='Stage / Pack / Prep';q.lines[0].name='Shipping prep';q.lines[0].overrides.hours=8;
+ const before=JSON.stringify(q),p=proposeProductionPlan(q,[{primary:'I&D',hours:20,active:true}],{...emptyPlan(),rampDays:0});
+ assert.equal(p.tasks[0].stage,'packing');assert.equal(p.tasks[0].trade,'Crate & pack');assert.equal(p.tasks[0].daily.length,2);assert.ok(p.tasks[0].daily.every(d=>d.hours===4));assert.ok(!p.warnings.some(w=>w.includes('no active primary')));assert.equal(JSON.stringify(q),before);
+});

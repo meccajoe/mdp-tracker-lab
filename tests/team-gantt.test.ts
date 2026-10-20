@@ -5,3 +5,8 @@ const filter={project:'',person:'',trade:''};
 test('default project lanes retain jobs with no assignments and preserve gaps and totals',()=>{const before=JSON.stringify(result),rows=teamGanttRows(result,'Project',filter);assert.equal(rows.length,2);assert.equal(rows[1].unassigned,7);assert.equal(rows[1].days.size,0);assert.equal(rows[0].days.has('2026-10-20'),false);assert.equal(rows.reduce((s,r)=>s+r.hours,0),8);assert.equal(JSON.stringify(result),before);});
 test('trade grouping shares Finish/Paint and person grouping preserves distinct identities',()=>{const trades=teamGanttRows(result,'Trade',filter);assert.equal(trades.length,1);assert.equal(trades[0].name,'Finish / Paint');assert.equal(trades[0].hours,8);assert.equal(trades[0].unassigned,7);const people=teamGanttRows(result,'Person',filter);assert.equal(people.length,2);assert.deepEqual(people.map(p=>p.hours),[3,5]);assert.ok(people.every(p=>p.unassigned===0));});
 test('filters narrow assignments without inventing ownership for unassigned hours',()=>{const rows=teamGanttRows(result,'Trade',{...filter,person:'p2'});assert.equal(rows[0].hours,5);assert.equal(rows[0].unassigned,0);assert.equal(teamGanttRows(result,'Project',{...filter,project:'b'})[0].hours,0);assert.equal(teamGanttRows(result,'Trade',{...filter,trade:'CNC'}).length,0);});
+
+test('date view clips bars and assigned totals without changing saved assignments or hiding projects',()=>{
+ const before=JSON.stringify(result),rows=teamGanttRows(result,'Project',{...filter,start:'2026-10-20',finish:'2026-10-22'});
+ assert.equal(rows.length,2);assert.equal(rows[0].hours,5);assert.equal(rows[0].days.has('2026-10-19'),false);assert.equal(rows[1].unassigned,7);assert.equal(JSON.stringify(result),before);
+});

@@ -4,10 +4,10 @@ export type GanttGroup='Project'|'Trade'|'Person';
 export type GanttResult=TeamResult&{projects:{id:string;name:string;status:string}[]};
 export type GanttRow={id:string;name:string;caption:string;unassigned:number;days:Map<string,TeamAllocation[]>;hours:number};
 /** Presentation only: conserve assignments and keep projects with no staffed work visible. */
-export function teamGanttRows(result:GanttResult,group:GanttGroup,filter:{project:string;person:string;trade:string}){
+export function teamGanttRows(result:GanttResult,group:GanttGroup,filter:{project:string;person:string;trade:string;start?:string;finish?:string}){
  const rows=new Map<string,GanttRow>();
  const ensure=(id:string,name:string,caption='')=>{if(!rows.has(id))rows.set(id,{id,name,caption,unassigned:0,days:new Map(),hours:0});return rows.get(id)!;};
- const assignments=result.allocations.filter(a=>(!filter.project||a.workspaceId===filter.project)&&(!filter.person||a.personId===filter.person)&&(!filter.trade||capacityTrade(a.trade)===filter.trade));
+ const assignments=result.allocations.filter(a=>(!filter.start||a.date>=filter.start)&&(!filter.finish||a.date<=filter.finish)&&(!filter.project||a.workspaceId===filter.project)&&(!filter.person||a.personId===filter.person)&&(!filter.trade||capacityTrade(a.trade)===filter.trade));
  if(group==='Project')for(const p of result.projects)if(!filter.project||p.id===filter.project)ensure(p.id,p.name,p.status);
  if(group==='Person')for(const p of result.people)if(!filter.person||p.id===filter.person)ensure(p.id,p.name,p.primary);
  for(const a of assignments){const row=group==='Project'?ensure(a.workspaceId,a.project):group==='Trade'?ensure(capacityTrade(a.trade),capacityTrade(a.trade)):ensure(a.personId,a.person);

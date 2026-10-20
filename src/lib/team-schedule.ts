@@ -1,4 +1,4 @@
-import {capacityTrade} from './capacity-trades';
+import {staffingTrade} from './capacity-trades';
 import {dayNumber,dateString,monday,type RosterPerson} from './capacity';
 import {isProductionDay,type ProductionCalendar} from './production-calendar';
 import {validDate} from './quote-schedule';
@@ -15,7 +15,7 @@ export function parseTeamOptions(value:unknown):TeamOptions{
  if(new Set(availability.map(a=>a.personId+'|'+a.date)).size!==availability.length)throw Error('Use one availability entry per person per date.');
  return {start:o.start,finish:o.finish,priority:[...o.priority],availability};
 }
-const skill=(s:string)=>capacityTrade(s).trim().toLowerCase();
+const skill=(s:string)=>staffingTrade(s).trim().toLowerCase();
 export function personDayHours(person:TeamPerson,date:string,options:TeamOptions){
  const override=options.availability.find(a=>a.personId===person.id&&a.date===date);
  const weekday=new Date(date+'T00:00:00Z').getUTCDay();

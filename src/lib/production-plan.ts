@@ -1,4 +1,4 @@
-import {capacityTrade} from './capacity-trades';
+import {staffingTrade} from './capacity-trades';
 import {parseWorkback,type Workback} from './workback-model';
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
 import {stageForTrade} from './item-timeline';
@@ -27,7 +27,7 @@ export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,option
  if(!days.length)return {tasks,warnings:['Enter valid build start and finish dates to generate a schedule.'],lateHours:0,unassignedHours:0};
  const workdays=productionDays(iso(days[0]),iso(Math.min(day('2200-12-31'),days[0]+1095)),calendar);
  const rosterHours:Record<string,number>=Object.create(null);
- for(const person of roster)if(person.active)rosterHours[capacityTrade(person.primary)]=(rosterHours[capacityTrade(person.primary)]??0)+person.hours/5;
+ for(const person of roster)if(person.active)rosterHours[staffingTrade(person.primary)]=(rosterHours[staffingTrade(person.primary)]??0)+person.hours/5;
  const seeds:{id:string;itemId:string;item:string;stage:PlanStage;trade:string;hours:number}[]=[];
  for(const line of calculation.lines){
   if(!shopTypes.has(line.type)&&line.type!=='Design / Engineering / CAD')continue;
@@ -63,7 +63,7 @@ export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,option
   for(const id of dependencies){const prior=placed.get(id)!;if(prior.hours===0)continue;if(!prior.finish||sum(prior.daily.map(d=>d.hours))<prior.hours-1e-8){earliest=workdays.length;continue;}earliest=Math.max(earliest,workdays.indexOf(day(prior.finish))+1+(rule.lagDays??0)+(prior.stage==='cad'&&seed.stage!=='cad'?options.rampDays:0));}
   if(rule.start){const requested=day(rule.start),index=workdays.findIndex(d=>d>=requested);earliest=Math.max(earliest,index<0?workdays.length:index);}
   const hours=rule.remainingHours??seed.hours;
-  const pool=capacityTrade(seed.trade),available=rosterHours[pool];
+  const pool=staffingTrade(seed.trade),available=rosterHours[pool];
   const dailyLimit=rule.dailyHours??Math.min(quote.settings.shopDay||8,available||quote.settings.shopDay||8);
   if(available===undefined||available===0)warnings.push(`${seed.trade}: no active primary-trade staffing; assuming ${dailyLimit} crew-hours/day for timing only.`);
   const budget=available&&available>0?available:dailyLimit;

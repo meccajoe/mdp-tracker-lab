@@ -1,5 +1,11 @@
 # Lab status
 
+## Capacity layout and packing staffing — October 19, 2026
+- Team Schedule places Gantt and filters above proposal controls/details; removed Larger days. Date inputs default to today through 27 days later and immediately clip the view/assigned lane totals, keeping all project lanes and undated shortages. Generate remains explicit; saved schedules are not rewritten by viewing.
+- Availability/time-off editor temporarily hidden. Existing latest-proposal exceptions within selected dates and priority order are retained on generation. Old schedules and roster unchanged.
+- Packing/stage-prep trade aliases use I&D staffing in new project proposals and named team scheduling, with one person/day/week budget. Original task/trade identities and saved approvals retained. Field crew bookings remain separate from named shop assignments: shared capacity charts include field demand; review those before approval.
+- Overview/Field Load default to 4 weeks. Notes and missing-date/status flags are collapsed under Notes & flags. Guidebook updated. 191 tests, TypeScript and production webpack build passed; no migration. Deployment/live verification pending.
+
 ## Read-only bot reporting — October 19, 2026
 - Joe authorized Lab-only read-only reporting excluding wages/financial details. Added GET /api/lab-reporting/v1 for projects, roster skills/availability, shared shop/field capacity and latest/approved team schedules. Reuses dashboard math, explicitly projects response fields, excludes raw workbooks, wage rates, all financial amounts, staff/plan notes and freeform warning bodies. Reports include source revisions and stale flags; no schedule generation or write actions. Separate expiring SHA-256-registered opaque credentials do not authorize human APIs, database or browser login. No domain allowlist change or production work.
 - Added credential generator (exclusive 0600 file, never prints token), dependency-free HTTP client, setup/rotation/revocation guide and Grok Bot instructions. Official Grok Bot docs support scripts consuming stored secrets and remote HTTPS MCP; HTTP is sufficient for script access, MCP is optional. Actual Paul Bot setup remains in his session; no Tracker payload sent to xAI here.

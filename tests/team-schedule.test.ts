@@ -43,3 +43,11 @@ test('zero remaining tasks do not block successors and lag follows actual alloca
 });
 
 test('database JSON key order does not falsely mark saved sources stale',()=>{assert.equal(sameTeamSources({roster:1,quotes:[{id:'a',quote:2,plan:3}]},{quotes:[{plan:3,quote:2,id:'a'}],roster:1}),true);assert.equal(sameTeamSources({roster:1,quotes:[]},{roster:2,quotes:[]}),false);});
+
+test('packing and stage/prep share the I&D person budget across projects',()=>{
+ const crew={...person,primary:'I&D',secondary:'Crate & pack'};
+ const r=scheduleTeam([task('pack',{trade:'Crate & pack',hours:24}),task('prep',{trade:'Stage / Pack / Prep',hours:24})],[crew],options);
+ assert.equal(r.assignedHours,40);assert.equal(r.unfilled.reduce((n,t)=>n+t.hours,0),8);
+ assert.ok(r.allocations.every(a=>a.personId===crew.id&&!a.secondary));
+ for(const date of new Set(r.allocations.map(a=>a.date)))assert.ok(r.allocations.filter(a=>a.date===date).reduce((n,a)=>n+a.hours,0)<=8);
+});
