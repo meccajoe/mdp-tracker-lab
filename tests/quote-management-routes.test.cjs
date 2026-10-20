@@ -75,3 +75,11 @@ test('forecast saves only status metadata, rejects stale input and preserves pri
  assert.equal((await post()).status,200);assert.equal(inserted.document.schedule.status,'Likely');assert.equal(inserted.document.planning.status,'');assert.equal(original.planning.status,'Lost');assert.equal(inserted.document.planning.remainingShop,18);assert.deepEqual(inserted.document.lines,original.lines);assert.deepEqual(inserted.document.settings,original.settings);
  archived=true;assert.equal((await post()).status,403);archived=false;allowed=false;assert.equal((await post()).status,403);
 });
+test('client edit requires access, rejects blank/stale names and preserves other metadata',async()=>{
+ let permitted=false,calls=[];
+ const actor={ok:true,actorEmail:'paul@example.com',actorSupabase:{from:()=>query({title:'Project',client_name:'Old client',contact_name:'Contact',ada_project_id:'linked-project'}),rpc:(name,args)=>{calls.push(args);return query({client_name:args.p_client_name});}}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/client/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}}});
+ const patch=(clientName,expectedClientName='Old client')=>route.PATCH(new Request('https://lab.test',{method:'PATCH',body:JSON.stringify({clientName,expectedClientName})}),{params:Promise.resolve({workspaceId:id})});
+ assert.equal((await patch('New')).status,403);permitted=true;assert.equal((await patch('')).status,400);assert.equal((await patch('New','Other')).status,409);assert.equal(calls.length,0);
+ assert.equal((await patch('New')).status,200);assert.equal(calls[0].p_title,'Project');assert.equal(calls[0].p_contact_name,'Contact');assert.equal(calls[0].p_ada_project_id,'linked-project');assert.equal(calls[0].p_client_name,'New');
+});

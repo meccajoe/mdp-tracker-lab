@@ -1,4 +1,6 @@
 "use client";
+import {forecastLabel} from '@/lib/quote-schedule';
+import {QuoteClientName} from './quote-client-name';
 import {WorkbackSchedule} from './workback-schedule';
 import {QuoteStatusControl} from "./quote-status-control";
 import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
@@ -179,7 +181,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     {!!document?.importNotes?.length&&<details className="mb-2 text-xs"><summary>Spreadsheet import corrections ({document.importNotes.length})</summary><ul className="max-h-32 overflow-y-auto">{document.importNotes.map((note,index)=><li key={index}>{note}</li>)}</ul></details>}
     {document?.assumptionsVersion.startsWith('xlsx-v27-')&&<p className="mb-2 text-xs text-amber-800">Imported spreadsheet: prices and takeoffs were reconciled at import. Later edits, including applying new levy pricing, can change those totals. Install, travel, shipping and beMatrix detail sheets were not imported; their recorded outputs remain in Quote Builder. Keep the original workbook for those details.</p>}
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><h1 className="text-xl font-semibold">{libraryItem?`Prequote item — ${document?.lines[0]?.name??'Loading…'}`:quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
+      <div><h1 className="text-xl font-semibold">{libraryItem?`Quoted Item Database — ${document?.lines[0]?.name??'Loading…'}`:quoteName??'Quote builder'}</h1><p className="mt-1 text-sm text-muted-foreground">Paul’s v27 · Editable takeoffs, pricing and production budget</p><p role="status" className="mt-2 text-xs">{busy ? 'Working…' : saving?'Saving…':message} · Autosave every 60 seconds{!canEdit && !busy ? ' · Read-only' : ''}</p></div>
       <div className="flex flex-wrap gap-2">
         {document && <>
           <button className={button} disabled={!canEdit||busy||(!edits.current?.past.length&&!pendingInput)} title="Undo last change (⌘/Ctrl+Z)" onClick={()=>travelEdits('undo')}>↶ Undo</button>
@@ -190,9 +192,10 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
         <button className={`${button} bg-foreground text-background`} disabled={!document || (!dirty&&!pendingInput) || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
       </div>
     </div>
+    {!libraryItem&&<QuoteClientName workspaceId={workspaceId} disabled={!canEdit||busy}/>}
     {document&&!libraryItem&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
       {([['buildStart','Build Start'],['buildFinish','Build Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
-      <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,status:event.target.value as typeof EMPTY_SCHEDULE.status};})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label>
+      <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,status:event.target.value as typeof EMPTY_SCHEDULE.status};})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></label>
       <label className="text-xs">Sales commission %<input className={`${control} block w-28`} type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={document.commission===0?'':Number((document.commission*100).toFixed(8))} placeholder="—" onChange={event=>edit(next=>{next.commission=Number(event.target.value)/100;})}/></label>
       <a className="text-xs underline" href={`/capacity/${workspaceId}`}>Project capacity & timeline</a>
     </fieldset>}

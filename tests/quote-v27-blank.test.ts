@@ -6,10 +6,10 @@ import { parseQuoteV27 } from '../src/lib/quote-v27-validation';
 
 test('blank template has named rows, no project estimates or manual prices, and zero totals', () => {
   const quote=createBlankQuoteV27();
-  assert.equal(quote.lines.length,37);
+  assert.equal(quote.lines.length,36);
   assert.equal(quote.lines[0].name,'Item 1');
   assert.equal(quote.lines[14].name,'Item 15');
-  assert.equal(quote.lines[22].name,'beMatrix walls');
+  assert.ok(!quote.lines.some(line=>line.type==='beMatrix / SEG'));
   assert.equal(quote.lines.at(-1)?.name,'Freight');
   assert.equal(quote.catalog.length,699);
   assert.equal(quote.takeoffs.length,0);

@@ -15,7 +15,7 @@ export function emptyEstimators() {
       rates:{airfare:1000,hotel:450,perDiem:70,vehicle:65,vehicles:1,baggage:100,roadBonus:50,other:0},
       leadLineId:null as string|null,otherLineId:null as string|null,pmLineId:null as string|null},
     shipping:{outbound:leg(),return:leg(),rates:{fuel:6.5,mpg:8,wear:0.8,rentalDay:250,rentalMile:0.35,driverDay:410,milesPerDay:500},lineId:null as string|null},
-    beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE)[]},
+    beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE & {name?:string;dimensionUnit?:'ft'|'in'})[]},
   };
 }
 export type SupportDay = {installDays:number;dismantleDays:number;offDays:number};
@@ -51,6 +51,11 @@ export function parseEstimators(value: unknown): Estimators {
       if(Math.abs(daily.reduce((sum,row)=>sum+row[key],0)-parsed.install.support[key])>1e-8)throw new Error('Support day grid and person-day totals disagree.');
     }
   }
+  const sourceWalls=(value as Estimators).beMatrix.walls;
+  parsed.beMatrix.walls.forEach((wall,i)=>{const source=sourceWalls[i];
+    if(source.name!==undefined){if(typeof source.name!=='string'||!source.name.trim()||source.name.length>200)throw new Error('Enter a wall name (up to 200 characters).');wall.name=source.name;}
+    if(source.dimensionUnit!==undefined){if(!['ft','in'].includes(source.dimensionUnit))throw new Error('Choose feet or inches.');wall.dimensionUnit=source.dimensionUnit;}
+  });
   if(parsed.version!==1) throw new Error('Unsupported estimator version.');
   if(parsed.travel.people.pm.useInstallDays) throw new Error('The PM has no linked installer day counts.');
   if(new Set(parsed.beMatrix.walls.map(w=>w.id)).size!==parsed.beMatrix.walls.length) throw new Error('Wall IDs must be unique.');

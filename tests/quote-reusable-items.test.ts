@@ -1,3 +1,4 @@
+import {addQuoteWall,renameQuoteWall} from '../src/lib/quote-wall-items';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
@@ -20,7 +21,7 @@ test('reusable item uses current catalog, keeps source immutable and clones stab
 });
 test('beMatrix linked wall includes rental and SEG; unlinked wall contributes nothing',()=>{
  const q=createBlankQuoteV27();q.commission=0;
- const line=q.lines.find(line=>line.type==='beMatrix / SEG')!;
+ addQuoteWall(q);const line=q.lines.find(line=>line.type==='beMatrix / SEG')!;
  q.estimators!.beMatrix.walls=[{id:'wall',lineId:line.id,width:22,height:10,sides:2,sqftOverride:null}];
  const value=calculateQuoteV27(q).lines.find(row=>row.id===line.id)!;
  assert.equal(value.calculatedInputs.sqft,440);assert.equal(value.calculatedInputs.rental,3500);
@@ -33,7 +34,7 @@ import {prequoteSnapshot} from '../src/lib/quote-prequote';
 import {takeoffWorksheetRows} from '../src/lib/quote-takeoff-grid';
 test('independent library snapshots exclude other items and preserve service calculations',()=>{
  const q=createBlankQuoteV27();q.lines[0].name='Cabinet';q.schedule={buildStart:'2026-10-06',buildFinish:'2026-10-08',installDate:'',status:'Possible'};
- const wallLine=q.lines.find(line=>line.type==='beMatrix / SEG')!;
+ addQuoteWall(q);const wallLine=q.lines.find(line=>line.type==='beMatrix / SEG')!;
  q.estimators!.beMatrix.walls=[{id:'wall',lineId:wallLine.id,width:22,height:10,sides:2,sqftOverride:null}];
  q.estimators!.install.lead.installDays=5;
  const before=JSON.stringify(q),saved=parseQuoteV27(prequoteSnapshot(q,wallLine.id));
@@ -61,7 +62,7 @@ test('clearing an item resets its slot, removes its rows/links, preserves other 
  assert.equal(next.lines.length,before.lines.length);assert.equal(next.lines[0].id,item.id);assert.equal(next.lines[0].name,'Item 1');
  assert.equal(calculateQuoteV27(parseQuoteV27(next)).lines[0].finalPrice,0);assert.equal(next.takeoffs.length,1);assert.deepEqual(next.takeoffs[0],before.takeoffs[1]);assert.deepEqual(next.lines[1],before.lines[1]);
  const restored=moveEditHistory(recordEdit(newEditHistory(before),next),'undo');assert.deepEqual(restored.present,before);
- const frame=next.lines.find(line=>line.type==='beMatrix / SEG')!;next.estimators!.beMatrix.walls=[{id:'test',lineId:frame.id,width:10,height:8,sides:1,sqftOverride:null}];clearQuoteItem(next,frame.id);assert.equal(next.estimators!.beMatrix.walls.length,0);assert.doesNotThrow(()=>parseQuoteV27(next));
+ addQuoteWall(next);const frame=next.lines.find(line=>line.type==='beMatrix / SEG')!;next.estimators!.beMatrix.walls=[{id:'test',lineId:frame.id,width:10,height:8,sides:1,sqftOverride:null}];clearQuoteItem(next,frame.id);assert.equal(next.estimators!.beMatrix.walls.length,0);assert.doesNotThrow(()=>parseQuoteV27(next));
  const installer=next.estimators!.install.lead.lineId!;clearQuoteItem(next,installer);assert.equal(next.estimators!.install.lead.lineId,null);assert.doesNotThrow(()=>parseQuoteV27(next));
 });
 
@@ -80,7 +81,7 @@ test('item clone preserves recorded costs and overrides with independent rows; d
  deleteQuoteItem(q,id);assert.deepEqual(q,original);parseQuoteV27(q);
 });
 test('cloning linked estimators preserves effective inputs and independent beMatrix walls',()=>{
- const q=createBlankQuoteV27(),frame=q.lines.find(line=>line.type==='beMatrix / SEG')!;
+ const q=createBlankQuoteV27();addQuoteWall(q);const frame=q.lines.find(line=>line.type==='beMatrix / SEG')!;
  q.estimators!.beMatrix.walls=[{id:'frame',lineId:frame.id,width:22,height:10,sides:2,sqftOverride:null}];
  const before=calculateQuoteV27(q).lines.find(line=>line.id===frame.id)!;
  const id=cloneQuoteItem(q,frame.id);assert.equal(q.estimators!.beMatrix.walls.length,2);
@@ -92,4 +93,14 @@ test('cloning linked estimators preserves effective inputs and independent beMat
  const clonedLead=cloneQuoteItem(q,lead);
  assert.equal(calculateQuoteV27(parseQuoteV27(q)).lines.find(line=>line.id===clonedLead)!.finalPrice,leadBefore.finalPrice);
  deleteQuoteItem(q,lead);assert.equal(q.estimators!.install.lead.lineId,null);parseQuoteV27(q);
+});
+
+test('new walls have independent linked items; renaming and unit display preserve price and history',()=>{
+ const q=createBlankQuoteV27();addQuoteWall(q);addQuoteWall(q);const walls=q.estimators!.beMatrix.walls;
+ assert.notEqual(walls[0].lineId,walls[1].lineId);walls[0].width=10;walls[0].height=8;walls[1].width=5;walls[1].height=8;
+ const before=structuredClone(q),price=calculateQuoteV27(q).totals.price;
+ renameQuoteWall(q,walls[0].id,'Golden Arch');walls[0].dimensionUnit='in';
+ const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));assert.equal(saved.estimators!.beMatrix.walls[0].dimensionUnit,'in');assert.equal(saved.lines.find(l=>l.id===walls[0].lineId)!.name,'Golden Arch');
+ assert.equal(calculateQuoteV27(saved).totals.price,price);assert.equal(before.estimators!.beMatrix.walls[0].name,'Wall 1');
+ assert.equal(calculateQuoteV27(saved).estimators!.walls[0].sqft,80);assert.equal(calculateQuoteV27(saved).estimators!.walls[1].sqft,40);
 });

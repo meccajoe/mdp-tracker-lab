@@ -23,7 +23,7 @@ export function useQuoteItemActions({quote,edit,readOnly,libraryItem=false,onCha
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{try{edit(next=>{cloneQuoteItem(next,id);});setError('');onChanged?.();}catch(error){setError(error instanceof Error?error.message:'Could not clone item.');}}}>Clone</DropdownMenuItem>
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{setRename(id);setName(line?.name??'');}}>Rename item</DropdownMenuItem>
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>setPendingDelete(id)}>Delete</DropdownMenuItem>
-    <DropdownMenuItem disabled={readOnly||saving||!line} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line?.name} to the Prequote items library.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save as prequote item</DropdownMenuItem>
+    <DropdownMenuItem disabled={readOnly||saving||!line} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line?.name} to the Quoted Item Database.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save to Quoted Item Database</DropdownMenuItem>
    </DropdownMenuContent>
   </DropdownMenu>;
  }

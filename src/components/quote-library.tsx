@@ -1,4 +1,5 @@
 'use client';
+import {forecastLabel} from '@/lib/quote-schedule';
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
 import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from './ui/dropdown-menu';
@@ -64,7 +65,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
      {!archived&&<DropdownMenuItem onClick={()=>open('rename',w)}>Rename</DropdownMenuItem>}<DropdownMenuItem disabled={!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</DropdownMenuItem><DropdownMenuItem onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</DropdownMenuItem>
     </DropdownMenuContent></DropdownMenu><Link className="font-semibold hover:underline" href={`/quotes/${w.id}`}>{w.title}</Link></div></TableCell><TableCell>{w.client_name||'—'}</TableCell>
    <TableCell><select className="rounded border p-1.5" aria-label={`Status · ${w.title}`} disabled={busy||archived||!ready} value={w.quote_status} onChange={e=>void changeStatus(w,e.target.value)}><option value="draft">Draft</option><option value="final" disabled={!w.workbook_revision}>Final</option></select></TableCell>
-   <TableCell><select aria-label={`Forecast Status · ${w.title}`} className="rounded border p-1.5 max-w-full" disabled={busy||archived||!w.workbook_revision} value={w.forecast_status} onChange={e=>void changeForecast(w,e.target.value)}><option value="">Not Set</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></TableCell>
+   <TableCell><select aria-label={`Forecast Status · ${w.title}`} className="rounded border p-1.5 max-w-full" disabled={busy||archived||!w.workbook_revision} value={w.forecast_status} onChange={e=>void changeForecast(w,e.target.value)}><option value="">Not Set</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></TableCell>
    <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
    <TableCell>{w.quote_status==='final'?<QuoteCadDownload workspaceId={w.id} version={w.status_version}/>:<span className="text-xs text-muted-foreground">Available when Final</span>}</TableCell>
    {['BOM','Budget Handoff'].map(tab=><TableCell key={tab}>{w.workbook_revision?<Link className="underline text-teal-800" href={`/quotes/${w.id}?tab=${encodeURIComponent(tab)}`}>Open {tab}</Link>:<span className="text-xs text-muted-foreground">No saved workbook</span>}</TableCell>)}

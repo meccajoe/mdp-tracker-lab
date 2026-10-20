@@ -16,6 +16,8 @@ export function createBlankQuoteV27() {
   estimators.travel.otherLineId = 'line-34';
   estimators.shipping.lineId = 'line-41';
   quote.estimators = estimators;
+  // New quotes create individual wall items from the estimator; retain historical aggregate rows in saved quotes.
+  quote.lines=quote.lines.filter(line=>line.type!=='beMatrix / SEG');
   applyLevyPricing(quote);
   quote.pricingVersion = "scoped-levies-v2";
   return quote;

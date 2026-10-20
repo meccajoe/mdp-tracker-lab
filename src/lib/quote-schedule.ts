@@ -16,3 +16,5 @@ export function parseSchedule(value:unknown):QuoteSchedule {
  if(schedule.buildStart&&schedule.buildFinish&&schedule.buildFinish<schedule.buildStart)throw new Error('Build finish must be on or after build start.');
  return schedule;
 }
+
+export const forecastLabel=(status:string)=>status==='Lost'?'Closed Lost':status;

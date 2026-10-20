@@ -1,5 +1,12 @@
 # Lab status
 
+## Quoted Item Database, client editing and named walls — October 19, 2026
+- Renamed visible Prequote items UI to Quoted Item Database; routes/storage remain compatible. Forecast dropdowns show Closed Lost while preserving the historical Lost code and zero demand.
+- Quote header client editor uses authenticated workspace metadata service, requires a nonblank name, checks expected prior client and preserves project/contact links. It does not rewrite quote revision pricing or pinned finalized artifacts.
+- New blank quotes omit the generic beMatrix walls service row. Add wall uses the next empty item or appends a new beMatrix/SEG item, uniquely linked to that wall. Wall names update singly linked quote items. Existing grouped walls, imported totals, input overrides and price overrides stay intact. Optional wall name/unit metadata survives parsing; dimensions stay stored/calculated in feet and the editor converts inches. Width label becomes length.
+- No Install business rule is pending Paul's answer: date/milestone only versus removing installation charges. No install behavior changed yet.
+- 193 tests and TypeScript passed; production build passed. New tests cover independent wall item identity, metadata roundtrip/price preservation and authorized/blank/stale client edits. Deployment/live verification pending; no migration.
+
 ## Capacity layout and packing staffing — October 19, 2026
 - Team Schedule places Gantt and filters above proposal controls/details; removed Larger days. Date inputs default to today through 27 days later and immediately clip the view/assigned lane totals, keeping all project lanes and undated shortages. Generate remains explicit; saved schedules are not rewritten by viewing.
 - Availability/time-off editor temporarily hidden. Existing latest-proposal exceptions within selected dates and priority order are retained on generation. Old schedules and roster unchanged.

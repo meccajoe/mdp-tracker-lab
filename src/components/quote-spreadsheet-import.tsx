@@ -1,4 +1,5 @@
 'use client';
+import {forecastLabel} from '@/lib/quote-schedule';
 import {useRef,useState} from 'react';
 import Link from 'next/link';
 import {adaFetch} from '@/lib/ada-client';
@@ -91,7 +92,7 @@ export function QuoteSpreadsheetImport(){
     <label>Project Name<input className={inputClass} value={title} disabled={busy||!!workspaceId} onChange={e=>setTitle(e.target.value)}/></label>
     <label>Client Name<input className={inputClass} value={client} disabled={busy||!!workspaceId} onChange={e=>setClient(e.target.value)}/></label>
     {(['buildStart','buildFinish','installDate'] as const).map(key=><label key={key}>{({buildStart:'Build start',buildFinish:'Build finish',installDate:'Install date'})[key]}<input className={inputClass} type="date" defaultValue={schedule[key]} disabled={busy||!!workspaceId} onBlur={e=>{const value=e.target.value;setSchedule(previous=>({...previous,[key]:value}));}}/></label>)}
-    <label>Forecast status<select className={inputClass} value={schedule.status} disabled={busy||!!workspaceId} onChange={e=>setSchedule(previous=>({...previous,status:e.target.value as QuoteSchedule['status']}))}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status}>{status}</option>)}</select></label>
+    <label>Forecast status<select className={inputClass} value={schedule.status} disabled={busy||!!workspaceId} onChange={e=>setSchedule(previous=>({...previous,status:e.target.value as QuoteSchedule['status']}))}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></label>
    </div>
    <div className="rounded border bg-sky-50 p-3 text-sm text-slate-900"><p>{preview.document.lines.length} quote lines · {preview.document.takeoffs.length} takeoff rows · Quote total {preview.demand.price.toLocaleString('en-US',{style:'currency',currency:'USD'})}</p><p>Shop: {preview.demand.shop} hrs · Field: {preview.demand.field} hrs · Design: {preview.demand.design} hrs</p><ul>{Object.entries(preview.demand.trades).map(([trade,hours])=><li key={trade}>{trade}: {hours} hrs</li>)}</ul></div>
    <ul className="text-sm text-muted-foreground list-disc pl-5">{preview.warnings.map(warning=><li key={warning}>{warning}</li>)}</ul>

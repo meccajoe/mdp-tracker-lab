@@ -12,10 +12,10 @@ export function QuoteExistingItemDialog({open,onOpenChange,quote,edit,live,readO
  async function insert(id:string){if(readOnly||inserting||!live)return;setInserting(true);setError('');try{const response=await adaFetch(`/api/prequote-items/${id}`),data=await response.json();if(!response.ok)throw new Error(data.error);const source=parseQuoteV27(data.document);let added='';edit(next=>{added=insertReusableItem(next,source,source.lines[0].id,live);});onInserted(added);onOpenChange(false);}catch(error){setError(error instanceof Error?error.message:'Could not add existing item.');}finally{setInserting(false);}}
  const matches=items.filter(item=>item.title.toLowerCase().includes(query.toLowerCase()));
  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent onKeyDown={event=>event.stopPropagation()}>
-  <DialogTitle>Add Existing Item</DialogTitle><DialogDescription>Choose a saved prequote item. It will fill the next empty item and takeoff rows using current inventory prices.</DialogDescription>
+  <DialogTitle>Add Existing Item</DialogTitle><DialogDescription>Choose a saved quoted item. It will fill the next empty item and takeoff rows using current inventory prices.</DialogDescription>
   <input autoFocus aria-label="Search existing items" placeholder="Search items…" className="rounded border p-2" value={query} onChange={event=>setQuery(event.target.value)}/>
   {error&&<p role="alert">{error}</p>}{!live&&<p role="status">Waiting for current inventory prices…</p>}
-  <div className="max-h-80 overflow-y-auto" aria-label="Existing items">{loading?<p role="status">Loading saved items…</p>:matches.map(item=><button type="button" className="block w-full rounded border-b p-3 text-left hover:bg-accent" key={item.item_id} disabled={readOnly||inserting||!live} onClick={()=>void insert(item.item_id)}>{item.title}</button>)}{!loading&&!error&&!matches.length&&<p>{items.length?'No matching items.':'No saved prequote items yet. Use Save as prequote item on an item’s menu.'}</p>}</div>
-  <a href="/prequote-items" className="text-xs underline">Manage saved prequote items</a>
+  <div className="max-h-80 overflow-y-auto" aria-label="Existing items">{loading?<p role="status">Loading saved items…</p>:matches.map(item=><button type="button" className="block w-full rounded border-b p-3 text-left hover:bg-accent" key={item.item_id} disabled={readOnly||inserting||!live} onClick={()=>void insert(item.item_id)}>{item.title}</button>)}{!loading&&!error&&!matches.length&&<p>{items.length?'No matching items.':'No saved Quoted Item Database yet. Use Save as quoted item on an item’s menu.'}</p>}</div>
+  <a href="/prequote-items" className="text-xs underline">Manage saved Quoted Item Database</a>
  </DialogContent></Dialog>;
 }
