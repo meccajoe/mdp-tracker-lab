@@ -47,3 +47,22 @@
 .liveScheduleTitle {display:block;font-size:17px;font-weight:700}
 .liveScheduleSummary p {font-size:16px;font-weight:600;line-height:1.5;margin:4px 0;font-variant-numeric:tabular-nums}
 .liveScheduleSummary small {display:block;font-size:12px;line-height:1.5;color:#52677a}
+
+/* Projects uses the same neutral list treatment as Quotes. */
+.projectsPage {background:var(--background,#fff);color:var(--foreground,#171717);font-family:inherit;font-size:14px}
+.projectsPage>header {box-shadow:none;border-color:#e5e7eb}
+.projectsPage>nav {background:#f8fafc;border-color:#e2e8f0}
+.projectsPage>nav button {color:#475569}
+.projectsPage>nav button[aria-selected=true] {background:#fff;color:#134e4a;box-shadow:0 1px 2px #0000000d,inset 0 0 0 1px #e2e8f0}
+.projectsPage button {background:transparent;border-color:#e5e7eb;border-radius:6px;color:inherit}
+.projectsPage button:hover:not(:disabled) {background:#f5f5f5;border-color:#d4d4d4}
+.projectsPage a {color:inherit}
+.projectsPage input,.projectsPage select {border-color:#e5e7eb;border-radius:6px}
+.projectsPage input:focus,.projectsPage select:focus,.projectsPage button:focus-visible {outline-color:#a3a3a3}
+.projectsPage .scroll {border-color:#e5e7eb;border-radius:12px}
+.projectsPage table {font-size:14px;width:100%}
+.projectsPage th,.projectsPage td {border-right:0;border-bottom:1px solid #e5e7eb;padding:12px 10px}
+.projectsPage thead th {background:#fafafa;color:#171717;font-weight:500}
+.projectsPage thead button {border:0;padding:0;text-align:left}
+.projectsPage tbody th {background:#fff;font-weight:600;white-space:normal;min-width:240px}
+.projectsPage tbody tr:hover,.projectsPage tbody tr:hover th {background:#fafafa}
