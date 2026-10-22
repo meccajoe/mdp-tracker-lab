@@ -1,5 +1,9 @@
 # Lab status
 
+## Scheduling attention display — October 21, 2026
+- Replaced the long unassigned-work table with Projects Needing Scheduling Attention. Each project starts collapsed, shows total hours to review, and expands to plain-language next steps grouped by reason with item/trade/hour details. Group identity uses the saved task workspace prefix, preserving separate projects with identical names. Full saved-schedule scope is labeled; this is not a claim of staffing shortage.
+- Simplified stale-schedule warning; approval protections and saved proposals, quotes, roster and calculations unchanged. No migration or schedule generation. 193 tests, TypeScript and production webpack build passed. Hosted verification pending deployment.
+
 ## Quoted Item Database, client editing and named walls — October 19, 2026
 - Renamed visible Prequote items UI to Quoted Item Database; routes/storage remain compatible. Forecast dropdowns show Closed Lost while preserving the historical Lost code and zero demand.
 - Quote header client editor uses authenticated workspace metadata service, requires a nonblank name, checks expected prior client and preserves project/contact links. It does not rewrite quote revision pricing or pinned finalized artifacts.

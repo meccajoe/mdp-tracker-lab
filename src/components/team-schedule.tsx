@@ -10,6 +10,37 @@ type Result=TeamResult&{projects:{id:string;name:string;status:string}[]};
 type Saved={revision:number;created_at:string;document:{result:Result}};
 type State={latest:Saved|null;approved:Saved|null;stale:boolean;approvedStale:boolean};
 const n=(v:number)=>v.toLocaleString(undefined,{maximumFractionDigits:1});
+const attentionNotes:Record<string,string>={
+ 'Build deadline is before this schedule':'The build deadline falls before this schedule starts. If the project is finished, mark it Completed. Otherwise, review its build dates and remaining work.',
+ 'Prerequisite unfinished or missing':'An earlier production step could not be scheduled or has not been marked complete. Review that step before scheduling the work that follows.',
+ 'No active employee with this trade':'No active roster member has this trade listed. Review primary and secondary trades on the roster.',
+ 'Task starts beyond this schedule':'This work starts after the saved schedule ends. Extend the schedule dates when you are ready to plan it.',
+ 'Insufficient availability inside fixed task dates':'The available team hours do not fit within this task’s fixed dates. Review staffing or the approved task dates.',
+ 'Insufficient eligible hours before deadline or end of view':'The scheduler could not fit all of this work before its deadline or the end of the saved schedule. Review staffing, work dates and the schedule range.',
+};
+function SchedulingAttention({result}:{result:Result}){
+ const projects=new Map<string,{name:string;rows:TeamResult['unfilled']}>();
+ for(const row of result.unfilled){
+  const id=row.taskKey.split('|')[0];
+  const group=projects.get(id)??{name:row.project,rows:[]};
+  group.rows.push(row);projects.set(id,group);
+ }
+ return <section className={styles.attention} aria-label="Projects Needing Scheduling Attention">
+  <h3>Projects Needing Scheduling Attention</h3>
+  <p>Open a project to see what needs review. Hours shown here are not assigned yet; they do not always mean you need more staff. This covers the full saved schedule.</p>
+  {Array.from(projects,([id,group])=><details key={id} className={styles.attentionProject}>
+   <summary><strong>{group.name}</strong><span>{n(group.rows.reduce((sum,row)=>sum+row.hours,0))} hours to review</span></summary>
+   <div className={styles.attentionNotes}>{Array.from(new Set(group.rows.map(row=>row.reason)),reason=>{
+    const rows=group.rows.filter(row=>row.reason===reason);
+    return <div key={reason} className={styles.attentionNote}>
+     <p>{attentionNotes[reason]??reason}</p>
+     <ul>{rows.map(row=><li key={row.taskKey}><strong>{row.item}</strong> · {row.trade} · {n(row.hours)} hours</li>)}</ul>
+    </div>;
+   })}</div>
+  </details>)}
+  {!projects.size&&<p>No unassigned work in this saved schedule.</p>}
+ </section>;
+}
 export function TeamSchedule({disabled}:{roster:RosterPerson[];disabled:boolean}){
  const today=new Date().toLocaleDateString('en-CA');
  const [options,setOptions]=useState<TeamOptions>({start:today,finish:dateString(dayNumber(today)+27),priority:[],availability:[]});
@@ -30,12 +61,12 @@ export function TeamSchedule({disabled}:{roster:RosterPerson[];disabled:boolean}
 </>}
  {error&&<p role="alert" className={styles.error}>{error}</p>}
  <div className={styles.toolbar}><button disabled={busy||disabled||!state} onClick={()=>void save('generate')}>Generate & save proposal</button><button disabled={busy} onClick={()=>void reload().then(()=>setError('')).catch(e=>setError(e.message))}>Reload saved schedule</button><label>View<select value={view} onChange={e=>setView(e.target.value)}><option value="latest">Latest proposal / schedule</option><option value="approved">Last approved schedule</option></select></label></div>
- {result?<><h3>{state?.approved?.revision===saved?.revision?'Approved':'Proposed'} · revision {saved?.revision}</h3><p>{result.options.start} — {result.options.finish} · {result.projects.length} projects · {n(result.assignedHours)} assigned / {n(result.totalHours)} required hours · {n(result.unfilled.reduce((s,t)=>s+t.hours,0))} unassigned</p>{stale&&<p role="alert" className={styles.error}>Source data changed. Generate a fresh proposal before approval. This saved schedule has not been overwritten.</p>}
+ {result?<><h3>{state?.approved?.revision===saved?.revision?'Approved':'Proposed'} · revision {saved?.revision}</h3><p>{result.options.start} — {result.options.finish} · {result.projects.length} projects · {n(result.assignedHours)} assigned / {n(result.totalHours)} required hours · {n(result.unfilled.reduce((s,t)=>s+t.hours,0))} unassigned</p>{stale&&<p role="alert" className={styles.error}>Project or team information has changed since this schedule was saved. Click “Generate & save proposal” to refresh it before approval. Your saved schedule is still intact.</p>}
  <p>Saved availability exceptions within the selected dates are retained when generating. Field crew bookings remain separate; review the shared I&D capacity chart before approving packing assignments.</p>
  <p>These are hours per day, not clock-time shifts. Build deadlines stay fixed; unfinished prerequisites block downstream work. Approved project task windows are respected. Review shortages and CAD readiness before releasing assignments.</p>
  {view==='latest'&&state?.approved?.revision!==saved?.revision&&<button disabled={disabled||busy||stale} onClick={()=>void save('approve')}>Approve assigned work</button>}
  <details><summary>Daily assignment list ({rows.length})</summary><div className={styles.scroll} style={{maxHeight:'60vh'}}><table aria-label="Team daily assignments"><thead><tr>{['Date','Employee','Project','Item','Trade','Hours','Skill'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((a,i)=><tr key={i}><td>{a.date}</td><th>{a.person}</th><td>{a.project}</td><td>{a.item}</td><td>{a.trade}</td><td>{n(a.hours)}</td><td>{a.secondary?'Secondary':'Primary'}</td></tr>)}</tbody></table>{!rows.length&&<p>No assignments in this view.</p>}</div></details>
- {result.unfilled.length>0&&<><h3>Unassigned work — staffing or schedule decisions needed</h3><div className={styles.scroll}><table><thead><tr>{['Project','Item','Trade','Hours','Reason'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{result.unfilled.map(t=><tr key={t.taskKey}><td>{t.project}</td><td>{t.item}</td><td>{t.trade}</td><td>{n(t.hours)}</td><td>{t.reason}</td></tr>)}</tbody></table></div></>}
+ <SchedulingAttention result={result}/>
  {result.warnings.length>0&&<details><summary>Planning assumptions and warnings ({result.warnings.length})</summary><ul>{result.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}</>:<p>No saved schedule in this view. Generate a proposal to review daily assignments.</p>}
  </section>;
 }
