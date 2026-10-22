@@ -1,6 +1,6 @@
 # Separate quote, forecast and project statuses
 
-Implemented on codex/quote-project-status. Not yet released to the lab primary URL.
+Implemented on codex/quote-project-status. Paul confirmed applying the migration in the lab SQL Editor on October 21; releasing to main. Hosted SQL inspection and migration-ledger registration remain unverified. Do not replay.
 
 ## Required lab database step
 
