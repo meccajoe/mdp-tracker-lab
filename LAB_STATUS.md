@@ -1,3 +1,6 @@
+## Team Schedule summary layout — October 21, 2026
+- Moved Live Schedule summary to the right of grouped date fields at desktop widths, with a soft tinted panel and larger 17px title/16px totals. Wraps below controls on narrow screens. Schedule calculations and saved data unchanged. 199 lab tests, TypeScript and production build passed; hosted visual verification pending.
+
 ## Quote list totals and clone names — October 21, 2026
 - Added sortable Quote Total from each latest saved workbook, using its frozen settings/overrides; missing or invalid workbooks show a dash. Documents stay server-side.
 - Clone dialog now accepts a required Project Name, prefilled with the original name plus CLONE; legacy callers retain the default. Source revisions/pricing remain unchanged. No migration.

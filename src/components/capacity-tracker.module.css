@@ -40,3 +40,10 @@
 .attentionNote{padding:8px 0 14px}
 .attentionNote+.attentionNote{border-top:1px solid #e5ebf1}
 .attentionNote ul{padding-left:20px;color:#617589;line-height:1.8}
+
+/* Keep the live totals beside the range on wide screens, wrapping on smaller views. */
+.scheduleDateFields {display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.liveScheduleSummary {flex:1 1 420px;min-width:0;padding:12px 16px;background:#f0f7fa;border:1px solid #d6e5ed;border-radius:8px;color:#213e52}
+.liveScheduleTitle {display:block;font-size:17px;font-weight:700}
+.liveScheduleSummary p {font-size:16px;font-weight:600;line-height:1.5;margin:4px 0;font-variant-numeric:tabular-nums}
+.liveScheduleSummary small {display:block;font-size:12px;line-height:1.5;color:#52677a}
