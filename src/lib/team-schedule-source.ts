@@ -1,13 +1,15 @@
 import {capacityProject,type CapacityQuote,type RosterPerson} from './capacity';
 import {emptyPlan,proposeProductionPlan} from './production-plan';
-import {scheduleTeam,type TeamOptions,type TeamTask} from './team-schedule';
+import {scheduleTeam,type TeamOptions,type TeamTask,type TeamResult} from './team-schedule';
 import {validDate} from './quote-schedule';
 
 /** All source hours remain visible, including unstaffed/unassigned trades. */
-export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],options:TeamOptions){
- const tasks:TeamTask[]=[],warnings:string[]=[];
+export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],options:TeamOptions,allowAttention=false){
+ const tasks:TeamTask[]=[],warnings:string[]=[],attention:TeamResult['unfilled']=[];
  const included=quotes.map(q=>capacityProject(q)).filter(p=>p.committed);
  for(const p of included){
+  const taskStart=tasks.length;
+  try{
   if(!p.document)throw Error(`${p.workspace}: quote unavailable.`);
   if(!validDate(p.schedule.buildStart)||!validDate(p.schedule.buildFinish))throw Error(`${p.workspace}: enter build dates before generating a team schedule.`);
   const plan=p.productionPlan??{...emptyPlan(),calendar:p.document.productionCalendar??emptyPlan().calendar};
@@ -22,7 +24,12 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   for(const t of source){
    tasks.push({key:p.workspaceId+'|'+t.id,workspaceId:p.workspaceId,project:p.workspace,item:t.item,trade:t.trade,hours:t.hours,start:t.start||p.schedule.buildStart,finish:t.finish||p.schedule.buildFinish,deadline:p.schedule.buildFinish,fixed:plan.status==='approved'||t.locked,dailyLimit:plan.rules[t.id]?.dailyHours??Math.max(p.document.settings.shopDay||8,...t.daily.map(d=>d.hours)),lagDays:(plan.rules[t.id]?.lagDays??0)+(t.predecessors.some(id=>source.find(s=>s.id===id)?.stage==='cad')?plan.rampDays:0),predecessors:t.predecessors.map(id=>p.workspaceId+'|'+id),calendar:plan.calendar,completed:plan.actuals[t.id]?.completed??'',external:t.stage==='cad'});
   }
+  }catch(error){
+   if(!allowAttention)throw error;
+   tasks.splice(taskStart);
+   attention.push({taskKey:p.workspaceId+'|attention',project:p.workspace,item:'Project schedule',trade:'Shop work',hours:p.shop,reason:error instanceof Error?error.message:'Review this project’s dates and schedule.'});
+  }
  }
  const result=scheduleTeam(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
- return {...result,warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
+ return {...result,totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
 }

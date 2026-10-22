@@ -77,3 +77,15 @@ test('explicit Not Active and Complete stay out of team scheduling while Active 
  const r=buildTeamSchedule(['Not Active','Complete','Active'].map((status,i)=>({workspaceId:String(i),workspace:status,version:1,document:{...q,schedule:{...q.schedule!,projectStatus:status as 'Not Active'|'Complete'|'Active'}}})),[],options);
  assert.deepEqual(r.projects.map(p=>p.name),['Active']);
 });
+
+test('live scheduling includes projects needing dates without blocking other Active projects',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:options.start,buildFinish:options.finish,installDate:'',status:'Closed won',projectStatus:'Active'};q.lines[0].overrides.hours=8;
+ const quotes=[{workspaceId:'ok',workspace:'Ready',version:1,document:q},{workspaceId:'missing',workspace:'Missing dates',version:1,document:{...q,schedule:{...q.schedule,buildStart:''}}}];
+ const before=JSON.stringify(quotes);
+ assert.throws(()=>buildTeamSchedule(quotes,[],options));
+ const live=buildTeamSchedule(quotes,[],options,true);
+ assert.equal(live.projects.length,2);assert.equal(live.totalHours,16);
+ assert.equal(live.unfilled.reduce((sum,row)=>sum+row.hours,0),16);
+ assert.ok(live.unfilled.some(row=>row.taskKey==='missing|attention'&&row.reason.includes('build dates')));
+ assert.equal(JSON.stringify(quotes),before);
+});

@@ -9,9 +9,21 @@ async function access(){
  if(process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://gkvaeqlqrthztobxitvn.supabase.co')return {ok:false as const,response:json({error:'Lab only.'},403)};
  return requireQuoteProductAccess();
 }
-export async function GET(){
+export async function GET(request:Request){
  const a=await access();if(!a.ok)return a.response;
  const db=a.actorSupabase;
+ const url=new URL(request.url);
+ if(url?.searchParams.get('view')==='live'){
+  try{
+   const latest=await db.from('lab_team_schedule_revisions').select('document').order('revision',{ascending:false}).limit(1).maybeSingle();
+   if(latest.error)throw Error('Saved staffing availability could not load. Try refreshing.');
+   const start=url.searchParams.get('start'),finish=url.searchParams.get('finish');
+   const saved=latest.data?.document.result.options;
+   const options=parseTeamOptions({start,finish,priority:saved?.priority??[],availability:(saved?.availability??[]).filter((a:{date:string})=>a.date>=String(start)&&a.date<=String(finish))});
+   const current=await teamSources(db);
+   return json({result:buildTeamSchedule(current.quotes,current.roster,options,true)});
+  }catch(e){return json({error:e instanceof Error?e.message:'Schedule unavailable.'},400);}
+ }
  const [latest,approved]=await Promise.all([db.from('lab_team_schedule_revisions').select('revision,document,created_at').order('revision',{ascending:false}).limit(1).maybeSingle(),db.from('lab_team_schedule_revisions').select('revision,document,created_at').eq('status','approved').order('revision',{ascending:false}).limit(1).maybeSingle()]);
  if(latest.error||approved.error)return json({error:'Team schedule storage is unavailable. Apply the lab team-schedule migration first.'},503);
  try{const current=await teamSources(db);return json({latest:latest.data,approved:approved.data,stale:latest.data?!sameTeamSources(latest.data.document.sources,current.sources):false,approvedStale:approved.data?!sameTeamSources(approved.data.document.sources,current.sources):false});}catch(e){return json({error:e instanceof Error?e.message:'Sources unavailable.'},503);}

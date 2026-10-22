@@ -4,9 +4,12 @@ test('team API builds only from server sources and rejects stale/unauthorized ap
  const db={from:()=>{const q={select:()=>q,order:()=>q,limit:()=>q,maybeSingle:async()=>({data:latest}),insert:row=>{inserts.push(row);return {select:()=>({single:async()=>({data:{revision:row.revision}})})}}};return q;}};
  const imports={'@/lib/ada-server':{requireQuoteProductAccess:async()=>allowed?{ok:true,actorSupabase:db,actorId:'a',actorEmail:'paul@meccadesign.com'}:{ok:false,response:Response.json({}, {status:403})}},'@/lib/team-schedule-server':{teamSources:async()=>({quotes:[],roster:[],sources})},'@/lib/team-schedule-source':{buildTeamSchedule:()=>({allocations:['server-generated']})},'@/lib/team-schedule':{parseTeamOptions:o=>o,sameTeamSources:(a,b)=>JSON.stringify(a)===JSON.stringify(b)}};
  const source=ts.transpileModule(fs.readFileSync('src/app/api/capacity/team-schedule/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,module={exports:{}},env={NEXT_PUBLIC_SUPABASE_URL:'https://gkvaeqlqrthztobxitvn.supabase.co'};
- vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n],Response,Request,JSON,Number,Error,process:{env}});
+ vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n],Response,Request,URL,JSON,Number,Error,process:{env}});
  const post=b=>module.exports.POST(new Request('https://test',{method:'POST',body:JSON.stringify(b)}));
  assert.equal((await post({action:'generate',expectedVersion:0})).status,403);allowed=true;
+ const live=await module.exports.GET(new Request('https://test?view=live&start=2026-10-21&finish=2026-11-17'));
+ assert.equal(live.status,200);assert.deepEqual((await live.json()).result.allocations,['server-generated']);assert.equal(inserts.length,0);
+
  const preview=await post({action:'preview',expectedVersion:0,options:{}});
  assert.equal(preview.status,200);assert.deepEqual((await preview.json()).result.allocations,['server-generated']);assert.equal(inserts.length,0);
 
