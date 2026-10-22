@@ -1,3 +1,6 @@
+## Capacity pinned names — October 22, 2026
+- Pinned the Projects name column/header at the left edge during horizontal scrolling. Reinforced the existing Roster sticky staff names with explicit stacking and a divider; sticky table headers remain above body cells. No data or scheduling changes. 199 lab tests, TypeScript and production build passed. Hosted horizontal-scroll verification pending.
+
 ## Capacity full-width layout — October 22, 2026
 - Removed the 1800px shell cap for /capacity and its project pages only; removed duplicate inner gutters and the individual-project 1500px cap. Roster summary gets 400px with wrapping cells so the main roster and totals use available width. All columns remain available with local table scrolling on narrower screens. No data/calculation changes. 199 lab tests, TypeScript and production build passed. 6e70575 deployed successfully. Hosted 2560px desktop verification: Projects spans available width with 35 project rows loaded; Roster spans page with all summary columns visible. Screenshot /private/tmp/capacity-full-width-projects.png. No saved data changed.
 

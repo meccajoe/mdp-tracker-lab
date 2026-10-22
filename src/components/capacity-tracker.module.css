@@ -77,3 +77,12 @@
 
 /* The app shell supplies the Capacity page gutter. */
 .page {width:100%;min-width:0;padding:0}
+
+/* Keep project identity visible as the scenario and detail columns scroll. */
+.page table[aria-label="Capacity projects"] tbody th {
+  position:sticky;left:0;z-index:1;
+  box-shadow:2px 0 0 #e5e7eb;
+}
+.page table[aria-label="Capacity projects"] thead th:nth-child(2) {
+  left:0;z-index:3;box-shadow:2px 0 0 #e5e7eb;
+}

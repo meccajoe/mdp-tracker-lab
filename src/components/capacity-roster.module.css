@@ -6,3 +6,7 @@
 
 .layout aside table {table-layout:fixed;font-size:13px}
 .layout aside th,.layout aside td {white-space:normal;overflow-wrap:anywhere}
+
+/* The pinned name cells and corner header stay above horizontally scrolling inputs. */
+.roster tbody td:first-child {z-index:2;box-shadow:2px 0 0 #e5e7eb}
+.roster thead th:first-child {z-index:4;background:#fafafa;box-shadow:2px 0 0 #e5e7eb}
