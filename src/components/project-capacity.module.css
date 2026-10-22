@@ -13,3 +13,5 @@
 .planScroll{overflow:auto;max-height:65vh;margin:14px 0}.planScroll table{border-collapse:collapse;width:100%;font-size:12px}.planScroll th,.planScroll td{padding:8px;border:1px solid #e5e7eb;text-align:left;min-width:90px}.planScroll thead th{position:sticky;top:0;background:#fafafa;z-index:1}.planScroll input{max-width:160px}.planEditor{background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:12px 0}.planEditor details label{display:block;margin:8px 0}
 
 .controls input[type=number],.controls input[type=date]{width:auto;min-width:80px;height:auto;border:1px solid #e5e7eb;border-radius:5px;padding:6px;background:#fff}.planScroll input,.planScroll select{border:1px solid #e5e7eb;border-radius:4px;padding:5px;background:#fafafa}.panel textarea{display:block;width:100%;min-height:70px;border:1px solid #e5e7eb;padding:8px;border-radius:5px}
+
+.page {width:100%;min-width:0;max-width:none;margin:0;padding:0}

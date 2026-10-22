@@ -21,6 +21,7 @@ function pageLabel(pathname: string) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isCapacity = pathname === "/capacity" || pathname.startsWith("/capacity/");
   const isAdaWorkspace = pathname.startsWith("/ada");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -84,7 +85,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <Sidebar />
         </div>
         <main className="min-w-0 w-full max-w-full flex-1 overflow-x-clip overflow-y-auto pt-14 xl:pt-0">
-          <div className="w-full min-w-0 max-w-[1800px] px-4 py-4 sm:px-6 sm:py-6 xl:px-8">
+          <div className={isCapacity ? "w-full min-w-0 max-w-full p-3 sm:p-4" : "w-full min-w-0 max-w-[1800px] px-4 py-4 sm:px-6 sm:py-6 xl:px-8"}>
             {children}
           </div>
         </main>

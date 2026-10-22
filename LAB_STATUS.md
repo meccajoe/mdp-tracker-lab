@@ -1,3 +1,6 @@
+## Capacity full-width layout — October 22, 2026
+- Removed the 1800px shell cap for /capacity and its project pages only; removed duplicate inner gutters and the individual-project 1500px cap. Roster summary gets 400px with wrapping cells so the main roster and totals use available width. All columns remain available with local table scrolling on narrower screens. No data/calculation changes. 199 lab tests, TypeScript and production build passed. Hosted verification pending.
+
 ## All Capacity tabs neutral theme — October 22, 2026
 - Corrected the Projects-only theme scope. Shared navigation, buttons, inputs and tables now use Quotes-style neutral chrome across Overview, Projects, Team Schedule, Shop Load, Field Load, Roster & Settings, and individual project capacity pages. Neutralized nested chart cards, roster panels and timeline controls; retained meaningful chart/trade colors, red capacity lines and warning colors. No data/calculation changes. 199 lab tests, TypeScript and production build passed. 92a2fca and roster-width follow-up 048bb62 deployed successfully. Hosted Overview, Team Schedule and roster visually checked; Shop Load/Field Load loaded successfully. No saved data edited. Overview screenshot: /private/tmp/capacity-theme-overview.png.
 

@@ -74,3 +74,6 @@
 .page .dialog {border-color:#d4d4d4;border-radius:12px}
 
 .page table[aria-label="Capacity projects"] tbody th {min-width:240px}
+
+/* The app shell supplies the Capacity page gutter. */
+.page {width:100%;min-width:0;padding:0}
