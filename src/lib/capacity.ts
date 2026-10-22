@@ -3,7 +3,7 @@ import {parseWorkbackPolicy,type WorkbackPolicy} from './workback-model';
 import {proposeProductionPlan,emptyPlan,type ProductionPlan} from './production-plan';
 import {isProductionDay,productionDays,WEEKDAYS,type ProductionCalendar} from './production-calendar';
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
-import {EMPTY_SCHEDULE,FORECAST_STATUSES,validDate,type ForecastStatus} from './quote-schedule';
+import {projectStatusFor,salesForecast,EMPTY_SCHEDULE,FORECAST_STATUSES,validDate,type ForecastStatus} from './quote-schedule';
 export const SHOP_TRADES=['Carpentry','CNC + cutting','Assembly','Finish / Paint','Graphic / Vinyl Install','Electrical','Metal Work','Crate & pack','Sculpting'];
 export const SUPPORT_TRADES=['I&D','Driver/Pickups','Facility'];
 export type RosterPerson={id:string;name:string;primary:string;secondary:string;hours:number;rate:number|null;active:boolean;notes:string};
@@ -57,7 +57,7 @@ export function quoteDemand(quote:QuoteV27){
 export type CapacityQuote={workspaceId:string;workspace:string;document:QuoteV27|null;version?:number;productionPlan?:ProductionPlan};
 export function capacityProject(source:CapacityQuote,override:CapacityOverride=source.document?.planning??emptyOverride()){
  const demand=source.document?quoteDemand(source.document):{shop:0,trades:{},untyped:0,overallocated:0,field:0,fieldDays:0,design:0,price:0};
- const schedule=source.document?.schedule??EMPTY_SCHEDULE,status=override.status||schedule.status;
+ const schedule=source.document?.schedule??EMPTY_SCHEDULE,forecast=salesForecast(override.status||schedule.status),projectStatus=projectStatusFor(schedule,override.status),status=projectStatus==='Complete'?'Completed':projectStatus==='Active'?'In production':forecast;
  const trades=remainingTradeHours(demand.trades,override.remainingTrades);
  const shop=override.remainingShop??demand.shop,field=override.remainingField??demand.field;
  const flags:string[]=[];
@@ -68,7 +68,7 @@ export function capacityProject(source:CapacityQuote,override:CapacityOverride=s
  if(!status)flags.push('Choose forecast status');
  if(override.status)flags.push(`Override: ${override.status} (quote: ${schedule.status||'unset'})`);
  if(Object.values(trades).reduce((sum,n)=>sum+n,0)>shop+.000001)flags.push('Trade hours exceed total shop hours — reconcile allocations');
- return {...source,schedule,status,probability:probability(status),committed:isCommitted(status),demand,shop,field,trades,untyped:Math.max(0,shop-Object.values(trades).reduce((sum,n)=>sum+n,0)),flags};
+ return {...source,schedule,status,probability:probability(status),committed:projectStatus==='Active',projectStatus,forecast,demand,shop,field,trades,untyped:Math.max(0,shop-Object.values(trades).reduce((sum,n)=>sum+n,0)),flags};
 }
 /** Exact day-overlap allocation, preserving demand across partial weeks and DST changes. */
 export function allocateHours(hours:number,start:string,finish:string,weekStart:string,count=26,mode:'weekdays'|'calendar'|ProductionCalendar='weekdays'){

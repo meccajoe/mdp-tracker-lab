@@ -6,7 +6,7 @@ import {validDate} from './quote-schedule';
 /** All source hours remain visible, including unstaffed/unassigned trades. */
 export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],options:TeamOptions){
  const tasks:TeamTask[]=[],warnings:string[]=[];
- const included=quotes.map(q=>capacityProject(q)).filter(p=>['Closed won','In production'].includes(p.status));
+ const included=quotes.map(q=>capacityProject(q)).filter(p=>p.committed);
  for(const p of included){
   if(!p.document)throw Error(`${p.workspace}: quote unavailable.`);
   if(!validDate(p.schedule.buildStart)||!validDate(p.schedule.buildFinish))throw Error(`${p.workspace}: enter build dates before generating a team schedule.`);

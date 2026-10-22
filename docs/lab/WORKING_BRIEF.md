@@ -113,3 +113,5 @@ October 19 quote follow-up: Quoted Item Database replaces the visible Prequote l
 October 21: Team Schedule unassigned work appears as Projects Needing Scheduling Attention, collapsed by project with plain-language guidance and retained item/trade/hours. Display-only; saved schedules and approval checks stay intact.
 
 October 21 date summary: Paul approved automatic unsaved Team Schedule previews when dates change. Summary lives inside date controls and chart uses the same preview. Save/approval stay explicit; all active work unable to fit the range remains unassigned. Vinyl Install means the same personnel pool as Graphic Install; retain historical trade strings and combine staffing capacity.
+
+October 21 Quotes statuses: six sales forecast choices, Draft/Final Quote Status, independent Not Active/Active/Complete Project Status. Paul confirmed forecast-only/eligible for team scheduling/no future demand respectively. Preserve legacy behavior via read-time mapping and quote history. Feature branch requires Final-guard migration before release; see PROJECT_STATUS_ROLLOUT.md.

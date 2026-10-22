@@ -3,7 +3,7 @@ import {calculateQuoteV27} from './quote-v27';
 import {proposeProductionPlan,type ProductionPlan,type PlannerRoster} from './production-plan';
 import {PRODUCTION_STAGES} from './project-timeline';
 import {productionDays,isProductionDay,type ProductionCalendar} from './production-calendar';
-import {validDate} from './quote-schedule';
+import {validDate,projectStatusFor} from './quote-schedule';
 import {defaultWorkbackPolicy,emptyRequirement,STAGE_PERCENT,type Workback,type WorkbackPolicy,type WorkbackStage,type WorkbackTask,type WorkbackSnapshot,type Deadline} from './workback-model';
 const day=(s:string)=>Date.parse(s+'T00:00:00Z')/86400000;
 const iso=(d:number)=>new Date(d*86400000).toISOString().slice(0,10);
@@ -89,7 +89,7 @@ export function generateWorkback(quote:QuoteV27,quoteVersion:number,plan:Product
  const visited=new Set<string>(),visiting=new Set<string>();const walk=(id:string):boolean=>{if(visiting.has(id))return true;if(visited.has(id))return false;visiting.add(id);for(const dep of byId.get(id)?.dependencies??[])if(walk(dep))return true;visiting.delete(id);visited.add(id);return false;};if(live.some(t=>walk(t.id)))warn('critical','Cyclic workback dependencies must be resolved before approval.');
  const current:WorkbackSnapshot={quoteVersion,stages:base,tasks,warnings,dueDate:due,installDate:install,bufferDays:due&&finish&&due>=finish?productionDays(finish,due,calendar).filter(d=>d>day(finish)).length:null};
  for(const id of Object.keys(previous?.edits??{}))if(!ids.includes(id))warn('risk',`Saved manual milestone ${id} is no longer in quoted scope. Its override/history is retained for review.`);
- const active=['Closed won','In production'].includes(quote.planning?.status||quote.schedule?.status||'');
+ const active=projectStatusFor(quote.schedule,quote.planning?.status)==='Active';
  const w:Workback=previous?structuredClone(previous):{schema:1,policy:settings,dueDate:due,requirements:{},workingEdits:{},edits:{},custom:[],original:workbackBaseline(quote,{...settings,percent:STAGE_PERCENT,minimum:[0,0,0,0,0,0]},calendar),current,proposed:null,baseline:null,active};
  w.dueDate=due;
  w.active=active;

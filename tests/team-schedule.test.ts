@@ -71,3 +71,9 @@ test('unsaved range calculations change assignments and conserve required work w
  assert.equal(short.totalHours,40);assert.equal(short.unfilled.reduce((sum,t)=>sum+t.hours,0),24);
  assert.equal(JSON.stringify(tasks),before);
 });
+
+test('explicit Not Active and Complete stay out of team scheduling while Active is eligible',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:options.start,buildFinish:options.finish,installDate:'',status:'Closed won',projectStatus:'Not Active'};
+ const r=buildTeamSchedule(['Not Active','Complete','Active'].map((status,i)=>({workspaceId:String(i),workspace:status,version:1,document:{...q,schedule:{...q.schedule!,projectStatus:status as 'Not Active'|'Complete'|'Active'}}})),[],options);
+ assert.deepEqual(r.projects.map(p=>p.name),['Active']);
+});

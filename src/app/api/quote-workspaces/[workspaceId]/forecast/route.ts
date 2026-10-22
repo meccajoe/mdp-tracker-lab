@@ -1,6 +1,6 @@
 import {requireQuoteProductWorkspaceAccess} from '@/lib/ada-server';
 import {labManagementGuard,managementJson as json} from '@/lib/quote-management-server';
-import {FORECAST_STATUSES,EMPTY_SCHEDULE} from '@/lib/quote-schedule';
+import {FORECAST_STATUSES,EMPTY_SCHEDULE,PROJECT_STATUSES,projectStatusFor,salesForecast} from '@/lib/quote-schedule';
 import {persistWorkback} from '@/lib/workback-server';
 export const dynamic='force-dynamic';
 export async function POST(request:Request,{params}:{params:Promise<{workspaceId:string}>}){
@@ -8,12 +8,13 @@ export async function POST(request:Request,{params}:{params:Promise<{workspaceId
  const {workspaceId}=await params;if(!/^[0-9a-f-]{36}$/i.test(workspaceId))return json({error:'Invalid quote ID.'},400);
  const access=await requireQuoteProductWorkspaceAccess(workspaceId,'edit_draft');if(!access.ok)return access.response;
  if(access.workspaceLifecycle==='archived')return json({error:'Restore this quote before changing its forecast.'},403);
- let body;try{const raw=await request.text();if(raw.length>1000)throw Error();body=JSON.parse(raw);if(!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1||!(body.status===''||FORECAST_STATUSES.includes(body.status)))throw Error();}catch{return json({error:'Choose a valid forecast status and saved revision.'},400);}
+ let body;try{const raw=await request.text();if(raw.length>1000)throw Error();body=JSON.parse(raw);if(!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1||!(body.projectStatus!==undefined?PROJECT_STATUSES.includes(body.projectStatus):(body.status===''||FORECAST_STATUSES.includes(body.status))))throw Error();}catch{return json({error:'Choose a valid forecast status and saved revision.'},400);}
  const latest=await access.actorSupabase.from('quote_workbook_revisions').select('document,revision,engine_version').eq('workspace_id',workspaceId).order('revision',{ascending:false}).limit(1).maybeSingle();
  if(latest.error)return json({error:'Quote could not load.'},500);
  if(!latest.data||latest.data.revision!==body.expectedVersion)return json({error:'The quote changed. Reload the list and try again.'},409);
  const document=structuredClone(latest.data.document);
- document.schedule={...(document.schedule??EMPTY_SCHEDULE),status:body.status};
+ const prior=document.schedule??EMPTY_SCHEDULE;
+ document.schedule={...prior,projectStatus:body.projectStatus??projectStatusFor(prior,document.planning?.status??''),status:body.projectStatus!==undefined?salesForecast(document.planning?.status||prior.status):body.status};
  // A main-list choice is the forecast authority; preserve all remaining-hours overrides.
  if(document.planning)document.planning.status='';
  const saved=await access.actorSupabase.from('quote_workbook_revisions').insert({workspace_id:workspaceId,revision:body.expectedVersion+1,document,engine_version:latest.data.engine_version,created_by:access.actorId,created_by_email:access.actorEmail}).select('revision').single();

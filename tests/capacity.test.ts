@@ -134,3 +134,14 @@ test('graphic and vinyl labor combine once, including shared flex and combined r
  p.document!.planning={...emptyOverride(),remainingTrades:{'Graphic / Vinyl Install':12,'Vinyl Install':8}};
  const load=capacityLoad([p],settings(),'shop',[],true);assert.equal(sum(load.trades['Graphic / Vinyl Install']),12);assert.equal(Object.keys(load.trades).length,1);
 });
+
+test('project status independently controls demand and committed work without repricing',()=>{
+ const p=project('Closed won'),original=JSON.stringify(p.document);
+ const notActive={...p,document:{...p.document!,schedule:{...p.document!.schedule!,projectStatus:'Not Active' as const}}};
+ const pending=capacityProject(notActive);assert.equal(pending.committed,false);assert.equal(pending.probability,1);
+ const complete=capacityProject({...notActive,document:{...notActive.document,schedule:{...notActive.document.schedule,projectStatus:'Complete'}}});
+ assert.equal(complete.probability,0);assert.equal(complete.committed,false);
+ const active=capacityProject({...notActive,document:{...notActive.document,schedule:{...notActive.document.schedule,status:'Possible',projectStatus:'Active'}}});
+ assert.equal(active.committed,true);assert.equal(active.probability,1);
+ assert.equal(active.demand.price,pending.demand.price);assert.equal(complete.demand.price,pending.demand.price);assert.equal(JSON.stringify(p.document),original);
+});
