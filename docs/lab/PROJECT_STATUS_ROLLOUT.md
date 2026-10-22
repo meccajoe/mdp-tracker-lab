@@ -1,6 +1,6 @@
 # Separate quote, forecast and project statuses
 
-Implemented on codex/quote-project-status. Paul confirmed applying the migration in the lab SQL Editor on October 21; releasing to main. Hosted SQL inspection and migration-ledger registration remain unverified. Do not replay.
+Implemented on codex/quote-project-status. Paul confirmed applying the migration in the lab SQL Editor on October 21; released as b374b05. Hosted Final project/forecast saves and reload verified on an internal test quote, subsequently archived. Direct SQL inspection and migration-ledger registration remain unverified. Do not replay.
 
 ## Required lab database step
 
