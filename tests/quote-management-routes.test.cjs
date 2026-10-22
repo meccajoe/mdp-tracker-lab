@@ -6,7 +6,7 @@ function query(data,error=null){const q={then:resolve=>Promise.resolve({data,err
 const id='00000000-0000-4000-8000-000000000001';
 test('create requires both names, freezes defaults through atomic RPC, and passes a stable request identity',async()=>{
  const calls=[];const actor={ok:true,actorSupabase:{from:()=>query({revision:3,document:{settings:{laborSell:125}}}),rpc:(name,args)=>{calls.push({name,args});return query({id});}}};
- const imports={'next/server':{NextRequest:Request},'@/app/api/ada/workspaces/route':{GET(){throw Error('unexpected')},POST(){throw Error('unexpected fallback')}},'@/lib/ada-server':{requireQuoteProductAccess:async()=>actor},'@/lib/quote-v27-template':{createBlankQuoteV27:()=>({blank:true})},'@/lib/quote-defaults':{requiredQuoteNames:b=>{if(!b.title||!b.clientName)throw Error('Both names required');return {title:b.title,clientName:b.clientName}},quoteFromDefaults:d=>({copied:d})},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-management-server':management};
+ const imports={'@/lib/quote-v27':{calculateQuoteV27:()=>({totals:{price:0}})},'next/server':{NextRequest:Request},'@/app/api/ada/workspaces/route':{GET(){throw Error('unexpected')},POST(){throw Error('unexpected fallback')}},'@/lib/ada-server':{requireQuoteProductAccess:async()=>actor},'@/lib/quote-v27-template':{createBlankQuoteV27:()=>({blank:true})},'@/lib/quote-defaults':{requiredQuoteNames:b=>{if(!b.title||!b.clientName)throw Error('Both names required');return {title:b.title,clientName:b.clientName}},quoteFromDefaults:d=>({copied:d})},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-management-server':management};
  const route=load('src/app/api/quote-workspaces/route.ts',imports),post=body=>route.POST(new Request('https://lab.test/api/quote-workspaces',{method:'POST',body:JSON.stringify(body)}));
  assert.equal((await post({title:'Project'})).status,400);assert.equal(calls.length,0);
  assert.equal((await post({title:'Project',clientName:'Client',requestId:id})).status,201);assert.equal(calls[0].name,'create_lab_quote');assert.equal(calls[0].args.p_defaults_revision,3);assert.equal(calls[0].args.p_request_id,id);assert.equal(calls[0].args.p_document.copied.settings.laborSell,125);
@@ -22,9 +22,12 @@ test('Draft/Final requires workspace edit authorization and expected status and 
 });
 test('clone requires source access, uses latest saved source, and preserves its pricing instead of globals',async()=>{
  let permitted=false,calls=[];const actor={ok:true,actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Original',client_name:'Client',contact_name:null}:{revision:8,document:{priceOverride:123}}),rpc:(name,args)=>{calls.push(args);return query({id})}}};
- const route=load('src/app/api/quote-workspaces/[workspaceId]/clone/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:(_q,meta)=>meta},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-defaults':{cloneQuoteDocument:(d,copy)=>({...d,copy}),requiredQuoteNames:x=>x},'@/lib/quote-management-server':management});
- const post=()=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({requestId:id})}),{params:Promise.resolve({workspaceId:id})});
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/clone/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:(_q,meta)=>meta},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-defaults':{cloneQuoteDocument:(d,copy)=>({...d,copy}),requiredQuoteNames:x=>{if(typeof x.title!=='string'||!x.title.trim())throw Error('Project Name is required');return {...x,title:x.title.trim()}}},'@/lib/quote-management-server':management});
+ const post=(extra={})=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({requestId:id,...extra})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await post()).status,403);assert.equal(calls.length,0);permitted=true;assert.equal((await post()).status,201);assert.equal(calls[0].p_title,'Original CLONE');assert.equal(calls[0].p_source_revision,8);assert.equal(calls[0].p_defaults_revision,null);assert.equal(calls[0].p_document.priceOverride,123);assert.equal(calls[0].p_document.copy,false);
+ assert.equal((await post({title:'  Custom project  '})).status,201);assert.equal(calls[1].p_title,'Custom project');assert.equal(calls[1].p_document.priceOverride,123);
+ assert.equal((await post({title:' '})).status,400);assert.equal(calls.length,2);
+
 });
 test('CAD generation failure leaves Final unset, and stale finalization reports a conflict',async()=>{
  let renderFails=true,calls=0;
@@ -84,4 +87,13 @@ test('client edit requires access, rejects blank/stale names and preserves other
  const patch=(clientName,expectedClientName='Old client')=>route.PATCH(new Request('https://lab.test',{method:'PATCH',body:JSON.stringify({clientName,expectedClientName})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await patch('New')).status,403);permitted=true;assert.equal((await patch('')).status,400);assert.equal((await patch('New','Other')).status,409);assert.equal(calls.length,0);
  assert.equal((await patch('New')).status,200);assert.equal(calls[0].p_title,'Project');assert.equal(calls[0].p_contact_name,'Contact');assert.equal(calls[0].p_ada_project_id,'linked-project');assert.equal(calls[0].p_client_name,'New');
+});
+
+test('quote list totals use latest saved pricing and omit documents; missing or invalid workbooks have no amount',async()=>{
+ const workspaces=[{id:'saved'},{id:'missing'},{id:'invalid'}],seen=[];
+ const actor={ok:true,actorSupabase:{from:table=>query(table==='lab_quote_controls'?[]:[{id:'saved',quote_workbook_revisions:[{revision:4,document:{savedPrice:1234.56}}]},{id:'invalid',quote_workbook_revisions:[{revision:1,document:{invalid:true}}]}])}};
+ const route=load('src/app/api/quote-workspaces/route.ts',{'next/server':{NextRequest:Request},'@/app/api/ada/workspaces/route':{GET:async()=>json({workspaces})},'@/lib/ada-server':{requireQuoteProductAccess:async()=>actor},'@/lib/quote-v27-template':{},'@/lib/quote-defaults':{},'@/lib/quote-v27-validation':{parseQuoteV27:d=>{if(d.invalid)throw Error('invalid');return d}},'@/lib/quote-v27':{calculateQuoteV27:d=>{seen.push(d);return {totals:{price:d.savedPrice}}}},'@/lib/quote-management-server':management});
+ const response=await route.GET(new Request('https://lab.test')),body=await response.json();
+ assert.equal(response.status,200);assert.equal(body.workspaces[0].quote_total,1234.56);assert.equal(body.workspaces[0].workbook_revision,4);
+ assert.equal(body.workspaces[1].quote_total,null);assert.equal(body.workspaces[2].quote_total,null);assert.equal(seen.length,1);assert.equal(JSON.stringify(body).includes('savedPrice'),false);
 });

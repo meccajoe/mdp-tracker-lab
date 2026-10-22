@@ -1,3 +1,8 @@
+## Quote list totals and clone names — October 21, 2026
+- Added sortable Quote Total from each latest saved workbook, using its frozen settings/overrides; missing or invalid workbooks show a dash. Documents stay server-side.
+- Clone dialog now accepts a required Project Name, prefilled with the original name plus CLONE; legacy callers retain the default. Source revisions/pricing remain unchanged. No migration.
+- Validation: 199 lab tests, TypeScript and webpack production build passed. Hosted verification pending deployment.
+
 # Lab status
 
 ## Automatic Team Schedule — October 21, 2026
