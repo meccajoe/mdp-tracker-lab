@@ -1,5 +1,8 @@
 # Lab status
 
+## Capacity header cleanup — October 21, 2026
+- Removed the successful-load count/timestamp, general scheduling explanation/guidebook link, and repeated Team Schedule heading/intro requested in Paul’s screenshot. Retained load-failure alerts, save notices, controls and saved data. 193 tests and TypeScript passed; deployment verification pending.
+
 ## Scheduling attention display — October 21, 2026
 - Replaced the long unassigned-work table with Projects Needing Scheduling Attention. Each project starts collapsed, shows total hours to review, and expands to plain-language next steps grouped by reason with item/trade/hour details. Group identity uses the saved task workspace prefix, preserving separate projects with identical names. Full saved-schedule scope is labeled; this is not a claim of staffing shortage.
 - Simplified stale-schedule warning; approval protections and saved proposals, quotes, roster and calculations unchanged. No migration or schedule generation. 193 tests, TypeScript and production webpack build passed. Feature 96314f2 pushed; Vercel success confirmed at https://vercel.com/meccanics/mdp-tracker-lab/5gzjdFWyeG6sLghk7JZvmhR2yyUY. Hosted interactive verification remains blocked: Chrome CDP focus command times out, no IAB available, and native Chrome requires pending Accessibility/Screen Recording permissions. No live generation or approval performed.

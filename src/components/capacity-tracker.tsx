@@ -33,7 +33,7 @@ export function CapacityTracker(){
   let mounted=true;
   const controller=createVisibleRefresh(()=>loadSavedQuotes(),result=>{
    setQuotes(result.quotes);setError('');
-   setNotice(result.failures?`${result.failures} quotes could not load. Totals are incomplete — refresh before planning.`:`Loaded ${result.quotes.length} quotes · ${new Date().toLocaleTimeString()}`);
+   setNotice(result.failures?`${result.failures} quotes could not load. Totals are incomplete — refresh before planning.`:'');
   },error=>{setQuotes([]);setNotice('Totals are unavailable — refresh before planning.');setError(error instanceof Error?error.message:'Quotes could not load.');},()=>window.document.visibilityState==='visible'&&!editingRef.current);
   refreshRef.current=controller;
   const visibility=()=>{if(window.document.visibilityState==='hidden')controller.pause();else void controller.request(true);};
@@ -73,8 +73,8 @@ export function CapacityTracker(){
  const matrixRow=(label:string,values:number[],cap:number|number[]|null,percentage=false)=><tr key={label}><th>{label}</th><td>{cap===null?'—':Array.isArray(cap)?'After field work':number(cap)}</td>{values.map((value,i)=>{const limit=Array.isArray(cap)?cap[i]:cap;return <td key={i} title={limit===null?undefined:`Available: ${number(limit)} hours`} className={limit!==null&&value>limit?styles.over:limit!==null&&limit>0&&value/limit>.85?styles.near:undefined}>{percentage?(limit?`${number(value/limit*100)}%`:value?'No capacity':'—'):number(value)}</td>;})}</tr>;
  return <main className={styles.page}><header><div><h1>Capacity tracker</h1><p>Saved quote names, dates and hours flow here automatically. Updates refresh every 60 seconds.</p></div><Link href="/quotes">Open quotes</Link><Link href="/quotes/import">Import spreadsheet quotes</Link><button onClick={()=>void loadQuotes().catch(error=>setError(error.message))}>Refresh quotes</button></header>
  <nav role="tablist" aria-label="Capacity sections">{['Overview','Projects','Team Schedule','Shop Load','Field Load','Roster & Settings'].map(name=><button role="tab" aria-selected={tab===name} key={name} onClick={()=>setTab(name)}>{name}</button>)}</nav>
- <p role="status">{notice}</p>{error&&<p role="alert" className={styles.error}>{error}</p>}{settingsError&&<p role="alert" className={styles.error}>{settingsError}</p>}
- {planError&&<p className={styles.error}>{planError}</p>}<p>Demand follows saved item schedules or automatic proposals. Approval is separate from forecast probability; project schedules show demand; Team Schedule coordinates named staff across committed jobs. <Link href="/capacity/guidebook">Scheduling guidebook</Link></p>
+ {notice&&<p role="status">{notice}</p>}{error&&<p role="alert" className={styles.error}>{error}</p>}{settingsError&&<p role="alert" className={styles.error}>{settingsError}</p>}
+ {planError&&<p className={styles.error}>{planError}</p>}
  {tab==='Team Schedule'&&<TeamSchedule roster={document.settings.roster} disabled={!canEdit||dirty||Boolean(settingsError)}/>}
  {tab==='Overview'&&<CapacityDashboard projects={projects} settings={document.settings} settingsUnavailable={Boolean(settingsError)}/> }
  {tab==='Field Load'&&<CapacityDashboard mode="field" projects={projects} settings={document.settings} settingsUnavailable={Boolean(settingsError)}/>}
