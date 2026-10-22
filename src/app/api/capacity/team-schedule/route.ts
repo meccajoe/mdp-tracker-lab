@@ -26,8 +26,9 @@ export async function POST(request:Request){
   if((latest.data?.revision??0)!==body.expectedVersion)return json({error:'Team schedule changed. Reload before saving.'},409);
   const current=await teamSources(db);
   let document,status:'proposed'|'approved';
-  if(body.action==='generate'){
+  if(body.action==='generate'||body.action==='preview'){
    const options=parseTeamOptions(body.options),result=buildTeamSchedule(current.quotes,current.roster,options);
+   if(body.action==='preview')return json({result});
    document={engine:'team-daily-1',sources:current.sources,result};status='proposed';
   }else if(body.action==='approve'){
    if(!latest.data||latest.data.status!=='proposed')throw Error('Generate a proposal first.');

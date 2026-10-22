@@ -7,6 +7,9 @@ test('team API builds only from server sources and rejects stale/unauthorized ap
  vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n],Response,Request,JSON,Number,Error,process:{env}});
  const post=b=>module.exports.POST(new Request('https://test',{method:'POST',body:JSON.stringify(b)}));
  assert.equal((await post({action:'generate',expectedVersion:0})).status,403);allowed=true;
+ const preview=await post({action:'preview',expectedVersion:0,options:{}});
+ assert.equal(preview.status,200);assert.deepEqual((await preview.json()).result.allocations,['server-generated']);assert.equal(inserts.length,0);
+
  assert.equal((await post({action:'generate',expectedVersion:0,options:{},document:{tampered:true}})).status,201);assert.deepEqual(inserts[0].document.result.allocations,['server-generated']);
  latest={revision:1,status:'proposed',document:inserts[0].document};sources={roster:2,quotes:[]};assert.equal((await post({action:'approve',expectedVersion:1})).status,409);assert.equal(inserts.length,1);
  sources={roster:1,quotes:[]};assert.equal((await post({action:'approve',expectedVersion:1})).status,201);assert.equal(inserts[1].status,'approved');

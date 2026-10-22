@@ -1,5 +1,9 @@
 # Lab status
 
+## Date summary and Graphic Install follow-up — October 21, 2026
+- Paul requested the Team Schedule totals inside the date controls and responsive to selected dates. Paul confirmed unsaved recalculation. Date changes now request a debounced, server-calculated preview and update the chart/summary together. The date box labels Unsaved preview versus Saved schedule; approval is unavailable on an unsaved preview. Required/unassigned totals retain all active work, including work unable to fit the range, explicitly labeled. The preview endpoint authenticates and reads current sources without inserting revisions. Older requests cannot replace newer range results; prior saved/approved schedules remain intact.
+- Vinyl Install already aliases to the Graphic / Vinyl Install staffing pool across capacity, stage mapping and named staffing. Added a regression checking both roster name directions, primary/secondary alias deduplication and daily/weekly person-hour ceilings. No quote/roster rewrite needed. 195 tests and TypeScript passed; production build passed. Tests verify preview creates no stored revision, shorter ranges conserve total work, and both trade aliases respect one person-hour budget. Deployment pending.
+
 ## Capacity header cleanup — October 21, 2026
 - Removed the successful-load count/timestamp, general scheduling explanation/guidebook link, and repeated Team Schedule heading/intro requested in Paul’s screenshot. Retained load-failure alerts, save notices, controls and saved data. 193 tests and TypeScript passed. da6efe8 pushed; Vercel success verified at https://vercel.com/meccanics/mdp-tracker-lab/J8pXCJjBBqGmxesoiYy461GZjWae. Browser visual verification remains unavailable under the pending computer-control permissions noted above.
 

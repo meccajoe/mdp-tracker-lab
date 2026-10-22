@@ -51,3 +51,23 @@ test('packing and stage/prep share the I&D person budget across projects',()=>{
  assert.ok(r.allocations.every(a=>a.personId===crew.id&&!a.secondary));
  for(const date of new Set(r.allocations.map(a=>a.date)))assert.ok(r.allocations.filter(a=>a.date===date).reduce((n,a)=>n+a.hours,0)<=8);
 });
+
+test('Vinyl Install and Graphic Install use the same people without double-booking',()=>{
+ for(const primary of ['Graphic Install','Vinyl Install']){
+  const crew={...person,primary,secondary:primary==='Graphic Install'?'Vinyl Install':'Graphic Install'};
+  const r=scheduleTeam([task('vinyl',{trade:'Vinyl Install',hours:24}),task('graphic',{trade:'Graphic Install',hours:24})],[crew],options);
+  assert.equal(r.assignedHours,40);
+  assert.equal(r.unfilled.reduce((sum,t)=>sum+t.hours,0),8);
+  assert.ok(r.allocations.every(a=>a.personId===crew.id&&!a.secondary));
+  for(const date of new Set(r.allocations.map(a=>a.date)))assert.ok(r.allocations.filter(a=>a.date===date).reduce((sum,a)=>sum+a.hours,0)<=8);
+ }
+});
+
+test('unsaved range calculations change assignments and conserve required work without mutating sources',()=>{
+ const tasks=[task('a',{hours:40})],before=JSON.stringify(tasks);
+ const full=scheduleTeam(tasks,[person],options);
+ const short=scheduleTeam(tasks,[person],{...options,finish:'2026-10-20'});
+ assert.equal(full.assignedHours,40);assert.equal(short.assignedHours,16);
+ assert.equal(short.totalHours,40);assert.equal(short.unfilled.reduce((sum,t)=>sum+t.hours,0),24);
+ assert.equal(JSON.stringify(tasks),before);
+});

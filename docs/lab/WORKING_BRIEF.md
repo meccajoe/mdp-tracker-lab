@@ -111,3 +111,5 @@ October 19 capacity: Team Schedule Gantt at top, four-week date view (dates do n
 October 19 quote follow-up: Quoted Item Database replaces the visible Prequote label; Closed Lost displays over legacy Lost storage. Client edit in quote header preserves other metadata. New beMatrix walls create individually linked named quote items using empty slots; new blanks omit generic wall row. Feet/inches entry converts to canonical feet; historical grouped walls and overrides remain intact. No Install semantics awaiting Paul (date-only vs charges).
 
 October 21: Team Schedule unassigned work appears as Projects Needing Scheduling Attention, collapsed by project with plain-language guidance and retained item/trade/hours. Display-only; saved schedules and approval checks stay intact.
+
+October 21 date summary: Paul approved automatic unsaved Team Schedule previews when dates change. Summary lives inside date controls and chart uses the same preview. Save/approval stay explicit; all active work unable to fit the range remains unassigned. Vinyl Install means the same personnel pool as Graphic Install; retain historical trade strings and combine staffing capacity.
