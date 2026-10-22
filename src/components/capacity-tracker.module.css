@@ -64,7 +64,7 @@
 .page th,.page td {border-right:0;border-bottom:1px solid #e5e7eb;padding:12px 10px}
 .page thead th {background:#fafafa;color:#171717;font-weight:500}
 .page thead button {border:0;padding:0;text-align:left}
-.page tbody th {background:#fff;font-weight:600;white-space:normal;min-width:240px}
+.page tbody th {background:#fff;font-weight:600;white-space:normal;min-width:0}
 .page tbody tr:hover,.page tbody tr:hover th {background:#fafafa}
 
 .page .toolbar,.page .attention,.page .attentionProject {border-color:#e5e7eb}
@@ -72,3 +72,5 @@
 .page .liveScheduleSummary {background:#fafafa;border-color:#e5e7eb;color:#171717}
 .page .liveScheduleSummary small,.page .attention>p,.page .attentionNote ul {color:#737373}
 .page .dialog {border-color:#d4d4d4;border-radius:12px}
+
+.page table[aria-label="Capacity projects"] tbody th {min-width:240px}
