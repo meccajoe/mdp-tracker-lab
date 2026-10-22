@@ -1,7 +1,7 @@
 ## Quote list totals and clone names — October 21, 2026
 - Added sortable Quote Total from each latest saved workbook, using its frozen settings/overrides; missing or invalid workbooks show a dash. Documents stay server-side.
 - Clone dialog now accepts a required Project Name, prefilled with the original name plus CLONE; legacy callers retain the default. Source revisions/pricing remain unchanged. No migration.
-- Validation: 199 lab tests, TypeScript and webpack production build passed. Hosted verification pending deployment.
+- Validation: 199 lab tests, TypeScript and webpack production build passed. Hosted deployment a697d31 succeeded. Verified dollar totals and ascending sorting on primary URL; custom-named clone ab327708-21e2-4ace-b894-c7ecd312b594 saved/reopened as Draft, then archived. Source internal quote unchanged. No customer quotes edited.
 
 # Lab status
 
