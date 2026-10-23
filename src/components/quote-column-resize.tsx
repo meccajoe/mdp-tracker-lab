@@ -18,7 +18,7 @@ function queued<T>(work:()=>Promise<T>):Promise<T>{
  return result;
 }
 /** Account preferences, keyed by column identity so trade changes cannot shift widths. */
-export function RememberedColumns({labels, storageKey}:{labels:readonly string[];storageKey:string}) {
+export function RememberedColumns({labels, storageKey, defaultWidths}:{labels:readonly string[];storageKey:string;defaultWidths?:readonly number[]}) {
  const ref=useRef<HTMLTableColElement>(null);
  const signature=JSON.stringify(labels);
  useLayoutEffect(()=>{
@@ -32,7 +32,7 @@ export function RememberedColumns({labels, storageKey}:{labels:readonly string[]
   let saved:Record<string,number>={};
   const legacyKey=`mdp:column-widths:v1:${storageKey}`;
   const clean=(value:unknown):Record<string,number>=>!value||typeof value!=='object'||Array.isArray(value)?{}:
-   Object.fromEntries(Object.entries(value).filter(([,width])=>typeof width==='number'&&Number.isFinite(width)&&width>=50&&width<=10000));
+   Object.fromEntries(Object.entries(value).filter(([,width])=>typeof width==='number'&&Number.isFinite(width)&&width>=40&&width<=10000));
   const apply=(values:Record<string,number>)=>{
    if(!names.some(name=>Object.hasOwn(values,name)))return;
    const widths=names.map((name,i)=>values[name]??Math.max(50,cells[i].getBoundingClientRect().width));
@@ -64,5 +64,5 @@ export function RememberedColumns({labels, storageKey}:{labels:readonly string[]
   table.addEventListener('columnresize',save);
   return ()=>{disposed=true;table.removeEventListener('columnresize',save);};
  },[signature,storageKey]);
- return <colgroup ref={ref}>{labels.map(label=><col key={label}/>)}</colgroup>;
+ return <colgroup ref={ref}>{labels.map((label,i)=><col key={label} style={defaultWidths?{width:defaultWidths[i]}:undefined}/>)}</colgroup>;
 }

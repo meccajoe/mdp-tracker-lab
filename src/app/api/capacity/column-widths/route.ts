@@ -2,7 +2,7 @@ import {NextResponse} from 'next/server';
 import {requireQuoteProductAccess} from '@/lib/ada-server';
 export const dynamic='force-dynamic';
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
-const keys:Record<string,string>={'capacity-projects':'lab_capacity_projects_widths_v1','capacity-roster':'lab_capacity_roster_widths_v1'};
+const keys:Record<string,string>={'capacity-projects':'lab_capacity_projects_widths_v1','capacity-roster':'lab_capacity_roster_widths_v1','quotes-list':'lab_quotes_list_widths_v1'};
 async function access(){
  if(process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://gkvaeqlqrthztobxitvn.supabase.co')return {ok:false as const,response:json({error:'Available only in Tracker Lab.'},403)};
  return requireQuoteProductAccess();
@@ -10,7 +10,7 @@ async function access(){
 function validWidths(value:unknown):value is Record<string,number>{
  if(!value||typeof value!=='object'||Array.isArray(value))return false;
  const entries=Object.entries(value);
- return entries.length<=100&&entries.every(([name,width])=>name.length>0&&name.length<=120&&typeof width==='number'&&Number.isFinite(width)&&width>=50&&width<=10000);
+ return entries.length<=100&&entries.every(([name,width])=>name.length>0&&name.length<=120&&typeof width==='number'&&Number.isFinite(width)&&width>=40&&width<=10000);
 }
 export async function GET(request:Request){
  const actor=await access();if(!actor.ok)return actor.response;

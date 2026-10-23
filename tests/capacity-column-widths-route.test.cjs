@@ -25,3 +25,9 @@ test('account preferences require authentication and the lab boundary',async()=>
  assert.equal((await ctx.route.GET(new Request('https://lab.test?table=capacity-projects'))).status,401);
  ctx.env.NEXT_PUBLIC_SUPABASE_URL='https://other.supabase.co';assert.equal((await ctx.route.GET(new Request('https://lab.test?table=capacity-projects'))).status,403);assert.equal(ctx.updates.length,0);
 });
+
+test('Quotes widths save independently and preserve the compact selection column',async()=>{
+ const {route,updates}=setup();assert.equal((await route.PUT(put({table:'quotes-list',widths:{Selection:44,'Project name':360}}))).status,200);
+ assert.deepEqual(JSON.parse(JSON.stringify(updates)),[{id:'signed-in-user',value:{user_metadata:{lab_quotes_list_widths_v1:{Selection:44,'Project name':360}}}}]);
+ assert.deepEqual((await (await route.GET(new Request('https://lab.test?table=capacity-projects'))).json()).widths,{Project:350});
+});
