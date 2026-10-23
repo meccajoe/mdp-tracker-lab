@@ -114,3 +114,11 @@ test('automatic extra shifts preserve absences, holidays, fixed windows and prer
  const missing=scheduleTeamWithOvertime([task('a',{trade:'CNC',hours:8}),task('b',{predecessors:['a']})],[person],full);assert.equal(missing.assignedHours,0);
  const dependency=scheduleTeamWithOvertime([task('a',{hours:10}),task('b',{hours:40,predecessors:['a']})],[person],options);const last=dependency.allocations.filter(a=>a.taskKey==='a').at(-1)!.date;assert.ok(dependency.allocations.filter(a=>a.taskKey==='b').every(a=>a.date>last));
 });
+
+test('recovery does not move already feasible independent work into overtime or weekends',()=>{
+ const full={...options,finish:'2026-10-25'};
+ const r=scheduleTeamWithOvertime([task('short',{hours:60,deadline:full.finish}),task('fits',{trade:'Painting',hours:32,deadline:full.finish})],[{...person,secondary:''},{...person,id:'paint',name:'Paint',primary:'Painting',secondary:''}],full);
+ assert.equal(r.allocations.filter(a=>a.taskKey==='fits').reduce((n,a)=>n+a.hours,0),32);
+ assert.ok(r.allocations.filter(a=>a.taskKey==='fits').every(a=>a.workMode==='Regular'));
+ assert.ok(r.allocations.some(a=>a.taskKey==='short'&&a.workMode==='Weekend'));
+});

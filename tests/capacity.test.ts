@@ -122,9 +122,9 @@ test('packing and installation consume one shared pool, with matching weighted a
  const p=project('Closed won');p.productionPlan={...emptyPlan(),tasks:[{id:'pack',itemId:'x',item:'Pack',stage:'packing',trade:'Crate & pack',hours:30,start:'2026-10-19',finish:'2026-10-23',daily:[{date:'2026-10-19',hours:30}],predecessors:[],locked:false}]};
  const config={...settings(),roster:[{id:'crew',name:'Crew',primary:'I&D',secondary:'Crate & pack',hours:40,rate:null,active:true,notes:''},{id:'shop',name:'Shop',primary:'Carpentry',secondary:'',hours:40,rate:null,active:true,notes:''}]};
  const original=JSON.stringify(p),r=dashboardLoad([p],config,null,'expected');
- assert.equal(r.sharedCapacity,40);assert.equal(r.packing[2],30);assert.equal(r.fieldLoad.expected[2],40);assert.equal(r.sharedNeeded[2],70);assert.equal(r.shopAvailable[2],40);assert.equal(r.fieldAvailable[2],10);assert.equal(r.shopAvailable[0],80);
- const excluded=dashboardLoad([p],config,[],'expected');assert.equal(sum(excluded.sharedNeeded),0);assert.equal(excluded.sharedCapacity,40);assert.equal(excluded.shopAvailable[2],40);assert.equal(excluded.fieldAvailable[2],10);
- const weighted=dashboardLoad([{...p,committed:false,probability:.5}],config,null,'expected');assert.equal(weighted.sharedNeeded[2],35);assert.equal(weighted.shopAvailable[2],60);assert.equal(weighted.fieldAvailable[2],25);
+ assert.equal(r.sharedCapacity,40);assert.equal(r.packing[2],30);assert.equal(r.fieldLoad.expected[2],40);assert.equal(r.sharedNeeded[2],70);assert.equal(r.shopAvailable[2],48);assert.equal(r.fieldAvailable[2],32);assert.equal(r.shopAvailable[0],80);
+ const excluded=dashboardLoad([p],config,[],'expected');assert.equal(sum(excluded.sharedNeeded),0);assert.equal(excluded.sharedCapacity,40);assert.equal(excluded.shopAvailable[2],48);assert.equal(excluded.fieldAvailable[2],32);
+ const weighted=dashboardLoad([{...p,committed:false,probability:.5}],config,null,'expected');assert.equal(weighted.sharedNeeded[2],35);assert.equal(weighted.shopAvailable[2],60);assert.equal(weighted.fieldAvailable[2],32);
  assert.equal(JSON.stringify(p),original);
 });
 test('graphic and vinyl labor combine once, including shared flex and combined remaining overrides',()=>{
@@ -154,6 +154,8 @@ test('daily overview buckets retain exact scheduled hours and normal weekday cap
   close(sum(daily.fieldLoad.expected.slice(w*7,w*7+7)),weekly.fieldLoad.expected[w]);
   for(const [trade,hours] of Object.entries(weekly.load.trades))close(sum((daily.load.trades[trade]??[]).slice(w*7,w*7+7)),hours[w]);
   close(sum(daily.sharedAvailable.slice(w*7,w*7+7)),weekly.sharedCapacity);
+  close(sum(daily.shopAvailable.slice(w*7,w*7+7)),weekly.shopAvailable[w]);
+  close(sum(daily.fieldAvailable.slice(w*7,w*7+7)),weekly.fieldAvailable[w]);
  }
  assert.equal(daily.sharedAvailable[5],0);assert.equal(daily.sharedAvailable[6],0);
  const empty=dashboardLoad([p],config,[],'expected',28,1);assert.equal(sum(empty.load.expected),0);

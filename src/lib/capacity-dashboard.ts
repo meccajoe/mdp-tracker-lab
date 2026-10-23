@@ -14,16 +14,19 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const allCapacity=rosterCapacity(settings.roster),packing=load.trades['Crate & pack']??Array<number>(count).fill(0);
  const sharedCapacity=(allCapacity.primary['I&D']??0)+(allCapacity.primary['Crate & pack']??0);
  const sharedNeeded=fieldLoad.expected.map((h,i)=>h+packing[i]);
- const reservedField=ids===null?fieldLoad:capacityLoad(weightedAll,settings,'field',[],false,count,bucketDays);
- const reservedShop=ids===null?load:capacityLoad(weightedAll,settings,'shop',[],true,count,bucketDays);
- const reservedPacking=reservedShop.trades['Crate & pack']??Array<number>(count).fill(0);
+ // Compute reservations by date even in weekly view, then sum: toggling views cannot create capacity.
+ const dailyCount=count*bucketDays;
+ const reservedField=capacityLoad(weightedAll,settings,'field',[],false,dailyCount,1);
+ const reservedShop=capacityLoad(weightedAll,settings,'shop',[],true,dailyCount,1);
+ const reservedPacking=reservedShop.trades['Crate & pack']??Array<number>(dailyCount).fill(0);
  const dedicatedShop=capacity.shop-(capacity.primary['Crate & pack']??0);
- // The shared crew is counted once; its other work reduces each view's available hours.
- const factor=(i:number)=>bucketDays===7?1:([0,6].includes(new Date((dayNumber(settings.weekStart)+i)*86400000).getUTCDay())?0:1/5);
- const tradeAvailable=Object.fromEntries(Object.entries(capacity.primary).map(([trade,hours])=>[trade,Array.from({length:count},(_,i)=>hours*factor(i))]));
- const sharedAvailable=Array.from({length:count},(_,i)=>sharedCapacity*factor(i));
- const shopAvailable=reservedField.expected.map((h,i)=>dedicatedShop*factor(i)+Math.max(0,sharedAvailable[i]-h));
- const fieldAvailable=reservedPacking.map((h,i)=>Math.max(0,sharedAvailable[i]-h));
+ const factor=(i:number)=>[0,6].includes(new Date((dayNumber(settings.weekStart)+i)*86400000).getUTCDay())?0:1/5;
+ const aggregate=(values:number[])=>Array.from({length:count},(_,i)=>values.slice(i*bucketDays,(i+1)*bucketDays).reduce((sum,h)=>sum+h,0));
+ const tradeAvailable=Object.fromEntries(Object.entries(capacity.primary).map(([trade,hours])=>[trade,aggregate(Array.from({length:dailyCount},(_,i)=>hours*factor(i)))]));
+ const sharedDaily=Array.from({length:dailyCount},(_,i)=>sharedCapacity*factor(i));
+ const sharedAvailable=aggregate(sharedDaily);
+ const shopAvailable=aggregate(reservedField.expected.map((h,i)=>dedicatedShop*factor(i)+Math.max(0,sharedDaily[i]-h)));
+ const fieldAvailable=aggregate(reservedPacking.map((h,i)=>Math.max(0,sharedDaily[i]-h)));
  return {projects:included,load,fieldLoad,capacity,tradeAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
 }
 
