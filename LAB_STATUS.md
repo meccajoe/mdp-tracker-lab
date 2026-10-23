@@ -1,3 +1,6 @@
+## Remember Capacity column widths — October 23, 2026
+- Projects and Roster now independently remember resized column widths in browser-local storage across tab switches, reloads and future visits. Column identities protect widths when the trade list changes. Pointer and keyboard resizing save on completion; unavailable/corrupt browser storage safely falls back to normal sizing. Quotes resizing remains session-only. No data or database changes; preferences do not sync across devices. Verification pending.
+
 ## Capacity resizable columns — October 23, 2026
 - Reused Quotes column resize handles for every Projects and Roster column, including keyboard left/right adjustments. Widths are view-only and reset on a fresh page visit. Preserved pinned names, sticky headers and sorting. No data/calculation changes. 199 lab tests, TypeScript and production build passed. 0ade35c deployed successfully. Hosted pointer drags verified Projects name +100px and Roster name +80px; keyboard left reduced roster width 16px, sorting unchanged. Resized project names remain pinned after horizontal scrolling. Screenshot /private/tmp/capacity-resizable-columns.png. No saved data changed.
 
