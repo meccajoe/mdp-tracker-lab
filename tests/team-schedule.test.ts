@@ -95,29 +95,29 @@ test('automatic overtime uses regular time first and weekday extras before weeke
  const full={...options,finish:'2026-10-25'};
  const run=(hours:number)=>scheduleTeamWithOvertime([task('a',{hours,deadline:full.finish,finish:full.finish})],[person],full);
  assert.equal(run(40).allocations.filter(a=>a.workMode!=='Regular').length,0);
- const weekday=run(50);assert.equal(weekday.assignedHours,50);assert.equal(weekday.allocations.filter(a=>a.workMode==='Weekday overtime').reduce((n,a)=>n+a.hours,0),10);assert.ok(!weekday.allocations.some(a=>a.workMode==='Weekend'));
- const saturday=run(58);assert.equal(saturday.assignedHours,58);assert.ok(saturday.allocations.some(a=>a.date==='2026-10-24'));assert.ok(!saturday.allocations.some(a=>a.date==='2026-10-25'));
- const sunday=run(70);assert.equal(sunday.assignedHours,66);assert.equal(sunday.unfilled[0].hours,4);assert.ok(sunday.allocations.some(a=>a.date==='2026-10-25'));
+ const weekday=run(60);assert.equal(weekday.assignedHours,60);assert.equal(weekday.allocations.filter(a=>a.workMode==='Weekday overtime').reduce((n,a)=>n+a.hours,0),20);assert.ok(!weekday.allocations.some(a=>a.workMode==='Weekend'));
+ const saturday=run(68);assert.equal(saturday.assignedHours,68);assert.ok(saturday.allocations.some(a=>a.date==='2026-10-24'));assert.ok(!saturday.allocations.some(a=>a.date==='2026-10-25'));
+ const sunday=run(80);assert.equal(sunday.assignedHours,76);assert.equal(sunday.unfilled[0].hours,4);assert.ok(sunday.allocations.some(a=>a.date==='2026-10-25'));
 });
 test('overtime is one shared person budget across projects and pressure identifies competing work',()=>{
  const full={...options,finish:'2026-10-25'},tasks=[task('a',{hours:40,deadline:full.finish}),task('b',{hours:40,deadline:full.finish})];
  const before=JSON.stringify(tasks),r=scheduleTeamWithOvertime(tasks,[person],full);
- assert.equal(r.assignedHours,66);assert.equal(r.assignedHours+r.unfilled.reduce((n,a)=>n+a.hours,0),80);
- for(const date of new Set(r.allocations.map(a=>a.date))){const weekend=new Date(date+'T00:00:00Z').getUTCDay()%6===0;assert.ok(r.allocations.filter(a=>a.date===date).reduce((n,a)=>n+a.hours,0)<=(weekend?8:10));}
+ assert.equal(r.assignedHours,76);assert.equal(r.assignedHours+r.unfilled.reduce((n,a)=>n+a.hours,0),80);
+ for(const date of new Set(r.allocations.map(a=>a.date))){const weekend=new Date(date+'T00:00:00Z').getUTCDay()%6===0;assert.ok(r.allocations.filter(a=>a.date===date).reduce((n,a)=>n+a.hours,0)<=(weekend?8:12));}
  assert.ok(r.pressure?.some(p=>p.projects.includes('a')&&p.projects.includes('b')));assert.equal(JSON.stringify(tasks),before);
 });
 test('automatic extra shifts preserve absences, holidays, fixed windows and prerequisites',()=>{
  const full={...options,finish:'2026-10-25',availability:[{personId:'p',date:'2026-10-19',hours:0},{personId:'p',date:'2026-10-24',hours:0}]};
  const r=scheduleTeamWithOvertime([task('a',{hours:80,deadline:full.finish,calendar:{saturday:false,sunday:false,holidays:['2026-10-25']}})],[person],full);
- assert.equal(r.assignedHours,40);assert.ok(r.allocations.every(a=>a.date>'2026-10-19'&&a.date<'2026-10-24'));
- const fixed=scheduleTeamWithOvertime([task('a',{hours:20,fixed:true,finish:options.start})],[person],options);assert.equal(fixed.assignedHours,10);
+ assert.equal(r.assignedHours,48);assert.ok(r.allocations.every(a=>a.date>'2026-10-19'&&a.date<'2026-10-24'));
+ const fixed=scheduleTeamWithOvertime([task('a',{hours:20,fixed:true,finish:options.start})],[person],options);assert.equal(fixed.assignedHours,12);
  const missing=scheduleTeamWithOvertime([task('a',{trade:'CNC',hours:8}),task('b',{predecessors:['a']})],[person],full);assert.equal(missing.assignedHours,0);
  const dependency=scheduleTeamWithOvertime([task('a',{hours:10}),task('b',{hours:40,predecessors:['a']})],[person],options);const last=dependency.allocations.filter(a=>a.taskKey==='a').at(-1)!.date;assert.ok(dependency.allocations.filter(a=>a.taskKey==='b').every(a=>a.date>last));
 });
 
 test('recovery does not move already feasible independent work into overtime or weekends',()=>{
  const full={...options,finish:'2026-10-25'};
- const r=scheduleTeamWithOvertime([task('short',{hours:60,deadline:full.finish}),task('fits',{trade:'Painting',hours:32,deadline:full.finish})],[{...person,secondary:''},{...person,id:'paint',name:'Paint',primary:'Painting',secondary:''}],full);
+ const r=scheduleTeamWithOvertime([task('short',{hours:68,deadline:full.finish}),task('fits',{trade:'Painting',hours:32,deadline:full.finish})],[{...person,secondary:''},{...person,id:'paint',name:'Paint',primary:'Painting',secondary:''}],full);
  assert.equal(r.allocations.filter(a=>a.taskKey==='fits').reduce((n,a)=>n+a.hours,0),32);
  assert.ok(r.allocations.filter(a=>a.taskKey==='fits').every(a=>a.workMode==='Regular'));
  assert.ok(r.allocations.some(a=>a.taskKey==='short'&&a.workMode==='Weekend'));

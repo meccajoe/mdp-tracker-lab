@@ -22,7 +22,7 @@ export function personDayHours(person:TeamPerson,date:string,options:TeamOptions
  return person.active?Math.min(24,person.hours/5,override?.hours??(weekday===0||weekday===6?0:person.hours/5)):0;
 }
 /** Deterministic daily allocation across the complete included workload; no commercial mutation. */
-function schedulePass(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions,tier=0,weekdayExtra=2,recovery?:Set<string>):TeamResult{
+function schedulePass(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions,tier=0,weekdayExtra=4,recovery?:Set<string>):TeamResult{
  options=parseTeamOptions(options);
  if(tasks.length>5000||roster.length>300||new Set(tasks.map(t=>t.key)).size!==tasks.length||new Set(roster.map(p=>p.id)).size!==roster.length)throw Error('Schedule is too large or contains duplicate IDs.');
  for(const a of options.availability){const person=roster.find(p=>p.id===a.personId);if(!person||a.hours>Math.min(24,person.hours/5))throw Error('Availability cannot exceed the employee’s normal daily hours. Update the roster for a different workweek.');}
@@ -77,7 +77,7 @@ export function scheduleTeamWithOvertime(tasks:TeamTask[],roster:TeamPerson[],op
  for(const key of [...recovery])includePredecessors(key);
  for(const tier of [1,2,3]){
   if(best.unfilled.length===0)break;
-  const candidate=schedulePass(tasks,roster,options,tier,2,recovery);
+  const candidate=schedulePass(tasks,roster,options,tier,4,recovery);
   const extra=(r:TeamResult)=>r.allocations.filter(a=>a.workMode!=='Regular').reduce((n,a)=>n+a.hours,0);
   if(candidate.assignedHours>best.assignedHours+EPS||Math.abs(candidate.assignedHours-best.assignedHours)<EPS&&extra(candidate)<extra(best))best=candidate;
  }
