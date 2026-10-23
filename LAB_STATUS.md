@@ -1,3 +1,6 @@
+## Capacity resizable columns — October 23, 2026
+- Reused Quotes column resize handles for every Projects and Roster column, including keyboard left/right adjustments. Widths are view-only and reset on a fresh page visit. Preserved pinned names, sticky headers and sorting. No data/calculation changes. 199 lab tests, TypeScript and production build passed. Hosted drag verification pending.
+
 ## Capacity pinned names — October 22, 2026
 - Pinned the Projects name column/header at the left edge during horizontal scrolling. Reinforced the existing Roster sticky staff names with explicit stacking and a divider; sticky table headers remain above body cells. No data or scheduling changes. 199 lab tests, TypeScript and production build passed. cb97e40 deployed successfully. Hosted sideways scroll verified: project names/header stay at the left edge while trade columns move; roster names/header remain fixed at a 1000px test viewport. Viewport restored; no saved data changed. Screenshot /private/tmp/capacity-pinned-projects.png.
 

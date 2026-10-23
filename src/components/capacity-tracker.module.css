@@ -86,3 +86,6 @@
 .page table[aria-label="Capacity projects"] thead th:nth-child(2) {
   left:0;z-index:3;box-shadow:2px 0 0 #e5e7eb;
 }
+
+.page table[aria-label="Capacity projects"] th {padding-right:14px;overflow:hidden}
+.page table[aria-label="Capacity projects"] td {overflow:hidden;text-overflow:ellipsis}
