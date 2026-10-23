@@ -1,5 +1,5 @@
 "use client";
-import {forecastLabel} from '@/lib/quote-schedule';
+import {forecastLabel,withForecastStatus} from '@/lib/quote-schedule';
 import {QuoteClientName} from './quote-client-name';
 import {WorkbackSchedule} from './workback-schedule';
 import {QuoteStatusControl} from "./quote-status-control";
@@ -195,7 +195,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     {!libraryItem&&<QuoteClientName workspaceId={workspaceId} disabled={!canEdit||busy}/>}
     {document&&!libraryItem&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
       {([['buildStart','Build Start'],['buildFinish','Build Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
-      <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,status:event.target.value as typeof EMPTY_SCHEDULE.status};})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></label>
+      <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule=withForecastStatus({...EMPTY_SCHEDULE,...next.schedule},event.target.value as typeof EMPTY_SCHEDULE.status);})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></label>
       <label className="text-xs">Sales commission %<input className={`${control} block w-28`} type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={document.commission===0?'':Number((document.commission*100).toFixed(8))} placeholder="—" onChange={event=>edit(next=>{next.commission=Number(event.target.value)/100;})}/></label>
       <a className="text-xs underline" href={`/capacity/${workspaceId}`}>Project capacity & timeline</a>
     </fieldset>}

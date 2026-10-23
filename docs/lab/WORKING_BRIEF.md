@@ -1,3 +1,5 @@
+October 23, 2026: Selecting Closed Won must also set Project Status Active so the quote enters live Team Schedule. This is an explicit selection behavior, not a read-time rewrite of historical or Complete projects. Keep separate Project Status choices and preserve pricing/history. Joola activation specifically authorized.
+
 # Paul's quote and capacity workspace
 
 October 13 workback: Paul requested integrated Final → persisted preliminary workback → editable internal milestones → client schedule/PDF. Reuse existing quote BOM/labor and schedule history. Exact whole-day six-stage baseline (15/5/10/40/20/10), configurable nonworking dates and offsets, per-item requirements, no invented approvals/lead times. Closed Won activates while retaining PM approval (explicitly confirmed). Post-award/approved working dates stay intact until reviewed; do not reprice or rewrite saved quotes. See WORKBACK_SCHEDULE.md.

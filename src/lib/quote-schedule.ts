@@ -12,6 +12,10 @@ export function projectStatusFor(schedule?:{status?:string;projectStatus?:string
  if(PROJECT_STATUSES.includes(schedule?.projectStatus as ProjectStatus))return schedule!.projectStatus as ProjectStatus;
  return status==='Completed'?'Complete':status==='In production'||status==='Closed won'?'Active':'Not Active';
 }
+// Apply only an explicit forecast choice, never while reading historical schedules.
+export function withForecastStatus(schedule:QuoteSchedule,status:QuoteSchedule['status']):QuoteSchedule{
+ return {...schedule,status,...(status==='Closed won'?{projectStatus:'Active' as const}:{})};
+}
 export function salesForecast(status:string){return status==='In production'||status==='Completed'?'Closed won':status;}
 export const EMPTY_SCHEDULE:QuoteSchedule={installDate:'',buildStart:'',buildFinish:'',status:''};
 export function validDate(value:unknown):value is string {

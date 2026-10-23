@@ -69,13 +69,14 @@ test('Final generates workback first and fails visibly if schedule persistence f
  assert.equal((await post()).status,409);assert.equal(finals,0);fail=false;assert.equal((await post()).status,200);assert.equal(schedules,2);assert.equal(finals,1);
 });
 test('forecast saves only status metadata, rejects stale input and preserves prices and remaining hours',async()=>{
- const original={settings:{laborSell:110},lines:[{price:1234}],schedule:{buildStart:'2026-10-01',buildFinish:'2026-10-30',installDate:'',status:'Possible'},planning:{status:'Lost',remainingShop:18,remainingTrades:{Painting:8},notes:'Keep'}};
+ const original={settings:{laborSell:110},lines:[{price:1234}],schedule:{buildStart:'2026-10-01',buildFinish:'2026-10-30',installDate:'',status:'Possible',projectStatus:'Not Active'},planning:{status:'Lost',remainingShop:18,remainingTrades:{Painting:8},notes:'Keep'}};
  let inserted,allowed=true,archived=false;
  const actor={ok:true,get workspaceLifecycle(){return archived?'archived':'draft'},actorId:id,actorEmail:'test@example.test',actorSupabase:{from(){const q=query({document:original,revision:4,engine_version:'v27-1'});q.insert=value=>{inserted=value;return query({revision:5});};return q;}}};
  const route=load('src/app/api/quote-workspaces/[workspaceId]/forecast/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async(_id,action)=>{assert.equal(action,'edit_draft');return allowed?actor:{ok:false,response:json({},403)};}},'@/lib/quote-management-server':management,'@/lib/quote-schedule':load('src/lib/quote-schedule.ts',{'@/lib/quote-schedule':{}}),'@/lib/workback-server':{persistWorkback:async()=>{} }});
  const post=(status='Likely',expectedVersion=4)=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({status,expectedVersion})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal((await post('wrong')).status,400);assert.equal((await post('Likely',3)).status,409);assert.equal(inserted,undefined);
  assert.equal((await post()).status,200);assert.equal(inserted.document.schedule.status,'Likely');assert.equal(inserted.document.planning.status,'');assert.equal(original.planning.status,'Lost');assert.equal(inserted.document.planning.remainingShop,18);assert.deepEqual(inserted.document.lines,original.lines);assert.deepEqual(inserted.document.settings,original.settings);
+ assert.equal((await post('Closed won')).status,200);assert.equal(inserted.document.schedule.projectStatus,'Active');assert.equal(original.schedule.projectStatus,'Not Active');assert.deepEqual(inserted.document.settings,original.settings);assert.deepEqual(inserted.document.lines,original.lines);
  const projectSave=await route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({projectStatus:'Complete',expectedVersion:4})}),{params:Promise.resolve({workspaceId:id})});
  assert.equal(projectSave.status,200);assert.equal(inserted.document.schedule.projectStatus,'Complete');assert.deepEqual(inserted.document.lines,original.lines);
  archived=true;assert.equal((await post()).status,403);archived=false;allowed=false;assert.equal((await post()).status,403);
@@ -96,4 +97,13 @@ test('quote list totals use latest saved pricing and omit documents; missing or 
  const response=await route.GET(new Request('https://lab.test')),body=await response.json();
  assert.equal(response.status,200);assert.equal(body.workspaces[0].quote_total,1234.56);assert.equal(body.workspaces[0].workbook_revision,4);
  assert.equal(body.workspaces[1].quote_total,null);assert.equal(body.workspaces[2].quote_total,null);assert.equal(seen.length,1);assert.equal(JSON.stringify(body).includes('savedPrice'),false);
+});
+
+test('explicit Closed Won selection activates a project without changing dates or read-time history',()=>{
+ const {withForecastStatus,parseSchedule}=load('src/lib/quote-schedule.ts',{});
+ const original={installDate:'',buildStart:'2026-10-01',buildFinish:'2026-10-30',status:'Closed won',projectStatus:'Complete'};
+ assert.equal(parseSchedule(original).projectStatus,'Complete');
+ assert.deepEqual({...withForecastStatus(original,'Closed won')},{...original,projectStatus:'Active'});
+ assert.deepEqual({...withForecastStatus(original,'Likely')},{...original,status:'Likely'});
+ assert.equal(original.projectStatus,'Complete');
 });

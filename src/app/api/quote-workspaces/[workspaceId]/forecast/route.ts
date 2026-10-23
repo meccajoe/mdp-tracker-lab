@@ -1,6 +1,6 @@
 import {requireQuoteProductWorkspaceAccess} from '@/lib/ada-server';
 import {labManagementGuard,managementJson as json} from '@/lib/quote-management-server';
-import {FORECAST_STATUSES,EMPTY_SCHEDULE,PROJECT_STATUSES,projectStatusFor,salesForecast} from '@/lib/quote-schedule';
+import {FORECAST_STATUSES,EMPTY_SCHEDULE,PROJECT_STATUSES,projectStatusFor,salesForecast,withForecastStatus} from '@/lib/quote-schedule';
 import {persistWorkback} from '@/lib/workback-server';
 export const dynamic='force-dynamic';
 export async function POST(request:Request,{params}:{params:Promise<{workspaceId:string}>}){
@@ -15,6 +15,7 @@ export async function POST(request:Request,{params}:{params:Promise<{workspaceId
  const document=structuredClone(latest.data.document);
  const prior=document.schedule??EMPTY_SCHEDULE;
  document.schedule={...prior,projectStatus:body.projectStatus??projectStatusFor(prior,document.planning?.status??''),status:body.projectStatus!==undefined?salesForecast(document.planning?.status||prior.status):body.status};
+ if(body.projectStatus===undefined)document.schedule=withForecastStatus(document.schedule,body.status);
  // A main-list choice is the forecast authority; preserve all remaining-hours overrides.
  if(document.planning)document.planning.status='';
  const saved=await access.actorSupabase.from('quote_workbook_revisions').insert({workspace_id:workspaceId,revision:body.expectedVersion+1,document,engine_version:latest.data.engine_version,created_by:access.actorId,created_by_email:access.actorEmail}).select('revision').single();
