@@ -145,3 +145,16 @@ test('project status independently controls demand and committed work without re
  assert.equal(active.committed,true);assert.equal(active.probability,1);
  assert.equal(active.demand.price,pending.demand.price);assert.equal(complete.demand.price,pending.demand.price);assert.equal(JSON.stringify(p.document),original);
 });
+
+test('daily overview buckets retain exact scheduled hours and normal weekday capacity',()=>{
+ const p=project('Closed won'),config=settings();
+ const weekly=dashboardLoad([p],config,null,'expected',4),daily=dashboardLoad([p],config,null,'expected',28,1);
+ for(let w=0;w<4;w++){
+  close(sum(daily.load.expected.slice(w*7,w*7+7)),weekly.load.expected[w]);
+  close(sum(daily.fieldLoad.expected.slice(w*7,w*7+7)),weekly.fieldLoad.expected[w]);
+  for(const [trade,hours] of Object.entries(weekly.load.trades))close(sum((daily.load.trades[trade]??[]).slice(w*7,w*7+7)),hours[w]);
+  close(sum(daily.sharedAvailable.slice(w*7,w*7+7)),weekly.sharedCapacity);
+ }
+ assert.equal(daily.sharedAvailable[5],0);assert.equal(daily.sharedAvailable[6],0);
+ const empty=dashboardLoad([p],config,[],'expected',28,1);assert.equal(sum(empty.load.expected),0);
+});

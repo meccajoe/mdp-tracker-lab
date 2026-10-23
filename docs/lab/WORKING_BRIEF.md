@@ -1,3 +1,5 @@
+October 23 capacity updates: Active projects first in a separate Projects table section; other projects below, preserving sorting, pinned names and account widths. Overview day/week views share the same forecast data. Automatically plan weekday overtime before Saturday/Sunday in live Team Schedule; shared staffing across all Active projects and clear per-project/shift and near-capacity flags. Default assumption pending alternate direction: +2 weekday hours, then 8 Saturday and 8 Sunday, respecting absences/holidays/fixed windows; do not change quote pricing or saved approvals.
+
 October 23, 2026: Selecting Closed Won must also set Project Status Active so the quote enters live Team Schedule. This is an explicit selection behavior, not a read-time rewrite of historical or Complete projects. Keep separate Project Status choices and preserve pricing/history. Joola activation specifically authorized.
 
 # Paul's quote and capacity workspace

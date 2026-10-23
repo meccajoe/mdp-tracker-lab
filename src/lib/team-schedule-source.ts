@@ -1,6 +1,6 @@
 import {capacityProject,type CapacityQuote,type RosterPerson} from './capacity';
 import {emptyPlan,proposeProductionPlan} from './production-plan';
-import {scheduleTeam,type TeamOptions,type TeamTask,type TeamResult} from './team-schedule';
+import {scheduleTeam,scheduleTeamWithOvertime,type TeamOptions,type TeamTask,type TeamResult} from './team-schedule';
 import {validDate} from './quote-schedule';
 
 /** All source hours remain visible, including unstaffed/unassigned trades. */
@@ -30,6 +30,6 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
    attention.push({taskKey:p.workspaceId+'|attention',project:p.workspace,item:'Project schedule',trade:'Shop work',hours:p.shop,reason:error instanceof Error?error.message:'Review this project’s dates and schedule.'});
   }
  }
- const result=scheduleTeam(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
+ const result=(allowAttention?scheduleTeamWithOvertime:scheduleTeam)(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
  return {...result,totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
 }
