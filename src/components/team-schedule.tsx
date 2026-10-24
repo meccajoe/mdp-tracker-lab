@@ -32,7 +32,7 @@ function SchedulingAttention({result}:{result:Result}){
     const rows=group.rows.filter(row=>row.reason===reason);
     return <div key={reason} className={styles.attentionNote}>
      <p>{attentionNotes[reason]??reason}</p>
-     <ul>{rows.map(row=><li key={row.taskKey}><strong>{row.item}</strong> · {row.trade} · {n(row.hours)} hours</li>)}</ul>
+     <ul>{rows.map(row=><li key={row.taskKey}><strong>{row.item}</strong> · {row.trade} · {n(row.hours)} hours{row.recommendation&&<p><strong>Recommended fix:</strong> {row.recommendation}</p>}</li>)}</ul>
     </div>;
    })}</div>
   </details>)}
@@ -73,8 +73,10 @@ export function TeamSchedule(){
  {result&&<> <div className={styles.toolbar}><label>Employee<select value={person} onChange={e=>setPerson(e.target.value)}><option value="">All employees</option>{result.people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Project<select value={project} onChange={e=>setProject(e.target.value)}><option value="">All projects</option>{result.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Trade<select value={trade} onChange={e=>setTrade(e.target.value)}><option value="">All trades</option>{Array.from(new Set([...result.allocations.map(a=>capacityTrade(a.trade)),...result.unfilled.map(a=>capacityTrade(a.trade))])).sort().map(t=><option key={t}>{t}</option>)}</select></label><button onClick={()=>{setPerson('');setProject('');setTrade('');}}>Show all</button></div>
  <TeamGantt result={result} filter={{person,project,trade}} range={{start:options.start,finish:options.finish}}/>
  <section className={styles.attention} aria-label="Overtime and shared capacity">
- <h3>Regular hours & overtime</h3>
- <p>Normal hours first, then up to 4 extra hours per weekday, then up to 8 hours Saturday and 8 hours Sunday per person. Extra time is shared across all active projects. Saved absences, holidays, dependencies and fixed dates still apply. Quote prices and approved schedules stay unchanged.</p>
+ <h3>Automatic staffing adjustments</h3>
+ {!!result.crewAdjustments?.length&&<details open><summary>Added crew to meet deadlines ({result.crewAdjustments.length})</summary><ul>{result.crewAdjustments.map((a,i)=><li key={i}><strong>{a.project} · {a.item}</strong> — {a.date}: {a.people} people, {n(a.hours)}h {a.trade}</li>)}</ul></details>}
+ <p>Staffing changes are applied to this live schedule. Extra people share the quoted hours; overtime can increase labor cost. Quoted budgets remain unchanged so production can track the variance. Additional hires are recommendations, not confirmed staff.</p>
+ <p>Additional qualified people in normal hours first, then up to 4 extra hours per weekday, then up to 8 hours Saturday and 8 hours Sunday per person. Extra time is shared across all active projects. Saved absences, holidays, dependencies and fixed dates still apply. Quote prices and approved schedules stay unchanged.</p>
  {result.allocations.some(a=>a.workMode&&a.workMode!=='Regular')?<><p role="status"><strong>Regular hours are not enough. {n(result.allocations.filter(a=>a.workMode==='Weekday overtime').reduce((s,a)=>s+a.hours,0))} weekday overtime hours + {n(result.allocations.filter(a=>a.workMode==='Weekend').reduce((s,a)=>s+a.hours,0))} weekend hours are planned.</strong> Production team: review these extra shifts.</p>
  <ul>{result.projects.filter(p=>result.allocations.some(a=>a.workspaceId===p.id&&a.workMode&&a.workMode!=='Regular')).map(p=><li key={p.id}><strong>{p.name}</strong> — {n(result.allocations.filter(a=>a.workspaceId===p.id&&a.workMode==='Weekday overtime').reduce((s,a)=>s+a.hours,0))}h weekday overtime; {n(result.allocations.filter(a=>a.workspaceId===p.id&&a.workMode==='Weekend').reduce((s,a)=>s+a.hours,0))}h weekend</li>)}</ul></>:<p>No extra shifts could improve this schedule, or regular hours are sufficient. Review any unassigned work below.</p>}
  {!!result.pressure?.length&&<details><summary>Shared teams near capacity ({result.pressure.length})</summary><p>At least 85% of normal available hours are occupied. Projects listed share these people, including secondary trades.</p><ul>{result.pressure.map((p,i)=><li key={i}><strong>{p.trade} · week of {p.week} · {n(p.utilization*100)}%</strong> — {p.projects.join(', ')}</li>)}</ul></details>}

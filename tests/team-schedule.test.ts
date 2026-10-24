@@ -122,3 +122,29 @@ test('recovery does not move already feasible independent work into overtime or 
  assert.ok(r.allocations.filter(a=>a.taskKey==='fits').every(a=>a.workMode==='Regular'));
  assert.ok(r.allocations.some(a=>a.taskKey==='short'&&a.workMode==='Weekend'));
 });
+
+test('recovery adds qualified crew before overtime and reports applied staffing',()=>{
+ const oneDay={...options,finish:options.start};
+ const tasks=[task('urgent',{hours:16,deadline:oneDay.finish,finish:oneDay.finish})];
+ const before=JSON.stringify(tasks);
+ const r=scheduleTeamWithOvertime(tasks,[person,{...person,id:'second',name:'Second'}],oneDay);
+ assert.equal(r.assignedHours,16);assert.equal(r.unfilled.length,0);
+ assert.ok(r.allocations.every(a=>a.workMode==='Regular'));
+ assert.equal(r.crewAdjustments?.[0].people,2);
+ assert.equal(JSON.stringify(tasks),before);
+ const capped=scheduleTeamWithOvertime([{...tasks[0],expandCrew:false}],[person,{...person,id:'second',name:'Second'}],oneDay);
+ assert.equal(capped.assignedHours,12);assert.match(capped.unfilled[0].recommendation!,/additional 8-hour shifts/);
+});
+test('crew expansion shares people across competing projects and never invents staff',()=>{
+ const oneDay={...options,finish:options.start};
+ const r=scheduleTeamWithOvertime([task('a',{hours:24,deadline:oneDay.finish}),task('b',{hours:24,deadline:oneDay.finish})],[person,{...person,id:'second',name:'Second'}],oneDay);
+ assert.equal(r.assignedHours,24);assert.equal(r.unfilled.reduce((s,r)=>s+r.hours,0),24);
+ for(const p of r.people)assert.ok(r.allocations.filter(a=>a.personId===p.id).reduce((s,a)=>s+a.hours,0)<=12);
+ assert.ok(r.unfilled.every(row=>row.recommendation?.includes('qualified')));
+});
+test('CAD ramp-up applies to CAD edge only, not again after CNC',()=>{
+ const tasks=[task('cad',{external:true,hours:6,finish:'2026-10-19'}),task('cnc',{hours:4,start:'2026-10-21',predecessors:['cad'],predecessorLagDays:{cad:1}}),task('carp',{hours:8,start:'2026-10-22',predecessors:['cad','cnc'],predecessorLagDays:{cad:1,cnc:0}})];
+ const r=scheduleTeamWithOvertime(tasks,[person],options);
+ assert.equal(r.allocations.find(a=>a.taskKey==='cnc')?.date,'2026-10-21');
+ assert.equal(r.allocations.find(a=>a.taskKey==='carp')?.date,'2026-10-22');
+});
