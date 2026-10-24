@@ -3,7 +3,7 @@ import {dayNumber,dateString,monday,type RosterPerson} from './capacity';
 import {isProductionDay,type ProductionCalendar} from './production-calendar';
 import {validDate} from './quote-schedule';
 export type TeamOptions={start:string;finish:string;priority:string[];availability:{personId:string;date:string;hours:number}[]};
-export type TeamTask={key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;predecessorLagDays?:Record<string,number>;expandCrew?:boolean;calendar:ProductionCalendar;completed:string;external:boolean};
+export type TeamTask={key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;predecessorLagDays?:Record<string,number>;expandCrew?:boolean;recoveryStart?:string;calendar:ProductionCalendar;completed:string;external:boolean};
 export type TeamPerson=Pick<RosterPerson,'id'|'name'|'primary'|'secondary'|'hours'|'active'>;
 export type TeamAllocation={taskKey:string;workspaceId:string;project:string;item:string;trade:string;personId:string;person:string;date:string;hours:number;secondary:boolean;workMode?:'Regular'|'Weekday overtime'|'Weekend'};
 export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string;recommendation?:string}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number;regularAssignedHours?:number;crewAdjustments?:{project:string;item:string;trade:string;date:string;people:number;hours:number}[];pressure?:{trade:string;week:string;utilization:number;projects:string[]}[]};
@@ -41,7 +41,7 @@ function schedulePass(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions,t
   // Primary assignments across all jobs first; secondary skills only use remaining person-hours.
   for(const secondary of [false,true])for(const task of ordered){
    const recover=recovery?.has(task.key)??true,taskExtra=recover?extra:0,taskWeekend=weekendAllowed&&recover;
-   if((remaining.get(task.key)??0)<=EPS||task.external||date<task.start||date>task.deadline||task.fixed&&date>task.finish||(!isProductionDay(day,task.calendar)&&!(taskWeekend&&!task.calendar.holidays?.includes(date))))continue;
+   if((remaining.get(task.key)??0)<=EPS||task.external||date<(expandCrew&&recover&&!task.fixed?task.recoveryStart??task.start:task.start)||date>task.deadline||task.fixed&&date>task.finish||(!isProductionDay(day,task.calendar)&&!(taskWeekend&&!task.calendar.holidays?.includes(date))))continue;
    if(task.predecessors.some(id=>{const completed=done.get(id);if(!all.has(id)||!completed||completed>=date)return true;let gap=0;for(let d=dayNumber(completed)+1;d<day;d++)if(isProductionDay(d,task.calendar))gap++;return gap<(task.predecessorLagDays?.[id]??task.lagDays??0);}))continue;
    const eligible=people.filter(p=>secondary?skill(p.primary)!==skill(task.trade)&&skill(p.secondary)===skill(task.trade):skill(p.primary)===skill(task.trade)).sort((a,b)=>(dailyUsed.get(a.id)??0)-(dailyUsed.get(b.id)??0)||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
    for(const person of eligible){
@@ -99,13 +99,13 @@ export function scheduleTeamWithOvertime(tasks:TeamTask[],roster:TeamPerson[],op
   if(people>1&&hours>t.dailyLimit+EPS)crewAdjustments.push({project:a.project,item:a.item,trade:a.trade,date:a.date,people,hours});
  }
  const unfilled=best.unfilled.map(row=>{
-  const t=byKey.get(row.taskKey)!,end=t.fixed?t.finish<t.deadline?t.finish:t.deadline:t.deadline;
-  let days=0;for(let d=Math.max(dayNumber(options.start),dayNumber(t.start));d<=Math.min(dayNumber(options.finish),dayNumber(end));d++)if(!t.calendar.holidays?.includes(dateString(d)))days++;
+  const t=byKey.get(row.taskKey)!,start=!t.fixed?(t.recoveryStart??t.start):t.start,end=t.fixed?t.finish<t.deadline?t.finish:t.deadline:t.deadline;
+  let days=0;for(let d=Math.max(dayNumber(options.start),dayNumber(start));d<=Math.min(dayNumber(options.finish),dayNumber(end));d++)if(!t.calendar.holidays?.includes(dateString(d)))days++;
   const shifts=Math.ceil(row.hours/8),crew=days?Math.ceil(row.hours/(days*8)):0;
   const recommendation=row.reason==='Prerequisite unfinished or missing'
    ?`Resolve the preceding task first: ${t.predecessors.filter(id=>best.unfilled.some(r=>r.taskKey===id)||!byKey.has(id)).map(id=>byKey.get(id)?.item+' / '+byKey.get(id)?.trade).join(', ')||'confirm prerequisite completion'}. Then rerun the schedule; ${row.hours} hours still need placement.`
    :days?`Add at least ${crew} qualified ${row.trade} crew member(s), providing ${shifts} additional 8-hour shifts (${row.hours} hours) by ${end}. This is a minimum staffing estimate; confirm availability and task handoffs. Existing eligible staff and allowed overtime have already been tried.`
-   :`Review the dates: this task has no available days inside this view and its allowed work window (${t.start} to ${end}). Extend the view if work falls outside it; correct past or conflicting deadlines before assigning work.`;
+   :`Review the dates: this task has no available days inside this view and its allowed work window (${start} to ${end}). Extend the view if work falls outside it; correct past or conflicting deadlines before assigning work.`;
   return {...row,recommendation};
  });
  return {...best,unfilled,crewAdjustments,regularAssignedHours:regular.assignedHours,pressure};

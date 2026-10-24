@@ -148,3 +148,12 @@ test('CAD ramp-up applies to CAD edge only, not again after CNC',()=>{
  assert.equal(r.allocations.find(a=>a.taskKey==='cnc')?.date,'2026-10-21');
  assert.equal(r.allocations.find(a=>a.taskKey==='carp')?.date,'2026-10-22');
 });
+
+test('recovery moves flexible downstream work earlier when added crew finishes prerequisites',()=>{
+ const tasks=[task('first',{hours:16,finish:'2026-10-23',deadline:'2026-10-20'}),task('next',{hours:8,start:'2026-10-26',finish:'2026-10-26',deadline:'2026-10-20',predecessors:['first'],recoveryStart:options.start})];
+ const r=scheduleTeamWithOvertime(tasks,[person,{...person,id:'second',name:'Second'}],options);
+ assert.equal(r.assignedHours,24);assert.equal(r.unfilled.length,0);
+ assert.equal(r.allocations.find(a=>a.taskKey==='next')?.date,'2026-10-20');
+ const locked=scheduleTeamWithOvertime([{...tasks[1],fixed:true,predecessors:[]}],[person],options);
+ assert.equal(locked.assignedHours,0);
+});
