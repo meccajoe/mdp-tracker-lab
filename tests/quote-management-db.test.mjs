@@ -58,6 +58,14 @@ test('quote management: atomic creation, frozen defaults, idempotency, cloning i
  await assert.rejects(forecastSave({...forecast,schedule:{...forecast.schedule,projectStatus:'bad'}},5),e=>e.code==='PT409');
  await forecastSave({...forecast,schedule:{...forecast.schedule,projectStatus:'Complete'}},5);
  assert.equal((await db.query('select document from quote_workbook_revisions where workspace_id=$1 and revision=5',[id])).rows[0].document.schedule.projectStatus,'Complete');
+ // Date migration permits only operational dates and preserves commercial locks.
+ await db.exec('reset role');await db.exec(readFileSync('supabase/migrations/20261024120000_lab_quote_dates.sql','utf8'));await actor();
+ const dated={...forecast,schedule:{...forecast.schedule,projectStatus:'Complete',buildStart:'2026-11-02',buildFinish:'2026-11-20',dueDate:'2026-11-23',shipDate:'2026-11-24',installDate:'2026-11-25'}};
+ await forecastSave(dated,6);
+ assert.equal((await db.query('select document from quote_workbook_revisions where workspace_id=$1 and revision=6',[id])).rows[0].document.schedule.shipDate,'2026-11-24');
+ await assert.rejects(forecastSave({...dated,settings:{laborSell:1}},7),e=>e.code==='PT409');
+ await assert.rejects(forecastSave({...dated,schedule:{...dated.schedule,buildFinish:'2026-01-01'}},7),e=>e.code==='22023');
+ await assert.rejects(forecastSave({...dated,schedule:{...dated.schedule,shipDate:'2026-02-30'}},7));
  // A failed initial revision rolls the workspace and request marker back together.
  await assert.rejects(create('00000000-0000-4000-8000-000000000013',2,null,null,{bad:true}));
  assert.equal((await db.query("select count(*)::int as n from lab_quote_controls where creation_request_id='00000000-0000-4000-8000-000000000013'")).rows[0].n,0);

@@ -34,5 +34,5 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   }
  }
  const result=(allowAttention?scheduleTeamWithOvertime:scheduleTeam)(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
- return {...result,totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
+ return {...result,preparation:tasks.filter(t=>t.external&&!t.completed&&t.hours>0).map(t=>({project:t.project,item:t.item,start:t.start,finish:t.finish,hours:t.hours})),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
 }

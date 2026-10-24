@@ -107,3 +107,12 @@ test('explicit Closed Won selection activates a project without changing dates o
  assert.deepEqual({...withForecastStatus(original,'Likely')},{...original,status:'Likely'});
  assert.equal(original.projectStatus,'Complete');
 });
+
+test('date changes preserve commercial and forecast data, reject stale and invalid input',async()=>{
+ let allowed=true,saved;const doc={settings:{laborSell:110},schedule:{buildStart:'2026-11-02',buildFinish:'2026-11-20',installDate:'',status:'Likely'},planning:{remainingShop:12,status:'Possible'}};
+ const actor={ok:true,actorSupabase:{from:()=>{const q=query({document:doc,revision:3,engine_version:'v27-1'});q.insert=value=>{saved=value;return query({revision:4});};return q;}}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/dates/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>allowed?actor:{ok:false,response:json({},403)}},'@/lib/quote-management-server':management});
+ const post=(dates,expectedVersion=3)=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({dates,expectedVersion})}),{params:Promise.resolve({workspaceId:id})});
+ assert.equal((await post({shipDate:'2026-11-24'})).status,200);assert.equal(saved.document.schedule.shipDate,'2026-11-24');assert.equal(saved.document.settings.laborSell,110);assert.equal(saved.document.planning.status,'Possible');assert.equal(saved.document.schedule.status,'Likely');assert.equal(doc.schedule.shipDate,undefined);
+ assert.equal((await post({buildFinish:'2026-01-01'})).status,400);assert.equal((await post({status:'Closed won'})).status,400);assert.equal((await post({installDate:'2026-02-30'})).status,400);assert.equal((await post({},2)).status,409);allowed=false;assert.equal((await post({})).status,403);
+});

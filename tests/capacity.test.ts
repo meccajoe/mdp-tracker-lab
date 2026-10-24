@@ -160,3 +160,12 @@ test('daily overview buckets retain exact scheduled hours and normal weekday cap
  assert.equal(daily.sharedAvailable[5],0);assert.equal(daily.sharedAvailable[6],0);
  const empty=dashboardLoad([p],config,[],'expected',28,1);assert.equal(sum(empty.load.expected),0);
 });
+
+test('CAD demand has a separate dated chart and daily/weekly totals agree',()=>{
+ const p=project('Closed won'),s=settings();s.roster=[{id:'cad',name:'CAD person',primary:'CAD',secondary:'Carpentry',hours:40,rate:20,active:true,notes:''}];
+ const before=JSON.stringify(p);
+ const weekly=dashboardLoad([p],s,null,'committed',4,7),daily=dashboardLoad([p],s,null,'committed',28,1);
+ close(sum(weekly.cadNeeded),p.demand.design);close(sum(weekly.cadNeeded),sum(daily.cadNeeded));
+ close(sum(weekly.cadAvailable),160);close(sum(daily.cadAvailable),160);assert.equal(weekly.capacity.shop,0);
+ assert.equal(JSON.stringify(p),before);
+});

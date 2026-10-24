@@ -1,6 +1,8 @@
+import {emptyPlan,proposeProductionPlan} from './production-plan';
 import {validDate} from './quote-schedule';
 import {capacityLoad,capacityProject,rosterCapacity,dayNumber,monday,type CapacitySettings} from './capacity';
-export const isShopRosterTrade=(name:string)=>!['cad','drawings','design','design / engineering / cad','i&d','driver/pickups','facility'].includes(name.trim().toLowerCase());
+export const isCadTrade=(name:string)=>['cad','drawings','design','design / engineering / cad','cad / drawings'].includes(name.trim().toLowerCase());
+export const isShopRosterTrade=(name:string)=>!isCadTrade(name)&&!['i&d','driver/pickups','facility'].includes(name.trim().toLowerCase());
 export type DemandBasis='expected'|'committed'|'full';
 export type CapacityProject=ReturnType<typeof capacityProject>;
 /** Project filters affect demand only. Each active roster member remains counted once. */
@@ -27,7 +29,17 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const sharedAvailable=aggregate(sharedDaily);
  const shopAvailable=aggregate(reservedField.expected.map((h,i)=>dedicatedShop*factor(i)+Math.max(0,sharedDaily[i]-h)));
  const fieldAvailable=aggregate(reservedPacking.map((h,i)=>Math.max(0,sharedDaily[i]-h)));
- return {projects:included,load,fieldLoad,capacity,tradeAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
+ const cadNeeded=Array<number>(count).fill(0),cadUnscheduled:string[]=[];
+ for(const project of weighted){
+  if(!project.probability||!project.document||!project.demand.design)continue;
+  const tasks=project.productionPlan?.tasks??proposeProductionPlan(project.document,settings.roster,{...emptyPlan(),calendar:project.document.productionCalendar??emptyPlan().calendar}).tasks;
+  const cad=tasks.filter(t=>t.stage==='cad');
+  if(!cad.length||cad.some(t=>t.daily.reduce((s,d)=>s+d.hours,0)<t.hours-.000001))cadUnscheduled.push(project.workspace);
+  for(const task of cad)for(const d of task.daily){const i=Math.floor((dayNumber(d.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count)cadNeeded[i]+=d.hours*project.probability;}
+ }
+ const cadWeekly=settings.roster.filter(p=>p.active&&isCadTrade(p.primary)).reduce((s,p)=>s+p.hours,0);
+ const cadAvailable=aggregate(Array.from({length:dailyCount},(_,i)=>cadWeekly*factor(i)));
+ return {cadNeeded,cadAvailable,cadUnscheduled,projects:included,load,fieldLoad,capacity,tradeAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
 }
 
 /** Weekly charts include the complete weeks containing the chosen dates. */

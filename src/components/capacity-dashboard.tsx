@@ -47,6 +47,7 @@ export function CapacityDashboard({projects,settings,settingsUnavailable=false,m
  <details className={styles.projectPicker}><summary>Notes & flags</summary>
  {mode==='shop'&&result.unscheduledField.length>0&&<p className={styles.warning}>Field work without dates cannot be deducted from availability: {result.unscheduledField.join(', ')}.</p>}
  {mode==='field'&&result.unscheduledShop.length>0&&<p className={styles.warning}>Packing/shop work with missing dates may overstate available field capacity: {result.unscheduledShop.join(', ')}.</p>}
+ {mode==='shop'&&result.cadUnscheduled.length>0&&<p className={styles.warning}>CAD hours need scheduling dates: {result.cadUnscheduled.join(', ')}.</p>}
  {load.unscheduled.length>0&&<p className={styles.warning}>Not plotted — missing or unusable {mode==='field'?'installation':'build'} dates: {load.unscheduled.join(', ')}.</p>}
  {missingStatus.length>0&&<p className={styles.warning}>No forecast status — excluded from demand: {missingStatus.map(p=>p.workspace).join(', ')}.</p>}
  {mode==='shop'&&mismatches.length>0&&<p className={styles.warning}>Trade hours exceed total shop hours on {mismatches.map(p=>p.workspace).join(', ')}. Reconcile these quote allocations; trade graphs have not been scaled to hide the difference.</p>}
@@ -54,6 +55,7 @@ export function CapacityDashboard({projects,settings,settingsUnavailable=false,m
  </details>
  <div className={styles.tradeHeading}><h2>{mode==='field'?'Field capacity at a glance':'Shop capacity at a glance'}</h2><div className={styles.legend}><span><i className={styles.capacityLine}/>Capacity limit</span><span><i className={styles.needed}/>Needed</span><span><i className={styles.over}/>Over capacity</span></div></div>
  <div className={styles.chartGrid}>
+ {mode==='shop'&&<LaborChart period={period} title="CAD / Drawings — separate team" weeks={weeks} needed={result.cadNeeded} available={rosterConfigured?result.cadAvailable:null}/>}
  <LaborChart period={period} title={mode==='field'?"Field installation — after packing commitments":"All shop trades combined — after field commitments"} weeks={weeks} needed={needed} available={available}/>
  <LaborChart period={period} title="I&D + Crate & pack — shared crew" weeks={weeks} needed={result.sharedNeeded} available={rosterConfigured?result.sharedAvailable:null}/>
  {mode==='shop'&&<LaborChart period={period} title="Field installation — after packing commitments" weeks={weeks} needed={result.fieldLoad.expected} available={rosterConfigured?result.fieldAvailable:null}/>}
