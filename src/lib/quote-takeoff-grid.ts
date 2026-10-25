@@ -85,7 +85,7 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
         if(!line) {
           const matches=next.lines.filter(item=>item.name.toLowerCase()===value.toLowerCase());
           if(matches.length>1)throw new Error('Choose an item number for this duplicate name.');
-          line=matches[0]??next.lines.find(item=>/^Item \d+$/.test(item.name)&&!next.takeoffs.some(t=>t.lineId===item.id));
+          line=matches[0]??next.lines.find(item=>/^(Item|Spare) \d+$/.test(item.name)&&!next.takeoffs.some(t=>t.lineId===item.id));
           if(!line)throw new Error('Add an item or choose its number before naming this row.');
           row.lineId=line.id;
         }

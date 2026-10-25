@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {adaFetch} from '@/lib/ada-client';
 import {parseSchedule,type QuoteSchedule} from '@/lib/quote-schedule';
-export const PROJECT_DATE_FIELDS=[['buildStart','Project Start'],['buildFinish','Project Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date']] as const;
+export const PROJECT_DATE_FIELDS=[['buildStart','Project Start'],['buildFinish','Project Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date'],['dismantleDate','Dismantle Date']] as const;
 export function CapacityProjectDates({id,name,version,schedule,activationDate,disabled,onSaved}:{id:string;name:string;version:number;schedule:QuoteSchedule;activationDate?:string;disabled:boolean;onSaved:()=>Promise<void>}){
  const [open,setOpen]=useState(false),[draft,setDraft]=useState(schedule),[baseVersion,setBaseVersion]=useState(version),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const modal=useRef<HTMLDialogElement>(null);

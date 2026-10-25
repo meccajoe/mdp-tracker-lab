@@ -1,4 +1,5 @@
 "use client";
+import {builderItemName,showBuilderLine} from '@/lib/quote-builder-display';
 import {useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
 
@@ -76,12 +77,14 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
           <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined} style={{position:index===0?'sticky':'relative'}}>{label}<QuoteColumnResize label={label}/></th>)}</tr>
         </thead>
         <tbody>{quote.lines.map((line,index)=>{
+          if(!showBuilderLine(quote,line))return null;
+          const displayName=builderItemName(line,index);
           const row=rows.get(line.id);
           const install=['Lead Installer — Install','Lead Installer — Dismantle','Install Support Labor','Installer Days'].includes(line.type);
           return <tr key={line.id} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
             <th scope="row" className={styles.rowNumber}><div className={styles.itemNumber}>
               {itemActions.menu(line.id,`Item ${index+1} actions · ${line.name}`)}<span>{`Item ${index+1}`}</span></div></th>
-            <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{line.name+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} value={line.name} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
+            <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{displayName+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} value={displayName} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
             <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{typeLabel(line.type)}</span><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{!builderTypes.some(([type])=>type===line.type)&&<option hidden disabled value={line.type}>{line.type}</option>}{builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div></td>
             {visibleInputs.map(({key,heading})=>inputCell(line,key,heading))}
             {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}

@@ -8,7 +8,7 @@ export async function POST(request:Request,{params}:{params:Promise<{workspaceId
  const {workspaceId}=await params;if(!/^[0-9a-f-]{36}$/i.test(workspaceId))return json({error:'Invalid quote ID.'},400);
  const access=await requireQuoteProductWorkspaceAccess(workspaceId,'edit_draft');if(!access.ok)return access.response;
  if(access.workspaceLifecycle==='archived')return json({error:'Restore this quote before changing its dates.'},403);
- let body;try{const raw=await request.text();if(raw.length>1000)throw Error();body=JSON.parse(raw);if(!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1||!body.dates||typeof body.dates!=='object'||Array.isArray(body.dates)||Object.keys(body.dates).some(key=>!['buildStart','buildFinish','dueDate','shipDate','installDate'].includes(key)))throw Error();}catch{return json({error:'Choose valid dates and a saved revision.'},400);}
+ let body;try{const raw=await request.text();if(raw.length>1000)throw Error();body=JSON.parse(raw);if(!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1||!body.dates||typeof body.dates!=='object'||Array.isArray(body.dates)||Object.keys(body.dates).some(key=>!['buildStart','buildFinish','dueDate','shipDate','installDate','dismantleDate'].includes(key)))throw Error();}catch{return json({error:'Choose valid dates and a saved revision.'},400);}
  const latest=await access.actorSupabase.from('quote_workbook_revisions').select('document,revision,engine_version').eq('workspace_id',workspaceId).order('revision',{ascending:false}).limit(1).maybeSingle();
  if(latest.error)return json({error:'Quote could not load.'},500);
  if(!latest.data||latest.data.revision!==body.expectedVersion)return json({error:'The quote changed. Reload the list and try again.'},409);

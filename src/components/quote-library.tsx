@@ -46,8 +46,21 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
   if(outcome.errors.length)setError([...new Set(outcome.errors)].join(' '));
   setSelected(new Set(failed));setMessage(`${count} quote${count===1?'':'s'} ${restore?'restored':'archived'}.${failed.length?` ${failed.length} could not be changed and remain selected.`:''}`);await load();guard.current=false;setBusy(false);
  }
- async function changeStatus(w:Workspace,next:string){if(guard.current)return;guard.current=true;setBusy(true);setError('');try{await result(await adaFetch(`/api/quote-workspaces/${w.id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:next,expectedVersion:w.status_version,expectedRevision:w.workbook_revision})}));await load();}catch(e){setError(e instanceof Error?e.message:'Status could not change.');await load();}finally{guard.current=false;setBusy(false);}}
- async function changeForecast(w:Workspace,status:string,project=false){if(guard.current)return;guard.current=true;setBusy(true);setError('');try{const p=await result(await adaFetch(`/api/quote-workspaces/${w.id}/forecast`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...(project?{projectStatus:status}:{status}),expectedVersion:w.workbook_revision})}));invalidateQuoteLibrary();setMessage(p.warning||'Status saved. Capacity uses the updated status.');await load();}catch(e){setError(e instanceof Error?e.message:'Forecast could not save.');await load();}finally{guard.current=false;setBusy(false);}}
+ async function changeStatus(w:Workspace,next:string){
+  if(guard.current)return;guard.current=true;loadGeneration.current++;setBusy(true);setError('');setMessage('Saving quote status…');
+  setRows(rows=>rows.map(row=>row.id===w.id?{...row,quote_status:next as Workspace['quote_status']}:row));
+  try{const p=await result(await adaFetch(`/api/quote-workspaces/${w.id}/status`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:next,expectedVersion:w.status_version,expectedRevision:w.workbook_revision})}));
+   setRows(rows=>rows.map(row=>row.id===w.id?{...row,quote_status:p.status,status_version:p.version,last_modified:new Date().toISOString()}:row));invalidateQuoteLibrary();setMessage('Quote status saved.');
+  }catch(e){setRows(rows=>rows.map(row=>row.id===w.id?w:row));setMessage('');setError(e instanceof Error?e.message:'Status could not change.');await load();}finally{guard.current=false;setBusy(false);setLoading(false);}
+ }
+ async function changeForecast(w:Workspace,status:string,project=false){
+  if(guard.current)return;guard.current=true;loadGeneration.current++;setBusy(true);setError('');setMessage('Saving status…');
+  const updated={...w,...(project?{project_status:status}:{forecast_status:status,...(status==='Closed won'?{project_status:'Active'}:{})})};
+  setRows(rows=>rows.map(row=>row.id===w.id?updated:row));
+  try{const p=await result(await adaFetch(`/api/quote-workspaces/${w.id}/forecast`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...(project?{projectStatus:status}:{status}),expectedVersion:w.workbook_revision})}));
+   setRows(rows=>rows.map(row=>row.id===w.id?{...updated,workbook_revision:p.version,last_modified:new Date().toISOString()}:row));invalidateQuoteLibrary();setMessage(p.warning||'Status saved. Capacity uses the updated status.');
+  }catch(e){setRows(rows=>rows.map(row=>row.id===w.id?w:row));setMessage('');setError(e instanceof Error?e.message:'Forecast could not save.');await load();}finally{guard.current=false;setBusy(false);setLoading(false);}
+ }
  function toggle(id:string,checked:boolean){setSelected(previous=>{const next=new Set(previous);if(checked)next.add(id);else next.delete(id);return next;});}
  return <PageShell>
   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase text-muted-foreground">Estimating</p><h1 className="text-2xl font-bold">{archived?'Archived quotes':'Quotes'}</h1></div><div className="flex flex-wrap gap-3 items-center"><Link className="underline" href="/quotes/import">Import spreadsheet</Link><Button onClick={()=>open('create')}>New quote</Button></div></div>

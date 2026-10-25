@@ -1,6 +1,6 @@
 export const FORECAST_STATUSES=['Not likely','Possible','Likely','Highly likely','Closed won','In production','Lost','Completed'] as const;
 export type ForecastStatus=typeof FORECAST_STATUSES[number];
-export type QuoteSchedule={installDate:string;buildStart:string;buildFinish:string;status:ForecastStatus|'';projectStartOverride?:string;dueDate?:string;shipDate?:string;projectStatus?:ProjectStatus};
+export type QuoteSchedule={installDate:string;buildStart:string;buildFinish:string;status:ForecastStatus|'';projectStartOverride?:string;dismantleDate?:string;dueDate?:string;shipDate?:string;projectStatus?:ProjectStatus};
 export const PROJECT_STATUSES=['Not Active','Active','Complete'] as const;
 export type ProjectStatus=typeof PROJECT_STATUSES[number];
 export const SALES_FORECAST_STATUSES=['Not likely','Possible','Likely','Highly likely','Closed won','Lost'] as const;
@@ -27,7 +27,7 @@ export function parseSchedule(value:unknown):QuoteSchedule {
  const row=value as Record<string,unknown>,schedule={...EMPTY_SCHEDULE};
  for(const key of ['installDate','buildStart','buildFinish'] as const){if(row[key]!==''&&!validDate(row[key]))throw new Error(`Choose a valid ${key} date.`);schedule[key]=row[key] as string;}
  if(row.status!==''&&!FORECAST_STATUSES.includes(row.status as ForecastStatus))throw new Error('Choose a valid forecast status.');
- for(const key of ['dueDate','shipDate','projectStartOverride'] as const){if(row[key]!==undefined){if(row[key]!==''&&!validDate(row[key]))throw new Error(`Choose a valid ${key} date.`);schedule[key]=row[key] as string;}}
+ for(const key of ['dueDate','shipDate','dismantleDate','projectStartOverride'] as const){if(row[key]!==undefined){if(row[key]!==''&&!validDate(row[key]))throw new Error(`Choose a valid ${key} date.`);schedule[key]=row[key] as string;}}
  if(row.projectStatus!==undefined){if(!PROJECT_STATUSES.includes(row.projectStatus as ProjectStatus))throw new Error('Choose a valid project status.');schedule.projectStatus=row.projectStatus as ProjectStatus;}
  schedule.status=row.status as QuoteSchedule['status'];
  if(schedule.projectStartOverride&&schedule.projectStartOverride!==schedule.buildStart)throw new Error('Revised Project Start must match the saved start date.');

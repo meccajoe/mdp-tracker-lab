@@ -1,3 +1,4 @@
+import {builderItemName} from './quote-builder-display';
 import {applyLevyPricing} from './quote-v27';
 import blank from '../data/quote-v27-blank.json';
 import { emptyEstimators } from './quote-v27-estimators';
@@ -18,6 +19,7 @@ export function createBlankQuoteV27() {
   quote.estimators = estimators;
   // New quotes create individual wall items from the estimator; retain historical aggregate rows in saved quotes.
   quote.lines=quote.lines.filter(line=>line.type!=='beMatrix / SEG');
+  quote.lines.forEach((line,index)=>{line.name=builderItemName(line,index);});
   applyLevyPricing(quote);
   quote.pricingVersion = "scoped-levies-v2";
   return quote;

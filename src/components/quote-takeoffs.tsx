@@ -1,4 +1,5 @@
 'use client';
+import {builderItemName} from '@/lib/quote-builder-display';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
@@ -63,7 +64,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   function valueAt(r:number,key:SheetColumn):string {
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
-    if(key==='itemName'){const name=quote.lines.find(line=>line.id===row.lineId)?.name??'';return name===quoteItemLabel(quote,row.lineId)?'':name;}
+    if(key==='itemName'){const index=quote.lines.findIndex(line=>line.id===row.lineId);const name=index<0?'':builderItemName(quote.lines[index],index);return name===quoteItemLabel(quote,row.lineId)?'':name;}
     if(key==='quantity'&&isLaborTakeoff(quote,row))return saved&&row.hours?String(row.hours):'';
     if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
     if(key==='unit')return row.unit??catalog.get(row.materialId??'')?.unit??'';
@@ -117,7 +118,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       <span>Assign only the rows you need. Drag-copy Item # or name to link more rows.</span>
       {filterOpen&&<div ref={filterRef} className={styles.filterPanel} role="dialog" aria-label="Filter takeoffs by item" onKeyDown={e=>{if(e.key==='Escape')setFilterOpen(false);}}>
         <div className={styles.pickerTools}><input autoFocus aria-label="Search item number or name" placeholder="Search item # or name…" value={filterQuery} onChange={e=>setFilterQuery(e.target.value)}/><button type="button" aria-label="Close item filter" onClick={()=>setFilterOpen(false)}>×</button></div>
-        <div className={styles.choices}><button type="button" onClick={()=>setFilter('')}>All items</button>{filterChoices.map(line=><button type="button" key={line.id} onClick={()=>setFilter(line.id)}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name}</span></button>)}{!filterChoices.length&&<p>No matching items.</p>}</div>
+        <div className={styles.choices}><button type="button" onClick={()=>setFilter('')}>All items</button>{filterChoices.map(line=><button type="button" key={line.id} onClick={()=>setFilter(line.id)}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,quote.lines.indexOf(line))}</span></button>)}{!filterChoices.length&&<p>No matching items.</p>}</div>
       </div>}
     </div>
 
@@ -162,13 +163,13 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               <div className={styles.itemNumberCell}>{itemActions.menu(row.lineId,`Item actions row ${r+1} · ${display}`)}<button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button></div><button type="button" data-item-picker-trigger className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
               {itemPicker===r&&<div ref={pickerRef} role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
-                <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map(line=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{line.name===quoteItemLabel(quote,line.id)?'Name this item…':line.name}</span></button>)}</div>
+                <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map((line,index)=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,index)===quoteItemLabel(quote,line.id)?'Name this item…':builderItemName(line,index)}</span></button>)}</div>
               </div>}
             </>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
-                onFocus={e=>selectTextCell(e.currentTarget)}
+                onFocus={e=>{if(key==='itemName'||key==='notes')editTextCell(e.currentTarget);else selectTextCell(e.currentTarget);}}
                 onMouseUp={e=>{if(!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}
-                onClick={e=>{if(e.detail===1)selectTextCell(e.currentTarget);}}
+                onClick={e=>{if(key==='itemName'||key==='notes')editTextCell(e.currentTarget);else if(e.detail===1)selectTextCell(e.currentTarget);}}
                 onDoubleClick={e=>editTextCell(e.currentTarget)}
                 onInput={e=>editTextCell(e.currentTarget)}
                 title={key==='unitCostOverride'?row.unitCostOverride===null?'Catalog price · type to override':'Manual cost · clear to restore catalog':display}
