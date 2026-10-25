@@ -1,7 +1,7 @@
 ## Capacity Dashboard order — October 25, 2026
 - Renamed Overview to Dashboard (including default selection). First nine chart tiles: All Shop Combined, CNC, Carpentry, Finish/Paint, I&D (shop), Electrical, Graphic/Vinyl, Metal, Sculpting. Additional existing trades, CAD, field and shared-crew views remain below the requested sequence.
 - I&D (shop) shows packing plus shop-tagged I&D demand against the I&D pool remaining after all field commitments; project filters do not free reserved capacity. Existing shared/field charts retained. No quote, roster, schedule or database writes/migration.
-- Lab checks/TypeScript and focused capacity regression pass. Build/deployment verification pending.
+- Lab checks/TypeScript, focused capacity regression and production webpack build pass. Release d3f9ae6 pushed and deployed successfully (Vercel DXaDC691SYY4873XCUpnUjRz3tAn). Hosted reload verified Dashboard selected by default and first nine headings in the exact requested order. Additional charts follow; screenshot /private/tmp/capacity-dashboard-order.png. No customer data changed.
 
 ## Editable Project Start — October 25, 2026
 - Release 2d81138 pushed and deployed successfully to lab (Vercel 421rYpdrrakJGJzmzUbkMYpjpe5P). Hosted Fossil Edit dates dialog verified Project Start enabled and not readonly, original activation displayed; canceled without saving. Screenshot /private/tmp/edit-project-start-verified.png. Final full suite: 236 tests and TypeScript pass; updated preparation-note wording assertion. Live save/reopen and Final guard migration remain unverified because Supabase is signed out. Login tab kept open for handoff; no customer dates changed.
