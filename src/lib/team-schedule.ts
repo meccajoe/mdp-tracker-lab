@@ -4,7 +4,7 @@ import {dayNumber,dateString,monday,type RosterPerson} from './capacity';
 import {isProductionDay,type ProductionCalendar} from './production-calendar';
 import {validDate} from './quote-schedule';
 export type TeamOptions={start:string;finish:string;priority:string[];availability:{personId:string;date:string;hours:number}[]};
-export type TeamTask={key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;predecessorLagDays?:Record<string,number>;expandCrew?:boolean;recoveryStart?:string;calendar:ProductionCalendar;completed:string;external:boolean};
+export type TeamTask={pacing?:{date:string;hours:number}[];key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;predecessorLagDays?:Record<string,number>;expandCrew?:boolean;recoveryStart?:string;calendar:ProductionCalendar;completed:string;external:boolean};
 export type TeamPerson=Pick<RosterPerson,'id'|'name'|'primary'|'secondary'|'hours'|'active'>;
 export type TeamAllocation={taskKey:string;workspaceId:string;project:string;item:string;trade:string;personId:string;person:string;date:string;hours:number;secondary:boolean;workMode?:'Regular'|'Weekday overtime'|'Weekend'};
 export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string;recommendation?:string}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number;preparation?:(PreparationPhase&{workspaceId:string;project:string})[];regularAssignedHours?:number;crewAdjustments?:{project:string;item:string;trade:string;date:string;people:number;hours:number}[];pressure?:{trade:string;week:string;utilization:number;projects:string[]}[]};
@@ -23,7 +23,7 @@ export function personDayHours(person:TeamPerson,date:string,options:TeamOptions
  return person.active?Math.min(24,person.hours/5,override?.hours??(weekday===0||weekday===6?0:person.hours/5)):0;
 }
 /** Deterministic daily allocation across the complete included workload; no commercial mutation. */
-function schedulePass(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions,tier=0,weekdayExtra=4,recovery?:Set<string>,expandCrew=false):TeamResult{
+function schedulePass(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions,tier=0,weekdayExtra=4,recovery?:Set<string>,expandCrew=false,relaxPacing=false):TeamResult{
  options=parseTeamOptions(options);
  if(tasks.length>5000||roster.length>300||new Set(tasks.map(t=>t.key)).size!==tasks.length||new Set(roster.map(p=>p.id)).size!==roster.length)throw Error('Schedule is too large or contains duplicate IDs.');
  for(const a of options.availability){const person=roster.find(p=>p.id===a.personId);if(!person||a.hours>Math.min(24,person.hours/5))throw Error('Availability cannot exceed the employee’s normal daily hours. Update the roster for a different workweek.');}
@@ -51,7 +51,8 @@ function schedulePass(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions,t
     const dailyCap=Math.min(24,exception?normal:taskWeekend?Math.min(8,person.hours/5):normal+taskExtra);
     const weeklyCap=person.hours+(tier>0?weekdayExtra*5:0)+(tier>=2?Math.min(8,person.hours/5):0)+(tier>=3?Math.min(8,person.hours/5):0);
     const used=dailyUsed.get(person.id)??0,room=Math.min(dailyCap-used,weeklyCap-(weekUsed.get(weekKey)??0),expandCrew&&recover&&!task.fixed&&task.expandCrew!==false?Infinity:task.dailyLimit+taskExtra-(taskUsed.get(task.key)??0));
-    const hours=Math.min(remaining.get(task.key)??0,room);if(hours<=EPS)continue;
+    const released=task.pacing&&!(relaxPacing&&recover)?Math.max(0,task.pacing.filter(d=>d.date<=date).reduce((n,d)=>n+d.hours,0)-(task.hours-(remaining.get(task.key)??0))):Infinity;
+    const hours=Math.min(remaining.get(task.key)??0,room,released);if(hours<=EPS)continue;
     const base={taskKey:task.key,workspaceId:task.workspaceId,project:task.project,item:task.item,trade:task.trade,personId:person.id,person:person.name,date,secondary};
     const regular=weekend?0:Math.min(hours,Math.max(0,normal-used),Math.max(0,person.hours-(regularWeekUsed.get(weekKey)??0)));
     regularWeekUsed.set(weekKey,(regularWeekUsed.get(weekKey)??0)+regular);
@@ -72,15 +73,18 @@ export function scheduleTeam(tasks:TeamTask[],roster:TeamPerson[],options:TeamOp
 }
 export function scheduleTeamWithOvertime(tasks:TeamTask[],roster:TeamPerson[],options:TeamOptions):TeamResult{
  const regular=schedulePass(tasks,roster,options);
- let best=regular;
- const recovery=new Set(regular.unfilled.map(t=>t.taskKey)),byKey=new Map(tasks.map(t=>[t.key,t]));
+ let best=regular,usedRelaxation=false;
+ const recovery=new Set(regular.unfilled.filter(row=>tasks.find(t=>t.key===row.taskKey)!.deadline<=options.finish).map(t=>t.taskKey)),byKey=new Map(tasks.map(t=>[t.key,t]));
  const includePredecessors=(key:string)=>{for(const predecessor of byKey.get(key)?.predecessors??[]){if(!recovery.has(predecessor)){recovery.add(predecessor);includePredecessors(predecessor);}}};
  for(const key of [...recovery])includePredecessors(key);
  for(const tier of [0,1,2,3]){
   if(best.unfilled.length===0)break;
-  const candidate=schedulePass(tasks,roster,options,tier,4,recovery,true);
+  for(const relax of [false,true]){
+  if(best.unfilled.length===0)break;
+  const candidate=schedulePass(tasks,roster,options,tier,4,recovery,true,relax);
   const extra=(r:TeamResult)=>r.allocations.filter(a=>a.workMode!=='Regular').reduce((n,a)=>n+a.hours,0);
-  if(candidate.assignedHours>best.assignedHours+EPS||Math.abs(candidate.assignedHours-best.assignedHours)<EPS&&extra(candidate)<extra(best))best=candidate;
+  if(candidate.assignedHours>best.assignedHours+EPS||Math.abs(candidate.assignedHours-best.assignedHours)<EPS&&extra(candidate)<extra(best)){best=candidate;usedRelaxation=relax;}
+  }
  }
  const pressure:NonNullable<TeamResult['pressure']>=[];
  const groups=new Map<string,TeamAllocation[]>();
@@ -103,13 +107,16 @@ export function scheduleTeamWithOvertime(tasks:TeamTask[],roster:TeamPerson[],op
   const t=byKey.get(row.taskKey)!,start=!t.fixed?(t.recoveryStart??t.start):t.start,end=t.fixed?t.finish<t.deadline?t.finish:t.deadline:t.deadline;
   let days=0;for(let d=Math.max(dayNumber(options.start),dayNumber(start));d<=Math.min(dayNumber(options.finish),dayNumber(end));d++)if(!t.calendar.holidays?.includes(dateString(d)))days++;
   const shifts=Math.ceil(row.hours/8),crew=days?Math.ceil(row.hours/(days*8)):0;
-  const recommendation=row.reason==='Prerequisite unfinished or missing'
+  const recommendation=t.deadline>options.finish&&row.reason!=='No active employee with this trade'
+   ?`This project continues through ${t.deadline}. Extend the view to include its full timeline; future work is not a staffing shortage.`
+   :row.reason==='Prerequisite unfinished or missing'
    ?`Resolve the preceding task first: ${t.predecessors.filter(id=>best.unfilled.some(r=>r.taskKey===id)||!byKey.has(id)).map(id=>byKey.get(id)?.item+' / '+byKey.get(id)?.trade).join(', ')||'confirm prerequisite completion'}. Then rerun the schedule; ${row.hours} hours still need placement.`
    :days?`Add at least ${crew} qualified ${row.trade} crew member(s), providing ${shifts} additional 8-hour shifts (${row.hours} hours) by ${end}. This is a minimum staffing estimate; confirm availability and task handoffs. Existing eligible staff and allowed overtime have already been tried.`
    :`Review the dates: this task has no available days inside this view and its allowed work window (${start} to ${end}). Extend the view if work falls outside it; correct past or conflicting deadlines before assigning work.`;
   return {...row,recommendation};
  });
- return {...best,unfilled,crewAdjustments,regularAssignedHours:regular.assignedHours,pressure};
+ const pacedProjects=[...new Set(best.allocations.filter(a=>recovery.has(a.taskKey)&&byKey.get(a.taskKey)?.pacing&&usedRelaxation).map(a=>a.project))];
+ return {...best,warnings:[...best.warnings,...pacedProjects.map(p=>`${p}: preferred production pacing was relaxed to fit the deadline. Review added crew or extra shifts; quoted hours remain unchanged.`)],unfilled,crewAdjustments,regularAssignedHours:regular.assignedHours,pressure};
 }
 export function sameTeamSources(a:unknown,b:unknown){
  const canonical=(value:unknown)=>{const s=value as {roster:number;quotes:{id:string;quote:number;plan:number}[]};return JSON.stringify([s.roster,s.quotes.map(q=>[q.id,q.quote,q.plan]).sort((x,y)=>String(x[0]).localeCompare(String(y[0])))]);};

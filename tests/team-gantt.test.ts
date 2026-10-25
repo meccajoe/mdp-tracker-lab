@@ -66,3 +66,12 @@ test('missing activation uses saved Project Start as Day 1, with zero hours neve
  assert.equal(p[0].start,'2026-11-02');assert.equal(p[0].workdays,1);assert.equal(p[0].daily[0].hours,8);
  assert.match(p[0].staffingNote,/Project Start is Day 1/);
 });
+
+test('Project view combines CAD and turnover with production on one row without counting CAD twice',()=>{
+ const r={...result,preparation:projectPreparation('2026-10-19','2026-10-30',4,{saturday:false,sunday:false}).map(p=>({...p,workspaceId:'a',project:'A'}))};
+ const before=JSON.stringify(r),rows=teamGanttRows(r,'Project',filter);
+ assert.equal(rows.length,2);assert.equal(rows[0].preparation.length,2);assert.equal(rows[0].hours,8);
+ assert.equal(rows[0].preparation.find(p=>p.kind==='CAD')!.hours,4);assert.equal(JSON.stringify(r),before);
+ assert.ok(teamGanttRows(r,'Person',filter).every(row=>row.preparation.length===0));
+ const cad=teamGanttRows(r,'Trade',{...filter,trade:'CAD / Drawings'});assert.equal(cad.length,1);assert.equal(cad[0].preparation.length,1);
+});

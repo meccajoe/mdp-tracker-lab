@@ -1,3 +1,4 @@
+import {paceProjectTasks} from './team-pacing';
 import {projectPreparation} from './project-preparation';
 import {dateString,dayNumber,capacityProject,type CapacityQuote,type RosterPerson} from './capacity';
 import {emptyPlan,proposeProductionPlan} from './production-plan';
@@ -45,6 +46,10 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
    }
    tasks.push({key:p.workspaceId+'|'+t.id,workspaceId:p.workspaceId,project:p.workspace,item:t.item,trade:t.trade,hours:t.hours,start:t.start||p.schedule.buildStart,finish:t.finish||p.schedule.buildFinish,deadline:p.schedule.buildFinish,fixed:plan.status==='approved'||t.locked,dailyLimit:plan.rules[t.id]?.dailyHours??Math.max(p.document.settings.shopDay||8,...t.daily.map(d=>d.hours)),recoveryStart:plan.rules[t.id]?.start&&plan.rules[t.id].start!>(allowAttention?readyDate:rampStart)?plan.rules[t.id].start:(allowAttention?readyDate:rampStart),expandCrew:plan.rules[t.id]?.dailyHours===undefined,predecessorLagDays:Object.fromEntries(t.predecessors.map(id=>[p.workspaceId+'|'+id,(plan.rules[t.id]?.lagDays??0)+(source.find(s=>s.id===id)?.stage==='cad'&&!allowAttention?plan.rampDays:0)])),predecessors:t.predecessors.map(id=>p.workspaceId+'|'+id),calendar:plan.calendar,completed:plan.actuals[t.id]?.completed??'',external:t.stage==='cad'});
   }
+  if(allowAttention){
+   const paced=paceProjectTasks(tasks.slice(taskStart));
+   tasks.splice(taskStart,tasks.length-taskStart,...paced);
+  }
   }catch(error){
    if(!allowAttention)throw error;
    tasks.splice(taskStart);
@@ -52,5 +57,5 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   }
  }
  const result=(allowAttention?scheduleTeamWithOvertime:scheduleTeam)(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
- return {...result,preparation:included.flatMap(p=>projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,p.productionPlan?.calendar??p.document?.productionCalendar??emptyPlan().calendar,p.activationDate).map(phase=>({...phase,workspaceId:p.workspaceId,project:p.workspace}))),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
+ return {...result,preparation:included.flatMap(p=>projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,p.productionPlan?.calendar??p.document?.productionCalendar??emptyPlan().calendar,p.activationDate).map(phase=>({...phase,workspaceId:p.workspaceId,project:p.workspace}))),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status,start:p.schedule.buildStart,finish:p.schedule.buildFinish}))};
 }

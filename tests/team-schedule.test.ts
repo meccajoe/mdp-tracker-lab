@@ -180,5 +180,40 @@ test('activation is Project Start and Day 1; approved production cannot bypass p
  assert.ok(r.warnings.some(w=>w.includes('saved dates overlap project turnover')));
  assert.ok(r.warnings.some(w=>w.includes('readiness review')));assert.equal(JSON.stringify(plan),before);
  const live=buildTeamSchedule([source],[{...person,primary:'Unassigned shop hours',rate:20,notes:''}],{...options,start:'2026-11-02',finish:'2026-11-27'},true);
- assert.equal(live.assignedHours,8);assert.equal(live.allocations[0].date,'2026-11-06');
+ assert.equal(live.assignedHours,8);assert.ok(live.allocations[0].date>='2026-11-06');assert.equal(live.allocations.at(-1)!.date,'2026-11-26');
+});
+
+import {paceProjectTasks} from '../src/lib/team-pacing';
+test('light projects use the full production window with one working day of buffer',()=>{
+ const o={...options,start:'2026-11-02',finish:'2026-11-27'};
+ const input=[task('wall',{workspaceId:'project',hours:24,start:o.start,finish:o.finish,deadline:o.finish})],before=JSON.stringify(input);
+ const paced=paceProjectTasks(input),r=scheduleTeamWithOvertime(paced,[person],o);
+ assert.equal(r.assignedHours,24);assert.equal(r.unfilled.length,0);
+ assert.equal(r.allocations.at(-1)!.date,'2026-11-26');assert.ok(r.allocations.length>10);
+ assert.ok(r.allocations.every(a=>a.workMode==='Regular'));assert.equal(JSON.stringify(input),before);
+});
+test('pacing follows item dependencies, lets separate items overlap and keeps shared staff ceilings',()=>{
+ const o={...options,start:'2026-11-02',finish:'2026-11-27'};
+ const base={workspaceId:'project',start:o.start,finish:o.finish,deadline:o.finish};
+ const tasks=paceProjectTasks([task('cut',{...base,hours:8}),task('assemble',{...base,hours:24,predecessors:['cut']}),task('paint',{...base,trade:'Paint',hours:16,predecessors:['assemble']}),task('other',{...base,hours:16})]);
+ const r=scheduleTeamWithOvertime(tasks,[person,{...person,id:'paint',name:'Painter',primary:'Paint',secondary:''}],o);
+ assert.equal(r.assignedHours,64);assert.equal(r.unfilled.length,0);
+ const dates=(key:string)=>r.allocations.filter(a=>a.taskKey===key).map(a=>a.date).sort();
+ assert.ok(dates('cut').at(-1)!<dates('assemble')[0]);assert.ok(dates('assemble').at(-1)!<dates('paint')[0]);assert.equal(dates('paint').at(-1),'2026-11-26');
+ for(const date of new Set(r.allocations.map(a=>a.date)))for(const id of ['p','paint'])assert.ok(r.allocations.filter(a=>a.date===date&&a.personId===id).reduce((s,a)=>s+a.hours,0)<=8+1e-6);
+});
+test('pacing yields to real deadline pressure, retains explicit fixed windows, and does not invent labor',()=>{
+ const input=[task('heavy',{hours:48})],paced=paceProjectTasks(input);
+ const r=scheduleTeamWithOvertime(paced,[person],options);
+ assert.equal(r.assignedHours,48);assert.equal(r.unfilled.length,0);assert.ok(r.allocations.some(a=>a.workMode==='Weekday overtime'));
+ const relaxed=scheduleTeamWithOvertime([task('soft',{hours:24,pacing:[{date:options.finish,hours:24}]})],[person],options);
+ assert.equal(relaxed.assignedHours,24);assert.ok(relaxed.warnings.some(w=>w.includes('pacing was relaxed')));
+ assert.ok(relaxed.allocations.every(a=>a.workMode==='Regular'));
+ const locked=[task('locked',{fixed:true,hours:8,finish:options.start})];assert.deepEqual(paceProjectTasks(locked),locked);
+});
+test('a short date view does not trigger overtime or pull future work forward',()=>{
+ const finish='2026-11-27',paced=paceProjectTasks([task('later',{start:'2026-11-02',finish,deadline:finish,hours:40})]);
+ const r=scheduleTeamWithOvertime(paced,[person],{...options,start:'2026-11-02',finish:'2026-11-06'});
+ assert.ok(r.assignedHours<40);assert.ok(r.allocations.every(a=>a.workMode==='Regular'));
+ assert.match(r.unfilled[0].recommendation!,/future work is not a staffing shortage/);
 });
