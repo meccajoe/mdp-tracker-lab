@@ -54,7 +54,7 @@ export function quoteDemand(quote:QuoteV27){
  const fieldDays=Math.max(0,...(calculation.estimators?.install.map(person=>person.days)??importedDays));
  return {shop,trades,untyped:Math.max(0,shop-typed),overallocated:Math.max(0,typed-shop),field,fieldDays:fieldDays||Math.ceil(field/Math.max(1,quote.settings.siteHours)),design:calculation.lines.filter(line=>line.type==='Design / Engineering / CAD').reduce((sum,line)=>sum+line.hoursAllowed,0),price:calculation.totals.price};
 }
-export type CapacityQuote={workspaceId:string;workspace:string;document:QuoteV27|null;version?:number;productionPlan?:ProductionPlan};
+export type CapacityQuote={activationDate?:string;workspaceId:string;workspace:string;document:QuoteV27|null;version?:number;productionPlan?:ProductionPlan};
 export function capacityProject(source:CapacityQuote,override:CapacityOverride=source.document?.planning??emptyOverride()){
  const demand=source.document?quoteDemand(source.document):{shop:0,trades:{},untyped:0,overallocated:0,field:0,fieldDays:0,design:0,price:0};
  const schedule=source.document?.schedule??EMPTY_SCHEDULE,forecast=salesForecast(override.status||schedule.status),projectStatus=projectStatusFor(schedule,override.status),status=projectStatus==='Complete'?'Completed':projectStatus==='Active'?'In production':forecast;

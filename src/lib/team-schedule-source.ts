@@ -25,12 +25,13 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   if(!source.length&&p.shop>0)throw Error(`${p.workspace}: no schedulable tasks. Review the project schedule.`);
   const recoveryDays=productionDays(p.schedule.buildStart,dateString(dayNumber(p.schedule.buildStart)+1095),plan.calendar);
   const rampStart=recoveryDays[plan.rampDays]===undefined?p.schedule.buildFinish:dateString(recoveryDays[plan.rampDays]);
-  const phases=projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,plan.calendar),cad=phases.find(p=>p.kind==='CAD');
-  if(allowAttention&&plan.status==='approved')warnings.push(`${p.workspace}: CAD/turnover blocks show the 15%/5% planning assumption; the approved shop schedule remains unchanged. Review any overlap.`);
-  const buildDays=productionDays(p.schedule.buildStart,p.schedule.buildFinish,plan.calendar);
+  const phases=projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,plan.calendar,p.activationDate),cad=phases.find(p=>p.kind==='CAD');
+  if(allowAttention&&plan.status==='approved')warnings.push(`${p.workspace}: CAD/turnover blocks show the quoted CAD (maximum 15%) and 5% turnover planning assumption; the approved shop schedule remains unchanged. Review any overlap.`);
+  const prepStart=phases[0]?.start??p.schedule.buildStart;
+  const buildDays=productionDays(prepStart,p.schedule.buildFinish,plan.calendar);
   // The named shop scheduler uses whole days. Start after the preparation window,
   // keeping approved/locked plans authoritative and historical stored data unchanged.
-  const readyIndex=Math.ceil(buildDays.length*.20-1e-9),readyDate=buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]);
+  const readyIndex=Math.ceil(phases.reduce((sum,phase)=>sum+phase.workdays,0)-1e-9),prepReady=buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]),readyDate=prepReady>p.schedule.buildStart?prepReady:p.schedule.buildStart;
   for(const original of source){
    const t=allowAttention&&plan.status!=='approved'&&!original.locked
     ?original.stage==='cad'&&cad?{...original,start:cad.start,finish:cad.finish}
@@ -45,5 +46,5 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   }
  }
  const result=(allowAttention?scheduleTeamWithOvertime:scheduleTeam)(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
- return {...result,preparation:included.flatMap(p=>projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,p.productionPlan?.calendar??p.document?.productionCalendar??emptyPlan().calendar).map(phase=>({...phase,workspaceId:p.workspaceId,project:p.workspace}))),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
+ return {...result,preparation:included.flatMap(p=>projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,p.productionPlan?.calendar??p.document?.productionCalendar??emptyPlan().calendar,p.activationDate).map(phase=>({...phase,workspaceId:p.workspaceId,project:p.workspace}))),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
 }

@@ -13,18 +13,56 @@ test('date view clips bars and assigned totals without changing saved assignment
 
 import {projectPreparation} from '../src/lib/project-preparation';
 test('CAD always fits first 15 percent without assigned people and turnover follows for 5 percent',()=>{
- const phases=projectPreparation('2026-11-02','2026-11-27',72,{saturday:false,sunday:false});
+ const phases=projectPreparation('2026-11-02','2026-11-27',72,{saturday:false,sunday:false},'2026-10-30');
  assert.equal(phases[0].workdays,3);assert.equal(phases[0].start,'2026-11-02');assert.equal(phases[0].finish,'2026-11-04');
  assert.deepEqual(phases[0].daily.map(d=>d.hours),[24,24,24]);assert.match(phases[0].staffingNote,/3 CAD people/);
  assert.equal(phases[1].workdays,1);assert.equal(phases[1].start,'2026-11-05');assert.equal(phases[1].hours,null);
 });
 test('CAD fractional windows conserve hours, respect weekends and holidays, and never invent turnover hours',()=>{
  for(const calendar of [{saturday:false,sunday:false},{saturday:true,sunday:true},{saturday:true,sunday:false,holidays:['2026-11-02']}]){
-  const phases=projectPreparation('2026-11-02','2026-11-06',5,calendar);
+  const phases=projectPreparation('2026-11-02','2026-11-06',5,calendar,'2026-11-01');
   assert.ok(Math.abs(phases[0].daily.reduce((s,d)=>s+d.hours!,0)-5)<1e-8);
   assert.ok(phases[1].daily.every(d=>d.hours===null));
   if(calendar.holidays)assert.equal(phases[0].start,'2026-11-03');
  }
  assert.deepEqual(projectPreparation('','',8,{saturday:false,sunday:false}),[]);
  const weekend=projectPreparation('2026-11-06','2026-11-23',80,{saturday:true,sunday:true});assert.ok(weekend[0].daily.some(d=>d.date==='2026-11-07'));
+});
+
+test('quoted CAD uses one eight-hour person until the 15 percent duration cap requires help',()=>{
+ const calendar={saturday:false,sunday:false};
+ const capped=projectPreparation('2026-11-02','2026-12-04',40,calendar,'2026-10-30');
+ assert.equal(capped[0].workdays,3.75);assert.equal(capped[0].hours,40);
+ assert.ok(Math.abs(capped[0].daily.reduce((s,d)=>s+d.hours!,0)-40)<1e-8);
+ assert.match(capped[0].staffingNote,/10.7 crew-hours/);
+ assert.equal(capped[1].workdays,1.25);
+ const short=projectPreparation('2026-11-02','2026-12-04',16,calendar,'2026-10-30');
+ assert.equal(short[0].workdays,2);assert.deepEqual(short[0].daily.map(d=>d.hours),[8,8]);
+ assert.equal(short[1].start,'2026-11-04');
+ const zero=projectPreparation('2026-11-02','2026-12-04',0,calendar,'2026-10-30');
+ assert.equal(zero.length,1);assert.equal(zero[0].kind,'Turnover');assert.equal(zero[0].start,'2026-11-02');
+});
+
+test('activation is Day 0 and work starts on the next eligible day, not the later Build Start',()=>{
+ const phases=projectPreparation('2026-11-16','2026-12-04',40,{saturday:false,sunday:false},'2026-10-30');
+ assert.equal(phases[0].start,'2026-11-02');assert.equal(phases[0].workdays,3.75);
+ assert.match(phases[0].staffingNote,/Day 0: 2026-10-30/);
+ assert.deepEqual(projectPreparation('2026-11-02','2026-12-04',40,{saturday:false,sunday:false},'2026-12-04'),[]);
+});
+
+import {activationDates} from '../src/lib/project-activation';
+test('Day 0 comes from first active revision in Chicago time and never resets on later edits',()=>{
+ const base={workspace_id:'a',project_status:'Active',forecast_status:'Closed won',planning_status:null};
+ assert.deepEqual({...activationDates([
+ {...base,created_at:'2026-10-26T20:00:00Z'},
+ {...base,created_at:'2026-10-25T02:00:00Z'},
+ {...base,project_status:'Not Active',created_at:'2026-10-20T20:00:00Z'},
+ {...base,project_status:'Complete',created_at:'2026-10-19T20:00:00Z'},
+ ])},{a:'2026-10-24'});
+});
+
+test('missing activation uses Build Start as Day 0, with zero hours never creating CAD demand',()=>{
+ const p=projectPreparation('2026-11-02','2026-12-04',8,{saturday:false,sunday:false});
+ assert.equal(p[0].start,'2026-11-03');assert.equal(p[0].workdays,1);assert.equal(p[0].daily[0].hours,8);
+ assert.match(p[0].staffingNote,/Build Start is Day 0/);
 });

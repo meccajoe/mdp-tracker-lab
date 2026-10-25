@@ -33,7 +33,7 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const cadNeeded=Array<number>(count).fill(0),cadUnscheduled:string[]=[];
  for(const project of weighted){
   if(!project.probability||!project.document||!project.demand.design)continue;
-  const cad=projectPreparation(project.schedule.buildStart,project.schedule.buildFinish,project.demand.design,project.productionPlan?.calendar??project.document.productionCalendar??emptyPlan().calendar).find(p=>p.kind==='CAD');
+  const cad=projectPreparation(project.schedule.buildStart,project.schedule.buildFinish,project.demand.design,project.productionPlan?.calendar??project.document.productionCalendar??emptyPlan().calendar,project.activationDate).find(p=>p.kind==='CAD');
   if(!cad)cadUnscheduled.push(project.workspace);
   for(const d of cad?.daily??[]){const i=Math.floor((dayNumber(d.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count)cadNeeded[i]+=(d.hours??0)*project.probability;}
  }
