@@ -169,3 +169,16 @@ test('CAD demand has a separate dated chart and daily/weekly totals agree',()=>{
  close(sum(weekly.cadAvailable),160);close(sum(daily.cadAvailable),160);assert.equal(weekly.capacity.shop,0);
  assert.equal(JSON.stringify(p),before);
 });
+
+test('shared CAD weekly capacity overrides roster once, supports zero and clearing, and excludes shop capacity',()=>{
+ const base={...settings(),roster:[{id:'cad',name:'CAD',primary:'CAD',secondary:'',hours:40,rate:null,active:true,notes:''}]};
+ const saved=parseCapacity({settings:{...base,cadHoursPerWeek:80}});
+ assert.equal(saved.settings.cadHoursPerWeek,80);
+ const weekly=dashboardLoad([],saved.settings,null,'full',4),daily=dashboardLoad([],saved.settings,null,'full',28,1);
+ assert.equal(sum(weekly.cadAvailable),320);assert.equal(sum(daily.cadAvailable),320);assert.equal(weekly.capacity.shop,0);
+ assert.equal(sum(dashboardLoad([],{...base,cadHoursPerWeek:0},null,'full',1).cadAvailable),0);
+ assert.equal(sum(dashboardLoad([],parseCapacity({settings:{...base,cadHoursPerWeek:null}}).settings,null,'full',1).cadAvailable),40);
+ assert.equal(sum(dashboardLoad([],{...base,roster:[],cadHoursPerWeek:80},null,'full',1).cadAvailable),80);
+ assert.equal(sum(dashboardLoad([],parseCapacity({settings:base}).settings,null,'full',1).cadAvailable),40);
+ for(const value of [-1,Infinity,'80'])assert.throws(()=>parseCapacity({settings:{...base,cadHoursPerWeek:value}}));
+});

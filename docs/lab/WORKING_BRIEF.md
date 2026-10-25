@@ -1,3 +1,7 @@
+## Shared CAD capacity — October 25, 2026
+- Added Total available CAD hours per week to Capacity → Roster & Settings, saved with the existing shared append-only capacity settings. Optional cadHoursPerWeek overrides the CAD roster total (not additive); blank/null uses roster capacity, explicit zero means unavailable. Existing settings retain their prior behavior. Weekday capacity is one fifth of the weekly total; day/week charts agree. CAD remains separate from shop capacity and does not create named CAD assignments.
+- Uses existing settings permissions, validation and stale-revision protection; no migration. No capacity number supplied by Paul, so no customer setting is changed. Lab suite (237 tests) and TypeScript pass, including override/zero/clear/no-roster/legacy/invalid-value regression. Build and deployment verification pending.
+
 ## Capacity Dashboard order — October 25, 2026
 - Renamed Overview to Dashboard (including default selection). First nine chart tiles: All Shop Combined, CNC, Carpentry, Finish/Paint, I&D (shop), Electrical, Graphic/Vinyl, Metal, Sculpting. Additional existing trades, CAD, field and shared-crew views remain below the requested sequence.
 - I&D (shop) shows packing plus shop-tagged I&D demand against the I&D pool remaining after all field commitments; project filters do not free reserved capacity. Existing shared/field charts retained. No quote, roster, schedule or database writes/migration.
