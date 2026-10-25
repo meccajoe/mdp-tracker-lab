@@ -64,7 +64,7 @@ test('Day 1 comes from first active revision in Chicago time and never resets on
 test('missing activation uses saved Project Start as Day 1, with zero hours never creating CAD demand',()=>{
  const p=projectPreparation('2026-11-02','2026-12-04',8,{saturday:false,sunday:false});
  assert.equal(p[0].start,'2026-11-02');assert.equal(p[0].workdays,1);assert.equal(p[0].daily[0].hours,8);
- assert.match(p[0].staffingNote,/Project Start is Day 1/);
+ assert.match(p[0].staffingNote,/Project Start \/ Day 1: 2026-11-02/);
 });
 
 test('Project view combines CAD and turnover with production on one row without counting CAD twice',()=>{
