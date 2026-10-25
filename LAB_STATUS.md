@@ -1,3 +1,9 @@
+## Capacity chart project details and Assembly pool — October 25, 2026
+- Dashboard day/week chart columns show project names and weighted hours on hover, keyboard focus or click; uses per-project contributions from the same demand calculation, including filters, trade pools, CAD, field and shared packing. Escape/outside hover closes. Scrollable list handles busy periods.
+- Assembly maps to the Carpentry staffing pool, keeping raw quote/roster/task names unchanged and preventing duplicate primary/secondary hours. Live scheduling can use carpenters for Assembly. Saved schedules and quotes are not rewritten.
+- Removed standalone Assembly and Unassigned shop hours charts; untyped demand remains in combined totals and review notes. No migration or customer data writes.
+- Lab tests and TypeScript passed, including contribution reconciliation across day/week, filters and demand bases, and combined Assembly capacity. Deployment/browser verification pending.
+
 ## Quote Builder usability — October 25, 2026
 - Paul explicitly withdrew the Install Support Labor budget change: leave all display/cost/margin behavior unchanged.
 - Hide only unused estimator-linked Installer 2/3 rows on Quote Builder; keep persisted rows/IDs and any manual overrides, entered work or traveler selection visible. Former spare slots are Items 16–22 for new quotes and regular display names in existing builders; stable legacy names/links remain saved until explicitly edited. Legacy spares are also eligible for free-text takeoff item assignment.

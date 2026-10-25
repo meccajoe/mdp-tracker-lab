@@ -31,16 +31,19 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const packingAvailable=aggregate(reservedField.expected.map((h,i)=>Math.max(0,sharedDaily[i]-h)));
  const shopAvailable=aggregate(reservedField.expected.map((h,i)=>dedicatedShop*factor(i)+Math.max(0,sharedDaily[i]-h)));
  const fieldAvailable=aggregate(reservedPacking.map((h,i)=>Math.max(0,sharedDaily[i]-h)));
+ const cadContributions:{id:string;name:string;hours:number[]}[]=[];
  const cadNeeded=Array<number>(count).fill(0),cadUnscheduled:string[]=[];
  for(const project of weighted){
   if(!project.probability||!project.document||!project.demand.design)continue;
   const cad=projectPreparation(project.schedule.buildStart,project.schedule.buildFinish,project.demand.design,project.productionPlan?.calendar??project.document.productionCalendar??emptyPlan().calendar,project.activationDate).find(p=>p.kind==='CAD');
   if(!cad)cadUnscheduled.push(project.workspace);
-  for(const d of cad?.daily??[]){const i=Math.floor((dayNumber(d.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count)cadNeeded[i]+=(d.hours??0)*project.probability;}
+  const hours=Array<number>(count).fill(0);
+  for(const d of cad?.daily??[]){const i=Math.floor((dayNumber(d.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count){hours[i]+=(d.hours??0)*project.probability;cadNeeded[i]+=(d.hours??0)*project.probability;}}
+  cadContributions.push({id:project.workspaceId,name:project.workspace,hours});
  }
  const cadWeekly=settings.cadHoursPerWeek??settings.roster.filter(p=>p.active&&isCadTrade(p.primary)).reduce((s,p)=>s+p.hours,0);
  const cadAvailable=aggregate(Array.from({length:dailyCount},(_,i)=>cadWeekly*factor(i)));
- return {cadNeeded,cadAvailable,cadUnscheduled,projects:included,load,fieldLoad,capacity,tradeAvailable,packingAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
+ return {cadContributions,cadNeeded,cadAvailable,cadUnscheduled,projects:included,load,fieldLoad,capacity,tradeAvailable,packingAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
 }
 
 /** Weekly charts include the complete weeks containing the chosen dates. */

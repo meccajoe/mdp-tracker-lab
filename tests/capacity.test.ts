@@ -77,7 +77,7 @@ test('roster import preserves staff, duplicate names, inactive rows, blank wages
  const book=rosterBook(),before=structuredClone(book);let id=0;
  const rows=importCapacityRoster(book,()=>String(++id));
  assert.equal(rows.length,3);assert.equal(rows[1].active,false);assert.equal(rows[2].rate,null);assert.notEqual(rows[1].id,rows[2].id);assert.equal(rows[0].notes,'Sample');
- assert.equal(rosterCapacity(rows).shop,72);assert.equal(rosterCapacity(rows).flex.Assembly,40);assert.deepEqual(book,before);
+ assert.equal(rosterCapacity(rows).shop,72);assert.equal(rosterCapacity(rows).flex.Assembly,undefined);assert.equal(rosterCapacity(rows).flex.Carpentry,undefined);assert.deepEqual(book,before);
 });
 test('roster import refuses wrong layouts, partial staff, invalid hours, statuses and uncached formulas',()=>{
  for(const [cell,value] of [['A12','Wrong header'],['A13',''],['D13',-1],['D13',169],['F13','Maybe']] as const){const b=rosterBook();b.Sheets['Roster & Settings'][cell]={v:value,t:typeof value==='number'?'n':'s'};assert.throws(()=>importCapacityRoster(b,()=>crypto.randomUUID()));}
@@ -181,4 +181,25 @@ test('shared CAD weekly capacity overrides roster once, supports zero and cleari
  assert.equal(sum(dashboardLoad([],{...base,roster:[],cadHoursPerWeek:80},null,'full',1).cadAvailable),80);
  assert.equal(sum(dashboardLoad([],parseCapacity({settings:base}).settings,null,'full',1).cadAvailable),40);
  for(const value of [-1,Infinity,'80'])assert.throws(()=>parseCapacity({settings:{...base,cadHoursPerWeek:value}}));
+});
+
+test('Assembly shares Carpentry capacity without duplicating secondary skills or changing source trades',()=>{
+ const roster=[{id:'a',name:'Assembler',primary:'Assembly',secondary:'Carpentry',hours:40,rate:null,active:true,notes:''}];
+ assert.deepEqual(rosterCapacity(roster).primary,{Carpentry:40});assert.deepEqual(rosterCapacity(roster).flex,{});
+ const p=project();p.document=null;p.trades={Assembly:20,Carpentry:40};p.shop=60;p.untyped=0;
+ const result=dashboardLoad([p],{...settings(),roster},null,'expected',4);
+ close(sum(result.load.trades.Carpentry),30);assert.equal(result.load.trades.Assembly,undefined);assert.equal(p.trades.Assembly,20);
+ close(sum(result.tradeAvailable.Carpentry),160);
+});
+test('chart project breakdown reconciles every bucket for filters, forecast weighting, trades and CAD',()=>{
+ const a=project(),b={...project('Closed won'),workspaceId:'two',workspace:'Second'};
+ for(const bucketDays of [1,7] as const)for(const basis of ['expected','committed','full'] as const)for(const selected of [null,['one']] as const){
+  const result=dashboardLoad([a,b],settings(),selected===null?null:[...selected],basis,28/bucketDays,bucketDays);
+  for(let i=0;i<28/bucketDays;i++){
+   close(result.load.expected[i],sum(result.load.contributions.map(p=>p.hours[i])));
+   close(result.fieldLoad.expected[i],sum(result.fieldLoad.contributions.map(p=>p.hours[i])));
+   close(result.cadNeeded[i],sum(result.cadContributions.map(p=>p.hours[i])));
+   for(const [trade,values] of Object.entries(result.load.trades))close(values[i],sum(result.load.contributions.map(p=>p.trades[trade]?.[i]??0)));
+  }
+ }
 });
