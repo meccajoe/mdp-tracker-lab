@@ -3,6 +3,7 @@ import {memo,useId,useMemo,useState} from 'react';
 import {capacityViewRange,dashboardLoad,type CapacityProject,type DemandBasis} from '@/lib/capacity-dashboard';
 import {dateString,dayNumber,monday,SHOP_TRADES,SUPPORT_TRADES,type CapacitySettings} from '@/lib/capacity';
 import styles from './capacity-dashboard.module.css';
+const SHOP_CHARTS=[['CNC + cutting','CNC'],['Carpentry','Carpentry'],['Finish / Paint','Finish/Paint'],['I&D shop','I&D (shop)'],['Electrical','Electrical'],['Graphic / Vinyl Install','Graphic/Vinyl'],['Metal Work','Metal'],['Sculpting','Sculpting']] as const;
 const number=(value:number)=>value.toLocaleString('en-US',{maximumFractionDigits:1});
 const date=(value:string)=>new Date(`${value}T00:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
 const total=(values:number[])=>values.reduce((sum,value)=>sum+value,0);
@@ -55,11 +56,12 @@ export function CapacityDashboard({projects,settings,settingsUnavailable=false,m
  </details>
  <div className={styles.tradeHeading}><h2>{mode==='field'?'Field capacity at a glance':'Shop capacity at a glance'}</h2><div className={styles.legend}><span><i className={styles.capacityLine}/>Capacity limit</span><span><i className={styles.needed}/>Needed</span><span><i className={styles.over}/>Over capacity</span></div></div>
  <div className={styles.chartGrid}>
+ <LaborChart period={period} title={mode==='field'?"Field installation — after packing commitments":"All Shop Combined"} weeks={weeks} needed={needed} available={available}/>
+ {mode==='shop'&&SHOP_CHARTS.map(([name,title])=><LaborChart period={period} key={name} title={title} weeks={weeks} needed={name==='I&D shop'?result.packing.map((hours,i)=>hours+(load.trades['I&D']?.[i]??0)):(load.trades[name]??Array(bucketCount).fill(0)).slice(0,bucketCount)} available={!rosterConfigured?null:name==='I&D shop'?result.packingAvailable:result.tradeAvailable[name]??Array(bucketCount).fill(0)}/>)}
+ {mode==='shop'&&tradeNames.filter(name=>!SHOP_CHARTS.some(([key])=>key===name)).map(name=><LaborChart period={period} key={name} title={name==='Untyped / other'?'Unassigned shop hours':name} weeks={weeks} needed={(load.trades[name]??Array(bucketCount).fill(0)).slice(0,bucketCount)} available={name==='Untyped / other'||!rosterConfigured?null:result.tradeAvailable[name]??Array(bucketCount).fill(0)}/>)}
  {mode==='shop'&&<LaborChart period={period} title="CAD / Drawings — separate team" weeks={weeks} needed={result.cadNeeded} available={rosterConfigured?result.cadAvailable:null}/>}
- <LaborChart period={period} title={mode==='field'?"Field installation — after packing commitments":"All shop trades combined — after field commitments"} weeks={weeks} needed={needed} available={available}/>
- <LaborChart period={period} title="I&D + Crate & pack — shared crew" weeks={weeks} needed={result.sharedNeeded} available={rosterConfigured?result.sharedAvailable:null}/>
  {mode==='shop'&&<LaborChart period={period} title="Field installation — after packing commitments" weeks={weeks} needed={result.fieldLoad.expected} available={rosterConfigured?result.fieldAvailable:null}/>}
- {mode==='shop'&&tradeNames.map(name=><LaborChart period={period} key={name} title={name==='Untyped / other'?'Unassigned shop hours':name} weeks={weeks} needed={(load.trades[name]??Array(bucketCount).fill(0)).slice(0,bucketCount)} available={name==='Untyped / other'||!rosterConfigured?null:result.tradeAvailable[name]??Array(bucketCount).fill(0)}/>)}
+ <LaborChart period={period} title="I&D + Crate & pack — shared crew" weeks={weeks} needed={result.sharedNeeded} available={rosterConfigured?result.sharedAvailable:null}/>
  </div>
  <p className={styles.explanation}>I&D and Crate & pack share one crew budget. The shared-crew chart adds field installation and packing demand. Shop availability subtracts field demand; field availability subtracts packing demand, across all projects using the selected forecast basis, even when project filters hide their demand. These are alternate views of the same people, not extra capacity to add together. Secondary skills do not add hours. Field dates follow Roster & Settings; CAD remains separate. These view controls do not change saved quotes, roster settings, or project schedules.</p>
  </div>;

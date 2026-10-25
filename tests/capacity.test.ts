@@ -122,8 +122,8 @@ test('packing and installation consume one shared pool, with matching weighted a
  const p=project('Closed won');p.productionPlan={...emptyPlan(),tasks:[{id:'pack',itemId:'x',item:'Pack',stage:'packing',trade:'Crate & pack',hours:30,start:'2026-10-19',finish:'2026-10-23',daily:[{date:'2026-10-19',hours:30}],predecessors:[],locked:false}]};
  const config={...settings(),roster:[{id:'crew',name:'Crew',primary:'I&D',secondary:'Crate & pack',hours:40,rate:null,active:true,notes:''},{id:'shop',name:'Shop',primary:'Carpentry',secondary:'',hours:40,rate:null,active:true,notes:''}]};
  const original=JSON.stringify(p),r=dashboardLoad([p],config,null,'expected');
- assert.equal(r.sharedCapacity,40);assert.equal(r.packing[2],30);assert.equal(r.fieldLoad.expected[2],40);assert.equal(r.sharedNeeded[2],70);assert.equal(r.shopAvailable[2],48);assert.equal(r.fieldAvailable[2],32);assert.equal(r.shopAvailable[0],80);
- const excluded=dashboardLoad([p],config,[],'expected');assert.equal(sum(excluded.sharedNeeded),0);assert.equal(excluded.sharedCapacity,40);assert.equal(excluded.shopAvailable[2],48);assert.equal(excluded.fieldAvailable[2],32);
+ assert.equal(r.sharedCapacity,40);assert.equal(r.packingAvailable[2],8);assert.equal(r.packingAvailable[0],40);assert.equal(r.packing[2],30);assert.equal(r.fieldLoad.expected[2],40);assert.equal(r.sharedNeeded[2],70);assert.equal(r.shopAvailable[2],48);assert.equal(r.fieldAvailable[2],32);assert.equal(r.shopAvailable[0],80);
+ const excluded=dashboardLoad([p],config,[],'expected');assert.equal(sum(excluded.sharedNeeded),0);assert.equal(excluded.sharedCapacity,40);assert.equal(excluded.packingAvailable[2],8);assert.equal(excluded.shopAvailable[2],48);assert.equal(excluded.fieldAvailable[2],32);
  const weighted=dashboardLoad([{...p,committed:false,probability:.5}],config,null,'expected');assert.equal(weighted.sharedNeeded[2],35);assert.equal(weighted.shopAvailable[2],60);assert.equal(weighted.fieldAvailable[2],32);
  assert.equal(JSON.stringify(p),original);
 });

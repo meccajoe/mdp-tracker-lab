@@ -28,6 +28,7 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const tradeAvailable=Object.fromEntries(Object.entries(capacity.primary).map(([trade,hours])=>[trade,aggregate(Array.from({length:dailyCount},(_,i)=>hours*factor(i)))]));
  const sharedDaily=Array.from({length:dailyCount},(_,i)=>sharedCapacity*factor(i));
  const sharedAvailable=aggregate(sharedDaily);
+ const packingAvailable=aggregate(reservedField.expected.map((h,i)=>Math.max(0,sharedDaily[i]-h)));
  const shopAvailable=aggregate(reservedField.expected.map((h,i)=>dedicatedShop*factor(i)+Math.max(0,sharedDaily[i]-h)));
  const fieldAvailable=aggregate(reservedPacking.map((h,i)=>Math.max(0,sharedDaily[i]-h)));
  const cadNeeded=Array<number>(count).fill(0),cadUnscheduled:string[]=[];
@@ -39,7 +40,7 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  }
  const cadWeekly=settings.roster.filter(p=>p.active&&isCadTrade(p.primary)).reduce((s,p)=>s+p.hours,0);
  const cadAvailable=aggregate(Array.from({length:dailyCount},(_,i)=>cadWeekly*factor(i)));
- return {cadNeeded,cadAvailable,cadUnscheduled,projects:included,load,fieldLoad,capacity,tradeAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
+ return {cadNeeded,cadAvailable,cadUnscheduled,projects:included,load,fieldLoad,capacity,tradeAvailable,packingAvailable,sharedAvailable,sharedCapacity,sharedNeeded,shopAvailable,fieldAvailable,packing,unscheduledField:reservedField.unscheduled,unscheduledShop:reservedShop.unscheduled};
 }
 
 /** Weekly charts include the complete weeks containing the chosen dates. */
