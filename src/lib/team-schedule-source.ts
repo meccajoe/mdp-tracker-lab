@@ -26,12 +26,13 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   const recoveryDays=productionDays(p.schedule.buildStart,dateString(dayNumber(p.schedule.buildStart)+1095),plan.calendar);
   const rampStart=recoveryDays[plan.rampDays]===undefined?p.schedule.buildFinish:dateString(recoveryDays[plan.rampDays]);
   const phases=projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,plan.calendar,p.activationDate),cad=phases.find(p=>p.kind==='CAD');
+  if(allowAttention&&!phases.length)warnings.push(`${p.workspace}: no working days remain after Day 0 and before Build Finish. Review the finish date and project calendar; CAD/turnover cannot be placed.`);
   if(allowAttention&&plan.status==='approved')warnings.push(`${p.workspace}: CAD/turnover blocks show the quoted CAD (maximum 15%) and 5% turnover planning assumption; the approved shop schedule remains unchanged. Review any overlap.`);
   const prepStart=phases[0]?.start??p.schedule.buildStart;
   const buildDays=productionDays(prepStart,p.schedule.buildFinish,plan.calendar);
   // The named shop scheduler uses whole days. Start after the preparation window,
   // keeping approved/locked plans authoritative and historical stored data unchanged.
-  const readyIndex=Math.ceil(phases.reduce((sum,phase)=>sum+phase.workdays,0)-1e-9),prepReady=buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]),readyDate=prepReady>p.schedule.buildStart?prepReady:p.schedule.buildStart;
+  const readyIndex=Math.ceil(phases.reduce((sum,phase)=>sum+phase.workdays,0)-1e-9),prepReady=!phases.length||buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]),readyDate=prepReady>p.schedule.buildStart?prepReady:p.schedule.buildStart;
   for(const original of source){
    const t=allowAttention&&plan.status!=='approved'&&!original.locked
     ?original.stage==='cad'&&cad?{...original,start:cad.start,finish:cad.finish}
