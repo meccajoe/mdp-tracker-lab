@@ -14,6 +14,6 @@ export function projectPreparation(start:string,finish:string,cadHours:number,ca
   const daily=days.flatMap((day,i)=>{const fraction=Math.max(0,Math.min(i+1,upper)-Math.max(i,lower));return fraction>1e-9?[{date:iso(day),fraction,hours:hours===null?null:hours*fraction/workdays}]:[];});
   const equivalent=hours===null?0:hours/workdays;
   const staffingNote=kind==='Turnover'?'Project turnover: CAD, purchasing and scope review. Maximum 20% of project working time; no additional labor hours estimated. Readiness review required: confirm CAD, purchasing and scope before production. Planned completion is assumed, not an actual completion record.':equivalent>8?`${equivalent.toFixed(1)} crew-hours per full CAD day: plan ${Math.ceil(equivalent/8)} CAD people or equivalent overtime. Staffing assumed; names not assigned.`:'One CAD person at 8 hours per day; name not assigned.';
-  return {kind,start:daily[0].date,finish:daily.at(-1)!.date,workdays,hours,daily,staffingNote:staffingNote+(activation?` Project Start / Day 1: ${activation} (activation).`:' Activation date unavailable; saved Project Start is Day 1.')};
+  return {kind,start:daily[0].date,finish:daily.at(-1)!.date,workdays,hours,daily,staffingNote:staffingNote+` Project Start / Day 1: ${origin}.`};
  });
 }

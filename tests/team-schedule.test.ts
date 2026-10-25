@@ -230,3 +230,31 @@ test('saved scheduling-team rule assigns untyped beMatrix work to I&D without qu
  const r=buildTeamSchedule([{workspaceId:'whatnot',workspace:'Whatnot',version:1,document:q,productionPlan:plan}],[{...person,primary:'I&D',rate:20,notes:''}],{...options,start:'2026-10-25',finish:'2026-10-29'},true);
  assert.equal(r.assignedHours,7.5);assert.equal(r.unfilled.length,0);assert.ok(r.allocations.every(a=>a.trade==='I&D'));assert.equal(JSON.stringify(q),before);
 });
+
+test('explicit Project Start reschedules CAD and production without changing activation, finish or hours',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:'2026-11-02',buildFinish:'2026-11-27',installDate:'',status:'Closed won',projectStatus:'Active'};
+ q.takeoffs=[];q.lines[0].overrides.hours=24;q.lines.find(l=>l.type==='Design / Engineering / CAD')!.overrides.hours=16;
+ const source={activationDate:'2026-11-02',workspaceId:'test',workspace:'Test',version:1,document:q};
+ const roster=[{...person,primary:'Unassigned shop hours',rate:20,notes:''}],o={...options,start:'2026-11-02',finish:'2026-11-27'};
+ const original=buildTeamSchedule([source],roster,o,true);
+ const revised=structuredClone(source);revised.version=2;revised.document.schedule={...q.schedule,buildStart:'2026-11-09',projectStartOverride:'2026-11-09'};
+ const result=buildTeamSchedule([revised],roster,o,true);
+ assert.equal(capacityProject(revised).schedule.buildStart,'2026-11-09');
+ assert.equal(result.preparation[0].start,'2026-11-09');assert.equal(result.preparation[0].hours,16);
+ assert.equal(result.totalHours,original.totalHours);assert.equal(result.assignedHours,24);
+ assert.ok(result.allocations.every(a=>a.date>'2026-11-09'&&a.date<='2026-11-27'));
+ assert.equal(revised.activationDate,'2026-11-02');assert.equal(source.document.schedule?.buildStart,'2026-11-02');
+ const approved={...emptyPlan(),status:'approved' as const,quoteVersion:1,tasks:proposeProductionPlan(q,roster).tasks};
+ const prior=JSON.stringify(approved),r=buildTeamSchedule([{...revised,productionPlan:approved}],roster,o,true);
+ assert.equal(r.assignedHours,24);assert.equal(JSON.stringify(approved),prior);assert.ok(r.warnings.some(w=>w.includes('saved approved plan')));
+});
+
+import {parseSchedule,effectiveProjectSchedule} from '../src/lib/quote-schedule';
+test('revised start survives validation; legacy starts and activation fallback stay compatible',()=>{
+ const base={buildStart:'2026-11-02',buildFinish:'2026-11-27',installDate:'',status:''};
+ assert.equal(effectiveProjectSchedule(parseSchedule(base),'2026-11-05').buildStart,'2026-11-05');
+ const revised=parseSchedule({...base,buildStart:'2026-11-09',projectStartOverride:'2026-11-09'});
+ assert.equal(effectiveProjectSchedule(revised,'2026-11-05').buildStart,'2026-11-09');
+ assert.throws(()=>parseSchedule({...base,projectStartOverride:'2026-11-10'}),/must match/);
+ assert.throws(()=>parseSchedule({...base,buildStart:'2026-11-30',projectStartOverride:'2026-11-30'}),/Finish/);
+});

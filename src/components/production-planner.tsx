@@ -12,7 +12,10 @@ export function ProductionPlanner({workspaceId,quote,quoteVersion}:{workspaceId:
  useEffect(()=>{let active=true;setLoading(true);setReady(false);setMessage('');
   Promise.all([adaFetch(`/api/quote-workspaces/${workspaceId}/production-plan`).then(async r=>({ok:r.ok,data:await r.json()})),adaFetch('/api/capacity/settings').then(async r=>({ok:r.ok,data:await r.json()}))]).then(([p,r])=>{if(!active)return;const people=r.ok?r.data.document?.settings?.roster??[]:[];setRoster(people);const draft=p.data.document?parseProductionPlan(p.data.document):{...emptyPlan(),calendar:quote.productionCalendar??{saturday:false,sunday:false},quoteVersion};
    if(!p.data.document)draft.tasks=proposeProductionPlan(quote,people,draft).tasks;
-   setPlan(draft);setSaved(draft);setVersion(p.data.version??0);setReady(p.ok);setCanEdit(Boolean(p.data.canEdit));setSetup([!p.ok?p.data.error:'',!r.ok?'Roster unavailable; proposals use explicit staffing assumptions.':''].filter(Boolean).join(' '));
+   const revised=Boolean(quote.schedule?.projectStartOverride)&&draft.quoteVersion!==quoteVersion;
+   const displayed=revised?{...draft,status:'proposed' as const,quoteVersion,tasks:proposeProductionPlan(quote,people,draft).tasks}:draft;
+   if(revised)setMessage('Schedule automatically recalculated for the revised Project Start. Saved approval and baseline are preserved; review before approving.');
+   setPlan(displayed);setSaved(draft);setVersion(p.data.version??0);setReady(p.ok);setCanEdit(Boolean(p.data.canEdit));setSetup([!p.ok?p.data.error:'',!r.ok?'Roster unavailable; proposals use explicit staffing assumptions.':''].filter(Boolean).join(' '));
   }).catch(e=>{if(active)setSetup(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};
  // Quote changes are surfaced as stale instead of replacing an in-progress operational draft.
  // eslint-disable-next-line react-hooks/exhaustive-deps

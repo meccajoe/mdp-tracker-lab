@@ -14,9 +14,9 @@ export async function POST(request:Request,{params}:{params:Promise<{workspaceId
  if(!latest.data||latest.data.revision!==body.expectedVersion)return json({error:'The quote changed. Reload the list and try again.'},409);
  const document=structuredClone(latest.data.document);
  const prior=document.schedule??EMPTY_SCHEDULE;
- try{document.schedule=parseSchedule({...prior,...body.dates});}catch(error){return json({error:error instanceof Error?error.message:'Invalid dates.'},400);}
+ try{document.schedule=parseSchedule({...prior,...body.dates,...('buildStart' in body.dates?{projectStartOverride:body.dates.buildStart}:{})});}catch(error){return json({error:error instanceof Error?error.message:'Invalid dates.'},400);}
  const saved=await access.actorSupabase.from('quote_workbook_revisions').insert({workspace_id:workspaceId,revision:body.expectedVersion+1,document,engine_version:latest.data.engine_version,created_by:access.actorId,created_by_email:access.actorEmail}).select('revision').single();
- if(saved.error)return json({error:['PT409','23505'].includes(saved.error.code)?'Quote changed or date storage needs its lab update. Reload and try again.':'Dates could not save.'},['PT409','23505'].includes(saved.error.code)?409:403);
+ if(saved.error)return json({error:['PT409','23505'].includes(saved.error.code)?'Quote changed or date storage needs its lab update. Reload and try again.':'Dates could not save. Final quotes may need the lab scheduling-date storage update.'},['PT409','23505'].includes(saved.error.code)?409:403);
  let warning='';try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{warning='Dates saved. Workback refresh needs attention; regenerate its proposal.';}
  return json({version:saved.data.revision,warning});
 }
