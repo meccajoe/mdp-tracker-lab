@@ -2,7 +2,7 @@
 - Dashboard day/week chart columns show project names and weighted hours on hover, keyboard focus or click; uses per-project contributions from the same demand calculation, including filters, trade pools, CAD, field and shared packing. Escape/outside hover closes. Scrollable list handles busy periods.
 - Assembly maps to the Carpentry staffing pool, keeping raw quote/roster/task names unchanged and preventing duplicate primary/secondary hours. Live scheduling can use carpenters for Assembly. Saved schedules and quotes are not rewritten.
 - Removed standalone Assembly and Unassigned shop hours charts; untyped demand remains in combined totals and review notes. No migration or customer data writes.
-- Lab tests and TypeScript passed, including contribution reconciliation across day/week, filters and demand bases, and combined Assembly capacity. Deployment/browser verification pending.
+- 241 lab tests and TypeScript passed; production webpack build passed. Release 2388f30 pushed and deployed successfully (Vercel GesuJuzprswkkKDqf7hCSu9PgEZ1). Hosted Dashboard verified no Assembly/Unassigned tiles; weekly Oct 26 combined window lists 14 projects totaling 446.5h; daily Carpentry Oct 14 shows BDNY 28h. Screenshot /private/tmp/capacity-project-hover.png. Returned view to Week. No customer data changed.
 
 ## Quote Builder usability — October 25, 2026
 - Paul explicitly withdrew the Install Support Labor budget change: leave all display/cost/margin behavior unchanged.
