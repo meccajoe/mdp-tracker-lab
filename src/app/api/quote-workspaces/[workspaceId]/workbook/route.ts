@@ -1,3 +1,4 @@
+import {loadActivationDates} from '@/lib/project-activation-server';
 import {persistWorkback} from '@/lib/workback-server';
 import {missingManagement} from '@/lib/quote-management-server';
 import { createBlankQuoteV27 } from '@/lib/quote-v27-template';
@@ -44,7 +45,8 @@ export async function GET(request: Request, { params }: Context) {
   if (!result.data) return json({ error: 'Workbook revision not found.' }, 404);
   try {
     const document = parseQuoteV27(result.data.document);
-    return json({ document, version, latestVersion, history: history.data, canEdit, quoteStatus });
+    const activationDate=search.get('activation')==='1'?(await loadActivationDates(access.actorSupabase,workspaceId,version))[workspaceId]:undefined;
+    return json({ document, activationDate, version, latestVersion, history: history.data, canEdit, quoteStatus });
   } catch {
     return json({ error: 'This saved workbook is invalid. Its history has been preserved.' }, 422);
   }

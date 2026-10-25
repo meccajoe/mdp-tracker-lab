@@ -16,7 +16,7 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   if(!validDate(p.schedule.buildStart)||!validDate(p.schedule.buildFinish))throw Error(`${p.workspace}: enter build dates before generating a team schedule.`);
   const plan=p.productionPlan??{...emptyPlan(),calendar:p.document.productionCalendar??emptyPlan().calendar};
   if(plan.status==='approved'&&plan.quoteVersion!==p.version)throw Error(`${p.workspace}: approved project schedule uses an older quote revision. Review and approve its current workback first.`);
-  const proposal=proposeProductionPlan(p.document,roster,plan);
+  const proposal=proposeProductionPlan({...p.document,schedule:p.schedule},roster,plan);
   if(proposal.warnings.some(w=>w.startsWith('Unresolved or cyclic')))throw Error(`${p.workspace}: resolve cyclic or missing task dependencies before assigning staff.`);
   const source=plan.status==='approved'?plan.tasks:proposal.tasks;
   if(plan.status!=='approved')warnings.push(...proposal.warnings.map(w=>`${p.workspace}: ${w}`));
@@ -26,18 +26,23 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   const recoveryDays=productionDays(p.schedule.buildStart,dateString(dayNumber(p.schedule.buildStart)+1095),plan.calendar);
   const rampStart=recoveryDays[plan.rampDays]===undefined?p.schedule.buildFinish:dateString(recoveryDays[plan.rampDays]);
   const phases=projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,plan.calendar,p.activationDate),cad=phases.find(p=>p.kind==='CAD');
-  if(allowAttention&&!phases.length)warnings.push(`${p.workspace}: no working days remain after Day 0 and before Build Finish. Review the finish date and project calendar; CAD/turnover cannot be placed.`);
-  if(allowAttention&&plan.status==='approved')warnings.push(`${p.workspace}: CAD/turnover blocks show the quoted CAD (maximum 15%) and 5% turnover planning assumption; the approved shop schedule remains unchanged. Review any overlap.`);
+  if(allowAttention&&!phases.length)warnings.push(`${p.workspace}: no working days remain between Project Start and Project Finish. Review the finish date and project calendar; CAD/turnover cannot be placed.`);
+  if(allowAttention&&plan.status==='approved')warnings.push(`${p.workspace}: Project turnover includes CAD, purchasing and scope review (maximum 20%); approved dates remain saved for review. Production must wait for turnover.`);
   const prepStart=phases[0]?.start??p.schedule.buildStart;
   const buildDays=productionDays(prepStart,p.schedule.buildFinish,plan.calendar);
   // The named shop scheduler uses whole days. Start after the preparation window,
   // keeping approved/locked plans authoritative and historical stored data unchanged.
-  const readyIndex=Math.ceil(phases.reduce((sum,phase)=>sum+phase.workdays,0)-1e-9),prepReady=!phases.length||buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]),readyDate=prepReady>p.schedule.buildStart?prepReady:p.schedule.buildStart;
+  const readyIndex=Math.ceil((phases.find(phase=>phase.kind==='Turnover')?.workdays??0)-1e-9),prepReady=!phases.length||buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]),readyDate=prepReady>p.schedule.buildStart?prepReady:p.schedule.buildStart;
+  if(allowAttention&&phases.length)warnings.push(`${p.workspace}: readiness review — production is planned from ${readyDate}. Confirm CAD, purchasing and scope review are ready; completion is assumed for scheduling, not recorded as actual.`);
   for(const original of source){
-   const t=allowAttention&&plan.status!=='approved'&&!original.locked
+   let t=allowAttention&&plan.status!=='approved'&&!original.locked
     ?original.stage==='cad'&&cad?{...original,start:cad.start,finish:cad.finish}
     :{...original,start:plan.rules[original.id]?.start&&plan.rules[original.id].start!>readyDate?plan.rules[original.id].start!:readyDate}:original;
 
+   if(allowAttention&&t.stage!=='cad'&&t.start<readyDate){
+    if(plan.status==='approved'||t.locked)warnings.push(`${p.workspace} / ${t.item}: saved dates overlap project turnover. Live assignments wait until ${readyDate}; review the saved plan.`);
+    t={...t,start:readyDate};
+   }
    tasks.push({key:p.workspaceId+'|'+t.id,workspaceId:p.workspaceId,project:p.workspace,item:t.item,trade:t.trade,hours:t.hours,start:t.start||p.schedule.buildStart,finish:t.finish||p.schedule.buildFinish,deadline:p.schedule.buildFinish,fixed:plan.status==='approved'||t.locked,dailyLimit:plan.rules[t.id]?.dailyHours??Math.max(p.document.settings.shopDay||8,...t.daily.map(d=>d.hours)),recoveryStart:plan.rules[t.id]?.start&&plan.rules[t.id].start!>(allowAttention?readyDate:rampStart)?plan.rules[t.id].start:(allowAttention?readyDate:rampStart),expandCrew:plan.rules[t.id]?.dailyHours===undefined,predecessorLagDays:Object.fromEntries(t.predecessors.map(id=>[p.workspaceId+'|'+id,(plan.rules[t.id]?.lagDays??0)+(source.find(s=>s.id===id)?.stage==='cad'&&!allowAttention?plan.rampDays:0)])),predecessors:t.predecessors.map(id=>p.workspaceId+'|'+id),calendar:plan.calendar,completed:plan.actuals[t.id]?.completed??'',external:t.stage==='cad'});
   }
   }catch(error){

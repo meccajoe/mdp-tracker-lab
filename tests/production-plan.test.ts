@@ -32,3 +32,13 @@ test('stage/pack/prep uses I&D staffing without changing quoted trade or prices'
  const before=JSON.stringify(q),p=proposeProductionPlan(q,[{primary:'I&D',hours:20,active:true}],{...emptyPlan(),rampDays:0});
  assert.equal(p.tasks[0].stage,'packing');assert.equal(p.tasks[0].trade,'Crate & pack');assert.equal(p.tasks[0].daily.length,2);assert.ok(p.tasks[0].daily.every(d=>d.hours===4));assert.ok(!p.warnings.some(w=>w.includes('no active primary')));assert.equal(JSON.stringify(q),before);
 });
+
+test('new proposals use quoted CAD within turnover and never start production before turnover ends',()=>{
+ const q=quote();q.schedule!.buildStart='2026-11-02';q.schedule!.buildFinish='2026-12-04';
+ q.lines.find(l=>l.type==='Design / Engineering / CAD')!.overrides.hours=40;
+ const p=proposeProductionPlan(q,roster),cad=p.tasks.filter(t=>t.stage==='cad'),shop=p.tasks.filter(t=>t.stage!=='cad');
+ assert.equal(cad.reduce((n,t)=>n+t.daily.reduce((h,d)=>h+d.hours,0),0),40);
+ assert.ok(cad.every(t=>t.finish<='2026-11-05'));
+ assert.ok(shop.every(t=>t.start>='2026-11-09'));
+ assert.ok(p.warnings.some(w=>w.includes('Readiness review')));
+});

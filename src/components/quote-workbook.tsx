@@ -36,6 +36,7 @@ function Numeric({ label, value, onChange, nullable = false }: { label: string; 
 }
 
 export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryItem=false }: { libraryItem?:boolean;quoteName?:string;workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
+  const [activationDate,setActivationDate]=useState<string|undefined>();
   const [document, setDocument] = useState<QuoteV27 | null>(null);
   const workbookRef=useRef<HTMLElement>(null);
   const [restoreKey,setRestoreKey]=useState(0);
@@ -65,7 +66,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const load = useCallback(async (revision?: number) => {
     autosavePaused.current=false;setSelectionSummary('');setBusy(true); setError('');
     try {
-      const response = await adaFetch(endpoint + (revision ? `?revision=${revision}` : ''));
+      const response = await adaFetch(endpoint + (revision ? `?revision=${revision}&activation=1` : '?activation=1'));
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Workbook could not load.');
       let next = payload.document ? parseQuoteV27(payload.document) : null;
@@ -77,6 +78,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
         next=parseQuoteV27(template.document);
       }
       edits.current = next?newEditHistory(next):null; editGroup.current=null; setDocument(next); setSelected(next?.lines[0]?.id ?? '');
+      setActivationDate(payload.activationDate);
       setQuoteStatus(payload.quoteStatus??'draft');setVersion(payload.latestVersion); setHistory(payload.history); setCanEdit(payload.canEdit);
       const restoring = Boolean(revision && revision !== payload.latestVersion);
       savedDocument.current=restoring||initializing?'':JSON.stringify(next);setPendingInput(false);
@@ -194,7 +196,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     </div>
     {!libraryItem&&<QuoteClientName workspaceId={workspaceId} disabled={!canEdit||busy}/>}
     {document&&!libraryItem&&<fieldset disabled={!canEdit||busy} className="my-3 flex flex-wrap items-end gap-3" aria-label="Quote schedule">
-      {([['buildStart','Build Start'],['buildFinish','Build Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${key}-${document.schedule?.[key]??''}`} defaultValue={document.schedule?.[key]??''} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
+      {([['buildStart','Project Start'],['buildFinish','Project Finish'],['dueDate','Due Date'],['shipDate','Ship Date'],['installDate','Install Date']] as const).map(([key,label])=><label key={key} className="text-xs">{label}<input className={`${control} block`} aria-label={label} type="date" min="1900-01-01" max="2200-12-31" key={`${restoreKey}-${activationDate}-${key}-${document.schedule?.[key]??''}`} defaultValue={(key==='buildStart'?activationDate:undefined)??document.schedule?.[key]??''} readOnly={key==='buildStart'&&!!activationDate} title={key==='buildStart'&&activationDate?'Project Start is the recorded activation date (Day 1).':undefined} onClick={event=>{try{if(event.currentTarget.showPicker){event.currentTarget.showPicker();event.preventDefault();}}catch{/* Native date control remains usable. */}}} onBlur={event=>{if(key==='buildStart'&&activationDate)return;const value=event.currentTarget.value;edit(next=>{next.schedule={...EMPTY_SCHEDULE,...next.schedule,[key]:value};});}}/></label>)}
       <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule=withForecastStatus({...EMPTY_SCHEDULE,...next.schedule},event.target.value as typeof EMPTY_SCHEDULE.status);})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></label>
       <label className="text-xs">Sales commission %<input className={`${control} block w-28`} type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={document.commission===0?'':Number((document.commission*100).toFixed(8))} placeholder="—" onChange={event=>edit(next=>{next.commission=Number(event.target.value)/100;})}/></label>
       <a className="text-xs underline" href={`/capacity/${workspaceId}`}>Project capacity & timeline</a>

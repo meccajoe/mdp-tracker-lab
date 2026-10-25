@@ -30,7 +30,7 @@ export function parseSchedule(value:unknown):QuoteSchedule {
  for(const key of ['dueDate','shipDate'] as const){if(row[key]!==undefined){if(row[key]!==''&&!validDate(row[key]))throw new Error(`Choose a valid ${key} date.`);schedule[key]=row[key] as string;}}
  if(row.projectStatus!==undefined){if(!PROJECT_STATUSES.includes(row.projectStatus as ProjectStatus))throw new Error('Choose a valid project status.');schedule.projectStatus=row.projectStatus as ProjectStatus;}
  schedule.status=row.status as QuoteSchedule['status'];
- if(schedule.buildStart&&schedule.buildFinish&&schedule.buildFinish<schedule.buildStart)throw new Error('Build finish must be on or after build start.');
+ if(schedule.buildStart&&schedule.buildFinish&&schedule.buildFinish<schedule.buildStart)throw new Error('Project Finish must be on or after Project Start.');
  return schedule;
 }
 

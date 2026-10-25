@@ -1,3 +1,4 @@
+import {projectPreparation} from './project-preparation';
 import {capacityTrade,remainingTradeHours} from './capacity-trades';
 import {parseWorkbackPolicy,type WorkbackPolicy} from './workback-model';
 import {proposeProductionPlan,emptyPlan,type ProductionPlan} from './production-plan';
@@ -57,10 +58,14 @@ export function quoteDemand(quote:QuoteV27){
 export type CapacityQuote={activationDate?:string;workspaceId:string;workspace:string;document:QuoteV27|null;version?:number;productionPlan?:ProductionPlan};
 export function capacityProject(source:CapacityQuote,override:CapacityOverride=source.document?.planning??emptyOverride()){
  const demand=source.document?quoteDemand(source.document):{shop:0,trades:{},untyped:0,overallocated:0,field:0,fieldDays:0,design:0,price:0};
- const schedule=source.document?.schedule??EMPTY_SCHEDULE,forecast=salesForecast(override.status||schedule.status),projectStatus=projectStatusFor(schedule,override.status),status=projectStatus==='Complete'?'Completed':projectStatus==='Active'?'In production':forecast;
+ const savedSchedule=source.document?.schedule??EMPTY_SCHEDULE;
+ const schedule=source.activationDate?{...savedSchedule,buildStart:source.activationDate}:savedSchedule,forecast=salesForecast(override.status||schedule.status),projectStatus=projectStatusFor(schedule,override.status),status=projectStatus==='Complete'?'Completed':projectStatus==='Active'?'In production':forecast;
  const trades=remainingTradeHours(demand.trades,override.remainingTrades);
  const shop=override.remainingShop??demand.shop,field=override.remainingField??demand.field;
  const flags:string[]=[];
+ const turnover=projectPreparation(schedule.buildStart,schedule.buildFinish,demand.design,source.productionPlan?.calendar??source.document?.productionCalendar??WEEKDAYS,source.activationDate).find(p=>p.kind==='Turnover');
+ if(projectStatus==='Active'&&turnover)flags.push(`Readiness review: confirm CAD, purchasing and scope review by planned turnover finish ${turnover.finish}`);
+ if(turnover&&source.productionPlan?.tasks.some(t=>t.stage!=='cad'&&t.daily.some(d=>d.date<=turnover.finish)))flags.push('Saved production dates overlap project turnover — review plan; live assignments wait for turnover');
  if(source.productionPlan&&source.version!==undefined&&source.productionPlan.quoteVersion!==source.version)flags.push('Saved schedule uses an earlier quote revision — review recalculation');
  if(source.productionPlan?.tasks.some(t=>t.daily.some(d=>d.date>schedule.buildFinish)))flags.push('Scheduled work exceeds the quoted finish — review staffing shortage');
  if(!source.document)flags.push('No saved quote yet');
@@ -98,7 +103,7 @@ export function capacityLoad(projects:ReturnType<typeof capacityProject>[],setti
   let parts=allocateHours(total,start,finish,settings.weekStart,count,mode,bucketDays);
   let scheduledTrades:Record<string,number[]>|null=null;
   if(kind==='shop'&&dynamicSchedule&&project.document){
-   const proposal=project.productionPlan?.tasks??proposeProductionPlan(project.document,settings.roster,{...emptyPlan(),calendar:project.document.productionCalendar??WEEKDAYS}).tasks;
+   const proposal=project.productionPlan?.tasks??proposeProductionPlan({...project.document,schedule:project.schedule},settings.roster,{...emptyPlan(),calendar:project.document.productionCalendar??WEEKDAYS}).tasks;
    const shopTasks=proposal.filter(t=>t.stage!=='cad');
    if(shopTasks.some(t=>t.daily.reduce((n,d)=>n+d.hours,0)<t.hours-.000001))unscheduled.push(project.workspace);
    const bucket=(entries:{date:string;hours:number}[])=>{const values=Array<number>(count).fill(0);for(const e of entries){const i=Math.floor((dayNumber(e.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count)values[i]+=e.hours;}return values;};

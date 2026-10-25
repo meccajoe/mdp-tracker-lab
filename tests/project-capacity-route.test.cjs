@@ -8,5 +8,5 @@ test('project capacity enforces membership and reuses latest workbook permission
  const module={exports:{}};vm.runInNewContext(source,{module,exports:module.exports,require:name=>imports[name],Response,Request,URL});
  const context={params:Promise.resolve({workspaceId:'00000000-0000-4000-8000-000000000001'})};
  assert.equal((await module.exports.GET(new Request('https://lab.test?revision=1'),context)).status,403);assert.equal(reads,0);
- permitted=true;const response=await module.exports.GET(new Request('https://lab.test?revision=1'),context),data=await response.json();assert.equal(data.version,7);assert.equal(data.canEdit,false);assert.equal(data.workspace,'Project A');assert.equal(data.history,undefined);assert.ok(!requested.includes('?'));assert.equal(response.headers.get('Cache-Control'),'private, no-store');
+ permitted=true;const response=await module.exports.GET(new Request('https://lab.test?revision=1'),context),data=await response.json();assert.equal(data.version,7);assert.equal(data.canEdit,false);assert.equal(data.workspace,'Project A');assert.equal(data.history,undefined);assert.equal(new URL(requested).search,'?activation=1');assert.equal(response.headers.get('Cache-Control'),'private, no-store');
 });

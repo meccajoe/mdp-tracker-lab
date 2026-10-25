@@ -30,7 +30,7 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
   const read=useCallback(async()=>{
     const response=await adaFetch(`/api/quote-workspaces/${workspaceId}/capacity`),payload=await response.json();
     if(!response.ok)throw new Error(payload.error||'Project capacity could not load.');
-    return {workspaceId,workspace:payload.workspace,client:payload.client??'',version:payload.version,canEdit:payload.canEdit,document:payload.document?parseQuoteV27(payload.document):null};
+    return {workspaceId,activationDate:payload.activationDate,workspace:payload.workspace,client:payload.client??'',version:payload.version,canEdit:payload.canEdit,document:payload.document?parseQuoteV27(payload.document):null};
   },[workspaceId]);
   useEffect(()=>{
     setSource(null);setError('');setProgress(emptyProgress());setSelectedItem('');setCalendar({...WEEKDAYS});dirtyRef.current=false;
@@ -56,6 +56,7 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
     finally{savingRef.current=false;setSaving(false);}
   }
   const project=useMemo(()=>source?capacityProject(source):null,[source]);
+  const planningQuote=useMemo(()=>source?.document&&project?{...source.document,schedule:project.schedule}:null,[source,project]);
   const timeline=project?projectTimeline(project.schedule,calendar):null;
   const allItems=useMemo(()=>source?.document?itemTimelines(source.document):[],[source]);
   const items=useMemo(()=>allItems.filter(isBuildTimelineItem),[allItems]);
@@ -70,9 +71,9 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
     {source&&!source.document?<p className={styles.warning}>Save this quote’s workbook and enter its build dates to create the project timeline.</p>:null}
     {project&&source?.document&&timeline?<>
       <section className={styles.cards} aria-label="Project dates and capacity">
-        {[['Build start',date(project.schedule.buildStart)],['Build finish',date(project.schedule.buildFinish)],['Install',date(project.schedule.installDate)],['Shop hours',number(project.shop)],['Field hours',number(project.field)],['Design hours',number(project.demand.design)]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}
+        {[['Project start',date(project.schedule.buildStart)],['Project finish',date(project.schedule.buildFinish)],['Install',date(project.schedule.installDate)],['Shop hours',number(project.shop)],['Field hours',number(project.field)],['Design hours',number(project.demand.design)]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}
       </section>
-      <details><summary>Workback Schedule — overview, internal milestones and client PDF</summary><WorkbackSchedule workspaceId={workspaceId} quoteVersion={source.version}/></details><ProductionPlanner workspaceId={workspaceId} quote={source.document} quoteVersion={source.version}/>
+      <details><summary>Workback Schedule — overview, internal milestones and client PDF</summary><WorkbackSchedule workspaceId={workspaceId} quoteVersion={source.version}/></details><ProductionPlanner workspaceId={workspaceId} quote={planningQuote!} quoteVersion={source.version}/>
       <details className={styles.panel}><summary>Percentage reference and earlier completion records</summary><p>These retained records use the original fixed stage percentages. Use the production schedule above for current operational planning and actuals.</p>
       <section className={styles.panel} aria-label="Project workweek"><h2>Project workweek</h2><div className={styles.controls}>
         <span>Monday–Friday</span><label><input type="checkbox" checked={calendar.saturday} disabled={!source.canEdit||saving} onChange={e=>setCalendar({...calendar,saturday:e.target.checked})}/> Saturday work necessary</label><label><input type="checkbox" checked={calendar.sunday} disabled={!source.canEdit||saving} onChange={e=>setCalendar({...calendar,sunday:e.target.checked})}/> Sunday work necessary</label>

@@ -1,3 +1,4 @@
+import {projectPreparation} from './project-preparation';
 import {staffingTrade} from './capacity-trades';
 import {parseWorkback,type Workback} from './workback-model';
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
@@ -24,7 +25,11 @@ const shopTypes=new Set(['Fabrication','Graphics','beMatrix / SEG','Stage / Pack
 export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,options:ProductionPlan=emptyPlan()){
  const warnings:string[]=[],tasks:PlanTask[]=[],calculation=calculateQuoteV27(quote);
  const schedule=quote.schedule,calendar=options.calendar,days=schedule?productionDays(schedule.buildStart,schedule.buildFinish,calendar):[];
- if(!days.length)return {tasks,warnings:['Enter valid build start and finish dates to generate a schedule.'],lateHours:0,unassignedHours:0};
+ if(!days.length)return {tasks,warnings:['Enter valid Project Start and Project Finish dates to generate a schedule.'],lateHours:0,unassignedHours:0};
+ const preparation=projectPreparation(schedule!.buildStart,schedule!.buildFinish,calculation.lines.filter(l=>l.type==='Design / Engineering / CAD').reduce((n,l)=>n+l.hoursAllowed,0),calendar);
+ const cad=preparation.find(p=>p.kind==='CAD'),turnover=preparation.find(p=>p.kind==='Turnover');
+ const turnoverDays=Math.ceil((turnover?.workdays??0)-1e-9);
+ warnings.push('Readiness review: production follows planned project turnover. Confirm CAD, purchasing and scope review before starting work.');
  const workdays=productionDays(iso(days[0]),iso(Math.min(day('2200-12-31'),days[0]+1095)),calendar);
  const rosterHours:Record<string,number>=Object.create(null);
  for(const person of roster)if(person.active)rosterHours[staffingTrade(person.primary)]=(rosterHours[staffingTrade(person.primary)]??0)+person.hours/5;
@@ -59,8 +64,8 @@ export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,option
   const index=remaining.findIndex(seed=>(options.rules[seed.id]?.predecessors??defaultDependencies(seed)).every(id=>placed.has(id)));
   if(index<0){warnings.push('Unresolved or cyclic dependencies: '+remaining.map(s=>s.item).join(', '));break;}
   const seed=remaining.splice(index,1)[0],rule=options.rules[seed.id]??{},dependencies=rule.predecessors??defaultDependencies(seed);
-  let earliest=seed.stage==='cad'?0:options.rampDays;
-  for(const id of dependencies){const prior=placed.get(id)!;if(prior.hours===0)continue;if(!prior.finish||sum(prior.daily.map(d=>d.hours))<prior.hours-1e-8){earliest=workdays.length;continue;}earliest=Math.max(earliest,workdays.indexOf(day(prior.finish))+1+(rule.lagDays??0)+(prior.stage==='cad'&&seed.stage!=='cad'?options.rampDays:0));}
+  let earliest=seed.stage==='cad'?0:Math.max(turnoverDays,options.rampDays);
+  for(const id of dependencies){const prior=placed.get(id)!;if(prior.hours===0)continue;if(!prior.finish||sum(prior.daily.map(d=>d.hours))<prior.hours-1e-8){earliest=workdays.length;continue;}earliest=Math.max(earliest,workdays.indexOf(day(prior.finish))+1+(rule.lagDays??0));}
   if(rule.start){const requested=day(rule.start),index=workdays.findIndex(d=>d>=requested);earliest=Math.max(earliest,index<0?workdays.length:index);}
   const hours=rule.remainingHours??seed.hours;
   const pool=staffingTrade(seed.trade),available=rosterHours[pool];
@@ -69,7 +74,10 @@ export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,option
   const budget=available&&available>0?available:dailyLimit;
   booked[pool]??=new Map();
   let allocation:{date:string;hours:number}[]=[];
-  if(hours===0){allocation=[];}else if(rule.locked&&rule.start&&rule.finish){
+  if(hours===0){allocation=[];}else if(seed.stage==='cad'&&cad&&!rule.locked&&!rule.start){
+   allocation=cad.daily.map(d=>({date:d.date,hours:hours*d.fraction/cad.workdays}));
+   warnings.push(cad.staffingNote);
+  }else if(rule.locked&&rule.start&&rule.finish){
    const dates=productionDays(rule.start,rule.finish,calendar);
    allocation=dates.map(d=>({date:iso(d),hours:hours/dates.length}));
    if(dates.length&&dates[0]<(workdays[earliest]??Infinity))warnings.push(`${seed.item} / ${seed.trade}: locked dates violate a prerequisite or lead time.`);
@@ -86,7 +94,7 @@ export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,option
   tasks.push(task);placed.set(task.id,task);
  }
  const lateHours=sum(tasks.flatMap(t=>t.daily.filter(d=>d.date>(schedule?.buildFinish??'')).map(d=>d.hours)));
- if(lateHours>0)warnings.push(`${lateHours.toFixed(1)} hours fall after Build finish. The quoted deadline has not changed; adjust staffing, sequence or dates.`);
+ if(lateHours>0)warnings.push(`${lateHours.toFixed(1)} hours fall after Project Finish. The quoted deadline has not changed; adjust staffing, sequence or dates.`);
  if(Object.keys(options.rules).some(id=>!seeds.some(s=>s.id===id)))warnings.push('Some saved task rules refer to removed quote work. Review before replacing the schedule.');
  return {tasks,warnings:[...new Set(warnings)],lateHours,unassignedHours:sum(seeds.filter(s=>s.stage==='other').map(s=>s.hours))};
 }
