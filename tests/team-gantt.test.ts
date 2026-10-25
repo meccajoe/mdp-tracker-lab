@@ -10,3 +10,21 @@ test('date view clips bars and assigned totals without changing saved assignment
  const before=JSON.stringify(result),rows=teamGanttRows(result,'Project',{...filter,start:'2026-10-20',finish:'2026-10-22'});
  assert.equal(rows.length,2);assert.equal(rows[0].hours,5);assert.equal(rows[0].days.has('2026-10-19'),false);assert.equal(rows[1].unassigned,7);assert.equal(JSON.stringify(result),before);
 });
+
+import {projectPreparation} from '../src/lib/project-preparation';
+test('CAD always fits first 15 percent without assigned people and turnover follows for 5 percent',()=>{
+ const phases=projectPreparation('2026-11-02','2026-11-27',72,{saturday:false,sunday:false});
+ assert.equal(phases[0].workdays,3);assert.equal(phases[0].start,'2026-11-02');assert.equal(phases[0].finish,'2026-11-04');
+ assert.deepEqual(phases[0].daily.map(d=>d.hours),[24,24,24]);assert.match(phases[0].staffingNote,/3 CAD people/);
+ assert.equal(phases[1].workdays,1);assert.equal(phases[1].start,'2026-11-05');assert.equal(phases[1].hours,null);
+});
+test('CAD fractional windows conserve hours, respect weekends and holidays, and never invent turnover hours',()=>{
+ for(const calendar of [{saturday:false,sunday:false},{saturday:true,sunday:true},{saturday:true,sunday:false,holidays:['2026-11-02']}]){
+  const phases=projectPreparation('2026-11-02','2026-11-06',5,calendar);
+  assert.ok(Math.abs(phases[0].daily.reduce((s,d)=>s+d.hours!,0)-5)<1e-8);
+  assert.ok(phases[1].daily.every(d=>d.hours===null));
+  if(calendar.holidays)assert.equal(phases[0].start,'2026-11-03');
+ }
+ assert.deepEqual(projectPreparation('','',8,{saturday:false,sunday:false}),[]);
+ const weekend=projectPreparation('2026-11-06','2026-11-23',80,{saturday:true,sunday:true});assert.ok(weekend[0].daily.some(d=>d.date==='2026-11-07'));
+});

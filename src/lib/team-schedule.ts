@@ -1,3 +1,4 @@
+import type {PreparationPhase} from './project-preparation';
 import {staffingTrade} from './capacity-trades';
 import {dayNumber,dateString,monday,type RosterPerson} from './capacity';
 import {isProductionDay,type ProductionCalendar} from './production-calendar';
@@ -6,7 +7,7 @@ export type TeamOptions={start:string;finish:string;priority:string[];availabili
 export type TeamTask={key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;predecessorLagDays?:Record<string,number>;expandCrew?:boolean;recoveryStart?:string;calendar:ProductionCalendar;completed:string;external:boolean};
 export type TeamPerson=Pick<RosterPerson,'id'|'name'|'primary'|'secondary'|'hours'|'active'>;
 export type TeamAllocation={taskKey:string;workspaceId:string;project:string;item:string;trade:string;personId:string;person:string;date:string;hours:number;secondary:boolean;workMode?:'Regular'|'Weekday overtime'|'Weekend'};
-export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string;recommendation?:string}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number;preparation?:{project:string;item:string;start:string;finish:string;hours:number}[];regularAssignedHours?:number;crewAdjustments?:{project:string;item:string;trade:string;date:string;people:number;hours:number}[];pressure?:{trade:string;week:string;utilization:number;projects:string[]}[]};
+export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string;recommendation?:string}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number;preparation?:(PreparationPhase&{workspaceId:string;project:string})[];regularAssignedHours?:number;crewAdjustments?:{project:string;item:string;trade:string;date:string;people:number;hours:number}[];pressure?:{trade:string;week:string;utilization:number;projects:string[]}[]};
 const EPS=.000001;
 export function parseTeamOptions(value:unknown):TeamOptions{
  const o=value as TeamOptions;

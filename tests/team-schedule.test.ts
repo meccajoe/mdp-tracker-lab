@@ -157,3 +157,12 @@ test('recovery moves flexible downstream work earlier when added crew finishes p
  const locked=scheduleTeamWithOvertime([{...tasks[1],fixed:true,predecessors:[]}],[person],options);
  assert.equal(locked.assignedHours,0);
 });
+
+test('live preparation shows unstaffed CAD and turnover without adding them to shop assignments',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:'2026-11-02',buildFinish:'2026-11-27',installDate:'',status:'Closed won',projectStatus:'Active'};
+ const cad=q.lines.find(l=>l.type==='Design / Engineering / CAD')!;cad.overrides.hours=72;q.takeoffs=[];
+ const before=JSON.stringify(q),r=buildTeamSchedule([{workspaceId:'test',workspace:'Test',version:1,document:q}],[],{...options,start:'2026-11-02',finish:'2026-11-27'},true);
+ assert.equal(r.preparation[0].hours,72);assert.equal(r.preparation[0].finish,'2026-11-04');assert.equal(r.preparation[1].start,'2026-11-05');assert.equal(r.preparation[1].hours,null);
+ assert.equal(r.assignedHours,0);assert.equal(r.totalHours,0);assert.equal(JSON.stringify(q),before);
+ q.lines[0].overrides.hours=8;const shop=buildTeamSchedule([{workspaceId:'test',workspace:'Test',version:1,document:q}],[{...person,primary:'Unassigned shop hours',rate:20,notes:''}],{...options,start:'2026-11-02',finish:'2026-11-27'},true);assert.equal(shop.assignedHours,8);assert.ok(shop.allocations.every(a=>a.date>='2026-11-06'));
+});

@@ -1,3 +1,4 @@
+import {projectPreparation} from './project-preparation';
 import {dateString,dayNumber,capacityProject,type CapacityQuote,type RosterPerson} from './capacity';
 import {emptyPlan,proposeProductionPlan} from './production-plan';
 import {scheduleTeam,scheduleTeamWithOvertime,type TeamOptions,type TeamTask,type TeamResult} from './team-schedule';
@@ -24,8 +25,18 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   if(!source.length&&p.shop>0)throw Error(`${p.workspace}: no schedulable tasks. Review the project schedule.`);
   const recoveryDays=productionDays(p.schedule.buildStart,dateString(dayNumber(p.schedule.buildStart)+1095),plan.calendar);
   const rampStart=recoveryDays[plan.rampDays]===undefined?p.schedule.buildFinish:dateString(recoveryDays[plan.rampDays]);
-  for(const t of source){
-   tasks.push({key:p.workspaceId+'|'+t.id,workspaceId:p.workspaceId,project:p.workspace,item:t.item,trade:t.trade,hours:t.hours,start:t.start||p.schedule.buildStart,finish:t.finish||p.schedule.buildFinish,deadline:p.schedule.buildFinish,fixed:plan.status==='approved'||t.locked,dailyLimit:plan.rules[t.id]?.dailyHours??Math.max(p.document.settings.shopDay||8,...t.daily.map(d=>d.hours)),recoveryStart:plan.rules[t.id]?.start&&plan.rules[t.id].start!>rampStart?plan.rules[t.id].start:rampStart,expandCrew:plan.rules[t.id]?.dailyHours===undefined,predecessorLagDays:Object.fromEntries(t.predecessors.map(id=>[p.workspaceId+'|'+id,(plan.rules[t.id]?.lagDays??0)+(source.find(s=>s.id===id)?.stage==='cad'?plan.rampDays:0)])),predecessors:t.predecessors.map(id=>p.workspaceId+'|'+id),calendar:plan.calendar,completed:plan.actuals[t.id]?.completed??'',external:t.stage==='cad'});
+  const phases=projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,plan.calendar),cad=phases.find(p=>p.kind==='CAD');
+  if(allowAttention&&plan.status==='approved')warnings.push(`${p.workspace}: CAD/turnover blocks show the 15%/5% planning assumption; the approved shop schedule remains unchanged. Review any overlap.`);
+  const buildDays=productionDays(p.schedule.buildStart,p.schedule.buildFinish,plan.calendar);
+  // The named shop scheduler uses whole days. Start after the preparation window,
+  // keeping approved/locked plans authoritative and historical stored data unchanged.
+  const readyIndex=Math.ceil(buildDays.length*.20-1e-9),readyDate=buildDays[readyIndex]===undefined?dateString(dayNumber(p.schedule.buildFinish)+1):dateString(buildDays[readyIndex]);
+  for(const original of source){
+   const t=allowAttention&&plan.status!=='approved'&&!original.locked
+    ?original.stage==='cad'&&cad?{...original,start:cad.start,finish:cad.finish}
+    :{...original,start:plan.rules[original.id]?.start&&plan.rules[original.id].start!>readyDate?plan.rules[original.id].start!:readyDate}:original;
+
+   tasks.push({key:p.workspaceId+'|'+t.id,workspaceId:p.workspaceId,project:p.workspace,item:t.item,trade:t.trade,hours:t.hours,start:t.start||p.schedule.buildStart,finish:t.finish||p.schedule.buildFinish,deadline:p.schedule.buildFinish,fixed:plan.status==='approved'||t.locked,dailyLimit:plan.rules[t.id]?.dailyHours??Math.max(p.document.settings.shopDay||8,...t.daily.map(d=>d.hours)),recoveryStart:plan.rules[t.id]?.start&&plan.rules[t.id].start!>(allowAttention?readyDate:rampStart)?plan.rules[t.id].start:(allowAttention?readyDate:rampStart),expandCrew:plan.rules[t.id]?.dailyHours===undefined,predecessorLagDays:Object.fromEntries(t.predecessors.map(id=>[p.workspaceId+'|'+id,(plan.rules[t.id]?.lagDays??0)+(source.find(s=>s.id===id)?.stage==='cad'&&!allowAttention?plan.rampDays:0)])),predecessors:t.predecessors.map(id=>p.workspaceId+'|'+id),calendar:plan.calendar,completed:plan.actuals[t.id]?.completed??'',external:t.stage==='cad'});
   }
   }catch(error){
    if(!allowAttention)throw error;
@@ -34,5 +45,5 @@ export function buildTeamSchedule(quotes:CapacityQuote[],roster:RosterPerson[],o
   }
  }
  const result=(allowAttention?scheduleTeamWithOvertime:scheduleTeam)(tasks,roster.map(({id,name,primary,secondary,hours,active})=>({id,name,primary,secondary,hours,active})),options);
- return {...result,preparation:tasks.filter(t=>t.external&&!t.completed&&t.hours>0).map(t=>({project:t.project,item:t.item,start:t.start,finish:t.finish,hours:t.hours})),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
+ return {...result,preparation:included.flatMap(p=>projectPreparation(p.schedule.buildStart,p.schedule.buildFinish,p.demand.design,p.productionPlan?.calendar??p.document?.productionCalendar??emptyPlan().calendar).map(phase=>({...phase,workspaceId:p.workspaceId,project:p.workspace}))),totalHours:result.totalHours+attention.reduce((sum,row)=>sum+row.hours,0),unfilled:[...result.unfilled,...attention],warnings:[...new Set([...warnings,...result.warnings])],projects:included.map(p=>({id:p.workspaceId,name:p.workspace,status:p.status}))};
 }

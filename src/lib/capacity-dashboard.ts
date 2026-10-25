@@ -1,4 +1,5 @@
-import {emptyPlan,proposeProductionPlan} from './production-plan';
+import {projectPreparation} from './project-preparation';
+import {emptyPlan} from './production-plan';
 import {validDate} from './quote-schedule';
 import {capacityLoad,capacityProject,rosterCapacity,dayNumber,monday,type CapacitySettings} from './capacity';
 export const isCadTrade=(name:string)=>['cad','drawings','design','design / engineering / cad','cad / drawings'].includes(name.trim().toLowerCase());
@@ -32,10 +33,9 @@ export function dashboardLoad(projects:CapacityProject[],settings:CapacitySettin
  const cadNeeded=Array<number>(count).fill(0),cadUnscheduled:string[]=[];
  for(const project of weighted){
   if(!project.probability||!project.document||!project.demand.design)continue;
-  const tasks=project.productionPlan?.tasks??proposeProductionPlan(project.document,settings.roster,{...emptyPlan(),calendar:project.document.productionCalendar??emptyPlan().calendar}).tasks;
-  const cad=tasks.filter(t=>t.stage==='cad');
-  if(!cad.length||cad.some(t=>t.daily.reduce((s,d)=>s+d.hours,0)<t.hours-.000001))cadUnscheduled.push(project.workspace);
-  for(const task of cad)for(const d of task.daily){const i=Math.floor((dayNumber(d.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count)cadNeeded[i]+=d.hours*project.probability;}
+  const cad=projectPreparation(project.schedule.buildStart,project.schedule.buildFinish,project.demand.design,project.productionPlan?.calendar??project.document.productionCalendar??emptyPlan().calendar).find(p=>p.kind==='CAD');
+  if(!cad)cadUnscheduled.push(project.workspace);
+  for(const d of cad?.daily??[]){const i=Math.floor((dayNumber(d.date)-dayNumber(settings.weekStart))/bucketDays);if(i>=0&&i<count)cadNeeded[i]+=(d.hours??0)*project.probability;}
  }
  const cadWeekly=settings.roster.filter(p=>p.active&&isCadTrade(p.primary)).reduce((s,p)=>s+p.hours,0);
  const cadAvailable=aggregate(Array.from({length:dailyCount},(_,i)=>cadWeekly*factor(i)));
