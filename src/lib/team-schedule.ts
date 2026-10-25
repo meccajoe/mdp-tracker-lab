@@ -7,7 +7,7 @@ export type TeamOptions={start:string;finish:string;priority:string[];availabili
 export type TeamTask={pacing?:{date:string;hours:number}[];key:string;workspaceId:string;project:string;item:string;trade:string;hours:number;start:string;finish:string;deadline:string;fixed:boolean;dailyLimit:number;predecessors:string[];lagDays?:number;predecessorLagDays?:Record<string,number>;expandCrew?:boolean;recoveryStart?:string;calendar:ProductionCalendar;completed:string;external:boolean};
 export type TeamPerson=Pick<RosterPerson,'id'|'name'|'primary'|'secondary'|'hours'|'active'>;
 export type TeamAllocation={taskKey:string;workspaceId:string;project:string;item:string;trade:string;personId:string;person:string;date:string;hours:number;secondary:boolean;workMode?:'Regular'|'Weekday overtime'|'Weekend'};
-export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string;recommendation?:string}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number;preparation?:(PreparationPhase&{workspaceId:string;project:string})[];regularAssignedHours?:number;crewAdjustments?:{project:string;item:string;trade:string;date:string;people:number;hours:number}[];pressure?:{trade:string;week:string;utilization:number;projects:string[]}[]};
+export type TeamResult={allocations:TeamAllocation[];unfilled:{taskKey:string;project:string;item:string;trade:string;hours:number;reason:string;recommendation?:string;futureHours?:number}[];warnings:string[];people:TeamPerson[];options:TeamOptions;totalHours:number;assignedHours:number;preparation?:(PreparationPhase&{workspaceId:string;project:string})[];regularAssignedHours?:number;crewAdjustments?:{project:string;item:string;trade:string;date:string;people:number;hours:number}[];pressure?:{trade:string;week:string;utilization:number;projects:string[]}[]};
 const EPS=.000001;
 export function parseTeamOptions(value:unknown):TeamOptions{
  const o=value as TeamOptions;
@@ -107,13 +107,16 @@ export function scheduleTeamWithOvertime(tasks:TeamTask[],roster:TeamPerson[],op
   const t=byKey.get(row.taskKey)!,start=!t.fixed?(t.recoveryStart??t.start):t.start,end=t.fixed?t.finish<t.deadline?t.finish:t.deadline:t.deadline;
   let days=0;for(let d=Math.max(dayNumber(options.start),dayNumber(start));d<=Math.min(dayNumber(options.finish),dayNumber(end));d++)if(!t.calendar.holidays?.includes(dateString(d)))days++;
   const shifts=Math.ceil(row.hours/8),crew=days?Math.ceil(row.hours/(days*8)):0;
-  const recommendation=t.deadline>options.finish&&row.reason!=='No active employee with this trade'
+  const recommendation=['Unassigned shop hours','Untyped / other'].includes(row.trade)
+   ?`Assign the actual trade for ${row.item}'s ${row.hours} hours in the quote or reconcile its takeoff labor. These hours have no identified crew; do not add a placeholder employee or overtime to hide the missing trade.`
+   :t.deadline>options.finish&&row.reason!=='No active employee with this trade'
    ?`This project continues through ${t.deadline}. Extend the view to include its full timeline; future work is not a staffing shortage.`
    :row.reason==='Prerequisite unfinished or missing'
    ?`Resolve the preceding task first: ${t.predecessors.filter(id=>best.unfilled.some(r=>r.taskKey===id)||!byKey.has(id)).map(id=>byKey.get(id)?.item+' / '+byKey.get(id)?.trade).join(', ')||'confirm prerequisite completion'}. Then rerun the schedule; ${row.hours} hours still need placement.`
    :days?`Add at least ${crew} qualified ${row.trade} crew member(s), providing ${shifts} additional 8-hour shifts (${row.hours} hours) by ${end}. This is a minimum staffing estimate; confirm availability and task handoffs. Existing eligible staff and allowed overtime have already been tried.`
    :`Review the dates: this task has no available days inside this view and its allowed work window (${start} to ${end}). Extend the view if work falls outside it; correct past or conflicting deadlines before assigning work.`;
-  return {...row,recommendation};
+  const futureHours=t.pacing&&t.deadline>options.finish&&best.people.some(p=>skill(p.primary)===skill(t.trade)||skill(p.secondary)===skill(t.trade))?Math.min(row.hours,t.pacing.filter(d=>d.date>options.finish).reduce((n,d)=>n+d.hours,0)):0;
+  return {...row,recommendation,futureHours};
  });
  const pacedProjects=[...new Set(best.allocations.filter(a=>recovery.has(a.taskKey)&&byKey.get(a.taskKey)?.pacing&&usedRelaxation).map(a=>a.project))];
  return {...best,warnings:[...best.warnings,...pacedProjects.map(p=>`${p}: preferred production pacing was relaxed to fit the deadline. Review added crew or extra shifts; quoted hours remain unchanged.`)],unfilled,crewAdjustments,regularAssignedHours:regular.assignedHours,pressure};

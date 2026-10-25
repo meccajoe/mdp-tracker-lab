@@ -11,7 +11,7 @@ export const FLOW=['cad','purchasing','cnc','carpentry','finish','graphics','pac
 export type PlanStage=typeof FLOW[number];
 export const STAGE_NAMES:Record<PlanStage,string>={cad:'CAD / Drawings',purchasing:'Purchasing / Ramp up',cnc:'CNC',carpentry:'Carpentry / Assembly',finish:'Finish / Paint',graphics:'Graphics',packing:'Final Prep / Packing',other:'Unassigned / other'};
 export type PlanTask={id:string;itemId:string;item:string;stage:PlanStage;trade:string;hours:number;start:string;finish:string;daily:{date:string;hours:number}[];predecessors:string[];locked:boolean};
-export type TaskRule={start?:string;finish?:string;locked?:boolean;dailyHours?:number;lagDays?:number;remainingHours?:number;predecessors?:string[]};
+export type TaskRule={trade?:string;start?:string;finish?:string;locked?:boolean;dailyHours?:number;lagDays?:number;remainingHours?:number;predecessors?:string[]};
 export type TaskActual={completed:string;hours:number|null;reason:string;notes:string};
 export type ProductionPlan={workback?:Workback;engine:string;quoteVersion:number;status:'proposed'|'approved';calendar:ProductionCalendar;rampDays:number;rules:Record<string,TaskRule>;tasks:PlanTask[];baseline:PlanTask[];actuals:Record<string,TaskActual>;notes:string};
 export const emptyPlan=():ProductionPlan=>({engine:PLAN_ENGINE,quoteVersion:0,status:'proposed',calendar:{...WEEKDAYS},rampDays:1,rules:{},tasks:[],baseline:[],actuals:{},notes:''});
@@ -47,7 +47,7 @@ export function proposeProductionPlan(quote:QuoteV27,roster:PlannerRoster,option
   const assigned=sum(Object.values(trades));
   if(assigned>line.hoursAllowed+.000001)warnings.push(`${line.name}: trade hours exceed allowed hours. Reconcile the quote before approving.`);
   if(line.hoursAllowed>assigned+.000001)trades['Unassigned shop hours']=line.hoursAllowed-assigned;
-  for(const [trade,hours] of Object.entries(trades))if(hours>0)seeds.push({id:line.id+'::'+trade,itemId:line.id,item:line.name,stage:line.type==='Design / Engineering / CAD'?'cad':stageForTrade(trade)??'other',trade,hours});
+  for(const [trade,hours] of Object.entries(trades))if(hours>0)seeds.push({id:line.id+'::'+trade,itemId:line.id,item:line.name,stage:line.type==='Design / Engineering / CAD'?'cad':stageForTrade(trade)??'other',trade:line.type==='Design / Engineering / CAD'?trade:options.rules[line.id+'::'+trade]?.trade??trade,hours});
  }
  if(!seeds.length)warnings.push('No quoted labor yet. The six-stage percentage timeline remains the planning reference; no labor has been invented.');
  const booked:Record<string,Map<number,number>>=Object.create(null);
@@ -122,6 +122,7 @@ export function parseProductionPlan(value:unknown):ProductionPlan{
   if(new Set(result.map(t=>t.id)).size!==result.length)fail();return result;
  };
  const rules=Object.fromEntries(Object.entries(obj(root.rules)).map(([id,v])=>{str(id,400);const r=obj(v),rule:TaskRule={};
+  if(r.trade!==undefined){const trade=str(r.trade,200).trim();if(!trade)fail();rule.trade=trade;}
   for(const key of ['start','finish'] as const)if(r[key]!==undefined)rule[key]=date(r[key]);
   for(const key of ['dailyHours','lagDays','remainingHours'] as const)if(r[key]!==undefined)rule[key]=num(r[key],key==='lagDays'?365:1e7);
   if(rule.dailyHours===0||rule.lagDays!==undefined&&!Number.isInteger(rule.lagDays))fail();

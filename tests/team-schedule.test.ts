@@ -215,5 +215,18 @@ test('a short date view does not trigger overtime or pull future work forward',(
  const finish='2026-11-27',paced=paceProjectTasks([task('later',{start:'2026-11-02',finish,deadline:finish,hours:40})]);
  const r=scheduleTeamWithOvertime(paced,[person],{...options,start:'2026-11-02',finish:'2026-11-06'});
  assert.ok(r.assignedHours<40);assert.ok(r.allocations.every(a=>a.workMode==='Regular'));
- assert.match(r.unfilled[0].recommendation!,/future work is not a staffing shortage/);
+ assert.match(r.unfilled[0].recommendation!,/future work is not a staffing shortage/);assert.equal(r.unfilled[0].futureHours,r.unfilled[0].hours);
+});
+
+test('untyped work calls for trade attribution rather than hiring an unassigned employee',()=>{
+ const r=scheduleTeamWithOvertime([task('walls',{trade:'Unassigned shop hours',hours:7.5,item:'beMatrix walls'})],[person],options);
+ assert.equal(r.assignedHours,0);assert.match(r.unfilled[0].recommendation!,/Assign the actual trade/);assert.doesNotMatch(r.unfilled[0].recommendation!,/qualified Unassigned/);
+});
+
+test('saved scheduling-team rule assigns untyped beMatrix work to I&D without quote changes',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:'2026-10-25',buildFinish:'2026-10-29',installDate:'',status:'Closed won',projectStatus:'Active'};q.takeoffs=[];q.lines[0].name='beMatrix walls';q.lines[0].overrides.hours=7.5;
+ const initial=proposeProductionPlan(q,[]),id=initial.tasks.find(t=>t.item==='beMatrix walls')!.id;
+ const plan={...emptyPlan(),quoteVersion:1,rules:{[id]:{trade:'I&D'}}};const before=JSON.stringify(q);
+ const r=buildTeamSchedule([{workspaceId:'whatnot',workspace:'Whatnot',version:1,document:q,productionPlan:plan}],[{...person,primary:'I&D',rate:20,notes:''}],{...options,start:'2026-10-25',finish:'2026-10-29'},true);
+ assert.equal(r.assignedHours,7.5);assert.equal(r.unfilled.length,0);assert.ok(r.allocations.every(a=>a.trade==='I&D'));assert.equal(JSON.stringify(q),before);
 });

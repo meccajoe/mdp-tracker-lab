@@ -42,3 +42,13 @@ test('new proposals use quoted CAD within turnover and never start production be
  assert.ok(shop.every(t=>t.start>='2026-11-09'));
  assert.ok(p.warnings.some(w=>w.includes('Readiness review')));
 });
+
+test('operational crew attribution preserves task identity, original quote and quoted hours',()=>{
+ const q=createBlankQuoteV27();q.schedule={buildStart:'2026-10-25',buildFinish:'2026-10-29',installDate:'',status:'Closed won'};
+ q.takeoffs=[];q.lines[0].name='beMatrix walls';q.lines[0].overrides.hours=7.5;
+ const before=JSON.stringify(q),initial=proposeProductionPlan(q,[]),task=initial.tasks.find(t=>t.item==='beMatrix walls')!;
+ const plan={...emptyPlan(),rules:{[task.id]:{trade:'I&D'}}};
+ const parsed=parseProductionPlan(plan),updated=proposeProductionPlan(q,[{primary:'I&D',hours:40,active:true}],parsed).tasks.find(t=>t.id===task.id)!;
+ assert.equal(updated.trade,'I&D');assert.equal(updated.hours,7.5);assert.equal(updated.id,task.id);assert.equal(JSON.stringify(q),before);
+ assert.throws(()=>parseProductionPlan({...plan,rules:{[task.id]:{trade:' '}}}));
+});

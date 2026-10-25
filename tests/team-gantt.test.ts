@@ -75,3 +75,8 @@ test('Project view combines CAD and turnover with production on one row without 
  assert.ok(teamGanttRows(r,'Person',filter).every(row=>row.preparation.length===0));
  const cad=teamGanttRows(r,'Trade',{...filter,trade:'CAD / Drawings'});assert.equal(cad.length,1);assert.equal(cad[0].preparation.length,1);
 });
+
+test('future paced hours are separate from staffing shortages on project and trade rows',()=>{
+ const r={...result,unfilled:[{...result.unfilled[0],hours:7,futureHours:5}]};
+ for(const group of ['Project','Trade'] as const){const rows=teamGanttRows(r,group,filter);assert.equal(rows.reduce((n,r)=>n+r.unassigned,0),2);assert.equal(rows.reduce((n,r)=>n+r.futureHours,0),5);}
+});
