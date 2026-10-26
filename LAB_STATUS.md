@@ -1,3 +1,7 @@
+## Manage version groups from Capacity Projects — October 26, 2026
+- Each editable Capacity Projects version has Group / change project with a native modal, destination search via native select typing, and Separate project option. Uses existing atomic join/separate RPC, expected group version and permissions; locks submissions while saving. Destination choices include all loaded projects regardless of table search. Join retains destination selection; separate selects the independent quote. Explains original group may need a new explicit selection. No snapshot/pricing changes or migration.
+- Verification/build/deployment pending; isolated QA pair will be used for join/separate, then restored to its original grouping and archived.
+
 ## Select capacity version from Projects — October 26, 2026
 - Capacity Projects exposes Use for Capacity on each version, using the existing atomic selection endpoint and group-version concurrency check. Selected versions show a disabled checkmarked button; saving locks duplicate submissions and refreshes shared quote metadata/group order/demand. Permission or conflict errors remain visible after refresh. No automatic selection of customer versions.
 - Manifest/cache carry capacityVersion independently of immutable workbook revision; extended cache regression verifies fresh metadata without refetching quotes. No migration or pricing changes.
