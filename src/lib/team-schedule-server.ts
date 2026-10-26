@@ -1,3 +1,4 @@
+import {capacityVersions} from './capacity-versions-server';
 import {loadActivationDates} from './project-activation-server';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {parseCapacity,type CapacityQuote} from './capacity';
@@ -6,12 +7,14 @@ import {parseProductionPlan} from './production-plan';
 export async function teamSources(db:SupabaseClient){
  const roster=await db.from('lab_capacity_settings_revisions').select('revision,document').order('revision',{ascending:false}).limit(1).maybeSingle();
  if(roster.error||!roster.data)throw Error('Saved roster unavailable. Save Roster & Settings first.');
+ const versions=await capacityVersions(db);
  const activations=await loadActivationDates(db);
  const quotes:CapacityQuote[]=[],sources:{id:string;quote:number;plan:number}[]=[];
  for(let offset=0;;offset+=100){
   const r=await db.from('ada_quote_workspaces').select('id,title').neq('lifecycle_status','archived').is('archived_at',null).order('id').range(offset,offset+99);
   if(r.error)throw Error('Project list unavailable; no partial team schedule was generated.');
   for(const w of r.data??[]){
+   if(!versions.get(w.id)?.selected)continue;
    const [q,p]=await Promise.all([db.from('quote_workbook_revisions').select('revision,document').eq('workspace_id',w.id).order('revision',{ascending:false}).limit(1).maybeSingle(),db.from('lab_production_schedule_revisions').select('revision,document').eq('workspace_id',w.id).order('revision',{ascending:false}).limit(1).maybeSingle()]);
    if(q.error||p.error)throw Error(`${w.title}: saved data unavailable. Retry before planning.`);
    sources.push({id:w.id,quote:q.data?.revision??0,plan:p.data?.revision??0});

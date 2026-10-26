@@ -56,7 +56,7 @@ export function quoteDemand(quote:QuoteV27){
  const fieldDays=Math.max(0,...(calculation.estimators?.install.map(person=>person.days)??importedDays));
  return {shop,trades,untyped:Math.max(0,shop-typed),overallocated:Math.max(0,typed-shop),field,fieldDays:fieldDays||Math.ceil(field/Math.max(1,quote.settings.siteHours)),design:calculation.lines.filter(line=>line.type==='Design / Engineering / CAD').reduce((sum,line)=>sum+line.hoursAllowed,0),price:calculation.totals.price};
 }
-export type CapacityQuote={activationDate?:string;workspaceId:string;workspace:string;document:QuoteV27|null;version?:number;productionPlan?:ProductionPlan};
+export type CapacityQuote={capacitySelected?:boolean;activationDate?:string;workspaceId:string;workspace:string;document:QuoteV27|null;version?:number;productionPlan?:ProductionPlan};
 export function capacityProject(source:CapacityQuote,override:CapacityOverride=source.document?.planning??emptyOverride()){
  const demand=source.document?quoteDemand(source.document):{shop:0,trades:{},untyped:0,overallocated:0,field:0,fieldDays:0,design:0,price:0};
  const savedSchedule=source.document?.schedule??EMPTY_SCHEDULE;
@@ -64,6 +64,7 @@ export function capacityProject(source:CapacityQuote,override:CapacityOverride=s
  const trades=remainingTradeHours(demand.trades,override.remainingTrades);
  const shop=override.remainingShop??demand.shop,field=override.remainingField??demand.field;
  const flags:string[]=[];
+ if(source.capacitySelected===false)flags.push('Not selected for Capacity. Choose Use for Capacity on Quotes to include this version.');
  const turnover=projectPreparation(schedule.buildStart,schedule.buildFinish,demand.design,source.productionPlan?.calendar??source.document?.productionCalendar??WEEKDAYS).find(p=>p.kind==='Turnover');
  if(projectStatus==='Active'&&turnover)flags.push(`Readiness review: confirm CAD, purchasing and scope review by planned turnover finish ${turnover.finish}`);
  if(turnover&&source.productionPlan?.tasks.some(t=>t.stage!=='cad'&&t.daily.some(d=>d.date<=turnover.finish)))flags.push('Saved production dates overlap project turnover — review plan; live assignments wait for turnover');
@@ -74,7 +75,7 @@ export function capacityProject(source:CapacityQuote,override:CapacityOverride=s
  if(!status)flags.push('Choose forecast status');
  if(override.status)flags.push(`Override: ${override.status} (quote: ${schedule.status||'unset'})`);
  if(Object.values(trades).reduce((sum,n)=>sum+n,0)>shop+.000001)flags.push('Trade hours exceed total shop hours — reconcile allocations');
- return {...source,schedule,status,probability:probability(status),committed:projectStatus==='Active',projectStatus,forecast,demand,shop,field,trades,untyped:Math.max(0,shop-Object.values(trades).reduce((sum,n)=>sum+n,0)),flags};
+ return {...source,schedule,status,probability:source.capacitySelected===false?0:probability(status),committed:source.capacitySelected!==false&&projectStatus==='Active',projectStatus,forecast,demand,shop,field,trades,untyped:Math.max(0,shop-Object.values(trades).reduce((sum,n)=>sum+n,0)),flags};
 }
 /** Exact day-overlap allocation, preserving demand across partial weeks and DST changes. */
 export function allocateHours(hours:number,start:string,finish:string,weekStart:string,count=26,mode:'weekdays'|'calendar'|ProductionCalendar='weekdays',bucketDays:1|7=7){

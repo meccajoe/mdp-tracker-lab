@@ -13,7 +13,7 @@ export async function POST(request:Request,{params}:{params:Promise<{workspaceId
  if(!latest.data)return json({error:'Save the source quote before cloning it.'},409);
  let names,document;
  try{names=requiredQuoteNames({title:body.title===undefined?source.data.title+' CLONE':body.title,clientName:body.clientName??source.data.client_name});document=cloneQuoteDocument(parseQuoteV27(latest.data.document),body.copySchedule===true);}catch(e){return json({error:e instanceof Error?e.message:'Invalid source quote.'},400);}
- const result=await actor.actorSupabase.rpc('create_lab_quote',{p_title:names.title,p_client_name:names.clientName,p_contact_name:source.data.contact_name,p_document:document,p_defaults_revision:null,p_request_id:body.requestId,p_source_id:workspaceId,p_source_revision:latest.data.revision}).single();
+ const result=await actor.actorSupabase.rpc('clone_lab_quote_version',{p_title:names.title,p_client_name:names.clientName,p_contact_name:source.data.contact_name,p_document:document,p_same_project:body.sameProject===true,p_request_id:body.requestId,p_source_id:workspaceId,p_source_revision:latest.data.revision}).single();
  if(result.error)return managementError(result.error);
  return json({workspace:result.data},201);
 }

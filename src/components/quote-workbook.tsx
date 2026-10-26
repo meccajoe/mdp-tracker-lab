@@ -1,4 +1,5 @@
 "use client";
+import {QuoteCapacityVersion} from './quote-capacity-version';
 import {effectiveProjectSchedule,forecastLabel,withForecastStatus} from '@/lib/quote-schedule';
 import {QuoteClientName} from './quote-client-name';
 import {WorkbackSchedule} from './workback-schedule';
@@ -203,6 +204,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     </fieldset>}
     {(error || result.error) && <p role="alert" className="my-3 rounded border border-destructive/40 bg-destructive/5 p-3 text-sm">{error || result.error}</p>}
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
+    {!libraryItem&&<QuoteCapacityVersion key={`${workspaceId}:${version}`} workspaceId={workspaceId} disabled={busy||dirty||pendingInput||saving}/>}
     {!libraryItem&&document&&<QuoteStatusControl workspaceId={workspaceId} revision={version} dirty={dirty||pendingInput||saving} onChanged={()=>void load()}/>}
     {document && <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Workback Schedule','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');if(name==='Workback Schedule')setWorkbackOpened(true);setTab(name);}}>{name}</button>)}</div>
         <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>

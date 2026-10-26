@@ -1,3 +1,4 @@
+import {capacityVersions} from '@/lib/capacity-versions-server';
 import {calculateQuoteV27} from '@/lib/quote-v27';
 import {projectStatusFor,salesForecast} from '@/lib/quote-schedule';
 import {NextRequest} from 'next/server';
@@ -12,6 +13,7 @@ export async function GET(request:NextRequest){
  const response=await adaGet(request);if(!response.ok)return response;
  const payload=await response.json(),ids=(payload.workspaces??[]).map((w:{id:string})=>w.id);
  if(!ids.length){const check=await actor.actorSupabase.from('lab_quote_controls').select('workspace_id').limit(1);if(check.error&&!missingManagement(check.error.code))return json({error:'Quote controls could not load.'},500);return json({...payload,managementReady:!check.error});}
+ let versions;try{versions=await capacityVersions(actor.actorSupabase);}catch(e){return json({error:(e as Error).message},503);}
  const [controls,revisions]=await Promise.all([
   actor.actorSupabase.from('lab_quote_controls').select('workspace_id,quote_status,version,modified_at').in('workspace_id',ids),
   actor.actorSupabase.from('ada_quote_workspaces').select('id,quote_workbook_revisions(revision,created_at,document,forecast_status:document->schedule->>status,planning_status:document->planning->>status,project_status:document->schedule->>projectStatus)').in('id',ids).order('revision',{referencedTable:'quote_workbook_revisions',ascending:false}).limit(1,{referencedTable:'quote_workbook_revisions'}),
@@ -21,7 +23,7 @@ export async function GET(request:NextRequest){
   const c=controls.data?.find(row=>row.workspace_id===w.id),r=revisions.data?.find(row=>row.id===w.id)?.quote_workbook_revisions?.[0];
   let quoteTotal:number|null=null;
   if(r?.document){try{const total=calculateQuoteV27(parseQuoteV27(r.document)).totals.price;if(Number.isFinite(total))quoteTotal=total;}catch{/* Unreadable saved workbooks show no amount rather than a misleading zero. */}}
-  return {...w,quote_total:quoteTotal,quote_status:c?.quote_status??'draft',status_version:c?.version??0,workbook_revision:r?.revision??0,forecast_status:salesForecast(r?.planning_status||r?.forecast_status||''),project_status:projectStatusFor({status:r?.forecast_status,projectStatus:r?.project_status},r?.planning_status||''),last_modified:[w.updated_at,w.last_activity_at,c?.modified_at,r?.created_at].filter(Boolean).sort().at(-1)};
+  return {...w,capacity_group:versions.get(w.id)?.group_id,capacity_selected:versions.get(w.id)?.selected??false,capacity_version:versions.get(w.id)?.version??0,quote_total:quoteTotal,quote_status:c?.quote_status??'draft',status_version:c?.version??0,workbook_revision:r?.revision??0,forecast_status:salesForecast(r?.planning_status||r?.forecast_status||''),project_status:projectStatusFor({status:r?.forecast_status,projectStatus:r?.project_status},r?.planning_status||''),last_modified:[w.updated_at,w.last_activity_at,c?.modified_at,r?.created_at].filter(Boolean).sort().at(-1)};
  })});
 }
 export async function POST(request:NextRequest){

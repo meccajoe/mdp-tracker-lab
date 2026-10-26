@@ -203,3 +203,9 @@ test('chart project breakdown reconciles every bucket for filters, forecast weig
   }
  }
 });
+
+test('unselected versions contribute no demand in expected/full/committed views',()=>{
+ const a=project('Closed won'),b=capacityProject({...a,workspaceId:'duplicate',capacitySelected:false});
+ assert.equal(b.committed,false);assert.equal(b.probability,0);assert.equal(b.shop,a.shop);
+ for(const basis of ['expected','committed','full'] as const){const alone=dashboardLoad([a],settings(),null,basis,4),both=dashboardLoad([a,b],settings(),null,basis,4);assert.deepEqual(both.load.expected,alone.load.expected);assert.deepEqual(both.fieldLoad.expected,alone.fieldLoad.expected);assert.deepEqual(both.cadNeeded,alone.cadNeeded);}
+});
