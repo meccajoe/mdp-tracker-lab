@@ -89,3 +89,6 @@
 
 .page table[aria-label="Capacity projects"] th {padding-right:14px;overflow:hidden}
 .page table[aria-label="Capacity projects"] td {overflow:hidden;text-overflow:ellipsis}
+
+.versionRow > td, .versionRow > th { background: var(--muted, #f4f4f5); }
+.versionName { border-left: 2px solid var(--border, #ddd); padding-left: 12px; }

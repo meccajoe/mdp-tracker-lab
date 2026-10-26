@@ -1,7 +1,7 @@
 import type {QuoteV27} from './quote-v27';
 
-export type QuoteManifestEntry={capacitySelected?:boolean;id:string;title:string;revision:number;canEdit:boolean;lifecycle:string};
-export type LibraryQuote={capacitySelected?:boolean;workspace:string;workspaceId:string;version:number;canEdit:boolean;document:QuoteV27|null};
+export type QuoteManifestEntry={capacityGroup?:string;createdAt?:string;capacitySelected?:boolean;id:string;title:string;revision:number;canEdit:boolean;lifecycle:string};
+export type LibraryQuote={capacityGroup?:string;createdAt?:string;capacitySelected?:boolean;workspace:string;workspaceId:string;version:number;canEdit:boolean;document:QuoteV27|null};
 type Fetcher=(url:string)=>Promise<Response>;
 
 // Browser memory only. Permission/lifecycle metadata is refreshed independently
@@ -79,7 +79,7 @@ export function createQuoteLibraryCache(fetcher:Fetcher,parse:(value:unknown)=>Q
           finally{if(flights.get(key)===flight)flights.delete(key);}
         }
       }else documents.delete(row.id);
-      return {capacitySelected:row.capacitySelected,workspaceId:row.id,workspace:row.title,version:row.revision,canEdit:row.canEdit,document:document?structuredClone(document):null};
+      return {capacityGroup:row.capacityGroup,createdAt:row.createdAt,capacitySelected:row.capacitySelected,workspaceId:row.id,workspace:row.title,version:row.revision,canEdit:row.canEdit,document:document?structuredClone(document):null};
     }));
     if(started!==epoch)throw new Error('Quote identity changed. Refresh again.');
     if(!snapshot)throw new Error('Quote permissions must be refreshed.');
@@ -87,7 +87,7 @@ export function createQuoteLibraryCache(fetcher:Fetcher,parse:(value:unknown)=>Q
     return {quotes:results.flatMap(result=>{
       if(result.status!=='fulfilled')return [];
       const latest=current.get(result.value.workspaceId);
-      return latest&&latest.revision===result.value.version?[{...result.value,workspace:latest.title,canEdit:latest.canEdit,capacitySelected:latest.capacitySelected}]:[];
+      return latest&&latest.revision===result.value.version?[{...result.value,workspace:latest.title,canEdit:latest.canEdit,capacitySelected:latest.capacitySelected,capacityGroup:latest.capacityGroup,createdAt:latest.createdAt}]:[];
     }),failures:results.filter(result=>result.status==='rejected').length};
   }
   function invalidate(){invalidation++;snapshot=null;}

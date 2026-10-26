@@ -1,3 +1,8 @@
+## Capacity Projects grouped versions — October 26, 2026
+- Capacity Projects reuses explicit quote groups with capacity-selected version first, other versions in a collapsed disclosure. Entire group belongs to the selected head's Active/Other section; counts represent groups. Search reveals matching groups in full context. Sorting uses group heads, while per-version dates/status/links, pinned project names and saved widths remain available.
+- Manifest and shared quote cache carry group ID and creation date independently of workbook revisions; no additional quote downloads for metadata-only changes. No database migration, capacity math change, quote selection change or customer record write.
+- Lab suite (246 tests including grouping cache refresh) and TypeScript passed. Build/deployment and hosted UI verification pending.
+
 ## Grouped quote list — October 26, 2026
 - Main Quotes and Archived quotes display explicit capacity groups together, selected version first and other versions collapsed under an accessible disclosure. Group order follows the selected row's chosen sort; other versions newest-created first. No selection is inferred when a group has none. Search/status matches reveal the full group for context; bulk Select all covers rendered rows only. All per-version actions remain available. No database migration or quote snapshot edits.
 - Paul authorized and hosted UI verified grouping Whatnot Toronto, Solis Ribbon and SLE_Moss with v2 selected for each; originals preserved and excluded from capacity. Rock n Roll Denim and Tyson's left unchanged.

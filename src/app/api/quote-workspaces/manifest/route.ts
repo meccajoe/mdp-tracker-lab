@@ -26,7 +26,7 @@ export async function GET(request:Request){
   const actorKey=`${access.actorId}:${access.actorEmail}`;
   if(!roles.size)return json({actorKey,workspaces:[],nextCursor:null});
   let query=access.actorSupabase.from('ada_quote_workspaces')
-    .select('id, title, status, lifecycle_status, archived_at, quote_workbook_revisions(revision)')
+    .select('id, title, created_at, status, lifecycle_status, archived_at, quote_workbook_revisions(revision)')
     .in('id',[...roles.keys()]).neq('lifecycle_status','archived').is('archived_at',null)
     .order('id').limit(101)
     .order('revision',{referencedTable:'quote_workbook_revisions',ascending:false})
@@ -37,7 +37,7 @@ export async function GET(request:Request){
   let versions;try{versions=await capacityVersions(access.actorSupabase);}catch(e){return json({error:(e as Error).message},503);}
   const rows=result.data??[];
   const workspaces=rows.slice(0,100).map(row=>({
-    id:row.id,title:row.title,capacitySelected:versions.get(row.id)?.selected??false,lifecycle:row.lifecycle_status,
+    id:row.id,title:row.title,createdAt:row.created_at,capacityGroup:versions.get(row.id)?.group_id??row.id,capacitySelected:versions.get(row.id)?.selected??false,lifecycle:row.lifecycle_status,
     revision:row.quote_workbook_revisions?.[0]?.revision??0,
     canEdit:canPerformQuoteAction({email:access.actorEmail,systemRole:access.actorRole,
       workspaceRole:roles.get(row.id)??null,isActiveMember:roles.has(row.id),capabilities:[]},'edit_draft'),
