@@ -1,3 +1,8 @@
+## Select capacity version from Projects — October 26, 2026
+- Capacity Projects exposes Use for Capacity on each version, using the existing atomic selection endpoint and group-version concurrency check. Selected versions show a disabled checkmarked button; saving locks duplicate submissions and refreshes shared quote metadata/group order/demand. Permission or conflict errors remain visible after refresh. No automatic selection of customer versions.
+- Manifest/cache carry capacityVersion independently of immutable workbook revision; extended cache regression verifies fresh metadata without refetching quotes. No migration or pricing changes.
+- Lab suite (246 tests) and TypeScript passed. Build, deployment and isolated hosted selection QA pending.
+
 ## Capacity Projects grouped versions — October 26, 2026
 - Capacity Projects reuses explicit quote groups with capacity-selected version first, other versions in a collapsed disclosure. Entire group belongs to the selected head's Active/Other section; counts represent groups. Search reveals matching groups in full context. Sorting uses group heads, while per-version dates/status/links, pinned project names and saved widths remain available.
 - Manifest and shared quote cache carry group ID and creation date independently of workbook revisions; no additional quote downloads for metadata-only changes. No database migration, capacity math change, quote selection change or customer record write.

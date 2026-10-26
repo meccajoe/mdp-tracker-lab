@@ -83,7 +83,7 @@ test('save during a pending manifest triggers a separate post-save read without 
 });
 test('capacity grouping metadata refreshes without refetching unchanged quote snapshots',async()=>{
  const f=fixture(2);await f.cache.load();f.calls.length=0;
- f.rows=f.rows.map((r,i)=>({...r,capacityGroup:'shared',capacitySelected:i===1,createdAt:`2026-10-${10+i}`}));
- const refreshed=await f.cache.load();assert.equal(f.calls.length,1);
+ f.rows=f.rows.map((r,i)=>({...r,capacityGroup:'shared',capacityVersion:3,capacitySelected:i===1,createdAt:`2026-10-${10+i}`}));
+ const refreshed=await f.cache.load();assert.equal(f.calls.length,1);assert.ok(refreshed.quotes.every(q=>q.capacityVersion===3));
  assert.deepEqual(refreshed.quotes.map(q=>[q.capacityGroup,q.capacitySelected,q.createdAt]),[['shared',false,'2026-10-10'],['shared',true,'2026-10-11']]);
 });
