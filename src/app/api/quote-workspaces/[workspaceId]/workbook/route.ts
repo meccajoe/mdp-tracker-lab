@@ -79,6 +79,6 @@ export async function POST(request: Request, { params }: Context) {
     return json({ error: 'Workbook could not be saved. Your edits are still here.' }, 500);
   }
   let workbackWarning='';
-  try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{workbackWarning='Quote saved. Workback refresh needs attention; open Workback Schedule and regenerate. Existing schedule retained.';}
-  return json({ workbackWarning, version: result.data.revision, savedAt: result.data.created_at, calculation }, 201);
+  if((document.planning?.status||document.schedule?.status)!=='Lost')try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{workbackWarning='Quote saved. Workback refresh needs attention; open Workback Schedule and regenerate. Existing schedule retained.';}
+  return json({ archived:(document.planning?.status||document.schedule?.status)==='Lost', workbackWarning, version: result.data.revision, savedAt: result.data.created_at, calculation }, 201);
 }

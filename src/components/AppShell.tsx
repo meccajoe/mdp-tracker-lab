@@ -21,7 +21,7 @@ function pageLabel(pathname: string) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isCapacity = pathname === "/capacity" || pathname.startsWith("/capacity/");
+  const isCapacity = pathname === "/capacity" || pathname.startsWith("/capacity/") || pathname === "/quotes" || pathname.startsWith("/quotes/");
   const isAdaWorkspace = pathname.startsWith("/ada");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 

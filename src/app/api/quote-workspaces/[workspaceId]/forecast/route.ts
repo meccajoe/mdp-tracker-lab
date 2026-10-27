@@ -20,6 +20,6 @@ export async function POST(request:Request,{params}:{params:Promise<{workspaceId
  if(document.planning)document.planning.status='';
  const saved=await access.actorSupabase.from('quote_workbook_revisions').insert({workspace_id:workspaceId,revision:body.expectedVersion+1,document,engine_version:latest.data.engine_version,created_by:access.actorId,created_by_email:access.actorEmail}).select('revision').single();
  if(saved.error)return json({error:['PT409','23505'].includes(saved.error.code)?'Quote changed or forecast storage needs its lab update. Reload and try again.':'Forecast could not save.'},['PT409','23505'].includes(saved.error.code)?409:403);
- let warning='';try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{warning='Forecast saved. Workback refresh needs attention; regenerate its proposal.';}
+ let warning='';if(document.schedule.status!=='Lost')try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{warning='Forecast saved. Workback refresh needs attention; regenerate its proposal.';}
  return json({version:saved.data.revision,warning});
 }
