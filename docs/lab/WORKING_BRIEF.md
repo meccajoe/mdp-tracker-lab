@@ -1,7 +1,8 @@
 ## Closed Lost archiving and capacity dropdowns — October 26, 2026
 - Quotes use the full available page width. Used / Not Used native dropdowns replace capacity buttons on Quotes, quote header and Capacity Projects; atomic unselect permits a group to have no capacity version without selecting an alternative.
 - New migration 20261026200000_lab_quote_capacity_unused_archive_lost.sql applied successfully to hosted lab: Closed Lost workbook revisions invoke the existing governed archive workflow, preserving snapshots and audit history. Archive permissions remain enforced. Workbook UI stops autosave after archive; no scheduling proposal is generated for Lost saves.
-- Paul approved archiving existing Closed Lost quotes too. Historical sweep and hosted UI verification pending release. No pricing changes.
+- Paul approved archiving existing Closed Lost quotes too. Archived Fenty Backdrop ($16,906), Mavericks Phone Booth ($10,773.06), and Lowe's Store Meeting - 2027 ($14,799); verified all three in Archived quotes with totals unchanged. Expanded version groups before identifying the complete Lost set. No pricing changes.
+- Release d8a5c96 pushed; Vercel 4Q7k9LUQcXZFTzM6Vcfcped6fC1Y succeeded. Hosted QA restored the existing QA source, switched Used to Not Used, verified after reload, switched back, then selected Closed Lost: success notice and automatic removal from main list; Archived quotes retains $1,003 and Closed Lost. Both QA versions remain archived. Quotes main spans x=208 through viewport edge 2560 (2352px). Screenshots /private/tmp/quotes-full-width-capacity-dropdown.png and /private/tmp/quotes-closed-lost-archived.png. Header/Capacity native controls reviewed and typechecked; hosted interaction test performed on main Quotes.
 - 246 lab tests, TypeScript, disposable capacity-version database regression and webpack build passed. Build used nonfunctional placeholders only.
 
 ## Manage version groups from Capacity Projects — October 26, 2026
