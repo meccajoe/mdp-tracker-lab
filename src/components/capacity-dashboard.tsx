@@ -26,7 +26,7 @@ const LaborChart=memo(function LaborChart({title,weeks,needed,available,projects
 },(a,b)=>JSON.stringify(a.projects)===JSON.stringify(b.projects)&&a.period===b.period&&a.title===b.title&&JSON.stringify(a.available)===JSON.stringify(b.available)&&a.weeks.join()===b.weeks.join()&&a.needed.join()===b.needed.join());
 export function CapacityDashboard({projects,settings,settingsUnavailable=false,mode='shop'}:{projects:CapacityProject[];settings:CapacitySettings;settingsUnavailable?:boolean;mode?:'shop'|'field'}){
  const [period,setPeriod]=useState<'day'|'week'>('week');
- const [selected,setSelected]=useState<string[]|null>(null),[search,setSearch]=useState(''),[start,setStart]=useState(()=>currentCapacityWeek()),[preset,setPreset]=useState(4),[custom,setCustom]=useState(false),[end,setEnd]=useState(''),[basis,setBasis]=useState<DemandBasis>('expected');
+ const [selected,setSelected]=useState<string[]|null>(null),[search,setSearch]=useState(''),[start,setStart]=useState(()=>currentCapacityWeek()),[preset,setPreset]=useState(4),[custom,setCustom]=useState(false),[end,setEnd]=useState(''),[basis,setBasis]=useState<DemandBasis>('committed');
  const currentWeek=currentCapacityWeek();
  const viewStart=start&&start>=currentWeek?start:currentWeek;
  const range=custom?capacityViewRange(viewStart,end):null;
