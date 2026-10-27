@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from "./confirm-action";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -57,7 +58,7 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
         <select
           aria-label="Switch quote workspace"
           value={workspaceId}
-          onChange={(event) => { if (!workbookDirty || window.confirm("Discard unsaved workbook edits and switch quotes?")) router.push(`/quotes/${event.target.value}`); }}
+          onChange={async (event) => { const id=event.target.value; if (!workbookDirty || await confirmAction("Discard unsaved workbook edits and switch quotes?")) router.push(`/quotes/${id}`); }}
           className="h-8 min-w-0 max-w-[38%] rounded-md border border-border bg-background px-2 text-sm font-medium outline-none focus:ring-2 focus:ring-ring/40 sm:max-w-xs"
         >
           {!workspaces.some((workspace) => workspace.id === workspaceId) ? <option value={workspaceId}>Current quote</option> : null}

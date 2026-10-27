@@ -1,3 +1,10 @@
+## CAD goals, forward dashboard, stage colors and centered confirmations — October 26, 2026
+- CAD Turnover header displays the saved quote's calculated Design / Engineering / CAD hours as the CAD team goal, including manual hour overrides. Uses the same allowance as capacity; regenerated downloads keep the finalized revision and original stored PDF intact.
+- Dashboard/Field charts default to the current America/Chicago Monday plus three weeks, independent of the historical roster grid. Start is clamped to the current week; future/custom ranges and day/week views remain available.
+- Team Schedule uses stable stage colors and a visible key in all three groupings; mixed-trade days have distinct stage blocks within a single project row. CAD and turnover each retain their own blocks. OT label identifies extra shifts without replacing stage color. No allocation changes.
+- Archive confirmation now uses a centered, focus-trapped alert dialog. Other application confirmations share the centered dialog, including unsaved navigation, reload and catalog removal; browser-owned tab-close/reload warnings remain browser-controlled.
+- 249 lab tests and TypeScript plus webpack build passed. PDF sample rendered and visually checked at /private/tmp/cad-goal-preview.png. No database migration, pricing change or customer record writes. Hosted verification pending deployment.
+
 ## Closed Lost archiving and capacity dropdowns — October 26, 2026
 - Quotes use the full available page width. Used / Not Used native dropdowns replace capacity buttons on Quotes, quote header and Capacity Projects; atomic unselect permits a group to have no capacity version without selecting an alternative.
 - New migration 20261026200000_lab_quote_capacity_unused_archive_lost.sql applied successfully to hosted lab: Closed Lost workbook revisions invoke the existing governed archive workflow, preserving snapshots and audit history. Archive permissions remain enforced. Workbook UI stops autosave after archive; no scheduling proposal is generated for Lost saves.

@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from "./confirm-action";
 
 import { useEffect, useState } from "react";
 
@@ -61,7 +62,7 @@ export function AdaEvidenceViewer({ workspaceId, assets, initialAssetId, initial
   }
 
   async function archiveAsset() {
-    if (!selected || !window.confirm(`Archive ${selected.original_name}? The file and its analysis will be retained in governed history.`)) return;
+    if (!selected || !await confirmAction(`Archive ${selected.original_name}? The file and its analysis will be retained in governed history.`)) return;
     setArchivingId(selected.id);
     setError(null);
     try {

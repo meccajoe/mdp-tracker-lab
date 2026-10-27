@@ -72,3 +72,12 @@ test('CAD excludes non-fabrication lines and their materials from aggregate BOM 
  assert.equal(report.bom.some(m=>m.description.startsWith('Excluded')),false);
  assert.equal(JSON.stringify(q),before);
 });
+
+// CAD goal follows the same calculated allowance as capacity, including manual overrides.
+test('CAD header goal sums quoted CAD allowances and preserves source data',()=>{
+ const q=cadFixture();
+ q.lines.push({...structuredClone(q.lines[0]),id:'cad-goal',name:'CAD',type:'Design / Engineering / CAD',takeoffDriven:false,inputs:{...q.lines[0].inputs,hours:40},overrides:{...q.lines[0].overrides,hours:24}});
+ const before=JSON.stringify(q),report=buildCadTurnover(q,meta);
+ assert.equal(report.cadHours,24);assert.equal(JSON.stringify(q),before);
+ assert.equal(buildCadTurnover(createBlankQuoteV27(),meta).cadHours,0);
+});

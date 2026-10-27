@@ -52,6 +52,7 @@ export async function renderCadTurnoverPdf(report:CadTurnover):Promise<Uint8Arra
   newPage();
   text('CAD Turnover',{size:25,font:bold,color:blue});
   text(report.project,{size:18,font:bold});
+  text(`CAD team goal: ${cadNumber(report.cadHours)} quoted hours`,{size:16,font:bold,color:blue});
   text(`Client: ${report.client||'Not recorded'} | Prepared: ${report.generatedAt.slice(0,10)} (UTC)`,{color:muted});
   text(report.schedule.join('   |   '),{size:9,color:muted});
   text('Design to the quoted scope below. Materials, quantities and labor are recorded estimating allowances, not a cut list. Confirm dimensions, frame layouts, connections and missing specifications with the estimator before detailing. No additional waste or procurement rounding has been added.',{size:10});

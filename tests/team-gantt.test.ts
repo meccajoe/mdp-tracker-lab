@@ -80,3 +80,18 @@ test('future paced hours are separate from staffing shortages on project and tra
  const r={...result,unfilled:[{...result.unfilled[0],hours:7,futureHours:5}]};
  for(const group of ['Project','Trade'] as const){const rows=teamGanttRows(r,group,filter);assert.equal(rows.reduce((n,r)=>n+r.unassigned,0),2);assert.equal(rows.reduce((n,r)=>n+r.futureHours,0),5);}
 });
+
+import {teamStage,TEAM_STAGE_COLORS} from '../src/lib/team-stage-colors';
+import {currentCapacityWeek} from '../src/lib/capacity-dashboard';
+test('stage colors preserve shared trade identities and do not depend on project order',()=>{
+ assert.equal(teamStage('Assembly'),teamStage('Carpentry'));assert.equal(teamStage('Painting'),teamStage('Finish'));
+ assert.equal(teamStage('Vinyl Install'),teamStage('Graphic Install'));
+ assert.equal(teamStage('Crate & pack'),teamStage('I&D'));
+ assert.notEqual(TEAM_STAGE_COLORS[teamStage('CNC + cutting')],TEAM_STAGE_COLORS[teamStage('Carpentry')]);
+ assert.equal(teamStage('unknown'), 'Other');
+});
+test('dashboard starts at current Central-time Monday including Sunday and year boundaries',()=>{
+ assert.equal(currentCapacityWeek(new Date('2026-10-27T01:00:00Z')),'2026-10-26');
+ assert.equal(currentCapacityWeek(new Date('2026-10-26T02:00:00Z')),'2026-10-19');
+ assert.equal(currentCapacityWeek(new Date('2027-01-01T18:00:00Z')),'2026-12-28');
+});

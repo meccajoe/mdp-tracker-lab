@@ -1,4 +1,5 @@
 'use client';
+import {confirmLinkNavigation} from './confirm-action';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import Link from 'next/link';
 import {adaFetch} from '@/lib/ada-client';
@@ -64,7 +65,7 @@ export function ProjectCapacity({workspaceId}:{workspaceId:string}){
   const selected=items.find(item=>item.id===selectedItem)??items[0];
   const actual=(stage:StageId,value:string,itemId?:string)=>{setProgress(p=>setCompletionDate(p,stage,value,itemId));setNotice('');};
   function discard(){setProgress(source?.document?.productionProgress??emptyProgress());setCalendar({...saved});dirtyRef.current=false;void refresh.current?.request(true);setNotice('');}
-  return <main className={styles.page} onClickCapture={event=>{if(dirty&&(event.target as HTMLElement).closest('a')&&!window.confirm('Leave without saving the capacity changes?')){event.preventDefault();event.stopPropagation();}}}>
+  return <main className={styles.page} onClickCapture={event=>{if(dirty)confirmLinkNavigation(event,'Leave without saving the capacity changes?');}}>
     <header className={styles.header}><div><p className={styles.eyebrow}>PROJECT CAPACITY</p><h1>{source?.workspace??'Project capacity'}</h1><p>{source?.client||'Saved quote production plan'}{source?` · Quote revision ${source.version}`:''}</p></div><nav><Link href="/capacity">All projects</Link><Link href={`/quotes/${workspaceId}`}>Open quote / edit dates</Link><button disabled={saving||dirty} onClick={()=>void refresh.current?.request(true)}>Refresh</button></nav></header>
     {error?<p role="alert" className={styles.warning}>{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
     {!source&&!error?<p role="status">Loading project…</p>:null}

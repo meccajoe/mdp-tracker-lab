@@ -1,4 +1,5 @@
 'use client';
+import {confirmLinkNavigation} from './confirm-action';
 import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
 import {adaFetch} from '@/lib/ada-client';
@@ -21,7 +22,7 @@ export function ProductionPlanner({workspaceId,quote,quoteVersion}:{workspaceId:
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[workspaceId]);
  const dirty=saved!==null&&JSON.stringify(plan)!==JSON.stringify(saved);
- useEffect(()=>{if(!dirty)return;const leave=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};const click=(e:MouseEvent)=>{if((e.target as HTMLElement).closest('a[href]')&&!window.confirm('Leave without saving the schedule draft?')){e.preventDefault();e.stopPropagation();}};window.addEventListener('beforeunload',leave);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',leave);document.removeEventListener('click',click,true);};},[dirty]);
+ useEffect(()=>{if(!dirty)return;const leave=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};const click=(e:MouseEvent)=>{confirmLinkNavigation(e,'Leave without saving the schedule draft?');};window.addEventListener('beforeunload',leave);document.addEventListener('click',click,true);return()=>{window.removeEventListener('beforeunload',leave);document.removeEventListener('click',click,true);};},[dirty]);
  const proposal=useMemo(()=>proposeProductionPlan(quote,roster,plan),[quote,roster,plan]);
  const axis=useMemo(()=>{const dates=plan.tasks.flatMap(t=>[t.start,t.finish]).filter(Boolean).map(d=>Date.parse(d));const first=dates.length?Math.min(...dates):0;return {first,span:Math.max(86400000,(dates.length?Math.max(...dates):0)+86400000-first)};},[plan.tasks]);
  const metrics=useMemo(()=>planMetrics(plan),[plan]);

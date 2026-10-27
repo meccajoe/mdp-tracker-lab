@@ -1,3 +1,5 @@
+/** Current business week, independent of the historical roster grid and UTC midnight. */
+export function currentCapacityWeek(now=new Date()){return monday(now.toLocaleDateString('en-CA',{timeZone:'America/Chicago'}));}
 import {projectPreparation} from './project-preparation';
 import {emptyPlan} from './production-plan';
 import {validDate} from './quote-schedule';

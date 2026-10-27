@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from "./confirm-action";
 
 import { useState } from "react";
 import { toast } from "sonner";
@@ -61,7 +62,7 @@ export function IssueEditDialog({ issue, onChanged }: { issue: EditableIssue; on
   }
 
   async function remove() {
-    if (!window.confirm(`Delete “${issue.title}”? This cannot be undone.`)) return;
+    if (!await confirmAction(`Delete “${issue.title}”? This cannot be undone.`)) return;
     setSaving(true);
     try {
       await request("DELETE");

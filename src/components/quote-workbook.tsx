@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction,confirmLinkNavigation} from "./confirm-action";
 import {QuoteCapacityVersion} from './quote-capacity-version';
 import {effectiveProjectSchedule,forecastLabel,withForecastStatus} from '@/lib/quote-schedule';
 import {QuoteClientName} from './quote-client-name';
@@ -95,7 +96,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     const unload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     const navigate = (e: MouseEvent) => {
       const a = (e.target as HTMLElement).closest?.('a[href]');
-      if (a && !window.confirm('Leave this quote and discard unsaved edits?')) { e.preventDefault(); e.stopPropagation(); }
+      if (a) confirmLinkNavigation(e,'Leave this quote and discard unsaved edits?');
     };
     window.addEventListener('beforeunload', unload);
     window.document.addEventListener('click', navigate, true);
@@ -192,7 +193,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
           <button className={button} disabled={!canEdit||busy||!edits.current?.future.length} title="Redo last undone change (⌘/Ctrl+Shift+Z)" onClick={()=>travelEdits('redo')}>↷ Redo</button>
         </>}
         {document && <button className={button} onClick={download}>Download draft</button>}
-        <button className={button} disabled={busy||saving} onClick={() => { if (!dirty || window.confirm('Discard unsaved edits and reload?')) void load(); }}>Reload saved</button>
+        <button className={button} disabled={busy||saving} onClick={async () => { if (!dirty || await confirmAction('Discard unsaved edits and reload?')) void load(); }}>Reload saved</button>
         <button className={`${button} bg-foreground text-background`} disabled={!document || (!dirty&&!pendingInput) || !canEdit || busy || saving || !!result.error} onClick={() => void save()}>Save revision</button>
       </div>
     </div>
@@ -208,7 +209,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     {!libraryItem&&<QuoteCapacityVersion key={`${workspaceId}:${version}`} workspaceId={workspaceId} disabled={busy||dirty||pendingInput||saving}/>}
     {!libraryItem&&document&&<QuoteStatusControl workspaceId={workspaceId} revision={version} dirty={dirty||pendingInput||saving} onChanged={()=>void load()}/>}
     {document && <div className="mb-4 mt-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Workback Schedule','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');if(name==='Workback Schedule')setWorkbackOpened(true);setTab(name);}}>{name}</button>)}</div>
-        <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={e => { if (e.target.value && (!dirty || window.confirm('Discard unsaved edits and load this revision?'))) void load(Number(e.target.value)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
+        <select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={async e => { const revision=e.target.value; if (revision && (!dirty || await confirmAction('Discard unsaved edits and load this revision?'))) void load(Number(revision)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>
       </div>}
     </div>
     <div className={styles.sheetViewport}>

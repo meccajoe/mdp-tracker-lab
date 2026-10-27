@@ -5,13 +5,13 @@ export type CadMaterial = {description:string; quantity:number; unit:string; not
 export type CadItem = {number:number; name:string; type:string; summary:string; materials:CadMaterial[]; labor:string[]; instructions:string[]; warnings:string[]};
 export type CadTurnover = {
   project:string; client:string; workspaceId:string; revision:number; generatedAt:string;
-  schedule:string[]; bom:{description:string;unit:string;quantity:number}[]; items:CadItem[]; warnings:string[];
+  cadHours:number; schedule:string[]; bom:{description:string;unit:string;quantity:number}[]; items:CadItem[]; warnings:string[];
 };
 export const cadUnit = (unit:string,quantity:number) => quantity===1?unit:({sheet:'sheets',panel:'panels',gallon:'gallons',quart:'quarts',lot:'lots',allowance:'allowances',foot:'feet',hour:'hours'}[unit.toLowerCase()]??unit);
 export const cadNumber = (n:number) => new Intl.NumberFormat('en-US',{maximumFractionDigits:3}).format(n);
 
 /** Read only the saved snapshot. Never infer a finish, construction method or missing inventory. */
-export function buildCadTurnover(quote:QuoteV27, meta:Omit<CadTurnover,'schedule'|'items'|'warnings'|'bom'>):CadTurnover {
+export function buildCadTurnover(quote:QuoteV27, meta:Omit<CadTurnover,'cadHours'|'schedule'|'items'|'warnings'|'bom'>):CadTurnover {
   const result=calculateQuoteV27(quote);
   const walls=quote.estimators?calculateEstimators(quote,quote.estimators).walls:[];
   const warnings:string[]=[...(quote.importNotes??[])];
@@ -65,5 +65,5 @@ export function buildCadTurnover(quote:QuoteV27, meta:Omit<CadTurnover,'schedule
   if(!items.length)warnings.push('No fabrication or beMatrix items with quoted scope were recorded.');
   const schedule=quote.schedule?[['Build start',quote.schedule.buildStart],['Build finish',quote.schedule.buildFinish],['Install',quote.schedule.installDate]].map(([label,value])=>`${label}: ${value||'not set'}`):['Build and install dates: not set'];
   const grouped=new Map<string,{description:string;unit:string;quantity:number}>();for(const item of items)for(const material of item.materials){const key=JSON.stringify([material.description,material.unit]);const group=grouped.get(key)??{description:material.description,unit:material.unit,quantity:0};group.quantity+=material.quantity;grouped.set(key,group);}
-  return {...meta,schedule,items,warnings,bom:[...grouped.values()]};
+  return {...meta,cadHours:result.lines.filter(line=>line.type==='Design / Engineering / CAD').reduce((sum,line)=>sum+line.hoursAllowed,0),schedule,items,warnings,bom:[...grouped.values()]};
 }

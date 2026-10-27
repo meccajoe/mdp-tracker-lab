@@ -1,4 +1,5 @@
 "use client";
+import {confirmAction} from "./confirm-action";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
   }
 
   async function deleteChat(chat: AdaWorkspace) {
-    if (!window.confirm(`Delete ${chat.title}? This removes its messages and uploaded files.`)) return;
+    if (!await confirmAction(`Delete ${chat.title}? This removes its messages and uploaded files.`)) return;
     const response = await adaFetch(`/api/ada/workspaces/${chat.id}`, { method: "DELETE" }); const result = await response.json().catch(() => ({}));
     if (!response.ok) { setError(result.error ?? "Chat could not be deleted."); return; }
     if (workspaceId === chat.id) router.push("/ada"); await load();
@@ -75,7 +76,7 @@ export function AdaWorkspaceShell({ workspaceId }: { workspaceId?: string }) {
   }
 
   async function deleteProject(project: AdaProject) {
-    if (!window.confirm(`Delete ${project.title}? Its chats will remain standalone.`)) return;
+    if (!await confirmAction(`Delete ${project.title}? Its chats will remain standalone.`)) return;
     const response = await adaFetch(`/api/ada/projects/${project.id}`, { method: "DELETE" });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) { setError(result.error ?? "Project could not be deleted."); return; }
