@@ -1,5 +1,5 @@
 ## Committed capacity default — October 26, 2026
-- Dashboard and shared Field Load charts open with Committed work only. Probability-weighted and full-hours options remain selectable; current-week four-week default retained. No data or calculation changes. Deployment verification pending.
+- Dashboard and shared Field Load charts open with Committed work only. Probability-weighted and full-hours options remain selectable; current-week four-week default retained. No data or calculation changes. TypeScript passed; release 66971ad pushed and Vercel HV5KrrKMnmzSbboKkoHQeqEUVwrs succeeded. Fresh hosted Capacity load verified Committed work only, Oct 26 start, four weeks.
 
 ## CAD goals, forward dashboard, stage colors and centered confirmations — October 26, 2026
 - CAD Turnover header displays the saved quote's calculated Design / Engineering / CAD hours as the CAD team goal, including manual hour overrides. Uses the same allowance as capacity; regenerated downloads keep the finalized revision and original stored PDF intact.
