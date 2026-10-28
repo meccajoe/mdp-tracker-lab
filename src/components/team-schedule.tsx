@@ -62,8 +62,9 @@ export function TeamSchedule(){
   const initial=setTimeout(()=>void read(),250),timer=setInterval(update,60000);
   document.addEventListener('visibilitychange',update);
   window.addEventListener('production-plan-saved',update);
+  window.addEventListener('capacity-schedules-refresh',update);
   window.addEventListener('quote-library-identity-changed',identity);
-  return()=>{active=false;clearTimeout(initial);clearInterval(timer);document.removeEventListener('visibilitychange',update);window.removeEventListener('production-plan-saved',update);window.removeEventListener('quote-library-identity-changed',identity);};
+  return()=>{active=false;clearTimeout(initial);clearInterval(timer);document.removeEventListener('visibilitychange',update);window.removeEventListener('production-plan-saved',update);window.removeEventListener('capacity-schedules-refresh',update);window.removeEventListener('quote-library-identity-changed',identity);};
  },[options.start,options.finish,refresh]);
  const rows=result?.allocations.filter(a=>a.date>=options.start&&a.date<=options.finish&&(!person||a.personId===person)&&(!project||a.workspaceId===project)&&(!trade||capacityTrade(a.trade)===trade))??[];
  return <section aria-label="Team Schedule">

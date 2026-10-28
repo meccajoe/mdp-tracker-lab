@@ -1,3 +1,9 @@
+## Capacity activation-history timeout recovery — October 28, 2026
+- Investigated Paul's persistent warning. Hosted Supabase logs confirm the original 1,000-row activation-history GET failed twice at 12:54 PM Central with HTTP 500 / Postgres 57014 statement timeout (8s). Subsequent fresh Dashboard/Team loads recovered before code changes. Vercel runtime-log connector returned 403; used signed-in lab Supabase logs instead.
+- History now reads 200-row primary-key seek pages (workspace/revision), with at most two retries for temporary timeouts/connection/service failures. Permission/query errors still fail; partial activation maps are never returned. Logs record code/status/attempt only, no quote documents or credentials. Keeps caller RLS, earliest Chicago activation, workspace/revision bounds, immutable snapshots and scheduling rules.
+- Refresh quotes also refreshes production plans/activation and live Team Schedule; activation error includes an explicit Retry loading schedules control. No database migration, permissions or customer data changes.
+- Five new regression tests cover pagination, exact-page completion, revision bounds, temporary recovery, permission denial and retry exhaustion. All 254 lab tests + TypeScript and webpack production build passed (nonfunctional build-only placeholder keys). Deployment/live verification pending.
+
 ## Committed capacity default — October 26, 2026
 - Dashboard and shared Field Load charts open with Committed work only. Probability-weighted and full-hours options remain selectable; current-week four-week default retained. No data or calculation changes. TypeScript passed; release 66971ad pushed and Vercel HV5KrrKMnmzSbboKkoHQeqEUVwrs succeeded. Fresh hosted Capacity load verified Committed work only, Oct 26 start, four weeks.
 

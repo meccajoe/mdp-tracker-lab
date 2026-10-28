@@ -11,6 +11,6 @@ export async function GET(){
  try{for(const row of r.data??[])if(!Object.hasOwn(plans,row.workspace_id))plans[row.workspace_id]=parseProductionPlan(row.document);}catch{return Response.json({error:'A saved schedule is invalid. Review before planning.',plans:{}},{status:422});}
  if((r.data?.length??0)<200)break;
  }
- let activations;try{activations=await loadActivationDates(a.actorSupabase);}catch{return Response.json({error:'Project activation history unavailable. Refresh before scheduling.',plans:{}},{status:503});}
+ let activations;try{activations=await loadActivationDates(a.actorSupabase);}catch{return Response.json({error:'Project activation history could not load. Retry loading schedules; saved quotes are unchanged.',plans:{}},{status:503});}
  return Response.json({plans,activations},{headers:{'Cache-Control':'private, no-store'}});
 }
