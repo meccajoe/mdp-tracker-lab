@@ -10,7 +10,7 @@ export function addQuoteWall(quote:QuoteV27){
  const name=`Wall ${n}`,lineId=slot?.id??crypto.randomUUID();
  const line={id:lineId,name,type:'beMatrix / SEG' as const,takeoffDriven:true,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null};
  if(slot)Object.assign(slot,line);else quote.lines.push(line);
- walls.push({...WALL_TEMPLATE,id:crypto.randomUUID(),lineId,name,dimensionUnit:'ft'});
+ walls.push({...WALL_TEMPLATE,id:crypto.randomUUID(),lineId,name,dimensionUnit:'ft',frameSize:'39.5x95',quantity:1});
 }
 export function renameQuoteWall(quote:QuoteV27,id:string,name:string){
  if(!name.trim()||name.trim().length>200)throw Error('Enter a wall name (up to 200 characters).');

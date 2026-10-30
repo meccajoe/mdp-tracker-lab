@@ -4,6 +4,13 @@ export const PEOPLE = ['lead', 'pm', 'second', 'third'] as const;
 export const INSTALLERS = ['lead', 'second', 'third'] as const;
 export const PERSON_LABELS = {lead:'Lead installer',pm:'Project manager',second:'Installer 2',third:'Installer 3'};
 export const WALL_TEMPLATE = {id:'',lineId:null as string|null,width:0,height:0,sides:1,sqftOverride:null as number|null};
+export const FRAME_SIZES = [
+  {id:'39.5x95',label:'39.5″ × 95″',width:39.5/12,height:95/12},
+  {id:'39.5x117',label:'39.5″ × 117″',width:39.5/12,height:117/12},
+  {id:'19x95',label:'19″ × 95″',width:19/12,height:95/12},
+  {id:'19x117',label:'19″ × 117″',width:19/12,height:117/12},
+  {id:'19x39.5',label:'19″ × 39.5″',width:19/12,height:39.5/12},
+] as const;
 const traveler = () => ({traveling:false,installDays:0,offDays:0,dismantleDays:0,useInstallDays:false,stays:true,daysPerTrip:2,hotelAdjustment:0,roadBonus:false});
 const installer = () => ({installDays:0,offDays:0,dismantleDays:0,travelDaysOverride:null as number|null,lineId:null as string|null});
 const leg = () => ({enabled:false,mode:'Our truck',driver:'Lead installer',miles:0,carrierQuote:0,misc:0});
@@ -15,7 +22,7 @@ export function emptyEstimators() {
       rates:{airfare:1000,hotel:450,perDiem:70,vehicle:65,vehicles:1,baggage:100,roadBonus:50,other:0},
       leadLineId:null as string|null,otherLineId:null as string|null,pmLineId:null as string|null},
     shipping:{outbound:leg(),return:leg(),rates:{fuel:6.5,mpg:8,wear:0.8,rentalDay:250,rentalMile:0.35,driverDay:410,milesPerDay:500},lineId:null as string|null},
-    beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE & {name?:string;dimensionUnit?:'ft'|'in'})[]},
+    beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE & {name?:string;dimensionUnit?:'ft'|'in';frameSize?:string;quantity?:number})[]},
   };
 }
 export type SupportDay = {installDays:number;dismantleDays:number;offDays:number};
@@ -55,6 +62,8 @@ export function parseEstimators(value: unknown): Estimators {
   parsed.beMatrix.walls.forEach((wall,i)=>{const source=sourceWalls[i];
     if(source.name!==undefined){if(typeof source.name!=='string'||!source.name.trim()||source.name.length>200)throw new Error('Enter a wall name (up to 200 characters).');wall.name=source.name;}
     if(source.dimensionUnit!==undefined){if(!['ft','in'].includes(source.dimensionUnit))throw new Error('Choose feet or inches.');wall.dimensionUnit=source.dimensionUnit;}
+    if(source.frameSize!==undefined){if(!FRAME_SIZES.some(frame=>frame.id===source.frameSize))throw new Error('Choose a supported frame size.');wall.frameSize=source.frameSize;}
+    if(source.quantity!==undefined){if(!Number.isInteger(source.quantity)||source.quantity<1||source.quantity>10000)throw new Error('Wall quantity must be a whole number from 1 to 10,000.');wall.quantity=source.quantity;}
   });
   if(parsed.version!==1) throw new Error('Unsupported estimator version.');
   if(parsed.travel.people.pm.useInstallDays) throw new Error('The PM has no linked installer day counts.');
@@ -126,9 +135,14 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
   if(b.frameWidth<=0||b.frameHeight<=0)throw new Error('Frame width and height must be greater than zero.');
   const walls=b.walls.map(w=>{
     if(![0,1,2].includes(w.sides))throw new Error('SEG sides must be 0, 1 or 2.');
-    const panels=Math.ceil(w.width/b.frameWidth)*Math.ceil(w.height/b.frameHeight);
-    const sqft=w.sqftOverride??w.width*w.height*w.sides,rental=panels*b.frameRental;
-    return {...w,panels,sqft,rental};
+    const frame=FRAME_SIZES.find(frame=>frame.id===w.frameSize);
+    const frameWidth=frame?.width??b.frameWidth,frameHeight=frame?.height??b.frameHeight,quantity=w.quantity??1;
+    // Tolerance avoids a spurious extra frame at exact inch-to-foot boundaries.
+    const tolerance=frame?1e-10:0;
+    const across=Math.ceil(w.width/frameWidth-tolerance),high=Math.ceil(w.height/frameHeight-tolerance);
+    const panels=across*high*quantity;
+    const sqft=(w.sqftOverride??w.width*w.height*w.sides)*quantity,rental=panels*b.frameRental;
+    return {...w,quantity,frameWidth,frameHeight,panels,sqft,rental};
   });
   for(const id of new Set(walls.map(w=>w.lineId).filter((id):id is string=>id!==null))){
     const grouped=walls.filter(w=>w.lineId===id);

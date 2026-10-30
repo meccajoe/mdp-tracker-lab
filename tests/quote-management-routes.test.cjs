@@ -24,9 +24,11 @@ test('clone requires source access, uses latest saved source, and preserves its 
  let permitted=false,calls=[];const actor={ok:true,actorSupabase:{from:t=>query(t==='ada_quote_workspaces'?{title:'Original',client_name:'Client',contact_name:null}:{revision:8,document:{priceOverride:123}}),rpc:(name,args)=>{calls.push(args);return query({id})}}};
  const route=load('src/app/api/quote-workspaces/[workspaceId]/clone/route.ts',{'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-cad-turnover':{buildCadTurnover:(_q,meta)=>meta},'@/lib/quote-cad-pdf':{renderCadTurnoverPdf:async()=>Buffer.from('%PDF-generated')},'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>permitted?actor:{ok:false,response:json({},403)}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>d},'@/lib/quote-defaults':{cloneQuoteDocument:(d,copy)=>({...d,copy}),requiredQuoteNames:x=>{if(typeof x.title!=='string'||!x.title.trim())throw Error('Project Name is required');return {...x,title:x.title.trim()}}},'@/lib/quote-management-server':management});
  const post=(extra={})=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify({requestId:id,...extra})}),{params:Promise.resolve({workspaceId:id})});
- assert.equal((await post()).status,403);assert.equal(calls.length,0);permitted=true;assert.equal((await post()).status,201);assert.equal(calls[0].p_title,'Original CLONE');assert.equal(calls[0].p_source_revision,8);assert.equal(calls[0].p_same_project,false);assert.equal(calls[0].p_document.priceOverride,123);assert.equal(calls[0].p_document.copy,false);
+ assert.equal((await post()).status,403);assert.equal(calls.length,0);permitted=true;assert.equal((await post()).status,201);assert.equal(calls[0].p_title,'Original CLONE');assert.equal(calls[0].p_source_revision,8);assert.equal(calls[0].p_same_project,false);assert.equal(calls[0].p_document.priceOverride,123);assert.equal(calls[0].p_document.copy,true);
  assert.equal((await post({title:'  Custom project  '})).status,201);assert.equal(calls[1].p_title,'Custom project');assert.equal(calls[1].p_document.priceOverride,123);
  assert.equal((await post({title:' '})).status,400);assert.equal(calls.length,2);
+ assert.equal((await post({copySchedule:false})).status,201);assert.equal(calls[2].p_document.copy,false);
+ assert.equal((await post({copySchedule:'yes'})).status,400);assert.equal(calls.length,3);
 
 });
 test('CAD generation failure leaves Final unset, and stale finalization reports a conflict',async()=>{

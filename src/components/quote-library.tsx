@@ -1,7 +1,7 @@
 'use client';
 import {groupQuoteVersions} from '@/lib/quote-version-groups';
 import {forecastLabel} from '@/lib/quote-schedule';
-import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
+import {Fragment,useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import Link from 'next/link';
 import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from './ui/dropdown-menu';
 import {QuoteCadDownload} from './quote-cad-download';
@@ -40,11 +40,13 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
  const compare=(a:Workspace,b:Workspace)=>sort.key==='quote_total'?sort.direction*(a.quote_total===b.quote_total?0:a.quote_total==null?-1:b.quote_total==null?1:a.quote_total-b.quote_total):sort.direction*String(a[sort.key==='cad'?'quote_status':sort.key]??'').localeCompare(String(b[sort.key==='cad'?'quote_status':sort.key]??''),undefined,{numeric:true,sensitivity:'base'});
  const groups=groupQuoteVersions(rows,matching,compare);
  const filtered=Boolean(query.trim())||status!=='all';
- const displayRows=groups.flatMap(group=>{
+ const [wonOpen,setWonOpen]=useState(true);
+ const sectionGroups=archived?[{name:'Archived quotes',groups,open:true}]:[{name:'Closed Won',groups:groups.filter(g=>g.primary.forecast_status==='Closed won'),open:wonOpen||filtered},{name:'Other Quotes',groups:groups.filter(g=>g.primary.forecast_status!=='Closed won'),open:true}];
+ const sections=sectionGroups.map(section=>({...section,rows:section.open?section.groups.flatMap(group=>{
   const expanded=filtered||expandedGroups.has(group.id);
   return [{w:group.primary,group,child:false,expanded},...(expanded?group.others.map(w=>({w,group,child:true,expanded})):[])];
- });
- const visible=displayRows.map(row=>row.w);
+ }):[]}));
+ const visible=sections.flatMap(section=>section.rows.map(row=>row.w));
  function toggleGroup(id:string){setExpandedGroups(previous=>{const next=new Set(previous);if(next.has(id))next.delete(id);else next.add(id);return next;});}
 
  function open(kind:'create'|'rename'|'clone'|'group',workspace:Workspace|null=null){setDialog(kind);setTarget(workspace);setError('');requestId.current=crypto.randomUUID();}
@@ -87,7 +89,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
   <Card className="overflow-x-auto"><Table style={{tableLayout:'fixed',minWidth:1000}}><RememberedColumns storageKey="quotes-list" labels={["Selection","Project name","Client name","Quote Total","Quote Status","Forecast Status","Project Status","Use for Capacity","Date created","Last modified","CAD Turnover","BOM","Budget Handoff"]} defaultWidths={[44,280,170,130,110,145,130,165,120,120,130,80,130]}/><TableHeader><TableRow>
    <TableHead><input type="checkbox" aria-label="Select all visible quotes" disabled={busy||loading||!visible.length} checked={!!visible.length&&visible.every(w=>selected.has(w.id))} onChange={e=>{const checked=e.target.checked;setSelected(previous=>{const next=new Set(previous);visible.forEach(w=>checked?next.add(w.id):next.delete(w.id));return next;});}}/></TableHead>
    {[['Project name','title'],['Client name','client_name'],['Quote Total','quote_total'],['Quote Status','quote_status'],['Forecast Status','forecast_status'],['Project Status','project_status'],['Use for Capacity','capacity_selected'],['Date created','created_at'],['Last modified','last_modified'],['CAD Turnover','cad'],['BOM',''],['Budget Handoff','']].map(([h,key])=><TableHead key={h} style={{position:'relative'}} aria-sort={sort.key===key?(sort.direction===1?'ascending':'descending'):undefined}>{key?<button onClick={()=>setSort({key:key as keyof Workspace|'cad',direction:sort.key===key?-sort.direction:1})}>{h} {sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</button>:h}<QuoteColumnResize label={h}/></TableHead>)}
-  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={13}>Loading quotes…</TableCell></TableRow>:visible.length===0?<TableRow><TableCell colSpan={13}>No quotes found.</TableCell></TableRow>:displayRows.map(({w,group,child,expanded})=><TableRow key={w.id} className={child?"bg-muted/40":undefined}>
+  </TableRow></TableHeader><TableBody>{loading?<TableRow><TableCell colSpan={13}>Loading quotes…</TableCell></TableRow>:groups.length===0?<TableRow><TableCell colSpan={13}>No quotes found.</TableCell></TableRow>:sections.map(section=><Fragment key={section.name}>{!archived&&<TableRow className="bg-muted/50"><TableCell colSpan={13}>{section.name==='Closed Won'?<button className="flex items-center gap-2 font-semibold py-1" aria-expanded={section.open} disabled={filtered} onClick={()=>setWonOpen(value=>!value)}>{section.open?'▾':'▸'} Closed Won ({section.groups.length}){filtered?' · shown for search/filter':''}</button>:<span className="font-semibold">Other Quotes ({section.groups.length})</span>}</TableCell></TableRow>}{section.rows.map(({w,group,child,expanded})=><TableRow key={w.id} className={child?"bg-muted/40":undefined}>
    <TableCell><input type="checkbox" aria-label={`Select ${w.title}`} disabled={busy} checked={selected.has(w.id)} onChange={e=>toggle(w.id,e.target.checked)}/></TableCell>
    <TableCell><div className={`flex items-center gap-2 ${child?'pl-5 border-l-2 border-border':''}`}><DropdownMenu><DropdownMenuTrigger disabled={busy} aria-label={`Quote actions · ${w.title}`} className="rounded px-2 py-1 hover:bg-slate-100">⋮</DropdownMenuTrigger><DropdownMenuContent>
      {!archived&&<DropdownMenuItem onClick={()=>open('rename',w)}>Rename</DropdownMenuItem>}{!archived&&<DropdownMenuItem onClick={()=>open('group',w)}>Group / change project</DropdownMenuItem>}<DropdownMenuItem disabled={!ready||!w.workbook_revision} onClick={()=>open('clone',w)}>Clone</DropdownMenuItem><DropdownMenuItem onClick={()=>void lifecycle([w.id],archived)}>{archived?'Restore':'Archive'}</DropdownMenuItem>
@@ -99,7 +101,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
    <TableCell className="whitespace-nowrap">{date(w.created_at)}</TableCell><TableCell className="whitespace-nowrap">{date(w.last_modified)}</TableCell>
    <TableCell>{w.quote_status==='final'?<QuoteCadDownload workspaceId={w.id} version={w.status_version}/>:<span className="text-xs text-muted-foreground">Available when Final</span>}</TableCell>
    {['BOM','Budget Handoff'].map(tab=><TableCell key={tab}>{w.workbook_revision?<Link className="underline text-teal-800" href={`/quotes/${w.id}?tab=${encodeURIComponent(tab)}`}>Open {tab}</Link>:<span className="text-xs text-muted-foreground">No saved workbook</span>}</TableCell>)}
-  </TableRow>)}</TableBody></Table></Card>
+  </TableRow>)}</Fragment>)}</TableBody></Table></Card>
   {dialog?<div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4" role="dialog" aria-modal="true" aria-label={dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':dialog==='group'?'Group quote versions':'Rename quote'}><form className="w-full max-w-md rounded-xl border bg-background p-5 shadow-xl" onSubmit={submit}>
    <h2 className="text-lg font-semibold">{dialog==='create'?'New quote':dialog==='clone'?'Clone quote':dialog==='group'?'Group quote versions':'Rename quote'}</h2>
    {dialog==='group'?<><p className="mt-3 text-sm">Join this quote to another project. It will stop contributing hours; the destination’s selected version stays in use. Other versions and saved data remain unchanged.</p><label className="block mt-4">Project<select name="targetId" required className="block w-full border p-2"><option value="">Choose project quote</option><option value="separate">Separate project — use this quote for capacity</option>{rows.filter(w=>w.id!==target?.id&&w.capacity_group!==target?.capacity_group).map(w=><option key={w.id} value={w.id}>{w.title}{w.capacity_selected?' (used for capacity)':''}</option>)}</select></label></>:null}
@@ -108,7 +110,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
    {dialog!=='rename'&&dialog!=='group'?<label className="block mt-4">Client Name<Input name="clientName" required maxLength={300} defaultValue={dialog==='clone'?target?.client_name??'':''}/></label>:null}
    {dialog==='create'?<label className="block mt-4">Contact (optional)<Input name="contactName"/></label>:null}
    {dialog==='clone'?<label className="block mt-4">Clone as<select name="sameProject" defaultValue="yes" className="block w-full border p-2"><option value="yes">New version of this project</option><option value="no">Separate project</option></select></label>:null}
-   {dialog==='clone'?<label className="block mt-4 text-sm"><input type="checkbox" name="copySchedule"/> Also copy dates and forecast/planning status (new versions stay out of Capacity until selected)</label>:null}
+   {dialog==='clone'?<label className="block mt-4 text-sm"><input type="checkbox" name="copySchedule" defaultChecked/> Also copy dates and forecast/planning status (new versions stay out of Capacity until selected)</label>:null}
    {error?<p className="mt-3 text-red-700" role="alert">{error}</p>:null}
    <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" disabled={busy} onClick={()=>setDialog(null)}>Cancel</Button><Button type="submit" disabled={busy}>{busy?'Saving…':dialog==='create'?'Create quote':dialog==='clone'?'Clone quote':dialog==='group'?'Save grouping':'Save name'}</Button></div>
   </form></div>:null}

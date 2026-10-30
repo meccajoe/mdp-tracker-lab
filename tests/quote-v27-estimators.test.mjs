@@ -72,3 +72,21 @@ test('bad links, ambiguous outputs, geometry and signed hotel adjustments are va
   const q=fresh();q.estimators.travel.people.lead.hotelAdjustment=-1;near(calculateQuoteV27(q).estimators.travel[0].hotelNights,3);
   assert.throws(()=>parseEstimators({version:1}));
 });
+
+test('inventory frame sizes and wall quantities multiply linked scope without altering legacy walls',()=>{
+ const q=fresh(),b=q.estimators.beMatrix;
+ const wall={id:"inventory-wall",lineId:q.lines.find(l=>l.type==="beMatrix / SEG").id,width:6.5,height:8,sides:1,sqftOverride:null};b.walls.push(wall);
+ const original=calculateQuoteV27(q).estimators.walls[0];
+ for(const [frameSize,width,height] of [['39.5x95',39.5,95],['39.5x117',39.5,117],['19x95',19,95],['19x117',19,117],['19x39.5',19,39.5]]){
+  Object.assign(wall,{frameSize,quantity:3,width:width/12*2,height:height/12,sides:2,sqftOverride:null});
+  const result=calculateQuoteV27(q),w=result.estimators.walls[0];
+  near(w.panels,6);near(w.rental,6*b.frameRental);near(w.sqft,width*2*height/144*2*3);
+  const line=result.lines.find(l=>l.id===wall.lineId);near(line.inputs.panels,w.panels);near(line.inputs.sqft,w.sqft);near(line.inputs.rental,w.rental);
+ }
+ wall.sqftOverride=10;near(calculateQuoteV27(q).estimators.walls[0].sqft,30);
+ const parsed=parseEstimators(JSON.parse(JSON.stringify(q.estimators)));assert.equal(parsed.beMatrix.walls[0].quantity,3);assert.equal(parsed.beMatrix.walls[0].frameSize,'19x39.5');
+ for(const quantity of [0,-1,1.5,10001,NaN]){wall.quantity=quantity;assert.throws(()=>parseEstimators(q.estimators),/quantity/);}
+ wall.quantity=1;wall.frameSize='unknown';assert.throws(()=>parseEstimators(q.estimators),/frame size/);
+ delete wall.frameSize;delete wall.quantity;Object.assign(wall,{width:6.5,height:8,sides:1,sqftOverride:null});
+ near(calculateQuoteV27(q).estimators.walls[0].panels,original.panels);
+});
