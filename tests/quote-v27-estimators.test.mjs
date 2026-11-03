@@ -90,3 +90,21 @@ test('inventory frame sizes and wall quantities multiply linked scope without al
  delete wall.frameSize;delete wall.quantity;Object.assign(wall,{width:6.5,height:8,sides:1,sqftOverride:null});
  near(calculateQuoteV27(q).estimators.walls[0].panels,original.panels);
 });
+
+test('standard metric walls fit nearest floor length, retain overrides and preserve old snapshots',()=>{
+ const q=fresh(),b=q.estimators.beMatrix;
+ const wall={id:'metric',lineId:'line-27',frameSize:'992x2480',lengthFit:'nearest',width:10,height:2480/304.8,sides:1,sqftOverride:null,quantity:1};
+ b.walls=[wall];
+ let w=calculateQuoteV27(q).estimators.walls[0];
+ near(w.across,3);near(w.high,1);near(w.panels,3);near(w.fittedLength,2976/304.8);assert.equal(w.lengthAdjusted,true);near(w.sqft,(2976/304.8)*(2480/304.8));
+ wall.width=36;w=calculateQuoteV27(q).estimators.walls[0];near(w.across,11);near(w.fittedLength,10912/304.8);assert.ok(w.fittedLength<36);
+ wall.width=10;wall.quantity=3;wall.sides=2;w=calculateQuoteV27(q).estimators.walls[0];near(w.panels,9);near(w.sqft,(2976/304.8)*(2480/304.8)*6);
+ wall.sqftOverride=100;near(calculateQuoteV27(q).estimators.walls[0].sqft,300);
+ wall.sqftOverride=0;near(calculateQuoteV27(q).estimators.walls[0].sqft,0);
+ wall.sqftOverride=null;wall.width=992/304.8*3;w=calculateQuoteV27(q).estimators.walls[0];assert.equal(w.lengthAdjusted,false);near(w.across,3);
+ wall.width=0;near(calculateQuoteV27(q).estimators.walls[0].panels,0);
+ wall.width=.1;near(calculateQuoteV27(q).estimators.walls[0].across,1);
+ const parsed=parseEstimators(JSON.parse(JSON.stringify(q.estimators)));assert.equal(parsed.beMatrix.walls[0].lengthFit,'nearest');
+ wall.lengthFit='invalid';assert.throws(()=>parseEstimators(q.estimators),/length fit/);
+ delete wall.lengthFit;wall.width=10;wall.quantity=1;wall.sides=1;w=calculateQuoteV27(q).estimators.walls[0];near(w.across,4);near(w.sqft,10*2480/304.8);
+});

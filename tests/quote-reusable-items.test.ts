@@ -102,5 +102,6 @@ test('new walls have independent linked items; renaming and unit display preserv
  renameQuoteWall(q,walls[0].id,'Golden Arch');walls[0].dimensionUnit='in';
  const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));assert.equal(saved.estimators!.beMatrix.walls[0].dimensionUnit,'in');assert.equal(saved.lines.find(l=>l.id===walls[0].lineId)!.name,'Golden Arch');
  assert.equal(calculateQuoteV27(saved).totals.price,price);assert.equal(before.estimators!.beMatrix.walls[0].name,'Wall 1');
- assert.equal(calculateQuoteV27(saved).estimators!.walls[0].sqft,80);assert.equal(calculateQuoteV27(saved).estimators!.walls[1].sqft,40);
+ assert.equal(saved.estimators!.beMatrix.walls[0].frameSize,'992x2480');assert.equal(saved.estimators!.beMatrix.walls[0].lengthFit,'nearest');
+ assert.ok(Math.abs(calculateQuoteV27(saved).estimators!.walls[0].sqft-2976/304.8*8)<1e-8);assert.ok(Math.abs(calculateQuoteV27(saved).estimators!.walls[1].sqft-1984/304.8*8)<1e-8);
 });

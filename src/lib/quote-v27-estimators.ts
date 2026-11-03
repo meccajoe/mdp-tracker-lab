@@ -5,7 +5,8 @@ export const INSTALLERS = ['lead', 'second', 'third'] as const;
 export const PERSON_LABELS = {lead:'Lead installer',pm:'Project manager',second:'Installer 2',third:'Installer 3'};
 export const WALL_TEMPLATE = {id:'',lineId:null as string|null,width:0,height:0,sides:1,sqftOverride:null as number|null};
 export const FRAME_SIZES = [
-  {id:'39.5x95',label:'39.5″ × 95″',width:39.5/12,height:95/12},
+  {id:'992x2480',label:'Standard — 992 × 2480 mm (39.05″ × 97.6378″)',width:992/304.8,height:2480/304.8},
+  {id:'39.5x95',label:'Previous specification — 39.5″ × 95″',width:39.5/12,height:95/12},
   {id:'39.5x117',label:'39.5″ × 117″',width:39.5/12,height:117/12},
   {id:'19x95',label:'19″ × 95″',width:19/12,height:95/12},
   {id:'19x117',label:'19″ × 117″',width:19/12,height:117/12},
@@ -22,7 +23,7 @@ export function emptyEstimators() {
       rates:{airfare:1000,hotel:450,perDiem:70,vehicle:65,vehicles:1,baggage:100,roadBonus:50,other:0},
       leadLineId:null as string|null,otherLineId:null as string|null,pmLineId:null as string|null},
     shipping:{outbound:leg(),return:leg(),rates:{fuel:6.5,mpg:8,wear:0.8,rentalDay:250,rentalMile:0.35,driverDay:410,milesPerDay:500},lineId:null as string|null},
-    beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE & {name?:string;dimensionUnit?:'ft'|'in';frameSize?:string;quantity?:number})[]},
+    beMatrix:{frameRental:250,frameWidth:3.25,frameHeight:8,walls:[] as (typeof WALL_TEMPLATE & {name?:string;dimensionUnit?:'ft'|'in';frameSize?:string;quantity?:number;lengthFit?:'nearest'})[]},
   };
 }
 export type SupportDay = {installDays:number;dismantleDays:number;offDays:number};
@@ -63,6 +64,7 @@ export function parseEstimators(value: unknown): Estimators {
     if(source.name!==undefined){if(typeof source.name!=='string'||!source.name.trim()||source.name.length>200)throw new Error('Enter a wall name (up to 200 characters).');wall.name=source.name;}
     if(source.dimensionUnit!==undefined){if(!['ft','in'].includes(source.dimensionUnit))throw new Error('Choose feet or inches.');wall.dimensionUnit=source.dimensionUnit;}
     if(source.frameSize!==undefined){if(!FRAME_SIZES.some(frame=>frame.id===source.frameSize))throw new Error('Choose a supported frame size.');wall.frameSize=source.frameSize;}
+    if(source.lengthFit!==undefined){if(source.lengthFit!=='nearest')throw new Error('Choose a supported wall length fit.');wall.lengthFit=source.lengthFit;}
     if(source.quantity!==undefined){if(!Number.isInteger(source.quantity)||source.quantity<1||source.quantity>10000)throw new Error('Wall quantity must be a whole number from 1 to 10,000.');wall.quantity=source.quantity;}
   });
   if(parsed.version!==1) throw new Error('Unsupported estimator version.');
@@ -139,10 +141,13 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
     const frameWidth=frame?.width??b.frameWidth,frameHeight=frame?.height??b.frameHeight,quantity=w.quantity??1;
     // Tolerance avoids a spurious extra frame at exact inch-to-foot boundaries.
     const tolerance=frame?1e-10:0;
-    const across=Math.ceil(w.width/frameWidth-tolerance),high=Math.ceil(w.height/frameHeight-tolerance);
+    const across=w.lengthFit==='nearest'?(w.width>0?Math.max(1,Math.round(w.width/frameWidth)):0):Math.ceil(w.width/frameWidth-tolerance);
+    const high=Math.ceil(w.height/frameHeight-tolerance);
+    const fittedLength=w.lengthFit==='nearest'?across*frameWidth:w.width;
+    const lengthAdjusted=Math.abs(fittedLength-w.width)>1e-7;
     const panels=across*high*quantity;
-    const sqft=(w.sqftOverride??w.width*w.height*w.sides)*quantity,rental=panels*b.frameRental;
-    return {...w,quantity,frameWidth,frameHeight,panels,sqft,rental};
+    const sqft=(w.sqftOverride??fittedLength*w.height*w.sides)*quantity,rental=panels*b.frameRental;
+    return {...w,quantity,frameWidth,frameHeight,across,high,fittedLength,lengthAdjusted,panels,sqft,rental};
   });
   for(const id of new Set(walls.map(w=>w.lineId).filter((id):id is string=>id!==null))){
     const grouped=walls.filter(w=>w.lineId===id);

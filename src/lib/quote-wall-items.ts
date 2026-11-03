@@ -1,5 +1,5 @@
 import {EMPTY_INPUTS,type QuoteV27} from './quote-v27';
-import {emptyEstimators,WALL_TEMPLATE} from './quote-v27-estimators';
+import {emptyEstimators,WALL_TEMPLATE,FRAME_SIZES} from './quote-v27-estimators';
 /** New walls get one independent item. Existing grouped links are never split implicitly. */
 export function addQuoteWall(quote:QuoteV27){
  const slot=quote.lines.find(line=>/^(Item \d+|Spare \d+)$/.test(line.name)&&line.type==='Fabrication'&&!quote.takeoffs.some(row=>row.lineId===line.id)&&Object.values(line.inputs).every(v=>v===0)&&Object.values(line.overrides).every(v=>v==null)&&line.priceOverride===null);
@@ -10,7 +10,7 @@ export function addQuoteWall(quote:QuoteV27){
  const name=`Wall ${n}`,lineId=slot?.id??crypto.randomUUID();
  const line={id:lineId,name,type:'beMatrix / SEG' as const,takeoffDriven:true,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null};
  if(slot)Object.assign(slot,line);else quote.lines.push(line);
- walls.push({...WALL_TEMPLATE,id:crypto.randomUUID(),lineId,name,dimensionUnit:'ft',frameSize:'39.5x95',quantity:1});
+ walls.push({...WALL_TEMPLATE,id:crypto.randomUUID(),lineId,name,dimensionUnit:'ft',frameSize:'992x2480',height:FRAME_SIZES[0].height,quantity:1,lengthFit:'nearest'});
 }
 export function renameQuoteWall(quote:QuoteV27,id:string,name:string){
  if(!name.trim()||name.trim().length>200)throw Error('Enter a wall name (up to 200 characters).');
