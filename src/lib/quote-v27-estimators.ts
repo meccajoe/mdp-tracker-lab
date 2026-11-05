@@ -27,7 +27,7 @@ export function emptyEstimators() {
   };
 }
 export type SupportDay = {installDays:number;dismantleDays:number;offDays:number};
-export type Estimators = ReturnType<typeof emptyEstimators> & {install:{support:{daily?:SupportDay[]}}};
+export type Estimators = ReturnType<typeof emptyEstimators> & {install:{support:{daily?:SupportDay[]}};travel:{noFlight?:boolean}};
 
 /** Accept only the versioned estimator schema, including signed hotel adjustments. */
 export function parseEstimators(value: unknown): Estimators {
@@ -51,6 +51,8 @@ export function parseEstimators(value: unknown): Estimators {
     return Object.fromEntries(Object.entries(shape as object).map(([k,v])=>[k,walk(v,(input as Record<string,unknown>)[k],k)]));
   }
   const parsed=walk(emptyEstimators(),value,'estimators') as Estimators;
+  const noFlight=(value as Estimators).travel?.noFlight;
+  if(noFlight!==undefined){if(typeof noFlight!=='boolean')throw new Error('Invalid no-flight travel choice.');parsed.travel.noFlight=noFlight;}
   const daily=(value as Estimators).install?.support?.daily;
   if(daily!==undefined){
     if(!Array.isArray(daily)||daily.length!==10)throw new Error('Support crew grid needs ten days.');
@@ -91,7 +93,7 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
     const travelDays=trips*p.daysPerTrip, roadDays=marketDays+travelDays;
     const hotelNights=p.traveling?marketDays+trips+p.hotelAdjustment:0;
     if(hotelNights<0)throw new Error(`${PERSON_LABELS[id]}: hotel adjustment makes nights negative.`);
-    const cost=trips*(rates.airfare+rates.baggage)+hotelNights*rates.hotel+roadDays*(rates.perDiem+(p.roadBonus?rates.roadBonus:0));
+    const cost=(e.travel.noFlight?0:trips*(rates.airfare+rates.baggage))+hotelNights*rates.hotel+roadDays*(rates.perDiem+(p.roadBonus?rates.roadBonus:0));
     return {id,trips,marketDays,travelDays,roadDays,hotelNights,cost,shared:0,total:cost};
   });
   const roadDays=travel.reduce((sum,p)=>sum+p.roadDays,0);

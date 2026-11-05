@@ -78,7 +78,8 @@ export async function POST(request: Request, { params }: Context) {
     if (result.error.code === '42501') return json({ error: 'You no longer have permission to save this workbook.' }, 403);
     return json({ error: 'Workbook could not be saved. Your edits are still here.' }, 500);
   }
+  const controls=await access.actorSupabase.from('lab_quote_controls').select('quote_status').eq('workspace_id',workspaceId).maybeSingle();
   let workbackWarning='';
   if((document.planning?.status||document.schedule?.status)!=='Lost')try{await persistWorkback(access.actorSupabase,workspaceId,access.actorId,access.actorEmail);}catch{workbackWarning='Quote saved. Workback refresh needs attention; open Workback Schedule and regenerate. Existing schedule retained.';}
-  return json({ archived:(document.planning?.status||document.schedule?.status)==='Lost', workbackWarning, version: result.data.revision, savedAt: result.data.created_at, calculation }, 201);
+  return json({ quoteStatus:controls.data?.quote_status, archived:(document.planning?.status||document.schedule?.status)==='Lost', workbackWarning, version: result.data.revision, savedAt: result.data.created_at, calculation }, 201);
 }

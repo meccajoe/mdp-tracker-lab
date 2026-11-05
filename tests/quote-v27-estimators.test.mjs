@@ -108,3 +108,14 @@ test('standard metric walls fit nearest floor length, retain overrides and prese
  wall.lengthFit='invalid';assert.throws(()=>parseEstimators(q.estimators),/length fit/);
  delete wall.lengthFit;wall.width=10;wall.quantity=1;wall.sides=1;w=calculateQuoteV27(q).estimators.walls[0];near(w.across,4);near(w.sqft,10*2480/304.8);
 });
+
+test('No Flight Travel removes only airfare and baggage, persists and restores flight costs',()=>{
+ const q=fresh(),before=calculateQuoteV27(q).estimators;
+ q.estimators.travel.noFlight=true;
+ const parsed=parseEstimators(q.estimators);assert.equal(parsed.travel.noFlight,true);
+ const after=calculateQuoteV27(q).estimators;
+ near(before.travelCost-after.travelCost,before.travel.reduce((sum,p)=>sum+p.trips*(q.estimators.travel.rates.airfare+q.estimators.travel.rates.baggage),0));
+ for(let i=0;i<4;i++)for(const key of ['travelDays','hotelNights','roadDays','shared'])near(after.travel[i][key],before.travel[i][key]);
+ q.estimators.travel.noFlight=false;near(calculateQuoteV27(q).estimators.travelCost,before.travelCost);
+ q.estimators.travel.noFlight='yes';assert.throws(()=>parseEstimators(q.estimators));
+});

@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {groupQuoteVersions} from '../src/lib/quote-version-groups';
 const row=(id:string,group:string,selected=false,created='2026-10-01')=>({id,capacity_group:group,capacity_selected:selected,created_at:created});
 const compare=(a:{id:string},b:{id:string})=>a.id.localeCompare(b.id);
-test('selected version leads its group even if another version is newer; input is preserved',()=>{
+test('newest version leads its group even if an older version is selected; input is preserved',()=>{
  const rows=[row('old','g',true),row('new','g',false,'2026-10-20'),row('separate','s',true)];
  const before=JSON.stringify(rows),groups=groupQuoteVersions(rows,()=>true,compare);
- assert.equal(groups.length,2);assert.equal(groups[0].primary.id,'old');assert.equal(groups[0].others[0].id,'new');assert.equal(JSON.stringify(rows),before);
+ assert.equal(groups.length,2);assert.equal(groups[0].primary.id,'new');assert.equal(groups[0].others[0].id,'old');assert.equal(JSON.stringify(rows),before);
 });
 test('searching an older version keeps selected version and complete group in context',()=>{
  const groups=groupQuoteVersions([row('original','g'),row('v2','g',true),row('unrelated','s',true)],r=>r.id==='original',compare);

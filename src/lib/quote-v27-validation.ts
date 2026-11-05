@@ -73,6 +73,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     parsed.reusableItemIds=v.reusableItemIds.map(id);
     if(parsed.reusableItemIds.some(id=>!parsed.lines.some(line=>line.id===id)))throw new Error('Reusable item is missing.');
   }
+  if(v.takeoffRowCapacity!==undefined){if(!Number.isInteger(v.takeoffRowCapacity)||Number(v.takeoffRowCapacity)<50||Number(v.takeoffRowCapacity)>5000)throw new Error('Takeoff row capacity must be between 50 and 5000.');parsed.takeoffRowCapacity=Number(v.takeoffRowCapacity);}
   if(v.catalogUsage!==undefined){const usage=Object.entries(record(v.catalogUsage));if(usage.length>2000)throw new Error('Too many catalog preferences.');parsed.catalogUsage=Object.fromEntries(usage.map(([name,count])=>[text(name,'Material name'),num(count)]));}
   calculateQuoteV27(parsed);
   return parsed;

@@ -46,6 +46,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  {row('Our internal cost (hours × burdened + support cost)',[money(internalCost)],true)}
  {row('Install labor margin',[money(totalBilling-internalCost),totalBilling?`${((totalBilling-internalCost)/totalBilling*100).toFixed(1)}%`:'—'],true)}
  </>:<>
+ <tr><th>Travel mode</th><td colSpan={4}><select aria-label="Travel mode" value={e.travel.noFlight?'drive':'flight'} onChange={event=>update(next=>{next.travel.noFlight=event.target.value==='drive';})}><option value="flight">Flight Travel</option><option value="drive">No Flight Travel</option></select><small>Driving trips retain travel days, hotels, per diem and vehicle costs.</small></td></tr>
  {travelSwitch('traveling','Traveling?')}
  {travelNumber('installDays','Install days (on site)')}
  {travelNumber('offDays','Off days (in market, not working)')}
@@ -60,7 +61,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  {section('Unit costs (shared — tune per destination)')}
  {Object.entries({airfare:'Airfare ($/person/round trip)',hotel:'Hotel ($/room/night)',perDiem:'Per diem ($/person/road day)',vehicle:'Vehicle ($/vehicle/day)',vehicles:'Rental vehicles (count)',baggage:'Baggage & misc ($/person/trip)',roadBonus:'Lead road bonus ($/road day)',other:'Other costs (lump $)'}).map(([key,label])=>row(label,[<NumberCell key={key} label={label} value={e.travel.rates[key as keyof typeof e.travel.rates]} change={value=>update(next=>{next.travel.rates[key as keyof typeof e.travel.rates]=value??0;})}/>]))}
  {section('Cost buildup (auto)')}
- {(['Airfare','Hotel','Per diem','Baggage & misc','Road bonus'] as const).map((label,index)=>row(label,PEOPLE.map(id=>{const p=result?.travel.find(p=>p.id===id),r=e.travel.rates;return money(!p?0:[p.trips*r.airfare,p.hotelNights*r.hotel,p.roadDays*r.perDiem,p.trips*r.baggage,e.travel.people[id].roadBonus?p.roadDays*r.roadBonus:0][index]);}),true))}
+ {(['Airfare','Hotel','Per diem','Baggage & misc','Road bonus'] as const).map((label,index)=>row(label,PEOPLE.map(id=>{const p=result?.travel.find(p=>p.id===id),r=e.travel.rates;return money(!p?0:[e.travel.noFlight?0:p.trips*r.airfare,p.hotelNights*r.hotel,p.roadDays*r.perDiem,e.travel.noFlight?0:p.trips*r.baggage,e.travel.people[id].roadBonus?p.roadDays*r.roadBonus:0][index]);}),true))}
  {row('PERSON TOTAL',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.cost??0)),true)}
  {row('Vehicles (count × $/day × longest road days)',[money(e.travel.rates.vehicles*e.travel.rates.vehicle*Math.max(0,...(result?.travel.map(p=>p.roadDays)??[])))],true)}
  {row('Other',[money(e.travel.rates.other)],true)}

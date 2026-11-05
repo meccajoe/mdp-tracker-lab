@@ -50,6 +50,7 @@ export type QuoteV27 = {
   planning?: CapacityOverride;
   estimators?: Estimators;
   reusableItemIds?: string[];
+  takeoffRowCapacity?: number;
   catalogUsage?: Record<string,number>;
   schemaVersion: 1; assumptionsVersion: string; commission: number;
   settings: Settings; trades: Trade[]; catalog: Material[];

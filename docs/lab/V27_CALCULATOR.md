@@ -115,3 +115,6 @@ Optional per-wall frameSize chooses exact inventory geometry in inches converted
 
 ## Standard metric wall fit — November 2, 2026
 New walls use frameSize 992x2480 with exact millimeters converted to feet (divide by 304.8), and optional lengthFit nearest. Floor width and length are synonymous. Nearest horizontal count is zero for zero length, otherwise max(1, round(requested length / module width)); ties round up. Fitted length = count × module width. Height frame count retains ceiling. Rental uses total frames; SEG uses fitted length × requested height × sides × quantity unless a per-wall area override is present. Requested length remains saved for comparison. Old frame IDs and absent lengthFit retain old geometry, ceiling and requested-area calculation. Changing a wall frame explicitly enables nearest sizing; the saved sizing option can be restored. No new rate or levy change.
+
+## No Flight Travel — November 4, 2026
+Optional estimators.travel.noFlight=true removes airfare and baggage charges for all travelers. It leaves saved rates, trips, travel days, install billing, hotels, per diem, road bonus and vehicles/other costs intact. Unset/false preserves previous math; switching back restores saved flight rates. No automatic mileage or fuel charge is inferred.

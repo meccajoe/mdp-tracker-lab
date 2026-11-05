@@ -27,3 +27,12 @@ test('daily hired crew persists, keeps aggregate billing and rejects mismatched 
  support.installDays+=2;
  assert.equal(calculateQuoteV27(parseQuoteV27(quote)).estimators!.supportBilling,before+2*quote.settings.supportDay);
 });
+
+test('blank takeoff row capacity survives save parsing without adding priced rows',()=>{
+ const quote=parseQuoteV27({...fixture,takeoffRowCapacity:150});
+ assert.equal(parseQuoteV27(JSON.parse(JSON.stringify(quote))).takeoffRowCapacity,150);
+ assert.equal(quote.takeoffs.length,fixture.takeoffs.length);
+ assert.equal(calculateQuoteV27(quote).totals.price,calculateQuoteV27(fixture).totals.price);
+ for(const value of [0,49,5001,50.5,'100'])assert.throws(()=>parseQuoteV27({...fixture,takeoffRowCapacity:value}));
+ assert.equal(parseQuoteV27(fixture).takeoffRowCapacity,undefined);
+});

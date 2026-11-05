@@ -157,6 +157,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       const stillDirty=JSON.stringify(edits.current?.present)!==savedDocument.current;
       if(payload.workbackWarning)setError(payload.workbackWarning);
       setDirty(stillDirty);setMessage(`${automatic?'Autosaved':'Saved'} revision ${payload.version}${stillDirty?' · newer edits pending':''}`);
+      if(payload.quoteStatus==='final'){setQuoteStatus('final');setCanEdit(false);autosavePaused.current=true;}
       if(payload.archived){setCanEdit(false);autosavePaused.current=true;setMessage('Saved and archived because forecast is Closed Lost. Find this quote in Archived quotes.');}
       setHistory(current=>[{revision:payload.version,created_at:payload.savedAt,created_by_email:'You'},...current].slice(0,20));
     }catch(e){setError(e instanceof Error?e.message:'Save failed. Your edits are still here.');}
