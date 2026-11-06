@@ -67,7 +67,7 @@ export default function ProjectsPage() {
       } else {
         setProjects((data as ProjectSummary[]) ?? []);
       }
-      if (pmRows) setActivePMs(pmRows.map((r) => r.pm_initials as string).sort());
+      setActivePMs([...new Set([...(pmRows ?? []).map(r => r.pm_initials as string), ...(data ?? []).map(r => r.pm).filter((pm): pm is string => Boolean(pm))])].sort());
       setLoading(false);
     }
     fetchProjects();
