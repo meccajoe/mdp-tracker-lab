@@ -1,3 +1,10 @@
+## Salt association resolved — November 6, 2026
+- New notices prompted a fresh read of HubSpot and production Tracker. Confirmed job 26246, salt - Netflix House Items, Paul Mecca (PM), closed 2026-11-06 and due 2026-11-09 in both current systems. The creation notice had no due date; the current records do, so the notice was not used as current date authority.
+- Published HubSpot quote 342793069261 has Friday and Monday carpentry plus MDF shrouds/painted unistrut, matching the Lab quote scope. Existing Lab Salt record was enriched in place: job, PM, dates, deal, published quote and external reference links. Its internal ID remains stable; no duplicate project or invoice was created.
+- Preserved Lab quote $8,269 and exact revision 8 budgets, HubSpot deal $8,030, and HubSpot reported quote $8,692.48 separately. Persisted scope evidence and a visible reconciliation warning. Receipt: /tmp/mdp-v2-salt-confirmation.json and /tmp/mdp-v2-salt-enrichment.sql.
+- Reverified 12 projects, exactly one job 26246, zero changed source quote documents and an empty integration outbox. Production reads only; no production or HubSpot writes.
+- Publishing approval is still pending. No push, deployment or alternate publishing route was attempted after the existing denial. This entry supersedes the earlier Salt-pending notes below.
+
 ## Tracker V2 initial project mirrors — November 6, 2026
 - Joe authorized only the 12 groups shown in Closed Won Active. Reproduced Quotes' newest-created group head semantics: 12 Closed Won Active / 4 Closed Won Complete / 37 Open Quotes. No quote selection, forecast, schedule, commercial document or saved revision was changed by this import.
 - Hosted Lab now has 12 projects and 12 membership-scoped lab_project_quote_sources baselines. Source rows pin workbook revision and SHA-256 plus exact calculated totals/lines and a read-only HubSpot snapshot. Project/workspace associations written for only the 12 group heads. Lab source hashes verify 0 quote-document changes; 0 broken links; integration_outbox remains empty.
