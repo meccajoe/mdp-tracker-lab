@@ -1,3 +1,10 @@
+## Tracker V2 sidebar navigation — November 6, 2026
+- Joe requested Dashboard, Projects, Quotes and Capacity as the main navigation, with a less prominent collapsible Find group containing Expenses, Items, Materials and Quoted Items. Preserved all existing destination URLs and quote-access checks. No My Work section, data import, database change or integration changes.
+- Find defaults closed, expands the compact desktop sidebar when clicked, and reveals its children automatically when opening one of their routes directly. Existing admin/report navigation is unchanged.
+- TypeScript passes. Rendered the actual Sidebar component in an isolated fixture-account browser preview: verified compact Find expansion, expanded collapse, the four child destinations, and auto-expanded Quoted Items on a 390x844 mobile variant. No relevant console errors. This verifies the component with fixture auth, not a signed-in hosted session. Temporary preview lives outside the repo; no preview route or account fixture ships.
+- Required local vet was attempted but its tokenizer download remains unavailable in the sandbox. The earlier external-review denial was respected; no network-enabled vet or source upload occurred.
+- Publishing uses the existing Joe-approved Lab-only push/deployment workflow. Verify the final commit and READY deployment before reporting live.
+
 ## Tracker V2 Lab publishing approved — November 6, 2026
 - Joe explicitly approved publishing: "Yes, let's push them." The earlier deployment approval blocker is resolved; the external vet review remains unperformed.
 - Pushed tested application and Salt-enrichment handoff commits through 5b67de7 to meccajoe/mdp-tracker-lab main. Vercel accepted Lab-only build dpl_8NheHwx473ttqSEW64ubjnQa2UeH for that exact SHA. No business-production push or deployment.

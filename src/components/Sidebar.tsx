@@ -77,6 +77,7 @@ export default function Sidebar({
   const [bonusOpen, setBonusOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
   const [activePMs, setActivePMs] = useState<string[]>([]);
   const [actorEmail, setActorEmail] = useState<string | null>(null);
   const [hasQuoteAccess, setHasQuoteAccess] = useState(false);
@@ -123,10 +124,11 @@ export default function Sidebar({
     };
   }, [setActualIsAdmin, variant]);
 
-  // Auto-open admin sections if on an admin page
+  // Reveal the destination section when opening a nested page directly.
   useEffect(() => {
     if (pathname.startsWith("/admin/reports") || pathname.startsWith("/admin/portfolios") || pathname.startsWith("/admin/mission-control")) setReportsOpen(true);
     if (pathname.startsWith("/admin")) setSettingsOpen(true);
+    if (["/expenses", "/line-item-search", "/admin/materials", "/prequote-items"].some(path => pathname === path || pathname.startsWith(`${path}/`))) setFindOpen(true);
   }, [pathname]);
 
   if (pathname === "/login") return null;
@@ -188,11 +190,28 @@ export default function Sidebar({
         <NavLink href="/" label="Dashboard" icon={dashIcon} collapsed={collapsed} exact />
         <NavLink href="/projects" label="Projects" icon={projectsIcon} collapsed={collapsed} exact={false} />
         {hasQuoteAccess && <NavLink href="/quotes" label="Quotes" icon={quoteIcon} collapsed={collapsed} exact={false} />}
-        {hasQuoteAccess && <NavLink href="/prequote-items" label="Quoted Item Database" icon={projectsIcon} collapsed={collapsed} exact={false} />}
         {hasQuoteAccess && <NavLink href="/capacity" label="Capacity" icon={projectsIcon} collapsed={collapsed} exact={false} />}
-        <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={collapsed} exact={false} />
-        <NavLink href="/line-item-search" label="Search Items" icon={lineItemIcon} collapsed={collapsed} exact={false} />
-        <NavLink href="/admin/materials" label="Materials" icon={materialsIcon} collapsed={collapsed} exact={false} />
+        <button
+          type="button"
+          title="Find"
+          aria-label="Find"
+          aria-expanded={!collapsed && findOpen}
+          aria-controls="sidebar-find-links"
+          onClick={() => {
+            if (collapsed) { setCollapsed(false); setFindOpen(true); }
+            else setFindOpen(open => !open);
+          }}
+          className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground ${collapsed ? "justify-center" : ""}`}
+        >
+          <span className="shrink-0">{lineItemIcon}</span>
+          {!collapsed && <><span className="flex-1 text-left">Find</span>{findOpen ? <ChevronDown /> : <ChevronRight />}</>}
+        </button>
+        {!collapsed && findOpen && <div id="sidebar-find-links" className="ml-3 space-y-0.5 border-l border-border pl-2">
+          <NavLink href="/expenses" label="Expenses" icon={expensesIcon} collapsed={false} exact={false} />
+          <NavLink href="/line-item-search" label="Items" icon={lineItemIcon} collapsed={false} exact={false} />
+          <NavLink href="/admin/materials" label="Materials" icon={materialsIcon} collapsed={false} exact={false} />
+          {hasQuoteAccess && <NavLink href="/prequote-items" label="Quoted Items" icon={projectsIcon} collapsed={false} exact={false} />}
+        </div>}
         {canLogIssues && <IssueQuickLogDialog collapsed={collapsed} />}
 
         {/* Team Bonuses — admin only for now */}
