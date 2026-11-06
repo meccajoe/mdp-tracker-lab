@@ -1,3 +1,8 @@
+## Tracker V2 Lab publishing approved — November 6, 2026
+- Joe explicitly approved publishing: "Yes, let's push them." The earlier deployment approval blocker is resolved; the external vet review remains unperformed.
+- Pushed tested application and Salt-enrichment handoff commits through 5b67de7 to meccajoe/mdp-tracker-lab main. Vercel accepted Lab-only build dpl_8NheHwx473ttqSEW64ubjnQa2UeH for that exact SHA. No business-production push or deployment.
+- Follow-up deployment result receipt: /tmp/mdp-v2-deployment-result.json. Confirm READY and the primary Lab alias before claiming the release is live. Authenticated browser acceptance still requires a signed-in Lab session; local tests, TypeScript/build and hosted data/RLS checks passed as recorded below.
+
 ## Salt association resolved — November 6, 2026
 - New notices prompted a fresh read of HubSpot and production Tracker. Confirmed job 26246, salt - Netflix House Items, Paul Mecca (PM), closed 2026-11-06 and due 2026-11-09 in both current systems. The creation notice had no due date; the current records do, so the notice was not used as current date authority.
 - Published HubSpot quote 342793069261 has Friday and Monday carpentry plus MDF shrouds/painted unistrut, matching the Lab quote scope. Existing Lab Salt record was enriched in place: job, PM, dates, deal, published quote and external reference links. Its internal ID remains stable; no duplicate project or invoice was created.
