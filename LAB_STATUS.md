@@ -3,7 +3,7 @@
 - Find defaults closed, expands the compact desktop sidebar when clicked, and reveals its children automatically when opening one of their routes directly. Existing admin/report navigation is unchanged.
 - TypeScript passes. Rendered the actual Sidebar component in an isolated fixture-account browser preview: verified compact Find expansion, expanded collapse, the four child destinations, and auto-expanded Quoted Items on a 390x844 mobile variant. No relevant console errors. This verifies the component with fixture auth, not a signed-in hosted session. Temporary preview lives outside the repo; no preview route or account fixture ships.
 - Required local vet was attempted but its tokenizer download remains unavailable in the sandbox. The earlier external-review denial was respected; no network-enabled vet or source upload occurred.
-- Publishing uses the existing Joe-approved Lab-only push/deployment workflow. Verify the final commit and READY deployment before reporting live.
+- Sidebar application commit eb76da6 is local only. Automatic approval review denied git push origin HEAD:main because it requires explicit publication approval for this specific sidebar change despite the prior project-page approval. The push did not execute; no alternate publishing path was attempted. Ask Joe to approve publishing the completed, typechecked and browser-previewed sidebar update to Lab.
 
 ## Tracker V2 Lab publishing approved — November 6, 2026
 - Joe explicitly approved publishing: "Yes, let's push them." The earlier deployment approval blocker is resolved; the external vet review remains unperformed.
