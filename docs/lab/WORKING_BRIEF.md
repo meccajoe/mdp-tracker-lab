@@ -1,3 +1,7 @@
+## Capacity scheduling columns first — November 7, 2026
+- Moved Capacity Projects dates and labor ahead of quote metadata/documents. Project Start/Finish and Shop/Field/CAD totals immediately follow the sticky project name, followed by remaining dates and capacity details. Quotes list order is unchanged.
+- Column identities/account widths preserved; no saved data or scheduling calculation changes. TypeScript passed. Hosted verification pending deployment.
+
 ## Capacity Projects mirrors Quotes — November 7, 2026
 - Capacity Projects now renders the shared QuoteLibrary table instead of a separate implementation: identical three colored sections (Closed Won Active / Closed Won Complete / Open Quotes), default Complete folded, newest-version headings, search/filter, sort, Used dropdown, statuses, three-dot rename/clone/group/archive, bulk archive and CAD/BOM/Budget links.
 - Retains Schedule/date editing links, full-job scenario toggles, six date columns including Dismantle, probability, shop/field/CAD/unassigned/trade hours and flags. Name/selection columns stick during horizontal scrolling. Capacity column widths retain their own account key and prior column identities. Quote events and capacity refreshes reload shared metadata; date editing rejects a stale document revision.
