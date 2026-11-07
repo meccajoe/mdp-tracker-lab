@@ -1,6 +1,6 @@
 ## Capacity status controls near project name — November 7, 2026
 - Capacity Projects now orders Forecast Status, Project Status and Use for Capacity directly after project name, then scheduling dates/hours. CAD Turnover, BOM and Budget Handoff remain the final columns. Quotes order and account width identities retained; no data/calculation changes.
-- Verification: TypeScript and hosted deployment pending.
+- Verification: TypeScript passed. Release 18b62be pushed; lab Vercel 8kyDydef3edcXVYJEW81Jgm5oniy succeeded. Hosted loaded rows verified: three status controls immediately after name, followed by dates/hours; final columns CAD Turnover/BOM/Budget Handoff; all row/header counts aligned. No customer data changed. Screenshot /private/tmp/capacity-status-controls-live.png.
 
 ## Capacity scheduling columns first — November 7, 2026
 - Moved Capacity Projects dates and labor ahead of quote metadata/documents. Project Start/Finish and Shop/Field/CAD totals immediately follow the sticky project name, followed by remaining dates and capacity details. Quotes list order is unchanged.
