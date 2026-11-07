@@ -1,3 +1,7 @@
+## Sticky Capacity status controls — November 7, 2026
+- Capacity Projects pins selection, project name, Forecast Status, Project Status and Use for Capacity during horizontal scrolling. ResizeObserver measures header widths for offsets so saved widths and live resizing stay aligned; observer cleans up on unmount. Remaining columns scroll normally; Quotes layout unchanged.
+- TypeScript passed; hosted verification pending. No customer data or schedule changes.
+
 ## Capacity status controls near project name — November 7, 2026
 - Capacity Projects now orders Forecast Status, Project Status and Use for Capacity directly after project name, then scheduling dates/hours. CAD Turnover, BOM and Budget Handoff remain the final columns. Quotes order and account width identities retained; no data/calculation changes.
 - Verification: TypeScript passed. Release 18b62be pushed; lab Vercel 8kyDydef3edcXVYJEW81Jgm5oniy succeeded. Hosted loaded rows verified: three status controls immediately after name, followed by dates/hours; final columns CAD Turnover/BOM/Budget Handoff; all row/header counts aligned. No customer data changed. Screenshot /private/tmp/capacity-status-controls-live.png.

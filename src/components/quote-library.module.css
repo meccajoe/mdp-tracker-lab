@@ -1,3 +1,13 @@
-.capacityTable thead th:nth-child(1),.capacityTable tbody td:first-child:not([colspan]){position:sticky;left:0;z-index:2;background:var(--background,white)}
-.capacityTable thead th:nth-child(2),.capacityTable tbody td:nth-child(2){position:sticky!important;left:44px;z-index:2;background:var(--background,white);box-shadow:1px 0 0 var(--border,#ddd)}
-.capacityTable thead th:nth-child(-n+2){z-index:3}
+/* Pin identity and status controls; measured offsets respect saved/resized widths. */
+.capacityTable thead th:nth-child(-n+5),
+.capacityTable tbody td:nth-child(-n+5):not([colspan]) {
+ position: sticky !important;
+ z-index: 2;
+ background: var(--background, white);
+}
+.capacityTable :is(th,td):nth-child(1):not([colspan]) { left: var(--column-offset-1, 0px); }
+.capacityTable :is(th,td):nth-child(2) { left: var(--column-offset-2, 44px); }
+.capacityTable :is(th,td):nth-child(3) { left: var(--column-offset-3, 324px); }
+.capacityTable :is(th,td):nth-child(4) { left: var(--column-offset-4, 469px); }
+.capacityTable :is(th,td):nth-child(5) { left: var(--column-offset-5, 599px); box-shadow: 2px 0 0 var(--border, #ddd); }
+.capacityTable thead th:nth-child(-n+5) { z-index: 3; }

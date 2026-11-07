@@ -18,7 +18,7 @@ function queued<T>(work:()=>Promise<T>):Promise<T>{
  return result;
 }
 /** Account preferences, keyed by column identity so trade changes cannot shift widths. */
-export function RememberedColumns({labels, storageKey, defaultWidths}:{labels:readonly string[];storageKey:string;defaultWidths?:readonly number[]}) {
+export function RememberedColumns({labels, storageKey, defaultWidths, stickyColumnCount=0}:{labels:readonly string[];storageKey:string;defaultWidths?:readonly number[];stickyColumnCount?:number}) {
  const ref=useRef<HTMLTableColElement>(null);
  const signature=JSON.stringify(labels);
  useLayoutEffect(()=>{
@@ -28,6 +28,18 @@ export function RememberedColumns({labels, storageKey, defaultWidths}:{labels:re
   const cols=Array.from(group.children) as HTMLTableColElement[];
   const cells=Array.from(table.tHead?.rows[0]?.cells??[]);
   if(cols.length!==cells.length)return;
+  // Measure actual widths so sticky offsets follow account preferences and live resizing.
+  const updateStickyOffsets=()=>{
+   let left=0;
+   const widths=cells.slice(0,stickyColumnCount).map(cell=>cell.getBoundingClientRect().width);
+   widths.forEach((width,i)=>{
+    table.style.setProperty(`--column-offset-${i+1}`,`${left}px`);
+    left+=width;
+   });
+  };
+  const observer=stickyColumnCount?new ResizeObserver(updateStickyOffsets):null;
+  cells.slice(0,stickyColumnCount).forEach(cell=>observer?.observe(cell));
+  updateStickyOffsets();
   let disposed=false,edited=false;
   let saved:Record<string,number>={};
   const legacyKey=`mdp:column-widths:v1:${storageKey}`;
@@ -62,7 +74,7 @@ export function RememberedColumns({labels, storageKey, defaultWidths}:{labels:re
    void persist({...saved});
   };
   table.addEventListener('columnresize',save);
-  return ()=>{disposed=true;table.removeEventListener('columnresize',save);};
- },[signature,storageKey]);
+  return ()=>{disposed=true;observer?.disconnect();table.removeEventListener('columnresize',save);};
+ },[signature,storageKey,stickyColumnCount]);
  return <colgroup ref={ref}>{labels.map((label,i)=><col key={label} style={defaultWidths?{width:defaultWidths[i]}:undefined}/>)}</colgroup>;
 }
