@@ -1,3 +1,6 @@
+## Default completed quote section — November 7, 2026
+- Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Hosted deployment verification pending.
+
 ## Tracker V2 sidebar navigation — November 6, 2026
 - Joe requested Dashboard, Projects, Quotes and Capacity as the main navigation, with a less prominent collapsible Find group containing Expenses, Items, Materials and Quoted Items. Preserved all existing destination URLs and quote-access checks. No My Work section, data import, database change or integration changes.
 - Find defaults closed, expands the compact desktop sidebar when clicked, and reveals its children automatically when opening one of their routes directly. Existing admin/report navigation is unchanged.

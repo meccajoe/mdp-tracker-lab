@@ -1,3 +1,6 @@
+## Default completed quote section — November 7, 2026
+- Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Hosted deployment verification pending.
+
 ## Quote workflow, driving travel and persistent rows — November 4, 2026
 - No Flight Travel excludes airfare and baggage, retaining trip/day counts, hotel, per diem, road bonus and shared vehicle/other costs. Optional snapshot flag preserves historical travel pricing.
 - Quotes has color-coded collapsible Closed Won Active, Closed Won Complete and Open Quotes sections. Group head is newest creation date, independent of capacity selection; older versions remain expandable. New same-project clones atomically replace the selected capacity version; idempotent retries do not reselect it.

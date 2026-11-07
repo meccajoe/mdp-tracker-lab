@@ -40,7 +40,7 @@ export function QuoteLibrary({archived=false}:{archived?:boolean}){
  const compare=(a:Workspace,b:Workspace)=>sort.key==='quote_total'?sort.direction*(a.quote_total===b.quote_total?0:a.quote_total==null?-1:b.quote_total==null?1:a.quote_total-b.quote_total):sort.direction*String(a[sort.key==='cad'?'quote_status':sort.key]??'').localeCompare(String(b[sort.key==='cad'?'quote_status':sort.key]??''),undefined,{numeric:true,sensitivity:'base'});
  const groups=groupQuoteVersions(rows,matching,compare);
  const filtered=Boolean(query.trim())||status!=='all';
- const [closedSections,setClosedSections]=useState<Set<string>>(new Set());
+ const [closedSections,setClosedSections]=useState<Set<string>>(()=>new Set(['Closed Won Complete']));
  const sectionGroups=archived?[{name:'Archived quotes',groups,open:true,color:''}]:[
   {name:'Closed Won Active',color:'bg-emerald-50 text-emerald-950',matches:(w:Workspace)=>w.forecast_status==='Closed won'&&w.project_status!=='Complete'},
   {name:'Closed Won Complete',color:'bg-slate-100 text-slate-800',matches:(w:Workspace)=>w.forecast_status==='Closed won'&&w.project_status==='Complete'},
