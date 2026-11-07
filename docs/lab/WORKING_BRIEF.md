@@ -1,3 +1,8 @@
+## Capacity Projects mirrors Quotes — November 7, 2026
+- Capacity Projects now renders the shared QuoteLibrary table instead of a separate implementation: identical three colored sections (Closed Won Active / Closed Won Complete / Open Quotes), default Complete folded, newest-version headings, search/filter, sort, Used dropdown, statuses, three-dot rename/clone/group/archive, bulk archive and CAD/BOM/Budget links.
+- Retains Schedule/date editing links, full-job scenario toggles, six date columns including Dismantle, probability, shop/field/CAD/unassigned/trade hours and flags. Name/selection columns stick during horizontal scrolling. Capacity column widths retain their own account key and prior column identities. Quote events and capacity refreshes reload shared metadata; date editing rejects a stale document revision.
+- Existing pricing, scheduling, selected versions, dates and saved quote data are untouched. No database migration. Lab tests (259) and TypeScript plus webpack build passed; hosted verification pending.
+
 ## Default completed quote section — November 7, 2026
 - Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Release d3536d5 pushed; Vercel CB2JpBGLB5FyJ1YnC16nnVR4HptC succeeded. Fresh hosted Quotes load verified Active (12) expanded, Complete (4) collapsed and Open (38) expanded. No customer data writes.
 

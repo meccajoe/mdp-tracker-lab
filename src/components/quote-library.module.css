@@ -1,0 +1,3 @@
+.capacityTable thead th:nth-child(1),.capacityTable tbody td:first-child:not([colspan]){position:sticky;left:0;z-index:2;background:var(--background,white)}
+.capacityTable thead th:nth-child(2),.capacityTable tbody td:nth-child(2){position:sticky!important;left:44px;z-index:2;background:var(--background,white);box-shadow:1px 0 0 var(--border,#ddd)}
+.capacityTable thead th:nth-child(-n+2){z-index:3}
