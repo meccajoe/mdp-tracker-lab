@@ -1,6 +1,6 @@
 ## Fixed Capacity Projects headers — November 7, 2026
 - Capacity Projects uses a bounded (70dvh) two-axis table scroll area with sticky headers. The first five header cells stay pinned horizontally as well, above sticky body cells; solid backgrounds/dividers keep labels legible. Quotes layout untouched.
-- TypeScript and hosted verification pending. No data or schedule changes.
+- TypeScript passed. Release ded16d4 pushed; lab deployment 15tGHAdb6sBXYi8wCK5oLRMABsKF succeeded. Hosted scrollTop 3370px retained all header tops at scroll container y=166px; combined scrollTop 3138px / scrollLeft 3418px retained sticky headers and first five columns aligned. Opened/cancelled a row menu without customer edits. Screenshot /private/tmp/capacity-fixed-headers-live.png. No data or schedule changes.
 
 ## Sticky Capacity status controls — November 7, 2026
 - Capacity Projects pins selection, project name, Forecast Status, Project Status and Use for Capacity during horizontal scrolling. ResizeObserver measures header widths for offsets so saved widths and live resizing stay aligned; observer cleans up on unmount. Remaining columns scroll normally; Quotes layout unchanged.
