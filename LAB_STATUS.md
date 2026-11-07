@@ -1,6 +1,6 @@
 ## Capacity scheduling columns first — November 7, 2026
 - Moved Capacity Projects dates and labor ahead of quote metadata/documents. Project Start/Finish and Shop/Field/CAD totals immediately follow the sticky project name, followed by remaining dates and capacity details. Quotes list order is unchanged.
-- Column identities/account widths preserved; no saved data or scheduling calculation changes. TypeScript passed. Hosted verification pending deployment.
+- Column identities/account widths preserved; no saved data or scheduling calculation changes. TypeScript passed. Release a4faec0 pushed; Vercel G9UB7U15hmAbtxkC2LNGp5LnbKax succeeded. Hosted table verified Project Start/Finish and Shop/Field/CAD immediately after name, with dates/hours aligned in loaded rows. Screenshot /private/tmp/capacity-scheduling-columns-live.png.
 
 ## Capacity Projects mirrors Quotes — November 7, 2026
 - Capacity Projects now renders the shared QuoteLibrary table instead of a separate implementation: identical three colored sections (Closed Won Active / Closed Won Complete / Open Quotes), default Complete folded, newest-version headings, search/filter, sort, Used dropdown, statuses, three-dot rename/clone/group/archive, bulk archive and CAD/BOM/Budget links.
