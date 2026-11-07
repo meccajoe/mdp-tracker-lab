@@ -1,3 +1,7 @@
+## Fixed Quotes headers and status columns — November 7, 2026
+- Main Quotes (and shared archived list) now uses the same 70dvh two-axis scrolling frame as Capacity, with fixed headers. Quote Status joins Forecast Status, Project Status and Use for Capacity beside the name; selection/name/four controls pin horizontally with measured account-width offsets. Client/amount/dates/documents scroll. Capacity keeps its existing five pinned columns.
+- Verification pending. No quote data, status values or calculation changes.
+
 ## Fixed Capacity Projects headers — November 7, 2026
 - Capacity Projects uses a bounded (70dvh) two-axis table scroll area with sticky headers. The first five header cells stay pinned horizontally as well, above sticky body cells; solid backgrounds/dividers keep labels legible. Quotes layout untouched.
 - TypeScript passed. Release ded16d4 pushed; lab deployment 15tGHAdb6sBXYi8wCK5oLRMABsKF succeeded. Hosted scrollTop 3370px retained all header tops at scroll container y=166px; combined scrollTop 3138px / scrollLeft 3418px retained sticky headers and first five columns aligned. Opened/cancelled a row menu without customer edits. Screenshot /private/tmp/capacity-fixed-headers-live.png. No data or schedule changes.

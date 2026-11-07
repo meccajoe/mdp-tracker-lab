@@ -1,27 +1,39 @@
 /* Pin identity and status controls; measured offsets respect saved/resized widths. */
-.capacityTable thead th:nth-child(-n+5),
-.capacityTable tbody td:nth-child(-n+5):not([colspan]) {
+:is(.capacityTable, .quotesTable) thead th:nth-child(-n+5),
+:is(.capacityTable, .quotesTable) tbody td:nth-child(-n+5):not([colspan]) {
  position: sticky !important;
  z-index: 2;
  background: var(--background, white);
 }
-.capacityTable :is(th,td):nth-child(1):not([colspan]) { left: var(--column-offset-1, 0px); }
-.capacityTable :is(th,td):nth-child(2) { left: var(--column-offset-2, 44px); }
-.capacityTable :is(th,td):nth-child(3) { left: var(--column-offset-3, 324px); }
-.capacityTable :is(th,td):nth-child(4) { left: var(--column-offset-4, 469px); }
-.capacityTable :is(th,td):nth-child(5) { left: var(--column-offset-5, 599px); box-shadow: 2px 0 0 var(--border, #ddd); }
+:is(.capacityTable, .quotesTable) :is(th,td):nth-child(1):not([colspan]) { left: var(--column-offset-1, 0px); }
+:is(.capacityTable, .quotesTable) :is(th,td):nth-child(2) { left: var(--column-offset-2, 44px); }
+:is(.capacityTable, .quotesTable) :is(th,td):nth-child(3) { left: var(--column-offset-3, 324px); }
+:is(.capacityTable, .quotesTable) :is(th,td):nth-child(4) { left: var(--column-offset-4, 469px); }
+:is(.capacityTable, .quotesTable) :is(th,td):nth-child(5) { left: var(--column-offset-5, 599px); box-shadow: 2px 0 0 var(--border, #ddd); }
 /* One scroll surface for both axes keeps header/column intersections aligned. */
 .capacityCard { overflow: hidden; }
 .capacityCard > [data-slot="table-container"] {
  max-height: 70dvh;
  overflow: auto;
 }
-.capacityTable thead th {
+:is(.capacityTable, .quotesTable) thead th {
  position: sticky !important;
  top: 0;
  z-index: 3;
  background: var(--background, white);
  box-shadow: 0 1px 0 var(--border, #ddd);
 }
-.capacityTable thead th:nth-child(-n+5) { z-index: 4; }
-.capacityTable thead th:nth-child(5) { box-shadow: 2px 0 0 var(--border, #ddd), 0 1px 0 var(--border, #ddd); }
+:is(.capacityTable, .quotesTable) thead th:nth-child(-n+5) { z-index: 4; }
+:is(.capacityTable, .quotesTable) thead th:nth-child(5) { box-shadow: 2px 0 0 var(--border, #ddd), 0 1px 0 var(--border, #ddd); }
+
+/* Quotes also pins Quote Status, making its frozen area one column wider. */
+.quotesTable :is(th,td):nth-child(6):not([colspan]) {
+ position: sticky !important;
+ left: var(--column-offset-6, 709px);
+ z-index: 2;
+ background: var(--background, white);
+ box-shadow: 2px 0 0 var(--border, #ddd);
+}
+.quotesTable tbody td:nth-child(5) { box-shadow: none; }
+.quotesTable thead th:nth-child(5) { box-shadow: 0 1px 0 var(--border, #ddd); }
+.quotesTable thead th:nth-child(6):not([colspan]) { z-index: 4; box-shadow: 2px 0 0 var(--border, #ddd), 0 1px 0 var(--border, #ddd); }
