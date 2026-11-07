@@ -1,5 +1,5 @@
 ## Default completed quote section — November 7, 2026
-- Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Hosted deployment verification pending.
+- Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Release d3536d5 pushed; Vercel CB2JpBGLB5FyJ1YnC16nnVR4HptC succeeded. Fresh hosted Quotes load verified Active (12) expanded, Complete (4) collapsed and Open (38) expanded. No customer data writes.
 
 ## Tracker V2 sidebar navigation — November 6, 2026
 - Joe requested Dashboard, Projects, Quotes and Capacity as the main navigation, with a less prominent collapsible Find group containing Expenses, Items, Materials and Quoted Items. Preserved all existing destination URLs and quote-access checks. No My Work section, data import, database change or integration changes.

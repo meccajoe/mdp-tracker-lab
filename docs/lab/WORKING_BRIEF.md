@@ -1,5 +1,5 @@
 ## Default completed quote section — November 7, 2026
-- Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Hosted deployment verification pending.
+- Closed Won Complete starts collapsed; Closed Won Active and Open Quotes remain expanded. Manual toggling remains available; searching/filtering still reveals matching quotes. Presentation only; no saved quote or capacity changes. TypeScript passed. Release d3536d5 pushed; Vercel CB2JpBGLB5FyJ1YnC16nnVR4HptC succeeded. Fresh hosted Quotes load verified Active (12) expanded, Complete (4) collapsed and Open (38) expanded. No customer data writes.
 
 ## Quote workflow, driving travel and persistent rows — November 4, 2026
 - No Flight Travel excludes airfare and baggage, retaining trip/day counts, hotel, per diem, road bonus and shared vehicle/other costs. Optional snapshot flag preserves historical travel pricing.
