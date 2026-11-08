@@ -1,3 +1,6 @@
+## Deselect all planning quotes — November 8, 2026
+- Added Deselect All beside the What if we win quote search. Shares Clear scenario behavior: clears all selected IDs (including search-hidden quotes), temporary dates/errors and review week; committed baseline and saved data unchanged. Disabled with no selection. TypeScript and diff checks passed; hosted verification pending.
+
 ## Temporary Capacity Planning dates — November 8, 2026
 - Selected eligible open quotes now expose Project Start/Finish and Install Date drafts with Preview Dates/Reset Dates, saved-date comparison and applied/pending/error state. Clear Scenario, deselection and leaving the tab discard overrides. No writes or live schedule edits.
 - Pure scenario helper clones only selected eligible quotes, sets preview start/activation, rebuilds production tasks and CAD/field timing. Preserves quoted/hour/trade rules and calendar but ignores saved task date locks for the preview; committed projects and original documents/plans remain unchanged. Invalid date ranges do not replace the last valid preview. This is a weekly capacity simulation, not a staff assignment or approval.
