@@ -1,6 +1,6 @@
 ## Readable timeline trade labels — November 8, 2026
 - Trade names now sit on their own line above timeline bars in 12px text without ellipsis. Short bars retain accurate date lengths; labels can extend into blank lane space. Labels near the right edge align inward, and overtime no longer hides the trade name. All grouping modes share the change; scheduling data untouched.
-- TypeScript/diff checks and deployment verification pending.
+- TypeScript and diff checks passed. Release 2dc5943 pushed; lab deployment 4krRkgVBnkXoWUCkzUMMtkTHwVpM succeeded. Hosted Fossil Holiday v2 one-day Finish/Paint bar verified: full 70px label above accurate 32px bar, 12px font, no clipping. Click details and Close still work. Screenshot /private/tmp/team-readable-trades-live.png. No saved data edits.
 
 ## Continuous Team Schedule timelines — November 8, 2026
 - Soft stage colors and continuous per-project/trade lanes connect first/last scheduled dates, including non-working weekends. Daily grid, sticky headers/names, OT markers and stage key retained. All three grouping modes preserve separate project spans; full-range spans remain visible through clipped non-working days. No allocation, staffing, hour or scheduling changes.
