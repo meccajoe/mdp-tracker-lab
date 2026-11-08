@@ -1,6 +1,6 @@
 ## Fixed Shop/Field Load table labels — November 8, 2026
 - Shop Load weekly grid pins all date headers and row names within a 70dvh two-axis frame. Field Load remains a chart; its expandable daily/weekly values table now pins column headers and date-row labels using the same frame (shared chart values component also benefits). No demand/capacity calculations or saved data changes.
-- Verification pending.
+- TypeScript passed. Release 0bb2018 pushed; lab Vercel GxHDrVD3DMGSxAGPzym3cPpGtgUh succeeded. Hosted Shop Load verified sideways 825px and combined scrollTop 204 / scrollLeft 40 with headers frame-top+1px and labels frame-left+1px. Field daily values verified scrollTop 749 with header frame-top+1px and sticky date labels; table fits horizontally at tested desktop width. Restored Field Week view. Screenshots /private/tmp/shop-load-fixed-labels-live.png and /private/tmp/field-load-fixed-labels-live.png.
 
 ## Fixed Team Schedule dates and labels — November 8, 2026
 - Team Schedule Gantt matches the 70dvh two-axis frame used by the other lists. Date row stays above scrolling rows; Project/Trade/Person labels and corner remain pinned left with clear dividers and isolated stacking. Updated scroll-region accessible label. Schedule generation and data unchanged.
