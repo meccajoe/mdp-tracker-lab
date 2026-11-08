@@ -1,3 +1,7 @@
+## Fixed Team Schedule dates and labels — November 8, 2026
+- Team Schedule Gantt matches the 70dvh two-axis frame used by the other lists. Date row stays above scrolling rows; Project/Trade/Person labels and corner remain pinned left with clear dividers and isolated stacking. Updated scroll-region accessible label. Schedule generation and data unchanged.
+- Verification pending.
+
 ## Fixed Roster headers and names — November 8, 2026
 - Roster now explicitly owns its sticky header rules rather than relying on parent Capacity styles. Headers layer above pinned name cells and the Name corner pins in both axes. Scroll region matches Quotes/Projects at 70dvh. Existing resize/account preferences untouched.
 - CSS-only change; diff check passed. Release 82e9b17 pushed; lab Vercel 38VMMxUHXdyVVFv18SwyLsc6X8WF succeeded. Hosted Roster verified scrollTop 853 / scrollLeft 750: header at frame top+1px, staff name at frame left+1px, corner z=4 / headers z=3. Screenshot /private/tmp/roster-fixed-headers-live.png. No roster data edits.
