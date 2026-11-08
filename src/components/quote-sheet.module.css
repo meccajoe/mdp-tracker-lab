@@ -7,7 +7,7 @@
 .toolbar input { width: 80px; background: #fff7da; margin-left: 8px; padding: 4px 6px; border: 1px solid #aeb5bd; text-align: right; }
 .toolbar button { padding: 4px 10px; border: 1px solid #aeb5bd; background: #f4f6f8; }
 .toolbar span { font-size: 12px; color: #505b6b; }
-.scroll { max-height: 65vh; overflow: auto; border-top: 1px solid #bcc3cb; }
+.scroll { max-height: 70dvh; overflow: auto; border-top: 1px solid #bcc3cb; }
 .sheet table { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
 .sheet th, .sheet td { border-right: 1px solid #c3c7cd; border-bottom: 1px solid #c3c7cd; }
 .sheet td { height: 25px; padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; background: #fff; }
@@ -71,3 +71,9 @@
 
 /* Keep the native hit target invisible even inside a disabled Final fieldset. */
 .sheet .typeCell > select:disabled {opacity:0;}
+
+/* Freeze Item # and Item Name, including both heading rows and the total row. */
+.sheet tr > :first-child { position:sticky; left:0; z-index:2; }
+.sheet .frozen { position:sticky; left:var(--column-offset-2,90px); z-index:2; }
+.sheet thead tr > :nth-child(-n+2) { z-index:5; }
+.sheet thead { box-shadow:0 1px 0 #9ca5b1; }

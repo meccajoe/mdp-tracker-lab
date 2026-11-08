@@ -7,6 +7,7 @@ import {applyTakeoffViewCells,isLaborTakeoff,TAKEOFF_VIEW_COLUMNS,quoteItemLabel
 import {adaFetch} from '@/lib/ada-client';
 import {manualCatalogInput} from '@/lib/tracker-catalog';
 import {useQuoteCatalog} from './use-quote-catalog';
+import {useStickyTableColumns} from './use-sticky-table-columns';
 import {QuoteColumnResize} from './quote-column-resize';
 import styles from './quote-takeoffs.module.css';
 import {loadQuoteLibrary} from '@/lib/quote-library-client';
@@ -19,6 +20,7 @@ type Cell=[number,number];
 export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false}: {
   libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
+  const tableRef=useStickyTableColumns(3);
   const [existingOpen,setExistingOpen]=useState(false);
   const pickerRef=useRef<HTMLDivElement>(null),filterRef=useRef<HTMLDivElement>(null);
   const scrollRef=useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       }
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
-      <table aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
+      <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
         <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
         <tbody>{visibleRows.map(({row,index:r})=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';

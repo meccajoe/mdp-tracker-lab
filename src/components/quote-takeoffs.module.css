@@ -3,7 +3,7 @@
 .toolbar button {border:1px solid #b6c5d6;background:#f8fafc;padding:4px 8px;border-radius:4px;}
 .sheet p {padding:6px 10px;color:#4b5b6a;font-size:11px;}
 .sheet p[role=alert] {color:#a12525;background:#fff0eb;}
-.scroll {overflow:auto;max-height:65vh;}
+.scroll {overflow:auto;max-height:70dvh;}
 .sheet table {width:100%;min-width:1250px;border-collapse:separate;border-spacing:0;table-layout:fixed;}
 .sheet th,.sheet td {border-right:1px solid #d8dfe5;border-bottom:1px solid #d8dfe5;height:27px;padding:0;position:relative;}
 .sheet thead {position:sticky;top:0;z-index:4;background:#e3ebf4;}
@@ -82,3 +82,12 @@
 
 .itemNumberCell {display:flex;align-items:center;padding-right:18px;}
 .itemNumberCell .itemChoice {flex:1;min-width:0;width:auto;padding-right:0;}
+
+/* Freeze the row marker, Item # and Item Name at their actual resized offsets. */
+.sheet tr > :nth-child(-n+3) { position:sticky; }
+.sheet tr > :first-child { left:0; z-index:2; }
+.sheet tbody td:nth-child(2),.sheet thead th:nth-child(2) { left:var(--column-offset-2,32px); }
+.sheet tbody td:nth-child(3),.sheet thead th:nth-child(3) { position:sticky; left:var(--column-offset-3,112px); }
+.sheet thead th:nth-child(-n+3) { position:sticky; z-index:5; background:#354154; }
+.sheet tbody td:nth-child(3) { box-shadow:1px 0 0 #9ca5b1; }
+.sheet thead { box-shadow:0 1px 0 #9ca5b1; }

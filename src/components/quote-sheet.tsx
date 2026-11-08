@@ -4,6 +4,7 @@ import {useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
 
 import { calculateQuoteV27, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
+import {useStickyTableColumns} from './use-sticky-table-columns';
 import {QuoteColumnResize} from './quote-column-resize';
 import styles from './quote-sheet.module.css';
 
@@ -41,6 +42,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
 }) {
   const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem});
   const [showDetails,setShowDetails]=useState(false);
+  const tableRef=useStickyTableColumns(2,showDetails);
   const visibleInputs=showDetails?inputs:inputs.slice(0,3);
   // Keep workbook letters stable when estimator-detail columns F–L are collapsed.
   const visibleHeaders=headers.map((label,index)=>({label,index})).filter(({index})=>showDetails||index<5||index>11);
@@ -70,7 +72,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
     </div>
     {itemActions.feedback}
     <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
-      <table key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{minWidth:tableWidth}}>
+      <table ref={tableRef} key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{minWidth:tableWidth}}>
         <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
         <thead>
           <tr className={styles.letters}><th aria-label="Item number"/>{visibleHeaders.map(({index})=><th key={index} scope="col" className={index===0?styles.frozen:undefined}>{String.fromCharCode(65+index)}</th>)}</tr>
