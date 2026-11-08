@@ -14,7 +14,7 @@ export function CapacityPlanning({projects,settings,unavailable}:{projects:Capac
  const model=useMemo(()=>capacityPlanning(projects,{...settings,weekStart:start},selected,count),[projects,settings,start,selected,count]);
  const weeks=Array.from({length:count},(_,i)=>dateString(dayNumber(start)+i*7));
  const shortages=model.rows.filter(r=>r.after.some((h,i)=>h>r.capacity[i]+.01));
- const outside=model.added.filter(p=>p.schedule.buildFinish<start||p.schedule.buildStart>dateString(dayNumber(start)+count*7-1));
+ const outside=model.added.filter(p=>validDate(p.schedule.buildStart)&&validDate(p.schedule.buildFinish)&&(p.schedule.buildFinish<start||p.schedule.buildStart>dateString(dayNumber(start)+count*7-1)));
  const issueRows=model.rows.filter(r=>r.after[week]>r.capacity[week]+.01);
  const contributions=(key:string)=>{
   if(key==='cad')return model.after.cadContributions.map(c=>({id:c.id,name:c.name,hours:c.hours[week]}));
