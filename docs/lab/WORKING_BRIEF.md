@@ -1,3 +1,7 @@
+## Readable timeline trade labels — November 8, 2026
+- Trade names now sit on their own line above timeline bars in 12px text without ellipsis. Short bars retain accurate date lengths; labels can extend into blank lane space. Labels near the right edge align inward, and overtime no longer hides the trade name. All grouping modes share the change; scheduling data untouched.
+- TypeScript/diff checks and deployment verification pending.
+
 ## Continuous Team Schedule timelines — November 8, 2026
 - Soft stage colors and continuous per-project/trade lanes connect first/last scheduled dates, including non-working weekends. Daily grid, sticky headers/names, OT markers and stage key retained. All three grouping modes preserve separate project spans; full-range spans remain visible through clipped non-working days. No allocation, staffing, hour or scheduling changes.
 - Clicking a day opens a viewport-bounded detail bubble with trade, project, people, hours and work mode; empty days explicitly show no scheduled work, CAD/turnover retain planning explanations. Escape/outside click/Close dismiss; keyboard focus supported. Removed hover-only assignment details and below-chart detail panel.

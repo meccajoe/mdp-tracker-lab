@@ -19,12 +19,13 @@
 /* Continuous stage lanes retain the daily grid without suggesting hours on gap days. */
 .day{padding:10px 0;gap:6px;align-items:stretch;border-right:0;box-shadow:inset -1px 0 #e8ebef}
 .day.projectWindow{box-shadow:inset -1px 0 #e8ebef,inset 0 -2px #b8bdc5}
-.slot{height:28px;flex-shrink:0}
-.chart .bar{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;height:28px;min-height:28px;flex-shrink:0;border-radius:0;color:#263546;border-right:1px solid #ffffff65;overflow:visible;font-weight:500;box-shadow:inset 0 1px #ffffff55,inset 0 -1px #00000005;cursor:pointer}
+.slot{height:46px;flex-shrink:0}
+.chart .bar{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;margin-top:18px;height:28px;min-height:28px;flex-shrink:0;border-radius:0;color:#263546;border-right:1px solid #ffffff65;overflow:visible;font-weight:500;box-shadow:inset 0 1px #ffffff55,inset 0 -1px #00000005;cursor:pointer}
 .chart .barStart{border-radius:7px 0 0 7px}.chart .barEnd{border-radius:0 7px 7px 0}.chart .barStart.barEnd{border-radius:7px}
 .chart .bar:hover:not(:disabled),.chart .bar[aria-expanded=true]{filter:brightness(.97);outline:2px solid #64748b;outline-offset:-2px;z-index:1}
 .chart .bar:focus-visible{outline:2px solid #334155;outline-offset:-2px;z-index:1}
-.stageLabel{position:absolute;left:7px;white-space:nowrap;font-size:10px;font-weight:650;width:max-content;max-width:calc(var(--span-days) * 100% - 14px);z-index:1;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
-.ot{font-size:8px;padding:1px;border-radius:3px;background:#ffffff80;color:#694c20}.barStart:has(.ot) .stageLabel{display:none}
+.stageLabel{position:absolute;left:4px;top:-17px;white-space:nowrap;font-size:12px;line-height:15px;font-weight:650;width:max-content;z-index:1;color:#334155;pointer-events:none}
+.labelEnd{left:auto;right:calc((1 - var(--span-days)) * 100% + 4px)}
+.ot{font-size:8px;padding:1px;border-radius:3px;background:#ffffff80;color:#694c20}
 .bubble{position:fixed;z-index:100;width:min(360px,calc(100vw - 24px));max-height:min(310px,calc(100dvh - 24px));overflow:auto;padding:16px;border:1px solid #e2e6eb;border-radius:14px;background:white;color:#263546;box-shadow:0 12px 40px #15223826;font-size:13px;outline:none}
 .bubbleHeader{display:flex;justify-content:space-between;align-items:start;gap:12px}.bubbleHeader h3{font-size:16px;font-weight:650;margin:2px 0}.bubbleHeader button{width:28px;height:28px;border-radius:50%;border:1px solid #e5e7eb;background:#f8fafc;font-size:20px}.bubble small{color:#64748b;font-size:11px}.bubbleProject{margin:8px 0;font-weight:550}.dailyTotal{margin:12px 0 6px;color:#475569}.bubble ul{list-style:none;padding:0;margin:0}.bubble li{border-top:1px solid #edf0f3;padding:9px 0}.bubble li>div{display:flex;justify-content:space-between;gap:10px}
