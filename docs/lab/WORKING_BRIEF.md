@@ -1,3 +1,7 @@
+## Materials catalog cleanup — November 8, 2026
+- Reviewed 753 live entries: 29 exact-equivalence groups, 36 candidates for reversible archive, highest price retained. Review manifest/report in docs/lab/MATERIALS_CATALOG_REVIEW.md. Species/grades/finish/unit distinctions preserved. Added review/apply UI and Archived materials category with Restore/export. Existing removal RPC and quote snapshots unchanged.
+- Material search retains frequency priority (combining known alias usage), then numeric dimension order. lab:check passed including duplicate/size-ranking tests. Deployment and live archive verification pending.
+
 ## Fixed beMatrix wall headers and names — November 8, 2026
 - beMatrix walls now share the report-table 70dvh scroll frame with fixed headers and pinned Wall name. Existing wall fields/handlers, sizing warnings, calculated totals, quote links, and add/remove actions moved intact from cards into columns. Parent fieldset min-width permits horizontal scrolling within the table.
 - lab:check passed. Release 5d34e47 pushed; lab Vercel 9WJj24xrbh2tK5TDJdF1jGe81gvL succeeded. Hosted Dermalogica wall table verified horizontal scroll 1158: Wall name at frame-left+1px, all ten headers sticky, ten existing wall controls present, Save revision disabled. Existing one-wall quote fits vertically; vertical overflow not exercised here (shared report frame previously verified). Screenshot /private/tmp/bematrix-fixed-wall-live.png. No pricing rule or saved quote changes.

@@ -2,6 +2,7 @@
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState,type CSSProperties} from 'react';
 import {moveToVerticalCell} from './quote-cell-navigation';
+import {compareCatalogChoices} from '@/lib/catalog-sort';
 import type {Material} from '@/lib/quote-v27';
 import styles from './quote-takeoffs.module.css';
 export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,hidePrice=false,onPick,clearWholeCell=false}:{value:string;label:string;materials:Material[];usage:Record<string,number>;disabled:boolean;commit:(value:string,selected:boolean)=>boolean;hidePrice?:boolean;clearWholeCell?:boolean;onPick?:(id:string)=>boolean}) {
@@ -9,7 +10,7 @@ export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,h
   const input=useRef<HTMLInputElement>(null),list=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(-1);
   useEffect(()=>{if(!open)return;const close=(event:PointerEvent)=>{const target=event.target as Node;if(!input.current?.contains(target)&&!list.current?.contains(target)){setOpen(false);input.current?.blur();}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[open]);
-  const choices=useMemo(()=>materials.filter(m=>m.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>(usage[b.name]??0)-(usage[a.name]??0)),[materials,query,usage]);
+  const choices=useMemo(()=>materials.filter(m=>m.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>compareCatalogChoices(a,b,usage)),[materials,query,usage]);
   function choose(material:Material){const name=material.name;if(onPick?onPick(material.id):commit(name,true)){if(input.current)input.current.value=name;setOpen(false);setIndex(-1);}}
   return <><input aria-label={label} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={open?`${label}-choices`:undefined} aria-activedescendant={open&&index>=0?`${label}-choice-${index}`:undefined} ref={input} defaultValue={value} disabled={disabled}
     onFocus={e=>{selectTextCell(e.currentTarget);const rect=e.currentTarget.getBoundingClientRect();const width=Math.min(480,window.innerWidth-24);setPosition({position:'fixed',left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12)),width,...(rect.bottom>window.innerHeight*.55?{bottom:window.innerHeight-rect.top,top:'auto'}:{top:rect.bottom,bottom:'auto'})});setOpen(false);setQuery('');setIndex(-1);}}
