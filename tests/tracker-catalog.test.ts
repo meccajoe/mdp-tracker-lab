@@ -49,3 +49,18 @@ test('catalog ranking preserves usage then compares fractions, footprint sizes a
  assert.deepEqual(catalogDimensions('Bending Plywood 0.175" 8x4'),[.175,48,96]);
  assert.deepEqual(catalogDimensions('1-1/2" plywood 4x8'),[1.5,48,96]);
 });
+
+import {findCatalogDuplicate,catalogNameKey} from '../src/lib/catalog-duplicates';
+test('manual catalog additions match spelling and reviewed aliases while retaining meaningful differences',()=>{
+ const entry=(name:string,unit='sheet',cost=45.41)=>catalogMaterial({item_id:name,revision:1,name,unit,unit_cost:cost,source:'Google Sheet DB'});
+ const active=entry('MDF 3/4" 4x8'),old={...entry('3/4" MDF (4\'x8\')'),deletedAt:'2026-11-08'};
+ assert.equal(findCatalogDuplicate({name:'¾” MDF (4′ x 8′)',unit:'sheets'},[old,active])?.itemId,active.itemId);
+ assert.equal(findCatalogDuplicate({name:'Aluminum Sheet 48x96x.250',unit:'each'},[entry('Aluminum Sheet 4x8x0.25','each',536)])?.unitCost,536);
+ for(const name of ['MDF 1/2" 4x8','MDF 3/4" 5x10','Maple Plywood 3/4" 4x8','MDF ULTRALIGHT 3/4" 4x8'])assert.equal(findCatalogDuplicate({name,unit:'sheet'},[active]),null);
+ assert.equal(findCatalogDuplicate({name:active.name,unit:'sqft'},[active]),null);
+ assert.equal(findCatalogDuplicate({name:active.name,unit:'sheet'},[old])?.deletedAt,old.deletedAt);
+ assert.equal(catalogNameKey('MDF 0.750" 4x8'),catalogNameKey('3/4" MDF 4x8'));
+ assert.notEqual(catalogNameKey('MDF 3/4" 4"x8"'),catalogNameKey('MDF 3/4" 4x8'));
+ assert.equal(catalogNameKey('MDF 3/4" 48x96'),catalogNameKey('MDF 3/4" 4x8'));
+ assert.notEqual(catalogNameKey('Maple B-2 3/4" 4x8'),catalogNameKey('Maple 2.75" 4x8'));
+});

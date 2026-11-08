@@ -1,3 +1,4 @@
+import {findCatalogDuplicate} from '@/lib/catalog-duplicates';
 import {NextResponse} from 'next/server';
 import {requireQuoteProductAccess} from '@/lib/ada-server';
 import {fetchLiveCatalog} from '@/lib/quote-live-catalog';
@@ -23,6 +24,19 @@ export async function POST(request:Request){
  else if(action==='delete'||action==='restore'){if(!/^[0-9a-f-]{36}$/i.test(body.itemId)||!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1)throw new Error('Invalid catalog revision.');removal={itemId:body.itemId,expectedVersion:body.expectedVersion};payload=removal;}
  else {payload=catalogInput(body);if(action==='edit'){if(!/^[0-9a-f-]{36}$/i.test(body.itemId)||!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1)throw new Error('Invalid catalog revision.');payload={...payload,itemId:body.itemId,expectedVersion:body.expectedVersion};}else if(action!=='add')throw new Error('Invalid action.');}
  }catch(error){return json({error:error instanceof Error?error.message:'Invalid request.'},400);}
+ if(action==='add'){
+  const input=catalogInput(payload),entries=[];
+  for(let offset=0;;offset+=500){
+   const page=await actor.actorSupabase.from('lab_material_catalog').select('*').order('item_id').range(offset,offset+499);
+   if(page.error)return json({error:'Could not check the catalog for duplicates. Your quote entry is preserved; retry later.'},503);
+   entries.push(...page.data.map(catalogMaterial));if(page.data.length<500)break;
+  }
+  const duplicate=findCatalogDuplicate(input,entries);
+  if(duplicate){
+   if(duplicate.deletedAt)return json({error:`An equivalent material (${duplicate.name}) is archived. Restore it in Archived materials if needed; no duplicate was added.`},409);
+   return json({created:false,duplicate:true,material:duplicate});
+  }
+ }
  const result=removal?await actor.actorSupabase.rpc('lab_catalog_set_deleted',{p_item_id:removal.itemId,p_expected_revision:removal.expectedVersion,p_deleted:action==='delete'}):await actor.actorSupabase.rpc('lab_catalog_write',{action,payload});
  if(result.error?.code==='PGRST202')return json({error:'Material deletion needs the lab catalog update (20261018120000). No entry was changed.'},503);
  if(action==='add'&&result.data?.entry?.deleted_at)return json({error:'This material was archived from the catalog. Restore it under Archived materials before adding it again. The quote entry is preserved.'},409);
