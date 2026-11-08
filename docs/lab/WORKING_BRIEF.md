@@ -1,6 +1,6 @@
 ## Compact Team Schedule trade lanes — November 8, 2026
 - Reduced lane pitch from 52px to 38px (36px including label/bar plus 2px gap), bar height 28px to 20px, and project vertical padding 20px to 12px. Full trade labels remain 12px, above bars without clipping; empty-day slots match the compact lane height. CSS only; no schedule/data changes.
-- Diff check passed; deployment/live visual verification pending.
+- Diff check passed; CSS-only change. Release ca7acc4 pushed; lab deployment 2E1jCs2JGazwiwcgL6WeD7Go6uMi succeeded. Hosted Fossil six-trade row is 239px (previously 327px); bars 20px, labels remain full 12px text. Finish/Paint day click still shows 22h and three named people; Close works. Screenshot /private/tmp/team-compact-lanes-live.png. No saved data edits.
 
 ## Readable timeline trade labels — November 8, 2026
 - Trade names now sit on their own line above timeline bars in 12px text without ellipsis. Short bars retain accurate date lengths; labels can extend into blank lane space. Labels near the right edge align inward, and overtime no longer hides the trade name. All grouping modes share the change; scheduling data untouched.
