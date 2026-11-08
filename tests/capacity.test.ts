@@ -1,5 +1,5 @@
 import test from 'node:test';
-import {emptyPlan} from '../src/lib/production-plan';
+import {emptyPlan,proposeProductionPlan} from '../src/lib/production-plan';
 import {utils} from 'xlsx';
 import {importCapacityRoster} from '../src/lib/capacity-roster-import';
 import {capacityViewRange,dashboardLoad} from '../src/lib/capacity-dashboard';
@@ -232,4 +232,28 @@ test('planning includes proposed field demand against shared crew and flags miss
  const base=capacityPlanning([p],config,[],4),proposal=capacityPlanning([p],config,['one'],4);
  assert.ok(sum(proposal.after.sharedNeeded)>sum(base.after.sharedNeeded));assert.ok(sum(proposal.after.shopAvailable)<sum(base.after.shopAvailable));
  assert.ok(capacityPlanning([{...p,schedule:{...p.schedule,buildStart:''}}],config,['one'],4).warnings.length>0);
+});
+
+import {planningDateError} from '../src/lib/capacity-planning';
+test('temporary planning dates reflow shop, CAD and install demand without changing saved plans or committed work',()=>{
+ const config=settings(),open=project('Possible'),active={...project('Closed won'),workspaceId:'active'};
+ open.productionPlan={...emptyPlan(),status:'approved',tasks:proposeProductionPlan(open.document!,config.roster).tasks};
+ const projects=[active,open],original=JSON.stringify(projects),base=capacityPlanning(projects,config,['one'],8);
+ const dates={buildStart:'2026-10-12',buildFinish:'2026-10-23',installDate:'2026-10-26'};
+ const moved=capacityPlanning(projects,config,['one'],8,{one:dates,active:dates});
+ assert.deepEqual(moved.before.load.expected,base.before.load.expected);
+ const before=base.after.load.contributions.find(p=>p.id==='one')!,after=moved.after.load.contributions.find(p=>p.id==='one')!;
+ close(sum(before.hours),sum(after.hours));assert.equal(after.hours[0],0);assert.notDeepEqual(before.hours,after.hours);
+ const cadBefore=base.after.cadContributions.find(p=>p.id==='one')!,cadAfter=moved.after.cadContributions.find(p=>p.id==='one')!;
+ close(sum(cadBefore.hours),sum(cadAfter.hours));assert.equal(cadAfter.hours[0],0);assert.ok(cadAfter.hours[1]>0);
+ const fieldBefore=base.after.fieldLoad.contributions.find(p=>p.id==='one')!,fieldAfter=moved.after.fieldLoad.contributions.find(p=>p.id==='one')!;
+ close(sum(fieldBefore.hours),sum(fieldAfter.hours));assert.equal(fieldAfter.hours[2],0);assert.ok(fieldAfter.hours[3]>0);
+ assert.equal(moved.added[0].schedule.buildStart,dates.buildStart);assert.notEqual(moved.added[0].productionPlan,open.productionPlan);
+ assert.equal(JSON.stringify(projects),original);
+ assert.deepEqual(capacityPlanning(projects,config,['one'],8).after.load.expected,base.after.load.expected);
+});
+test('scenario date validation rejects reversed or missing production dates and malformed install date',()=>{
+ const valid={buildStart:'2026-11-02',buildFinish:'2026-11-20',installDate:''};
+ assert.equal(planningDateError(valid),'');assert.ok(planningDateError({...valid,buildFinish:'2026-11-01'}));assert.ok(planningDateError({...valid,buildStart:''}));assert.ok(planningDateError({...valid,installDate:'invalid'}));
+ const p=project();const model=capacityPlanning([p],settings(),['one'],8,{one:{...valid,buildFinish:'2026-11-01'}});assert.equal(model.added[0].schedule.buildStart,p.schedule.buildStart);
 });
