@@ -32,6 +32,7 @@ export function capacityPlanning(projects:CapacityProject[],settings:CapacitySet
  const trades=[...new Set([...Object.keys(after.tradeAvailable),...Object.keys(after.load.trades)])].filter(t=>!['Crate & pack','I&D','Untyped / other'].includes(t));
  const rows=[row('shop','All Shop Combined',before.load.expected,after.load.expected,before.shopAvailable,after.shopAvailable),...trades.map(t=>row(t,t,before.load.trades[t]??zero(),after.load.trades[t]??zero(),before.tradeAvailable[t]??zero(),after.tradeAvailable[t]??zero())),row('shared','I&D — packing + field work',before.sharedNeeded,after.sharedNeeded,before.sharedAvailable,after.sharedAvailable),row('cad','CAD / Drawings',before.cadNeeded,after.cadNeeded,before.cadAvailable,after.cadAvailable)];
  const warnings=[...new Set([...after.unscheduledShop,...after.unscheduledField,...after.cadUnscheduled].map(name=>`${name}: missing dates or work that could not be placed.`))];
+ for(const p of added)if(dates[p.workspaceId]&&p.productionPlan?.tasks.some(task=>task.daily.some(day=>day.date>p.schedule.buildFinish)))warnings.push(`${p.workspace}: some preview work extends beyond Project Finish; review duration or staffing.`);
  for(const p of [...committed,...added]){if(!p.document)warnings.push(`${p.workspace}: no saved workbook.`);if(p.untyped>0)warnings.push(`${p.workspace}: ${p.untyped.toFixed(1)} shop hours have no trade; trade-level fit is incomplete.`);}
  return {before,after,rows,committed,added,warnings};
 }

@@ -257,3 +257,8 @@ test('scenario date validation rejects reversed or missing production dates and 
  assert.equal(planningDateError(valid),'');assert.ok(planningDateError({...valid,buildFinish:'2026-11-01'}));assert.ok(planningDateError({...valid,buildStart:''}));assert.ok(planningDateError({...valid,installDate:'invalid'}));
  const p=project();const model=capacityPlanning([p],settings(),['one'],8,{one:{...valid,buildFinish:'2026-11-01'}});assert.equal(model.added[0].schedule.buildStart,p.schedule.buildStart);
 });
+
+test('compressed scenario windows flag work extending past the proposed finish',()=>{
+ const p=project();const model=capacityPlanning([p],settings(),['one'],8,{one:{buildStart:'2026-10-12',buildFinish:'2026-10-12',installDate:''}});
+ assert.ok(model.warnings.some(w=>w.includes('extends beyond Project Finish')));
+});
