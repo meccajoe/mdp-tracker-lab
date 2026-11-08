@@ -1,6 +1,6 @@
 ## Fixed estimator headers and row labels — November 8, 2026
 - Install Labor and Travel now use a bounded 70dvh table scroll frame with pinned column headings and first-column row labels. Shipping reuses that frame, presenting the existing outbound/return inputs side by side and shared rates below; destination linkage remains outside the scroll area. Existing shipping calculation functions and update keys retained.
-- Verification pending.
+- lab:check passed (quote tests and TypeScript). Release cc2e0cf pushed; lab Vercel FQRCDkvvpfXqw8Dbex8LTvfjyjs4 succeeded. Hosted Dermalogica Install scrollTop 392 and Travel 626 retained header cells at frame top+1px; all three first-column row labels compute sticky. Shipping fits vertically at tested desktop size; all 19 controls and freight link verified. Tables fit horizontally at this desktop width; sideways pinning not exercised. Save revision remained disabled, no customer edits. Screenshots /private/tmp/shipping-fixed-labels-live.png and /private/tmp/install-fixed-labels-live.png.
 
 ## Fixed BOM and Budget Handoff headers — November 8, 2026
 - Added shared report-table scroll frame (70dvh), sticky headers and measured pinned identity columns. Budget Handoff pins Item #/Name. Per-item BOM is now one table with repeated Item #/Name on each material row; overall BOM keeps its existing aggregation and pins Material. Original quantity/cost functions and budget totals unchanged.
