@@ -1,6 +1,6 @@
 ## Frozen Quote Builder and Takeoffs identity columns — November 8, 2026
 - Quote Builder pins Item # plus Item Name (including letter/header/total rows); Takeoffs pins row marker, Item # and Item Name. Both retain sticky heading rows in 70dvh scrolling frames, including smaller screens. ResizeObserver measures actual column offsets and rebinds when Builder detail columns remount. Existing editing, fill and pricing logic untouched.
-- Verification pending.
+- lab:check passed (quote tests + TypeScript). Release 375e706 pushed; lab Vercel FJr4Rb1HDGHCxq7pW2tSUJg1nuiL succeeded. Hosted Dermalogica read-only verification: Builder scrollLeft 908 retained Item #/Name at x14/104; vertical scrollTop 803 retained heading at frame top; detail columns toggled on/off. Takeoffs scrollTop 1032 / scrollLeft 19 retained header at frame top and first three columns pinned. Item # resized +16/-16 and measured name offset followed. No quote content edits. Screenshots /private/tmp/builder-fixed-items-live.png and /private/tmp/takeoffs-fixed-items-live.png.
 
 ## Fixed Shop/Field Load table labels — November 8, 2026
 - Shop Load weekly grid pins all date headers and row names within a 70dvh two-axis frame. Field Load remains a chart; its expandable daily/weekly values table now pins column headers and date-row labels using the same frame (shared chart values component also benefits). No demand/capacity calculations or saved data changes.
