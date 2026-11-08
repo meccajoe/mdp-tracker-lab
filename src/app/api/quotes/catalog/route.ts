@@ -34,7 +34,14 @@ export async function POST(request:Request){
   const duplicate=findCatalogDuplicate(input,entries);
   if(duplicate){
    if(duplicate.deletedAt)return json({error:`An equivalent material (${duplicate.name}) is archived. Restore it in Archived materials if needed; no duplicate was added.`},409);
-   return json({created:false,duplicate:true,material:duplicate});
+   if(duplicate.unitCost===null||input.unitCost>duplicate.unitCost){
+    // Revision-checked edit cannot overwrite a concurrent price increase or archive.
+    const updated=await actor.actorSupabase.rpc('lab_catalog_write',{action:'edit',payload:{itemId:duplicate.itemId,expectedVersion:duplicate.revision,name:duplicate.name,unit:duplicate.unit,unitCost:input.unitCost}});
+    if(updated.error)return json({error:updated.error.code==='PT409'?'Catalog changed while updating its price. Retry the entry; your quote price is preserved.':'Could not update the catalog price. Your quote entry is preserved.'},updated.error.code==='PT409'?409:403);
+    if(!updated.data?.entry)return json({error:'Catalog did not confirm the price update. Your quote entry is preserved.'},503);
+    return json({created:false,duplicate:true,priceUpdated:true,previousUnitCost:duplicate.unitCost,material:catalogMaterial(updated.data.entry)});
+   }
+   return json({created:false,duplicate:true,priceUpdated:false,material:duplicate});
   }
  }
  const result=removal?await actor.actorSupabase.rpc('lab_catalog_set_deleted',{p_item_id:removal.itemId,p_expected_revision:removal.expectedVersion,p_deleted:action==='delete'}):await actor.actorSupabase.rpc('lab_catalog_write',{action,payload});
