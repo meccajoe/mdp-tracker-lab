@@ -1,6 +1,6 @@
 ## Fixed BOM and Budget Handoff headers — November 8, 2026
 - Added shared report-table scroll frame (70dvh), sticky headers and measured pinned identity columns. Budget Handoff pins Item #/Name. Per-item BOM is now one table with repeated Item #/Name on each material row; overall BOM keeps its existing aggregation and pins Material. Original quantity/cost functions and budget totals unchanged.
-- Verification pending.
+- TypeScript passed. Release 31ea9be pushed; lab Vercel BE4xMMEGJzTQQBKgNoYcg1x6YPAT succeeded. Hosted Rock n Roll Denim: per-item BOM scrollTop 462 retained header at frame+1px, measured frozen identity offsets; desktop BOM fits horizontally. Per-item and overall material totals both $12,123.10. Budget Handoff horizontal scroll 78 retained Item #/Name at x14/104; vertical scroll 7 retained header frame+1px. No customer edits. Screenshots /private/tmp/bom-fixed-items-live.png and /private/tmp/budget-handoff-fixed-items-live.png.
 
 ## Frozen Quote Builder and Takeoffs identity columns — November 8, 2026
 - Quote Builder pins Item # plus Item Name (including letter/header/total rows); Takeoffs pins row marker, Item # and Item Name. Both retain sticky heading rows in 70dvh scrolling frames, including smaller screens. ResizeObserver measures actual column offsets and rebinds when Builder detail columns remount. Existing editing, fill and pricing logic untouched.
