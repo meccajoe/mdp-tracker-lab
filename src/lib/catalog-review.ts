@@ -125,6 +125,29 @@ export const reviewedCatalogGroups: readonly (readonly string[])[] = [
   [
     "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 2\" x 60 yds",
     "3M Tape 3M 2090 Painter's Masking Tape (BLUE) 2\" x 60 yds 3M"
+  ],
+  [
+    "Baltic Birch 1/2\" 5x5",
+    "Birch Baltic 1/2\" 5x5",
+    "Birch Blatic 1/2\" 5x5",
+    "Blatic Birch 1/2\" 5x5"
+  ],
+  [
+    "BIrch Baltic 1/2\" 4x8",
+    "Birch Blatic 1/2\" 4x8"
+  ],
+  [
+    "3/4\" birch 4x10",
+    "Birch Plywood 3/4\" 4x10"
+  ],
+  [
+    "Birch Import Plywood 1/2\" 4x8",
+    "Import Birch 1/2\" 4x8"
+  ],
+  [
+    "MDO 2 sided 3/4\" 4x10",
+    "MDO 2 sides 3/4\" 4x10",
+    "MDO 2S 3/4\" 4x10"
   ]
 ];
 

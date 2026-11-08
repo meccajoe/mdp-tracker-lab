@@ -45,5 +45,7 @@ test('catalog ranking preserves usage then compares fractions, footprint sizes a
  assert.deepEqual(catalogDimensions('Aluminum Sheet 48x96x.250'),[.25,48,96]);
  assert.ok(compareCatalogChoices({name:'Aluminum Sheet 4x8x.125'},{name:'Aluminum Sheet 4x8x.25'})<0);
  assert.ok(compareCatalogChoices({name:'Steel Sheet 4x8x18ga'},{name:'Steel Sheet 4x8x16ga'})<0);
+ assert.deepEqual(catalogDimensions('Maple Plywood B-2 3/4" 4x8'),[.75,48,96]);
+ assert.deepEqual(catalogDimensions('Bending Plywood 0.175" 8x4'),[.175,48,96]);
  assert.deepEqual(catalogDimensions('1-1/2" plywood 4x8'),[1.5,48,96]);
 });

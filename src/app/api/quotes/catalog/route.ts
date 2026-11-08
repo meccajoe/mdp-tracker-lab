@@ -25,7 +25,7 @@ export async function POST(request:Request){
  }catch(error){return json({error:error instanceof Error?error.message:'Invalid request.'},400);}
  const result=removal?await actor.actorSupabase.rpc('lab_catalog_set_deleted',{p_item_id:removal.itemId,p_expected_revision:removal.expectedVersion,p_deleted:action==='delete'}):await actor.actorSupabase.rpc('lab_catalog_write',{action,payload});
  if(result.error?.code==='PGRST202')return json({error:'Material deletion needs the lab catalog update (20261018120000). No entry was changed.'},503);
- if(action==='add'&&result.data?.entry?.deleted_at)return json({error:'This material was deleted from the catalog. Restore it under Deleted materials before adding it again. The quote entry is preserved.'},409);
+ if(action==='add'&&result.data?.entry?.deleted_at)return json({error:'This material was archived from the catalog. Restore it under Archived materials before adding it again. The quote entry is preserved.'},409);
  if(result.error)return json({error:result.error.code==='PT409'?result.error.message:result.error.code==='23505'?'Another catalog entry already has that name.':'Catalog could not save. Check lab storage setup and edit permission.'},result.error.code==='PT409'||result.error.code==='23505'?409:403);
  return json({...result.data,...(result.data.entry?{material:catalogMaterial(result.data.entry)}:{})});
 }

@@ -35,5 +35,10 @@ Archive uses the existing reversible catalog removal RPC, with revision checks; 
 | Double Sided Carpet Tape 2"x 36yds | $19.00 | Double Sided Carpet Tape 2"x36yds ($8.49) |
 | 3M Tape 3M 2090 Painter's Masking Tape (BLUE) 1-1/2" x 60 yds 3M | $6.50 | 3M Tape 3M 2090 Painter's Masking Tape (BLUE) 1-1/2" x 60 yds ($4.75) |
 | 3M Tape 3M 2090 Painter's Masking Tape (BLUE) 2" x 60 yds | $9.95 | 3M Tape 3M 2090 Painter's Masking Tape (BLUE) 2" x 60 yds 3M ($8.75) |
+| Baltic Birch 1/2" 5x5 | $74.50 | Birch Blatic 1/2" 5x5 ($73.88); Birch Baltic 1/2" 5x5 ($55.15); Blatic Birch 1/2" 5x5 ($51.38) |
+| BIrch Baltic 1/2" 4x8 | $86.86 | Birch Blatic 1/2" 4x8 ($74.00) |
+| 3/4" birch 4x10 | $154.50 | Birch Plywood 3/4" 4x10 ($115.56) |
+| Import Birch 1/2" 4x8 | $29.05 | Birch Import Plywood 1/2" 4x8 ($27.73) |
+| MDO 2 sides 3/4" 4x10 | $200.00 | MDO 2 sided 3/4" 4x10 ($191.20); MDO 2S 3/4" 4x10 ($129.00) |
 
 Search retains frequency priority, including reviewed alias usage. Ties sort dimensionally (fractional/decimal/metric inches and feet, common sheet footprints), then natural alphabetical order. Ambiguous dimensionless entries sort by name. Gauge order is reversed so higher gauge comes first; gauge values are sorting keys, not calculated stock thickness or pricing inputs.

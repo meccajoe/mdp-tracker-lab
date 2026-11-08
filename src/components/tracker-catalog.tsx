@@ -14,7 +14,7 @@ export function TrackerCatalog(){
  const [reviewDuplicates,setReviewDuplicates]=useState(false);
  async function archiveDuplicates(){
   if(!await confirmAction(`Archive ${duplicatePlan.reduce((n,g)=>n+g.archive.length,0)} duplicate entries? The highest-priced equivalent stays available. Saved quotes are unchanged.`))return;
-  setBusy(true);setError('');let archived=0;
+  setBusy(true);setError('');let archived=0,failure='';
   try{
    for(const group of duplicatePlan){
     // Recheck the keeper before every group; revision-checked writes protect each archived row.
@@ -25,12 +25,12 @@ export function TrackerCatalog(){
     for(const row of group.archive){
      const response=await adaFetch('/api/quotes/catalog',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',itemId:row.itemId,expectedVersion:row.revision})}),data=await response.json();
      if(!response.ok)throw new Error(data.error||'Could not archive entry.');
-     archived++;
+     archived++;setNotice(`Archiving reviewed duplicates… ${archived} completed.`);
     }
    }
    setReviewDuplicates(false);
-  }catch(error){setError(error instanceof Error?error.message:'Cleanup stopped.');}
-  finally{setNotice(`${archived} duplicate entries moved to Archived materials. Saved quotes and prices are unchanged.`);window.dispatchEvent(new Event('tracker-catalog-changed'));await load();setBusy(false);}
+  }catch(error){failure=error instanceof Error?error.message:'Cleanup stopped.';}
+  finally{setNotice(`${archived} duplicate entries moved to Archived materials. Saved quotes and prices are unchanged.`);window.dispatchEvent(new Event('tracker-catalog-changed'));await load();if(failure)setError(failure);setBusy(false);}
  }
  const rows=(showDeleted?deletedEntries:entries).filter(row=>`${row.name} ${row.unit} ${row.source}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>{const x=a[sort.key],y=b[sort.key];return (typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),undefined,{numeric:true}))*(sort.asc?1:-1);});
  function download(){const url=URL.createObjectURL(new Blob([exportCatalogCsv(showDeleted?deletedEntries:entries)],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='Tracker-Materials-Catalog.csv';document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}

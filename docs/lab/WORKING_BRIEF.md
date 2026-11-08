@@ -1,5 +1,5 @@
 ## Materials catalog cleanup — November 8, 2026
-- Reviewed 753 live entries: 29 exact-equivalence groups, 36 candidates for reversible archive, highest price retained. Review manifest/report in docs/lab/MATERIALS_CATALOG_REVIEW.md. Species/grades/finish/unit distinctions preserved. Added review/apply UI and Archived materials category with Restore/export. Existing removal RPC and quote snapshots unchanged.
+- Reviewed 753 live entries: 34 exact-equivalence groups, 44 candidates for reversible archive, highest price retained. Review manifest/report in docs/lab/MATERIALS_CATALOG_REVIEW.md. Species/grades/finish/unit distinctions preserved. Added review/apply UI and Archived materials category with Restore/export. Existing removal RPC and quote snapshots unchanged.
 - Material search retains frequency priority (combining known alias usage), then numeric dimension order. lab:check passed including duplicate/size-ranking tests. Deployment and live archive verification pending.
 
 ## Fixed beMatrix wall headers and names — November 8, 2026
