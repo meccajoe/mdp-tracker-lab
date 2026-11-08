@@ -68,9 +68,9 @@ test('manual catalog additions match spelling and reviewed aliases while retaini
 import {catalogPriceChanges} from '../src/lib/catalog-price-history';
 test('price history shows true changes, preserves old units and leaves legacy sources unknown',()=>{
  const base={unit_cost:10,unit:'sheet',updated_at:'2026-11-08T10:00:00Z',source:'Google Sheet DB'};
- const rows=[{revision:1,document:base},{revision:2,document:{...base,unit_cost:20,price_change_source:{kind:'takeoff',workspace_id:'quote-id',quote_name:'Source quote'}}},{revision:3,document:{...base,unit_cost:20}},{revision:4,document:{...base,unit_cost:15,unit:'each',price_change_source:{kind:'catalog'}}}];
+ const rows=[{revision:1,document:base},{revision:2,document:{...base,unit_cost:20,updated_by:'actor-1',price_change_source:{kind:'takeoff',workspace_id:'quote-id',quote_name:'Source quote'}}},{revision:3,document:{...base,unit_cost:20}},{revision:4,document:{...base,unit_cost:15,unit:'each',price_change_source:{kind:'catalog'}}}];
  const history=catalogPriceChanges(rows);
- assert.equal(history.length,3);assert.equal(history[0].oldCost,20);assert.equal(history[0].newCost,15);assert.equal(history[0].oldUnit,'sheet');assert.equal(history[0].unit,'each');
+ assert.equal(history[1].changedById,'actor-1');assert.equal(history[2].changedById,null);assert.equal(history.length,3);assert.equal(history[0].oldCost,20);assert.equal(history[0].newCost,15);assert.equal(history[0].oldUnit,'sheet');assert.equal(history[0].unit,'each');
  assert.equal(history[1].source?.quote_name,'Source quote');assert.equal(history[1].oldCost,10);assert.equal(history[2].source,null);assert.equal(history[2].imported,true);
  assert.equal(catalogPriceChanges([{revision:1,document:{...base,unit_cost:null}},{revision:2,document:{...base,unit_cost:0}}])[0].newCost,0);
 });

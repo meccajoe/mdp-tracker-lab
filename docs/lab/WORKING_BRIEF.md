@@ -1,3 +1,7 @@
+## Price history editor names — November 8, 2026
+- Price history now displays Changed by alongside Source, resolving the audit snapshot updated_by account to full name/name or email. Missing historical actors are labeled Not recorded; unresolved/deleted accounts Account unavailable. Resolution is server-side, limited to actors in the authorized item history, with no directory or user metadata exposed. Uses existing audit data; no migration or quote/catalog price changes.
+- lab:check passed including actor extraction, name/email fallback and missing actors. Release/live verification pending.
+
 ## Catalog price history with source quotes — November 8, 2026
 - Added Price history to active and archived material rows: timestamp, prior/new unit cost, original quote name/link, initial import/catalog-edit/unknown source labels. Reads existing audit snapshots, skips non-price revisions, and masks inaccessible source quotes. Historical sources are not guessed or backfilled.
 - New lab_catalog_write_with_source wrapper records provenance in the same transaction as the existing audited write; validates writer and source-quote membership, preserves all saved quote data. Migration 20261108140000 applied to lab via Supabase SQL after verifying the current writer and a rollback-only compile/unauthenticated rejection/privileges check. Existing 754 catalog rows and 802 audit rows were inspected before migration.

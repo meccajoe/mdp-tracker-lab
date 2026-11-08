@@ -17,7 +17,17 @@ export async function GET(request:Request){
   const changes=catalogPriceChanges(rows),quoteIds=[...new Set(changes.flatMap(row=>row.source?.workspace_id?[row.source.workspace_id]:[]))];
   const visibleQuotes=new Set<string>();
   for(let offset=0;offset<quoteIds.length;offset+=100){const quotes=await actor.actorSupabase.from('ada_quote_workspaces').select('id').in('id',quoteIds.slice(offset,offset+100));if(quotes.error)return json({error:'Could not verify quote links for this history.'},503);for(const quote of quotes.data??[])visibleQuotes.add(quote.id);}
-  return json({changes:changes.map(row=>({...row,source:row.source?.workspace_id&&!visibleQuotes.has(row.source.workspace_id)?{kind:'unavailable'}:row.source}))});
+  // Resolve only actors present in the authorized item's audit trail, never a user directory.
+  const people=new Map<string,string>();
+  const actorIds=[...new Set(changes.flatMap(row=>row.changedById?[row.changedById]:[]))];
+  for(const id of actorIds){
+   try{const {data,error}=await actor.supabase.auth.admin.getUserById(id);if(error||!data.user)continue;
+    const user=data.user,metadata=user.user_metadata??{};
+    const name=[metadata.full_name,metadata.name,user.email].find(value=>typeof value==='string'&&value.trim());
+    if(name)people.set(id,name.trim());
+   }catch{/* Keep history available when a former account cannot be resolved. */}
+  }
+  return json({changes:changes.map(({changedById,...row})=>({...row,changedBy:changedById?(people.get(changedById)??'Account unavailable'):'Not recorded',source:row.source?.workspace_id&&!visibleQuotes.has(row.source.workspace_id)?{kind:'unavailable'}:row.source}))});
  }
  const imported=await actor.actorSupabase.from('lab_material_catalog_import').select('imported_count,warnings,imported_at').maybeSingle();
  if(imported.error){if(['42P01','PGRST205'].includes(imported.error.code)){try{const source=await fetchLiveCatalog();return json({...source,entries:[],ready:false,initialized:false,canEdit:false,setupMessage:'Tracker catalog needs its lab storage migration. Google Sheet selections remain available until the one-time copy.'});}catch{}}return json({error:'Tracker catalog storage could not load. Saved quote prices remain unchanged.',ready:false},503);}
