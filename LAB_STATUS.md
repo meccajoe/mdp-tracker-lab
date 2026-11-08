@@ -1,6 +1,6 @@
 ## Expanded project timelines by default — November 8, 2026
 - Supersedes the collapsed default: store explicitly collapsed project IDs, so all projects (including newly loaded projects) start expanded. Individual disclosure and Expand All/Collapse All retained; no scheduling/data changes.
-- TypeScript/diff and live verification pending.
+- TypeScript/diff checks passed. Release c61d6ee pushed; lab deployment FbJ3kVhrENLX1JHUbmXP3feRYvC2 succeeded. Fresh hosted page verified 11 expanded / zero collapsed; Collapse All produced 11 collapsed, Expand All restored 11 expanded. Screenshot /private/tmp/team-expanded-default-live.png. No saved data edits.
 
 ## Collapsible project timelines and inline trade names — November 8, 2026
 - Project view defaults to collapsed single project-window bars. Project-name disclosure and window clicks expand trade lanes; Expand All/Collapse All affect visible project rows. Per-project state survives grouping/filter changes during the session. Trade/Person views remain expanded.
