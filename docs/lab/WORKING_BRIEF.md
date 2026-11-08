@@ -1,3 +1,7 @@
+## Fixed Roster headers and names — November 8, 2026
+- Roster now explicitly owns its sticky header rules rather than relying on parent Capacity styles. Headers layer above pinned name cells and the Name corner pins in both axes. Scroll region matches Quotes/Projects at 70dvh. Existing resize/account preferences untouched.
+- CSS-only change; diff check passed. Hosted build/scroll verification pending. No roster data edits.
+
 ## Fixed Quotes headers and status columns — November 7, 2026
 - Main Quotes (and shared archived list) now uses the same 70dvh two-axis scrolling frame as Capacity, with fixed headers. Quote Status joins Forecast Status, Project Status and Use for Capacity beside the name; selection/name/four controls pin horizontally with measured account-width offsets. Client/amount/dates/documents scroll. Capacity keeps its existing five pinned columns.
 - TypeScript passed. Release c70e4f1 pushed; lab Vercel DYmGcyocbafRowDaXaG9faEtXHYL succeeded. Hosted Quotes verified scrollTop 2739 / scrollLeft 757: all headers at scroll container top (184px), first six pinned headers z=4, row/header counts aligned. Use for Capacity dropdown opened/dismissed on lower row without edits. Screenshot /private/tmp/quotes-fixed-columns-live.png. No quote data, status values or calculation changes.
