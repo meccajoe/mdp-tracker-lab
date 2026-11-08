@@ -1,3 +1,7 @@
+## Fixed BOM and Budget Handoff headers — November 8, 2026
+- Added shared report-table scroll frame (70dvh), sticky headers and measured pinned identity columns. Budget Handoff pins Item #/Name. Per-item BOM is now one table with repeated Item #/Name on each material row; overall BOM keeps its existing aggregation and pins Material. Original quantity/cost functions and budget totals unchanged.
+- Verification pending.
+
 ## Frozen Quote Builder and Takeoffs identity columns — November 8, 2026
 - Quote Builder pins Item # plus Item Name (including letter/header/total rows); Takeoffs pins row marker, Item # and Item Name. Both retain sticky heading rows in 70dvh scrolling frames, including smaller screens. ResizeObserver measures actual column offsets and rebinds when Builder detail columns remount. Existing editing, fill and pricing logic untouched.
 - lab:check passed (quote tests + TypeScript). Release 375e706 pushed; lab Vercel FJr4Rb1HDGHCxq7pW2tSUJg1nuiL succeeded. Hosted Dermalogica read-only verification: Builder scrollLeft 908 retained Item #/Name at x14/104; vertical scrollTop 803 retained heading at frame top; detail columns toggled on/off. Takeoffs scrollTop 1032 / scrollLeft 19 retained header at frame top and first three columns pinned. Item # resized +16/-16 and measured name offset followed. No quote content edits. Screenshots /private/tmp/builder-fixed-items-live.png and /private/tmp/takeoffs-fixed-items-live.png.
