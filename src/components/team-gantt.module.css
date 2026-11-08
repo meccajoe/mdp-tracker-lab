@@ -37,3 +37,7 @@
 .chart .summaryBar{--bar-color:#e2e8ef;height:20px;min-height:20px}
 .stageLabel{text-shadow:0 0 3px #ffffffcc}
 .ot{position:absolute;right:1px;bottom:0;font-size:7px;line-height:9px;padding:0 1px;z-index:2}
+
+/* Expansion controls share the frozen date/name corner in both scroll directions. */
+.header .expandControls{gap:4px;flex-wrap:wrap;margin-top:2px}
+.header .expandControls button{font-size:11px;line-height:16px;padding:3px 5px;min-height:24px;white-space:nowrap}

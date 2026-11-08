@@ -1,3 +1,7 @@
+## Sticky Team Schedule expansion controls — November 8, 2026
+- Moved Expand All / Collapse All into the existing frozen project/date-header corner. Controls stay with date headers on vertical table scroll and with project names on horizontal scroll. Compact responsive styling; behavior and schedule data unchanged.
+- TypeScript/diff and live verification pending.
+
 ## Expanded project timelines by default — November 8, 2026
 - Supersedes the collapsed default: store explicitly collapsed project IDs, so all projects (including newly loaded projects) start expanded. Individual disclosure and Expand All/Collapse All retained; no scheduling/data changes.
 - TypeScript/diff checks passed. Release c61d6ee pushed; lab deployment FbJ3kVhrENLX1JHUbmXP3feRYvC2 succeeded. Fresh hosted page verified 11 expanded / zero collapsed; Collapse All produced 11 collapsed, Expand All restored 11 expanded. Screenshot /private/tmp/team-expanded-default-live.png. No saved data edits.
