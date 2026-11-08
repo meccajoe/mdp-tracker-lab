@@ -92,3 +92,9 @@
 
 .versionRow > td, .versionRow > th { background: var(--muted, #f4f4f5); }
 .versionName { border-left: 2px solid var(--border, #ddd); padding-left: 12px; }
+
+/* Load grid: week labels stay above rows; row names remain visible across weeks. */
+.page .loadScroll { max-height:70dvh; position:relative; isolation:isolate; }
+.page .matrix thead th { position:sticky; top:0; z-index:3; background:#fafafa; box-shadow:0 1px 0 #e5e7eb; }
+.page .matrix tbody th:first-child { position:sticky; left:0; z-index:2; min-width:220px; background:#fff; box-shadow:1px 0 0 #e5e7eb; }
+.page .matrix thead th:first-child { left:0; z-index:4; min-width:220px; box-shadow:1px 0 0 #e5e7eb,0 1px 0 #e5e7eb; }
