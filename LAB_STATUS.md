@@ -1,6 +1,6 @@
 ## Fixed beMatrix wall headers and names — November 8, 2026
 - beMatrix walls now share the report-table 70dvh scroll frame with fixed headers and pinned Wall name. Existing wall fields/handlers, sizing warnings, calculated totals, quote links, and add/remove actions moved intact from cards into columns. Parent fieldset min-width permits horizontal scrolling within the table.
-- lab:check passed; hosted verification pending. No pricing rule or saved quote changes.
+- lab:check passed. Release 5d34e47 pushed; lab Vercel 9WJj24xrbh2tK5TDJdF1jGe81gvL succeeded. Hosted Dermalogica wall table verified horizontal scroll 1158: Wall name at frame-left+1px, all ten headers sticky, ten existing wall controls present, Save revision disabled. Existing one-wall quote fits vertically; vertical overflow not exercised here (shared report frame previously verified). Screenshot /private/tmp/bematrix-fixed-wall-live.png. No pricing rule or saved quote changes.
 
 ## Fixed estimator headers and row labels — November 8, 2026
 - Install Labor and Travel now use a bounded 70dvh table scroll frame with pinned column headings and first-column row labels. Shipping reuses that frame, presenting the existing outbound/return inputs side by side and shared rates below; destination linkage remains outside the scroll area. Existing shipping calculation functions and update keys retained.
