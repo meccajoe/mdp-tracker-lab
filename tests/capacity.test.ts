@@ -209,3 +209,27 @@ test('unselected versions contribute no demand in expected/full/committed views'
  assert.equal(b.committed,false);assert.equal(b.probability,0);assert.equal(b.shop,a.shop);
  for(const basis of ['expected','committed','full'] as const){const alone=dashboardLoad([a],settings(),null,basis,4),both=dashboardLoad([a,b],settings(),null,basis,4);assert.deepEqual(both.load.expected,alone.load.expected);assert.deepEqual(both.fieldLoad.expected,alone.fieldLoad.expected);assert.deepEqual(both.cadNeeded,alone.cadNeeded);}
 });
+
+import {capacityPlanning,planningOpenQuotes} from '../src/lib/capacity-planning';
+test('planning starts with committed only and selected open quotes count at full hours without mutation',()=>{
+ const active={...project('Closed won'),workspaceId:'active'},open={...project('Possible'),workspaceId:'open'},other={...project('Likely'),workspaceId:'other'};
+ const projects=[active,open,other],config=settings(),snapshot=JSON.stringify({projects,config});
+ const baseline=capacityPlanning(projects,config,[],4),scenario=capacityPlanning(projects,config,['open','open','active'],4);
+ assert.equal(baseline.added.length,0);assert.equal(scenario.added.length,1);assert.equal(scenario.committed.length,1);
+ const fullOpen=dashboardLoad([{...open,probability:1}],config,null,'expected',4);
+ close(sum(scenario.after.load.expected)-sum(baseline.after.load.expected),sum(fullOpen.load.expected));
+ assert.deepEqual(scenario.before.load.expected,baseline.before.load.expected);
+ assert.equal(JSON.stringify({projects,config}),snapshot);
+});
+test('planning excludes unused versions, lost, completed and committed quotes from choices',()=>{
+ const p=project('Possible');
+ const items=[p,{...p,workspaceId:'unused',capacitySelected:false},{...project('Lost'),workspaceId:'lost'},{...project('Completed'),workspaceId:'done'},{...project('Closed won'),workspaceId:'won'}];
+ assert.deepEqual(planningOpenQuotes(items).map(p=>p.workspaceId),['one']);
+ assert.equal(capacityPlanning(items,settings(),['unused','lost','done','won'],4).added.length,0);
+});
+test('planning includes proposed field demand against shared crew and flags missing dates',()=>{
+ const p=project('Possible'),config={...settings(),roster:[{id:'crew',name:'Crew',primary:'I&D',secondary:'Carpentry',hours:40,rate:null,active:true,notes:''}]};
+ const base=capacityPlanning([p],config,[],4),proposal=capacityPlanning([p],config,['one'],4);
+ assert.ok(sum(proposal.after.sharedNeeded)>sum(base.after.sharedNeeded));assert.ok(sum(proposal.after.shopAvailable)<sum(base.after.shopAvailable));
+ assert.ok(capacityPlanning([{...p,schedule:{...p.schedule,buildStart:''}}],config,['one'],4).warnings.length>0);
+});

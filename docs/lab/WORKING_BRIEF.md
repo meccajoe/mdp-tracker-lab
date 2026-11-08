@@ -1,3 +1,8 @@
+## Capacity Planning replaces Shop Load — November 8, 2026
+- New read-only scenario view defaults to current week/eight weeks and committed work only. Eligible open Used-for-Capacity quotes can be selected at full hours; other versions/lost/completed/committed quotes are excluded from choices. Selection is local component state, cleared on leaving/reload, with no write/apply endpoint or live schedule changes.
+- Before/after shop and trade capacity, shared I&D packing+field demand and separate CAD. Weekly shortage drilldown lists contributing projects; detailed matrix hidden behind View details. Date range 4/8/13/26 weeks, search and clear scenario. Missing dates/trades and out-of-view selected work flagged; incomplete source loads block fit assessment. Regular roster hours only, no automatic OT or secondary-skill double count. Removed legacy 26-week Shop Load calculations from all-tab render path.
+- lab:check passed with full-price/no-mutation, exclusion and shared-field/missing-date scenario tests. React checklist reviewed; deployment/live verification pending.
+
 ## Sticky Team Schedule expansion controls — November 8, 2026
 - Moved Expand All / Collapse All into the existing frozen project/date-header corner. Controls stay with date headers on vertical table scroll and with project names on horizontal scroll. Compact responsive styling; behavior and schedule data unchanged.
 - TypeScript/diff checks passed. Release 8add59d pushed; lab deployment CCKoJ389XZtop61zq9abcdHNMtcX succeeded. Hosted timeline scrolled 977px to Tyson/Whatnot: controls remained visible in sticky header corner. Collapse All and Expand All each affected all 11 projects. Screenshot /private/tmp/team-sticky-controls-live.png. No saved data edits.
