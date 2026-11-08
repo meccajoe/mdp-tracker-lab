@@ -23,7 +23,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  const totalBilling=(result?.install.reduce((sum,p)=>sum+p.billing,0)??0)+(result?.supportBilling??0);
  return <div className={styles.sheet}><h2>{kind==='Install'?'Install Labor Estimator':'Travel Budget Estimator — up to 4 travelers'}</h2><p>{kind==='Install'?'Enter each installer’s day counts below. Green rows calculate automatically. Blank travel days follow the Travel Estimator; typing a value overrides them.':'Each traveler has a column. Set their trip shape, then shared unit costs. Green rows show calculated trip counts and costs.'}</p>
  {kind==='Install'&&!support.daily&&(support.installDays+support.dismantleDays+support.offDays)>0&&<p role="note">This saved quote has crew totals without a daily breakdown. They appear in Day 1 for editing; distribute them across the actual days as needed.</p>}
- <table aria-label={`${kind} estimator worksheet`}><thead><tr><th>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{PERSON_LABELS[id]}</th>)}</tr></thead><tbody>
+ <div className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`}><thead><tr><th>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{PERSON_LABELS[id]}</th>)}</tr></thead><tbody>
  {kind==='Install'?<>
  {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],INSTALLERS.map(id=><NumberCell label={`${PERSON_LABELS[id]} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
  {row('TOTAL DAYS',INSTALLERS.map(id=>result?.install.find(p=>p.id===id)?.days??0),true)}
@@ -72,5 +72,21 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  {row('Share of vehicles & other',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.shared??0)),true)}
  {row('PERSON COST (including shared)',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.total??0)),true)}
  </>}
- </tbody></table><div className={styles.links}>{links}</div></div>;
+ </tbody></table></div><div className={styles.links}>{links}</div></div>;
+}
+
+export function QuoteShippingSheet({quote,result,update,links}:{quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
+ const shipping=quote.estimators!.shipping;
+ const legs=['outbound','return'] as const;
+ const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{cell}</td>)}</tr>;
+ return <div className={styles.sheet}><h2>Shipping Estimator</h2><p>Outbound and return shipments use the shared rates below. Green rows calculate automatically.</p><div className={styles.scroll} role="region" aria-label="Shipping estimator scroll area" tabIndex={0}><table aria-label="Shipping estimator worksheet"><thead><tr><th>Shipping inputs</th><th>Outbound shipment</th><th>Return shipment</th></tr></thead><tbody>
+ {row('Ship this leg?',legs.map(id=><select aria-label={`Ship ${id}`} value={shipping[id].enabled?'Yes':'No'} onChange={event=>update(next=>{next.shipping[id].enabled=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>))}
+ {row('Mode',legs.map(id=><select aria-label={`${id} shipping mode`} value={shipping[id].mode} onChange={event=>update(next=>{next.shipping[id].mode=event.target.value;})}>{['Our truck','Rented truck','LTL freight','FTL freight'].map(mode=><option key={mode}>{mode}</option>)}</select>))}
+ {row('Driver',legs.map(id=><select aria-label={`${id} driver`} value={shipping[id].driver} onChange={event=>update(next=>{next.shipping[id].driver=event.target.value;})}>{['Lead installer','Shop driver','Carrier'].map(driver=><option key={driver}>{driver}</option>)}</select>))}
+ {(['miles','carrierQuote','misc'] as const).map((key,i)=>row(['Miles','Carrier quote','Tolls and misc'][i],legs.map(id=><NumberCell label={`${id} ${['miles','carrier quote','tolls and misc'][i]}`} value={shipping[id][key]} change={value=>update(next=>{next.shipping[id][key]=value??0;})}/>)))}
+ {row('Driving days',legs.map(id=>result?.shipping.find(leg=>leg.id===id)?.days??0),true)}
+ {row('Leg cost',legs.map(id=>money(result?.shipping.find(leg=>leg.id===id)?.total??0)),true)}
+ <tr className={styles.section}><th colSpan={3}>Shared shipping rates</th></tr>
+ {(Object.entries({fuel:'Fuel per gallon',mpg:'Truck MPG',wear:'Wear per mile',rentalDay:'Truck rental per day',rentalMile:'Rental per mile',driverDay:'Shop driver cost per day',milesPerDay:'Maximum miles per day'}) as [keyof typeof shipping.rates,string][]).map(([key,label])=><tr key={key}><th scope="row">{label}</th><td colSpan={2}><NumberCell label={label} value={shipping.rates[key]} change={value=>update(next=>{next.shipping.rates[key]=value??0;})}/></td></tr>)}
+ </tbody></table></div><div className={styles.links}>{links}</div></div>;
 }

@@ -1,7 +1,7 @@
-.sheet {max-width:1050px;background:white;border:1px solid #cbd5df;font:12px Arial,sans-serif;color:#273549;overflow:auto;}
+.sheet {max-width:1050px;background:white;border:1px solid #cbd5df;font:12px Arial,sans-serif;color:#273549;min-width:0;}
 .sheet h2 {font-size:17px;font-weight:700;padding:8px;}
 .sheet p {padding:0 8px 8px;font-size:11px;line-height:1.4;max-width:960px;}
-.sheet table {border-collapse:collapse;width:100%;table-layout:fixed;min-width:640px;}
+.sheet table {border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;min-width:640px;}
 .sheet th,.sheet td {border:1px solid #d8dfe5;padding:3px 6px;height:25px;text-align:right;font-variant-numeric:tabular-nums;}
 .sheet th:first-child {width:38%;text-align:left;font-weight:400;}
 .sheet thead {background:#354154;color:white;}
@@ -12,3 +12,8 @@
 .computed td {background:#edf5ed;}
 .links {padding:6px 8px;}
 .links label {margin:4px 0;font-size:11px;}
+
+.scroll {max-height:70dvh;max-width:100%;overflow:auto;border-top:1px solid #cbd5df;}
+.sheet thead th {position:sticky;top:0;z-index:3;background:#354154;color:#fff;}
+.sheet tbody th[scope="row"] {position:sticky;left:0;z-index:2;background:#f8fafc;box-shadow:1px 0 0 #cbd5df;}
+.sheet thead th:first-child {left:0;z-index:4;box-shadow:1px 0 0 #cbd5df;}
