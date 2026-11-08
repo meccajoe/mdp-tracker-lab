@@ -42,3 +42,7 @@ Archive uses the existing reversible catalog removal RPC, with revision checks; 
 | MDO 2 sides 3/4" 4x10 | $200.00 | MDO 2 sided 3/4" 4x10 ($191.20); MDO 2S 3/4" 4x10 ($129.00) |
 
 Search retains frequency priority, including reviewed alias usage. Ties sort dimensionally (fractional/decimal/metric inches and feet, common sheet footprints), then natural alphabetical order. Ambiguous dimensionless entries sort by name. Gauge order is reversed so higher gauge comes first; gauge values are sorting keys, not calculated stock thickness or pricing inputs.
+
+## Applied result
+
+November 8: 44 entries archived across 34 groups; 709 active entries remain. Verified the union of active and archived entries exactly matches the original 753 names, units, costs and sources. No catalog prices changed. Hosted Takeoffs sees 709 entries; frequency-first plywood results and excluded MDF aliases verified. Saved Dermalogica revision 6 and $17,261.26 total remain unchanged.
