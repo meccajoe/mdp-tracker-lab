@@ -1,3 +1,8 @@
+## Continuous Team Schedule timelines — November 8, 2026
+- Soft stage colors and continuous per-project/trade lanes connect first/last scheduled dates, including non-working weekends. Daily grid, sticky headers/names, OT markers and stage key retained. All three grouping modes preserve separate project spans; full-range spans remain visible through clipped non-working days. No allocation, staffing, hour or scheduling changes.
+- Clicking a day opens a viewport-bounded detail bubble with trade, project, people, hours and work mode; empty days explicitly show no scheduled work, CAD/turnover retain planning explanations. Escape/outside click/Close dismiss; keyboard focus supported. Removed hover-only assignment details and below-chart detail panel.
+- lab:check and TypeScript passed, including weekend bridges conserving hours and distinct project spans. Release/live verification pending.
+
 ## Price history editor names — November 8, 2026
 - Price history now displays Changed by alongside Source, resolving the audit snapshot updated_by account to full name/name or email. Missing historical actors are labeled Not recorded; unresolved/deleted accounts Account unavailable. Resolution is server-side, limited to actors in the authorized item history, with no directory or user metadata exposed. Uses existing audit data; no migration or quote/catalog price changes.
 - lab:check passed including actor extraction, name/email fallback and missing actors. Release 8e1a947 pushed; lab deployment AAAyUJZkkoCPTLB8KxYqrhUqj8oM succeeded. Hosted archived test material history shows Paul Mecca for all three recorded prices, alongside the correct source quote on the latest $20-to-$30 change. No live data edits. Screenshot /private/tmp/catalog-price-history-person-live.png.

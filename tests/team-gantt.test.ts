@@ -95,3 +95,15 @@ test('dashboard starts at current Central-time Monday including Sunday and year 
  assert.equal(currentCapacityWeek(new Date('2026-10-26T02:00:00Z')),'2026-10-19');
  assert.equal(currentCapacityWeek(new Date('2027-01-01T18:00:00Z')),'2026-12-28');
 });
+
+import {teamGanttLanes} from '../src/lib/team-gantt';
+test('continuous timeline bridges weekends without inventing people or hours',()=>{
+ const r={...result,allocations:[{...result.allocations[0],date:'2026-10-23'},{...result.allocations[1],date:'2026-10-26'}]};
+ const before=JSON.stringify(r),lane=teamGanttLanes(teamGanttRows(r,'Project',filter)[0])[0];
+ assert.equal(lane.start,'2026-10-23');assert.equal(lane.finish,'2026-10-26');assert.equal(lane.days.has('2026-10-24'),false);assert.equal(lane.days.has('2026-10-25'),false);
+ assert.equal([...lane.days.values()].flat().reduce((s,a)=>s+a.hours,0),8);assert.equal(JSON.stringify(r),before);
+});
+test('trade and person lanes do not join different projects into one continuous span',()=>{
+ const r={...result,allocations:[...result.allocations,{...result.allocations[0],workspaceId:'b',project:'B',date:'2026-10-23'}]};
+ const lanes=teamGanttLanes(teamGanttRows(r,'Trade',filter)[0]);assert.equal(lanes.length,2);assert.deepEqual(lanes.map(l=>l.project),['A','B']);
+});

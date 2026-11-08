@@ -28,3 +28,18 @@ export function teamGanttRows(result:GanttResult,group:GanttGroup,filter:{projec
  }
  return [...rows.values()].sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
+
+import {teamStage,TEAM_STAGE_COLORS} from './team-stage-colors';
+/** Continuous visual spans only; empty days never acquire assignments or hours. */
+export function teamGanttLanes(row:GanttRow){
+ const lanes=new Map<string,{id:string;stage:string;project:string;start:string;finish:string;days:Map<string,TeamAllocation[]>;preparation:GanttRow['preparation']}>();
+ for(const [date,entries] of row.days)for(const entry of entries){
+  const stage=teamStage(entry.trade),id=`${entry.workspaceId}:${stage}`;
+  if(!lanes.has(id))lanes.set(id,{id,stage,project:entry.project,start:date,finish:date,days:new Map(),preparation:[]});
+  const lane=lanes.get(id)!;lane.start=date<lane.start?date:lane.start;lane.finish=date>lane.finish?date:lane.finish;
+  lane.days.set(date,[...(lane.days.get(date)??[]),entry]);
+ }
+ for(const phase of row.preparation){const id=`${phase.workspaceId}:prep:${phase.kind}`;lanes.set(id,{id,stage:phase.kind,project:phase.project,start:phase.start,finish:phase.finish,days:new Map(),preparation:[phase]});}
+ const order=Object.keys(TEAM_STAGE_COLORS);
+ return [...lanes.values()].sort((a,b)=>order.indexOf(a.stage)-order.indexOf(b.stage)||a.project.localeCompare(b.project));
+}

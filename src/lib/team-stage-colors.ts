@@ -1,9 +1,9 @@
 import {capacityTrade} from './capacity-trades';
 /** Stable stage colors in every grouping; overtime is marked separately. */
 export const TEAM_STAGE_COLORS:Record<string,string>={
- 'CAD':'#7653a3','Turnover':'#277c78','CNC':'#326b9b','Carpentry':'#92662f',
- 'Finish/Paint':'#aa4d76','Graphic/Vinyl':'#547f35','Packing / I&D':'#5263a4',
- 'Electrical':'#946f13','Metal':'#586775','Sculpting':'#a15536','Other':'#676767',
+ 'CAD':'#e5ddf5','Turnover':'#d4eee8','CNC':'#d5e8f7','Carpentry':'#f0e1cb',
+ 'Finish/Paint':'#f3dce8','Graphic/Vinyl':'#dfedd4','Packing / I&D':'#dde2f7',
+ 'Electrical':'#f6edcb','Metal':'#dfe6eb','Sculpting':'#f4dfd4','Other':'#e6e7ea',
 };
 export function teamStage(trade:string):string{
  const pool=capacityTrade(trade),key=pool.trim().toLowerCase();
