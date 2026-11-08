@@ -1,5 +1,5 @@
 ## Deselect all planning quotes — November 8, 2026
-- Added Deselect All beside the What if we win quote search. Shares Clear scenario behavior: clears all selected IDs (including search-hidden quotes), temporary dates/errors and review week; committed baseline and saved data unchanged. Disabled with no selection. TypeScript and diff checks passed; hosted verification pending.
+- Added Deselect All beside the What if we win quote search. Shares Clear scenario behavior: clears all selected IDs (including search-hidden quotes), temporary dates/errors and review week; committed baseline and saved data unchanged. Disabled with no selection. TypeScript and diff checks passed; release ef0ed7c deployed successfully (J729FaMC1osywFPcUGRJdthNb47c). Hosted test selected Old Navy and Nvidia, filtered to Old Navy, then Deselect All cleared both: 11 committed / 0 proposed, both unchecked after clearing search. Left scenario empty; no saved data changed. Screenshot /private/tmp/planning-deselect-all.png.
 
 ## Temporary Capacity Planning dates — November 8, 2026
 - Selected eligible open quotes now expose Project Start/Finish and Install Date drafts with Preview Dates/Reset Dates, saved-date comparison and applied/pending/error state. Clear Scenario, deselection and leaving the tab discard overrides. No writes or live schedule edits.
