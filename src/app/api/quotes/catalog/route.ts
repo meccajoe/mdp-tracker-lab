@@ -1,3 +1,4 @@
+import {catalogPriceChanges} from '@/lib/catalog-price-history';
 import {findCatalogDuplicate} from '@/lib/catalog-duplicates';
 import {NextResponse} from 'next/server';
 import {requireQuoteProductAccess} from '@/lib/ada-server';
@@ -6,8 +7,18 @@ import {catalogInput,catalogMaterial} from '@/lib/tracker-catalog';
 export const dynamic='force-dynamic';
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
 async function access(){if(process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://gkvaeqlqrthztobxitvn.supabase.co')return {ok:false as const,response:json({error:'Catalog is available only in Tracker Lab.'},403)};return requireQuoteProductAccess();}
-export async function GET(){
+export async function GET(request:Request){
  const actor=await access();if(!actor.ok)return actor.response;
+ const historyItem=request?new URL(request.url).searchParams.get('historyItem'):null;
+ if(historyItem!==null){
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(historyItem))return json({error:'Invalid catalog item.'},400);
+  const rows=[];
+  for(let offset=0;;offset+=500){const page=await actor.actorSupabase.from('lab_material_catalog_history').select('revision,document').eq('item_id',historyItem).order('revision').range(offset,offset+499);if(page.error)return json({error:'Price history could not load.'},503);rows.push(...page.data);if(page.data.length<500)break;}
+  const changes=catalogPriceChanges(rows),quoteIds=[...new Set(changes.flatMap(row=>row.source?.workspace_id?[row.source.workspace_id]:[]))];
+  const visibleQuotes=new Set<string>();
+  for(let offset=0;offset<quoteIds.length;offset+=100){const quotes=await actor.actorSupabase.from('ada_quote_workspaces').select('id').in('id',quoteIds.slice(offset,offset+100));if(quotes.error)return json({error:'Could not verify quote links for this history.'},503);for(const quote of quotes.data??[])visibleQuotes.add(quote.id);}
+  return json({changes:changes.map(row=>({...row,source:row.source?.workspace_id&&!visibleQuotes.has(row.source.workspace_id)?{kind:'unavailable'}:row.source}))});
+ }
  const imported=await actor.actorSupabase.from('lab_material_catalog_import').select('imported_count,warnings,imported_at').maybeSingle();
  if(imported.error){if(['42P01','PGRST205'].includes(imported.error.code)){try{const source=await fetchLiveCatalog();return json({...source,entries:[],ready:false,initialized:false,canEdit:false,setupMessage:'Tracker catalog needs its lab storage migration. Google Sheet selections remain available until the one-time copy.'});}catch{}}return json({error:'Tracker catalog storage could not load. Saved quote prices remain unchanged.',ready:false},503);}
  const capability=await actor.actorSupabase.from('quote_user_capabilities').select('capability').eq('capability','create_workspace').is('revoked_at',null).limit(1);
@@ -18,8 +29,8 @@ export async function GET(){
 }
 export async function POST(request:Request){
  const actor=await access();if(!actor.ok)return actor.response;
- let action,payload;let removal:{itemId:string;expectedVersion:number}|undefined;
- try{const raw=await request.text();if(raw.length>12000)throw new Error('Request is too large.');const body=JSON.parse(raw);action=body.action;
+ let action,payload;let workspaceId:string|null=null;let removal:{itemId:string;expectedVersion:number}|undefined;
+ try{const raw=await request.text();if(raw.length>12000)throw new Error('Request is too large.');const body=JSON.parse(raw);action=body.action;if(action==='add'&&body.workspaceId!==undefined&&body.workspaceId!==null){if(typeof body.workspaceId!=='string'||! /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.workspaceId))throw new Error('Invalid source quote.');workspaceId=body.workspaceId;}
  if(action==='import'){const source=await fetchLiveCatalog();payload={materials:[...source.materials,...source.incomplete],warnings:source.warnings};}
  else if(action==='delete'||action==='restore'){if(!/^[0-9a-f-]{36}$/i.test(body.itemId)||!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1)throw new Error('Invalid catalog revision.');removal={itemId:body.itemId,expectedVersion:body.expectedVersion};payload=removal;}
  else {payload=catalogInput(body);if(action==='edit'){if(!/^[0-9a-f-]{36}$/i.test(body.itemId)||!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<1)throw new Error('Invalid catalog revision.');payload={...payload,itemId:body.itemId,expectedVersion:body.expectedVersion};}else if(action!=='add')throw new Error('Invalid action.');}
@@ -36,7 +47,7 @@ export async function POST(request:Request){
    if(duplicate.deletedAt)return json({error:`An equivalent material (${duplicate.name}) is archived. Restore it in Archived materials if needed; no duplicate was added.`},409);
    if(duplicate.unitCost===null||input.unitCost>duplicate.unitCost){
     // Revision-checked edit cannot overwrite a concurrent price increase or archive.
-    const updated=await actor.actorSupabase.rpc('lab_catalog_write',{action:'edit',payload:{itemId:duplicate.itemId,expectedVersion:duplicate.revision,name:duplicate.name,unit:duplicate.unit,unitCost:input.unitCost}});
+    const updated=await actor.actorSupabase.rpc('lab_catalog_write_with_source',{action:'edit',payload:{itemId:duplicate.itemId,expectedVersion:duplicate.revision,name:duplicate.name,unit:duplicate.unit,unitCost:input.unitCost},p_workspace_id:workspaceId,p_source:'takeoff'});
     if(updated.error)return json({error:updated.error.code==='PT409'?'Catalog changed while updating its price. Retry the entry; your quote price is preserved.':'Could not update the catalog price. Your quote entry is preserved.'},updated.error.code==='PT409'?409:403);
     if(!updated.data?.entry)return json({error:'Catalog did not confirm the price update. Your quote entry is preserved.'},503);
     return json({created:false,duplicate:true,priceUpdated:true,previousUnitCost:duplicate.unitCost,material:catalogMaterial(updated.data.entry)});
@@ -44,8 +55,8 @@ export async function POST(request:Request){
    return json({created:false,duplicate:true,priceUpdated:false,material:duplicate});
   }
  }
- const result=removal?await actor.actorSupabase.rpc('lab_catalog_set_deleted',{p_item_id:removal.itemId,p_expected_revision:removal.expectedVersion,p_deleted:action==='delete'}):await actor.actorSupabase.rpc('lab_catalog_write',{action,payload});
- if(result.error?.code==='PGRST202')return json({error:'Material deletion needs the lab catalog update (20261018120000). No entry was changed.'},503);
+ const result=removal?await actor.actorSupabase.rpc('lab_catalog_set_deleted',{p_item_id:removal.itemId,p_expected_revision:removal.expectedVersion,p_deleted:action==='delete'}):action==='import'?await actor.actorSupabase.rpc('lab_catalog_write',{action,payload}):await actor.actorSupabase.rpc('lab_catalog_write_with_source',{action,payload,p_workspace_id:workspaceId,p_source:action==='add'?'takeoff':'catalog'});
+ if(result.error?.code==='PGRST202')return json({error:'Catalog storage needs its latest lab update. No entry was changed.'},503);
  if(action==='add'&&result.data?.entry?.deleted_at)return json({error:'This material was archived from the catalog. Restore it under Archived materials before adding it again. The quote entry is preserved.'},409);
  if(result.error)return json({error:result.error.code==='PT409'?result.error.message:result.error.code==='23505'?'Another catalog entry already has that name.':'Catalog could not save. Check lab storage setup and edit permission.'},result.error.code==='PT409'||result.error.code==='23505'?409:403);
  return json({...result.data,...(result.data.entry?{material:catalogMaterial(result.data.entry)}:{})});
