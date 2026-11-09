@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
+import {emptyEstimators} from '../src/lib/quote-v27-estimators';
+import {quotePerDiem} from '../src/lib/quote-per-diem';
+import {renderProjectDocument} from '../src/lib/project-documents-pdf';
+import {PDFDocument} from 'pdf-lib';
+import {writeFile} from 'node:fs/promises';
+function fixture(){const q=createBlankQuoteV27();q.estimators=emptyEstimators();const e=q.estimators;e.travel.people.lead={...e.travel.people.lead,traveling:true,installDays:3,dismantleDays:1,offDays:2,roadBonus:true};return q;}
+test('per diem uses saved travel days and daily rates, separate from billed labor',()=>{const q=fixture(),before=JSON.stringify(q),r=quotePerDiem(q);assert.equal(r.people[0].days,8);assert.equal(r.perDiem,560);assert.equal(r.bonus,400);assert.deepEqual(r.people[0].rows.map(x=>x.days),[2,3,1,2]);assert.ok(r.warnings.some(w=>w.includes('day counts differ')));assert.equal(JSON.stringify(q),before);});
+test('return-home trips exclude off days, no-flight does not remove per diem',()=>{const q=fixture();q.estimators!.travel.people.lead.stays=false;q.estimators!.travel.noFlight=true;const r=quotePerDiem(q);assert.deepEqual(r.people[0].rows.map(x=>x.days),[4,3,1,0]);assert.equal(r.perDiem,560);});
+test('linked installer days and per-person bonus switches are respected',()=>{const q=fixture(),e=q.estimators!;e.travel.people.second.traveling=true;e.install.second.installDays=2;e.install.second.travelDaysOverride=9;const r=quotePerDiem(q),p=r.people.find(p=>p.id==='second')!;assert.equal(p.days,4);assert.equal(p.bonus,0);assert.equal(p.perDiem,280);});
+test('legacy and disabled travel do not invent payment allowances',()=>{const q=fixture();delete q.estimators;assert.equal(quotePerDiem(q).people.length,0);q.estimators=emptyEstimators();assert.equal(quotePerDiem(q).perDiem,0);});
+test('reports produce readable PDFs without altering quote',async()=>{const q=fixture(),before=JSON.stringify(q);for(const kind of ['per-diem','bom'] as const){const bytes=await renderProjectDocument(q,{project:'Illustrative project — quoted allowances',client:'Example',revision:4},kind);assert.ok((await PDFDocument.load(bytes)).getPageCount()>0);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile(`/private/tmp/project-${kind}-sample.pdf`,bytes);}assert.equal(JSON.stringify(q),before);});
