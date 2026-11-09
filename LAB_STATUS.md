@@ -1,3 +1,7 @@
+## Installer roster keyboard dropdown — November 9, 2026
+- Replaced browser-native datalist with an explicit editable ARIA combobox/listbox. Case-insensitive roster search; Down starts at first result, Up at last, both wrap; Enter accepts highlighted result or keeps custom text; Escape/Tab/outside blur dismiss. Pointer selection supported. Portaled viewport-positioned list avoids clipping in recipient table; highlighted options scroll into view. Names remain unsaved until existing Save action; quote/payment calculations unchanged.
+- TypeScript and diff checks passed. Hosted keyboard verification pending deployment.
+
 ## Day-type per diem and roster recipients — November 9, 2026
 - Paul confirmed new rates apply only to new quotes; old snapshots and clones retain original policy unless explicitly adopted in Rates. Six numeric settings: install/dismantle per diem 70 / bonus 50; travel 50 / 0; off 70 / 0. New lead bonus enabled; per-person eligibility preserved. Global defaults copy into new quotes. Shared allowance helper feeds calculator and PDF. Vehicle display renamed Uber/Lyft/Rental without changing stored keys.
 - Project Documents name fields suggest unique active roster names and accept external names. Project-only travel rate increases per installer require a reason, cannot reduce quoted rate, require actual travel days, and do not change quote costs/prices or bonus. PDF identifies original versus adjusted travel rate and extra allowance.
