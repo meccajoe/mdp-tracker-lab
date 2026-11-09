@@ -37,7 +37,7 @@ export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,h
       else if(e.key==='Enter'){e.preventDefault();e.stopPropagation();if(keepText(e.currentTarget)){setOpen(false);setIndex(-1);e.currentTarget.blur();}}
     }}/>{open&&!disabled&&createPortal(<div ref={list} className={styles.materialList} style={position} role="listbox" id={listId} aria-label="Materials and labor choices">
       <div className={styles.listHint}>↑ ↓ to select · Enter to confirm · Or keep a custom item</div>
-      {choices.map((m,i)=><button type="button" role="option" aria-selected={index===i} id={`${listId}-${i}`} key={m.id} data-index={i} onMouseMove={()=>setIndex(i)} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(m)}><span>{m.name}</span><small>{m.unit}{!hidePrice&&` · $${m.unitCost.toFixed(2)}`}</small></button>)}
+      {choices.map((m,i)=><button type="button" role="option" aria-selected={index===i} id={`${listId}-${i}`} key={m.id} data-index={i} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(m)}><span>{m.name}</span><small>{m.unit}{!hidePrice&&` · $${m.unitCost.toFixed(2)}`}</small></button>)}
       {!choices.length&&<p>No match. Enter keeps your custom text.</p>}
     </div>,document.body)}</>;
 }
