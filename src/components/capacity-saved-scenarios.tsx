@@ -1,15 +1,16 @@
 'use client';
+import {adaFetch} from '@/lib/ada-client';
 import {useEffect,useState} from 'react';
 import {parsePlanningScenario,type PlanningScenario,type SavedPlanningScenario} from '@/lib/capacity-scenarios';
 import styles from './capacity-planning.module.css';
 type Props={capture:()=>Omit<PlanningScenario,'name'>;onLoad:(scenario:PlanningScenario)=>void};
 export function CapacitySavedScenarios({capture,onLoad}:Props){
  const [items,setItems]=useState<SavedPlanningScenario[]>([]),[chosen,setChosen]=useState(''),[active,setActive]=useState<SavedPlanningScenario|null>(null),[name,setName]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
- async function refresh(){setBusy(true);setError('');try{const r=await fetch('/api/capacity/scenarios',{cache:'no-store'}),b=await r.json();if(!r.ok)throw new Error(b.error);setItems(b.scenarios);}catch(e){setError(e instanceof Error?e.message:'Could not load saved scenarios.');}finally{setBusy(false);}}
+ async function refresh(){setBusy(true);setError('');try{const r=await adaFetch('/api/capacity/scenarios',{cache:'no-store'}),b=await r.json();if(!r.ok)throw new Error(b.error);setItems(b.scenarios);}catch(e){setError(e instanceof Error?e.message:'Could not load saved scenarios.');}finally{setBusy(false);}}
  useEffect(()=>{void refresh();},[]);
  async function save(asNew:boolean){setBusy(true);setMessage('');setError('');try{
   const document=parsePlanningScenario({...capture(),name}),id=asNew||!active?crypto.randomUUID():active.id,version=asNew||!active?0:active.version;
-  const r=await fetch('/api/capacity/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,version,document})}),b=await r.json();if(!r.ok)throw new Error(b.error);
+  const r=await adaFetch('/api/capacity/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,version,document})}),b=await r.json();if(!r.ok)throw new Error(b.error);
   const saved=b.scenario as SavedPlanningScenario;setItems(list=>[saved,...list.filter(s=>s.id!==saved.id)]);setActive(saved);setChosen(saved.id);setName(saved.document.name);setMessage(`Saved “${saved.document.name}” to your account.`);
  }catch(e){setError(e instanceof Error?e.message:'Could not save scenario.');}finally{setBusy(false);}}
  function open(){const item=items.find(s=>s.id===chosen);if(!item)return;try{const document=parsePlanningScenario(item.document);onLoad(document);setActive(item);setName(document.name);setError('');setMessage(`Opened “${document.name}” using current quote hours and roster capacity.`);}catch(e){setError(e instanceof Error?e.message:'Invalid saved scenario.');}}
