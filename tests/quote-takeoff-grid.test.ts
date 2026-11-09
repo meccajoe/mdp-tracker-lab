@@ -160,3 +160,12 @@ test('labor paste resolves unit before Quantity, filtered fill stays atomic',()=
  assert.throws(()=>applyTakeoffViewCells(q,50,'',[0,2],0,qty,[['10'],['-1']],null));
  assert.deepEqual(q,before);
 });
+
+test('dropdown selection uses catalog identity when two entries share a name',()=>{
+ const q=fixture(),live=[{id:'choice-a',name:'Same material',unit:'sheet',unitCost:50},{id:'choice-b',name:'Same material',unit:'sheet',unitCost:75}];
+ const column=TAKEOFF_VIEW_COLUMNS.indexOf('description');
+ applyTakeoffViewCells(q,50,q.lines[0].id,[0,1,2],0,column,[['choice-b']],live);
+ assert.equal(q.takeoffs[0].materialId,'choice-b');assert.equal(q.takeoffs[0].description,'Same material');
+ assert.equal(q.catalog.find(m=>m.id==='choice-b')?.unitCost,75);
+ assert.equal(q.takeoffs[1].description,'Test');
+});

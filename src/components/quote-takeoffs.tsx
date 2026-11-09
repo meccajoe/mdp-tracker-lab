@@ -89,7 +89,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       if(values.some(cells=>column+cells.length>columns.length))throw new Error('Paste extends beyond the visible worksheet columns.');
       const trial=structuredClone(quote);
       applyTakeoffViewCells(trial,rowCount,defaultItem,visibleIndices,row,column,values,live.materials);
-      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;if(picked){const name=values[0][0];next.catalogUsage={...next.catalogUsage,[name]:(next.catalogUsage?.[name]??0)+1};}});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');
+      edit(next=>{next.takeoffs=trial.takeoffs;next.catalog=trial.catalog;next.lines=trial.lines;if(picked){const name=choices.find(material=>material.id===values[0][0])?.name??values[0][0];next.catalogUsage={...next.catalogUsage,[name]:(next.catalogUsage?.[name]??0)+1};}});if(column===0)onSelectItem?.(trial.takeoffs[row].lineId);setError('');
       const touched=visibleIndices.filter(index=>index>=row).slice(0,values.length);
       touched.forEach((index,i)=>{const costIndex=columns.indexOf('unitCostOverride')-column;if(costIndex>=0&&costIndex<values[i].length&&values[i][costIndex].trim()!=='')costEntered.current.add(trial.takeoffs[index].id);void addManual(trial.takeoffs[index]);});
       return true;
@@ -161,7 +161,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               const text=e.clipboardData.getData('text/plain');
               if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
             }}>
-            {protectedCell?display:key==='description'?<QuoteMaterialCell key={`${restoreKey}-${display}`} clearWholeCell value={display} label={`Materials & Labor row ${r+1}`} materials={choices} usage={usage} disabled={readOnly} commit={(name,picked)=>{return apply(r,c,[[name]],picked);}}/>:key==='lineId'?<>
+            {protectedCell?display:key==='description'?<QuoteMaterialCell key={`${restoreKey}-${display}`} clearWholeCell value={display} label={`Materials & Labor row ${r+1}`} materials={choices} usage={usage} disabled={readOnly} onPick={id=>apply(r,c,[[id]],true)} commit={(name,picked)=>{return apply(r,c,[[name]],picked);}}/>:key==='lineId'?<>
               <div className={styles.itemNumberCell}>{itemActions.menu(row.lineId,`Item actions row ${r+1} · ${display}`)}<button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button></div><button type="button" data-item-picker-trigger className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
               {itemPicker===r&&<div ref={pickerRef} role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
