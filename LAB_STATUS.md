@@ -1,3 +1,7 @@
+## Saved Capacity Planning scenarios — November 8, 2026
+- Personal named scenarios store selected quote IDs, temporary dates and viewing range in dedicated lab_capacity_scenarios table, separate from quote/production documents. Save, update with optimistic version, Save as New, reload list and explicit Open. Current draft dates validated on save. Open uses current hours/roster and omits no-longer-eligible IDs with notice. No automatic live apply.
+- Migration 20261108180000 applied only to lab after rollback validation. RLS owner-only and allowed product email checks; independent schema check and rollback-only own-account/cross-account isolation test passed. API lab/auth guards, actor-scoped writes and conflict checks tested. Full lab:check passed; React checklist reviewed. Hosted deployment and save/reopen verification pending.
+
 ## Select all planning quotes — November 8, 2026
 - Added Select All beside Deselect All; selects all eligible open Used-for-Capacity quotes, including search-hidden entries. Disabled when all eligible quotes are selected or none exist. Keeps existing temporary date previews; no quote/schedule writes. TypeScript and diff checks passed. Release 2ea1869 deployed successfully (FwMU7Z46oxTyrAG1E6CLLQv34qd3). Hosted filtered-search test selected all 29 eligible quotes, confirmed 29/29 checked after clearing search; Deselect All returned to 11 committed / 0 proposed. Left preview cleared. Screenshot /private/tmp/planning-select-all.png.
 

@@ -1,0 +1,17 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {parsePlanningScenario,type PlanningScenario,type SavedPlanningScenario} from '@/lib/capacity-scenarios';
+import styles from './capacity-planning.module.css';
+type Props={capture:()=>Omit<PlanningScenario,'name'>;onLoad:(scenario:PlanningScenario)=>void};
+export function CapacitySavedScenarios({capture,onLoad}:Props){
+ const [items,setItems]=useState<SavedPlanningScenario[]>([]),[chosen,setChosen]=useState(''),[active,setActive]=useState<SavedPlanningScenario|null>(null),[name,setName]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+ async function refresh(){setBusy(true);setError('');try{const r=await fetch('/api/capacity/scenarios',{cache:'no-store'}),b=await r.json();if(!r.ok)throw new Error(b.error);setItems(b.scenarios);}catch(e){setError(e instanceof Error?e.message:'Could not load saved scenarios.');}finally{setBusy(false);}}
+ useEffect(()=>{void refresh();},[]);
+ async function save(asNew:boolean){setBusy(true);setMessage('');setError('');try{
+  const document=parsePlanningScenario({...capture(),name}),id=asNew||!active?crypto.randomUUID():active.id,version=asNew||!active?0:active.version;
+  const r=await fetch('/api/capacity/scenarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,version,document})}),b=await r.json();if(!r.ok)throw new Error(b.error);
+  const saved=b.scenario as SavedPlanningScenario;setItems(list=>[saved,...list.filter(s=>s.id!==saved.id)]);setActive(saved);setChosen(saved.id);setName(saved.document.name);setMessage(`Saved “${saved.document.name}” to your account.`);
+ }catch(e){setError(e instanceof Error?e.message:'Could not save scenario.');}finally{setBusy(false);}}
+ function open(){const item=items.find(s=>s.id===chosen);if(!item)return;try{const document=parsePlanningScenario(item.document);onLoad(document);setActive(item);setName(document.name);setError('');setMessage(`Opened “${document.name}” using current quote hours and roster capacity.`);}catch(e){setError(e instanceof Error?e.message:'Invalid saved scenario.');}}
+ return <section className={styles.dateScenarios} aria-label="Saved planning scenarios"><h3>Saved Scenarios</h3><p>Saved to your account across computers. Opening replaces this preview only; quotes and the live schedule stay unchanged. Results use current hours and capacity.</p><div className={styles.dateFields}><label>Saved scenario<select aria-label="Saved scenario" value={chosen} onChange={e=>setChosen(e.target.value)} disabled={busy}><option value="">Choose a scenario…</option>{items.map(s=><option key={s.id} value={s.id}>{s.document.name} — {new Date(s.updated_at).toLocaleDateString()}</option>)}</select></label><button disabled={busy||!chosen} onClick={open}>Open Scenario</button><button disabled={busy} onClick={()=>void refresh()}>Reload Saved List</button></div><div className={styles.dateFields}><label>Scenario name<input aria-label="Scenario name" value={name} maxLength={100} onChange={e=>setName(e.target.value)}/></label><button disabled={busy||!name.trim()} onClick={()=>void save(false)}>{active?'Update Saved Scenario':'Save Scenario'}</button>{active&&<button disabled={busy||!name.trim()} onClick={()=>void save(true)}>Save as New</button>}</div>{active&&<small>Editing saved scenario: {active.document.name}. Changes are saved only when you click Update Saved Scenario.</small>}{message&&<p role="status">{message}</p>}{error&&<p role="alert">{error}</p>}</section>;
+}
