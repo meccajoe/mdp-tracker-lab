@@ -13,7 +13,7 @@ const num=(n:number)=>new Intl.NumberFormat('en-US',{maximumFractionDigits:3}).f
 export async function renderProjectDocument(q:QuoteV27,meta:DocumentMeta,kind:'per-diem'|'bom',recipients:PerDiemRecipients={},adjustments:TravelAdjustments={}){
  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
  const root=path.join(process.cwd(),'src/assets/cad-fonts');
- const regular=await pdf.embedFont(await readFile(path.join(root,'LiberationSans-Regular.ttf')),{subset:true}),bold=await pdf.embedFont(await readFile(path.join(root,'LiberationSans-Bold.ttf')),{subset:true});
+ const regular=await pdf.embedFont(await readFile(path.join(root,'LiberationSans-Regular.ttf')),{subset:false}),bold=await pdf.embedFont(await readFile(path.join(root,'LiberationSans-Bold.ttf')),{subset:false});
  const chars=new Set(regular.getCharacterSet());
  const clean=(s:string)=>[...s.replace(/[\u0000-\u001f]/g,' ')].map(c=>chars.has(c.codePointAt(0)!)?c:'?').join('');
  const title=kind==='per-diem'?'Per Diem Summary':'Bill of Materials';
