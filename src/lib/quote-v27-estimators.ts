@@ -1,3 +1,4 @@
+import {travelAllowanceRows} from './travel-allowances.ts';
 import type { Inputs, QuoteV27 } from './quote-v27';
 
 export const PEOPLE = ['lead', 'pm', 'second', 'third'] as const;
@@ -93,8 +94,10 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
     const travelDays=trips*p.daysPerTrip, roadDays=marketDays+travelDays;
     const hotelNights=p.traveling?marketDays+trips+p.hotelAdjustment:0;
     if(hotelNights<0)throw new Error(`${PERSON_LABELS[id]}: hotel adjustment makes nights negative.`);
-    const cost=(e.travel.noFlight?0:trips*(rates.airfare+rates.baggage))+hotelNights*rates.hotel+roadDays*(rates.perDiem+(p.roadBonus?rates.roadBonus:0));
-    return {id,trips,marketDays,travelDays,roadDays,hotelNights,cost,shared:0,total:cost};
+    const allowances=travelAllowanceRows(s,rates,{install:p.traveling?days.installDays:0,dismantle:p.traveling?days.dismantleDays:0,off:p.traveling&&p.stays?days.offDays:0,travel:travelDays},p.roadBonus);
+    const perDiem=allowances.reduce((sum,r)=>sum+r.perDiem,0),bonus=allowances.reduce((sum,r)=>sum+r.bonus,0);
+    const cost=(e.travel.noFlight?0:trips*(rates.airfare+rates.baggage))+hotelNights*rates.hotel+perDiem+bonus;
+    return {id,trips,marketDays,travelDays,roadDays,hotelNights,perDiem,bonus,cost,shared:0,total:cost};
   });
   const roadDays=travel.reduce((sum,p)=>sum+p.roadDays,0);
   const shared=rates.vehicles*rates.vehicle*Math.max(...travel.map(p=>p.roadDays))+rates.other;

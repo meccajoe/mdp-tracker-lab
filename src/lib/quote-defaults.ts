@@ -1,3 +1,4 @@
+import {ALLOWANCE_DEFAULTS} from './travel-allowances';
 import {createBlankQuoteV27} from './quote-v27-template';
 import {parseQuoteV27} from './quote-v27-validation';
 import type {QuoteV27} from './quote-v27';
@@ -10,7 +11,7 @@ export function quoteFromDefaults(value:unknown):QuoteV27 {
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid global settings.');
  const v=value as QuoteDefaults;
  if(v.pricingVersion!=='levies-v1'&&v.pricingVersion!=='scoped-levies-v2')throw new Error('Global settings require current levy pricing.');
- return parseQuoteV27({...createBlankQuoteV27(),settings:v.settings,trades:v.trades,commission:v.commission,pricingVersion:'scoped-levies-v2',contingencyByType:v.contingencyByType});
+ return parseQuoteV27({...createBlankQuoteV27(),settings:{...ALLOWANCE_DEFAULTS,...v.settings},trades:v.trades,commission:v.commission,pricingVersion:'scoped-levies-v2',contingencyByType:v.contingencyByType});
 }
 export function cloneQuoteDocument(source:QuoteV27,copySchedule=false):QuoteV27 {
  const copy=parseQuoteV27(structuredClone(source));

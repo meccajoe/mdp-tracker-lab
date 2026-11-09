@@ -1,3 +1,4 @@
+import {ALLOWANCE_DEFAULTS,ALLOWANCE_KEYS} from '@/lib/travel-allowances';
 "use client";
 
 import { applyLevyPricing, LINE_TYPES, type QuoteV27, type Settings } from '@/lib/quote-v27';
@@ -98,6 +99,7 @@ export function QuoteRates({quote,edit,laborRate}: {
     {levyPricing&&<section className={styles.group} aria-label="Line type contingency"><h3>Line type contingency</h3>
       {LINE_TYPES.map(type=><div key={type} className={styles.row}><span className={styles.label}>{type}</span><select aria-label={`Contingency? · ${type}`} value={quote.contingencyByType?.[type]?'Yes':'No'} disabled={type==='Project Management Fee'} onChange={event=>edit(next=>{next.contingencyByType![type]=event.target.value==='Yes';})}><option>Yes</option><option>No</option></select><p>{type==='Project Management Fee'?'PM fee never carries contingency.':'Contingency?'}</p></div>)}
     </section>}
+    <section className={styles.group} aria-label="Per diem and lead bonus"><h3>Per Diem &amp; Lead Bonus — Per Day</h3>{quote.settings.perDiemInstall===undefined?<><p>This quote retains its saved flat travel allowances. Applying day-type rates changes this quote’s travel budget.</p><button onClick={()=>edit(next=>{Object.assign(next.settings,ALLOWANCE_DEFAULTS);})}>Apply Day-Type Allowance Rates</button></>:ALLOWANCE_KEYS.map(key=><div key={key} className={styles.row}><span className={styles.label}>{{perDiemInstall:'Install/Dismantle per diem',perDiemTravel:'Travel per diem',perDiemOff:'Off-day per diem',leadBonusInstall:'Install/Dismantle lead bonus',leadBonusTravel:'Travel lead bonus',leadBonusOff:'Off-day lead bonus'}[key]}</span><RateInput label={key} unit="$" value={quote.settings[key]??0} onChange={value=>setting(key,value)}/><p>Per person per day. Lead bonus applies only when enabled for that traveler.</p></div>)}</section>
     <section className={styles.group} aria-label="Trade labor costs"><h3>Trade labor costs</h3>
       <div className={styles.row}><span className={styles.label}>Wage burden multiplier</span><RateInput label="Wage burden multiplier" unit="×" value={quote.settings.burdenMultiplier} onChange={value=>setting('burdenMultiplier',value)}/><p>Base wage × this multiplier = burdened cost.</p></div>
       <div className={styles.tradeHead}><span>Labor type</span><span>Base wage / hour</span><span>Burdened cost / hour</span></div>

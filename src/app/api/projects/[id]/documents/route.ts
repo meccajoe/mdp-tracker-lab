@@ -1,3 +1,5 @@
+import {parseTravelAdjustments} from '@/lib/per-diem-adjustments';
+import {validateTravelAdjustments} from '@/lib/quote-per-diem';
 import {parsePerDiemRecipients} from '@/lib/per-diem-recipients';
 import {canPerformQuoteAction} from '@/lib/quote-permissions';
 import {requireQuoteProductAccess,resolveQuoteWorkspaceAuthorization} from '@/lib/ada-server';
@@ -19,9 +21,10 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
  if(workbook.error||!workbook.data)return json({error:'The project’s exact quote revision is unavailable. No newer revision has been substituted.'},503);
  const project=await a.actorSupabase.from('projects').select('client,name').eq('id',id).maybeSingle();
  if(project.error||!project.data)return json({error:'Project could not load.'},503);
- let names={};if(kind==='per-diem'){const r=await a.actorSupabase.from('lab_per_diem_recipient_revisions').select('names').eq('project_id',id).eq('workspace_id',s.workspace_id).eq('workbook_revision',s.workbook_revision).order('version',{ascending:false}).limit(1).maybeSingle();if(r.error)return json({error:'Recipient names could not load. Retry before downloading.'},503);try{names=parsePerDiemRecipients(r.data?.names??{});}catch{return json({error:'Recipient assignments are invalid.'},422);}}
+ let names={},adjustments={};if(kind==='per-diem'){const r=await a.actorSupabase.from('lab_per_diem_recipient_revisions').select('names,travel_adjustments').eq('project_id',id).eq('workspace_id',s.workspace_id).eq('workbook_revision',s.workbook_revision).order('version',{ascending:false}).limit(1).maybeSingle();if(r.error)return json({error:'Recipient names could not load. Retry before downloading.'},503);try{names=parsePerDiemRecipients(r.data?.names??{});adjustments=parseTravelAdjustments(r.data?.travel_adjustments??{});}catch{return json({error:'Recipient assignments are invalid.'},422);}}
  try{const q=parseQuoteV27(workbook.data.document),meta={project:project.data.name||s.snapshot.title||'Project',client:project.data.client||'',revision:s.workbook_revision};
- const bytes=kind==='cad'?await renderCadTurnoverPdf(buildCadTurnover(q,{...meta,workspaceId:s.workspace_id,generatedAt:new Date().toISOString()})):await renderProjectDocument(q,meta,kind as 'per-diem'|'bom',names);
+ if(kind==='per-diem')validateTravelAdjustments(q,adjustments);
+ const bytes=kind==='cad'?await renderCadTurnoverPdf(buildCadTurnover(q,{...meta,workspaceId:s.workspace_id,generatedAt:new Date().toISOString()})):await renderProjectDocument(q,meta,kind as 'per-diem'|'bom',names,adjustments);
  return new Response(new Uint8Array(bytes),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${meta.project.replace(/[^a-zA-Z0-9_-]/g,'-').slice(0,80)}-${kind}-r${meta.revision}.pdf"`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }catch{return json({error:'This document could not be generated from the saved quote. Review its estimator details.'},422);}
 }

@@ -1,3 +1,4 @@
+import {ALLOWANCE_KEYS} from './travel-allowances';
 import {parseProductionProgress} from './production-progress';
 import {parseProductionCalendar} from './production-calendar';
 import {parsePlanning} from './capacity';
@@ -55,6 +56,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
         priceOverride:nullable(row.priceOverride)};
     }),
   };
+  if(ALLOWANCE_KEYS.some(k=>settings[k]!==undefined)){for(const k of ALLOWANCE_KEYS)parsed.settings[k]=num(settings[k]);}
   if(settings.waste!==undefined)parsed.settings.waste=num(settings.waste);
   if(v.pricingVersion!==undefined){
     if(v.pricingVersion!=='levies-v1'&&v.pricingVersion!=='scoped-levies-v2')throw new Error('Unsupported pricing version.');

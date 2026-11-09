@@ -1,12 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';
+import {parseQuoteV27} from '../src/lib/quote-v27-validation';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
 import {emptyEstimators} from '../src/lib/quote-v27-estimators';
 import {parsePerDiemRecipients} from '../src/lib/per-diem-recipients';
-import {quotePerDiem} from '../src/lib/quote-per-diem';
+import {parseTravelAdjustments} from '../src/lib/per-diem-adjustments';
+import {quotePerDiem,validateTravelAdjustments} from '../src/lib/quote-per-diem';
 import {renderProjectDocument} from '../src/lib/project-documents-pdf';
 import {PDFDocument} from 'pdf-lib';
 import {writeFile} from 'node:fs/promises';
-function fixture(){const q=createBlankQuoteV27();q.estimators=emptyEstimators();const e=q.estimators;e.travel.people.lead={...e.travel.people.lead,traveling:true,installDays:3,dismantleDays:1,offDays:2,roadBonus:true};return q;}
+import {ALLOWANCE_DEFAULTS,ALLOWANCE_KEYS} from '../src/lib/travel-allowances';
+function fixture(){const q=createBlankQuoteV27();for(const key of ALLOWANCE_KEYS)delete q.settings[key];q.estimators=emptyEstimators();const e=q.estimators;e.travel.people.lead={...e.travel.people.lead,traveling:true,installDays:3,dismantleDays:1,offDays:2,roadBonus:true};return q;}
 test('per diem uses saved travel days and daily rates, separate from billed labor',()=>{const q=fixture(),before=JSON.stringify(q),r=quotePerDiem(q);assert.equal(r.people[0].days,8);assert.equal(r.perDiem,560);assert.equal(r.bonus,400);assert.deepEqual(r.people[0].rows.map(x=>x.days),[2,3,1,2]);assert.ok(r.warnings.some(w=>w.includes('day counts differ')));assert.equal(JSON.stringify(q),before);});
 test('return-home trips exclude off days, no-flight does not remove per diem',()=>{const q=fixture();q.estimators!.travel.people.lead.stays=false;q.estimators!.travel.noFlight=true;const r=quotePerDiem(q);assert.deepEqual(r.people[0].rows.map(x=>x.days),[4,3,1,0]);assert.equal(r.perDiem,560);});
 test('linked installer days and per-person bonus switches are respected',()=>{const q=fixture(),e=q.estimators!;e.travel.people.second.traveling=true;e.install.second.installDays=2;e.install.second.travelDaysOverride=9;const r=quotePerDiem(q),p=r.people.find(p=>p.id==='second')!;assert.equal(p.days,4);assert.equal(p.bonus,0);assert.equal(p.perDiem,280);});
@@ -14,3 +17,11 @@ test('legacy and disabled travel do not invent payment allowances',()=>{const q=
 test('reports produce readable PDFs without altering quote',async()=>{const q=fixture(),before=JSON.stringify(q);for(const kind of ['per-diem','bom'] as const){const bytes=await renderProjectDocument(q,{project:'Illustrative project — quoted allowances',client:'Example',revision:4},kind);assert.ok((await PDFDocument.load(bytes)).getPageCount()>0);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile(`/private/tmp/project-${kind}-sample.pdf`,bytes);}assert.equal(JSON.stringify(q),before);});
 
 test('recipient assignments accept only names and preserve quoted amounts',async()=>{const q=fixture(),before=JSON.stringify(q),amounts=quotePerDiem(q);const names=parsePerDiemRecipients({lead:'  Example Installer  ',second:''});assert.deepEqual(names,{lead:'Example Installer'});for(const invalid of [{rate:90},{lead:40},{lead:'a'.repeat(121)},{lead:'bad\nname'}])assert.throws(()=>parsePerDiemRecipients(invalid));const bytes=await renderProjectDocument(q,{project:'Named recipient example',client:'Example',revision:4},'per-diem',names);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile('/private/tmp/named-per-diem.pdf',bytes);assert.equal(JSON.stringify(q),before);assert.deepEqual(quotePerDiem(q),amounts);});
+
+test('new day-type rates charge work/off per diem, reduced travel and work-day bonus only',()=>{const q=fixture();Object.assign(q.settings,ALLOWANCE_DEFAULTS);const r=quotePerDiem(q);assert.equal(r.perDiem,520);assert.equal(r.bonus,200);assert.deepEqual(r.people[0].rows.map(x=>x.bonus),[0,150,50,0]);q.settings.perDiemTravel=80;assert.equal(quotePerDiem(q).perDiem,580);});
+
+test('PM travel adjustment raises only payment travel allowance, never quote or bonus',()=>{const q=fixture();Object.assign(q.settings,ALLOWANCE_DEFAULTS);const before=JSON.stringify(q);const a=parseTravelAdjustments({lead:{rate:90,reason:'Long travel day'}});validateTravelAdjustments(q,a);const r=quotePerDiem(q,a);assert.equal(r.perDiem,600);assert.equal(r.bonus,200);assert.equal(r.people[0].quotedPerDiem,520);assert.equal(JSON.stringify(q),before);assert.throws(()=>validateTravelAdjustments(q,{lead:{rate:40,reason:'Reduction'}}));assert.throws(()=>validateTravelAdjustments(q,{third:{rate:90,reason:'Not traveling'}}));for(const bad of [{lead:{rate:-1,reason:'Bad'}},{lead:{rate:80,reason:''}},{unknown:{rate:90,reason:'Bad'}}])assert.throws(()=>parseTravelAdjustments(bad));});
+
+test('new quotes enable lead work-day bonus and validate all day-type settings',()=>{const q=createBlankQuoteV27();assert.equal(q.estimators!.travel.people.lead.roadBonus,true);assert.equal(q.settings.perDiemTravel,50);assert.equal(q.settings.leadBonusTravel,0);});
+
+test('day-type allowances survive quote save/reopen and adjusted PDF keeps quoted comparison',async()=>{const q=fixture();Object.assign(q.settings,ALLOWANCE_DEFAULTS);assert.deepEqual(quotePerDiem(parseQuoteV27(JSON.parse(JSON.stringify(q)))),quotePerDiem(q));const bytes=await renderProjectDocument(q,{project:'Illustrative travel adjustment',client:'Example',revision:4},'per-diem',{lead:'Example Installer'},{lead:{rate:90,reason:'Long travel day'}});assert.ok((await PDFDocument.load(bytes)).getPageCount()>0);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile('/private/tmp/adjusted-per-diem.pdf',bytes);});

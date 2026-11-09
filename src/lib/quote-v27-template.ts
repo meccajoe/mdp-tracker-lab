@@ -1,3 +1,4 @@
+import {ALLOWANCE_DEFAULTS} from './travel-allowances';
 import {builderItemName} from './quote-builder-display';
 import {applyLevyPricing} from './quote-v27';
 import blank from '../data/quote-v27-blank.json';
@@ -13,10 +14,12 @@ export function createBlankQuoteV27() {
   estimators.install.third.lineId = 'line-30';
   estimators.install.support.lineId = 'line-31';
   estimators.travel.leadLineId = 'line-32';
+  estimators.travel.people.lead.roadBonus = true;
   estimators.travel.pmLineId = 'line-33';
   estimators.travel.otherLineId = 'line-34';
   estimators.shipping.lineId = 'line-41';
   quote.estimators = estimators;
+  Object.assign(quote.settings,ALLOWANCE_DEFAULTS);
   // New quotes create individual wall items from the estimator; retain historical aggregate rows in saved quotes.
   quote.lines=quote.lines.filter(line=>line.type!=='beMatrix / SEG');
   quote.lines.forEach((line,index)=>{line.name=builderItemName(line,index);});

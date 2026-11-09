@@ -18,6 +18,7 @@ export type Inputs = {
   panels: number; rental: number; siteDays: number; travelDays: number; cost: number;
 };
 export type Settings = {
+  perDiemInstall?:number;perDiemTravel?:number;perDiemOff?:number;leadBonusInstall?:number;leadBonusTravel?:number;leadBonusOff?:number;
   waste?: number;
   contingency: number; opex: number; indirect: number; laborSell: number;
   materialMarkup: number; shopDay: number; efficiency: number; graphicsSell: number;
