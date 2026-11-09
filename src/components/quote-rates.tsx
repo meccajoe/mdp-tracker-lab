@@ -1,5 +1,5 @@
-import {ALLOWANCE_DEFAULTS,ALLOWANCE_KEYS} from '@/lib/travel-allowances';
 "use client";
+import {ALLOWANCE_DEFAULTS,ALLOWANCE_KEYS} from '@/lib/travel-allowances';
 
 import { applyLevyPricing, LINE_TYPES, type QuoteV27, type Settings } from '@/lib/quote-v27';
 import styles from './quote-rates.module.css';
