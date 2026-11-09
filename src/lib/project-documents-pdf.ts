@@ -4,11 +4,12 @@ import {PDFDocument,rgb,type PDFPage} from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import type {QuoteV27} from './quote-v27';
 import {quotePerDiem} from './quote-per-diem';
+import type {PerDiemRecipients} from './per-diem-recipients';
 import {quoteBOM} from './quote-bom';
 export type DocumentMeta={project:string;client:string;revision:number};
 const money=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 const num=(n:number)=>new Intl.NumberFormat('en-US',{maximumFractionDigits:3}).format(n);
-export async function renderProjectDocument(q:QuoteV27,meta:DocumentMeta,kind:'per-diem'|'bom'){
+export async function renderProjectDocument(q:QuoteV27,meta:DocumentMeta,kind:'per-diem'|'bom',recipients:PerDiemRecipients={}){
  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
  const root=path.join(process.cwd(),'src/assets/cad-fonts');
  const regular=await pdf.embedFont(await readFile(path.join(root,'LiberationSans-Regular.ttf')),{subset:true}),bold=await pdf.embedFont(await readFile(path.join(root,'LiberationSans-Bold.ttf')),{subset:true});
@@ -29,7 +30,7 @@ export async function renderProjectDocument(q:QuoteV27,meta:DocumentMeta,kind:'p
   const r=quotePerDiem(q);text(`Per diem: ${money(r.perDiem)}   |   Lead road bonus: ${money(r.bonus)}   |   Total allowance: ${money(r.perDiem+r.bonus)}`,true);
   text(`Quoted install date: ${q.schedule?.installDate||'Not specified'} | Dismantle date: ${q.schedule?.dismantleDate||'Not specified'}`);
   text('Quoted allowances only. No payment has been issued by this report. Calendar dates for individual day types: not specified in the quote.');
-  for(const p of r.people){text(`${p.label} — ${num(p.days)} road days / ${num(p.trips)} trip(s)`,true);text('Recipient name: not specified in quote');table(['Day type','Days','Per diem / day','Per diem total','Bonus / day','Bonus total'],p.rows.map(r=>[r.label,num(r.days),money(r.rate),money(r.perDiem),money(r.bonusRate),money(r.bonus)]),[100,42,100,100,90,100]);text(`Subtotal: ${money(p.perDiem)} per diem + ${money(p.bonus)} lead road bonus = ${money(p.perDiem+p.bonus)}`);text(`Lead bonus paid on: ${p.rows.filter(r=>r.days>0&&r.bonusRate>0).map(r=>`${num(r.days)} ${r.label.toLowerCase()} day(s)`).join(', ')||'None quoted'}.`);}
+  for(const p of r.people){text(`${p.label} — ${num(p.days)} road days / ${num(p.trips)} trip(s)`,true);text(`Recipient: ${recipients[p.id]||'NOT ASSIGNED — assign a recipient before issuing payment'}`,true);table(['Day type','Days','Per diem / day','Per diem total','Bonus / day','Bonus total'],p.rows.map(r=>[r.label,num(r.days),money(r.rate),money(r.perDiem),money(r.bonusRate),money(r.bonus)]),[100,42,100,100,90,100]);text(`Subtotal: ${money(p.perDiem)} per diem + ${money(p.bonus)} lead road bonus = ${money(p.perDiem+p.bonus)}`);text(`Lead bonus paid on: ${p.rows.filter(r=>r.days>0&&r.bonusRate>0).map(r=>`${num(r.days)} ${r.label.toLowerCase()} day(s)`).join(', ')||'None quoted'}.`);}
   text('PM review before issuing',true);r.warnings.forEach(w=>text(w));
  }else{
   const renderRows=(rows:ReturnType<typeof quoteBOM>)=>table(['Material','Quantity','Unit','Recorded cost'],rows.map(r=>[r.name,num(r.quantity),r.unit,money(r.cost)]),[280,70,80,102]);

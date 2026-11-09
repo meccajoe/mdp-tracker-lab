@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
 import {emptyEstimators} from '../src/lib/quote-v27-estimators';
+import {parsePerDiemRecipients} from '../src/lib/per-diem-recipients';
 import {quotePerDiem} from '../src/lib/quote-per-diem';
 import {renderProjectDocument} from '../src/lib/project-documents-pdf';
 import {PDFDocument} from 'pdf-lib';
@@ -11,3 +12,5 @@ test('return-home trips exclude off days, no-flight does not remove per diem',()
 test('linked installer days and per-person bonus switches are respected',()=>{const q=fixture(),e=q.estimators!;e.travel.people.second.traveling=true;e.install.second.installDays=2;e.install.second.travelDaysOverride=9;const r=quotePerDiem(q),p=r.people.find(p=>p.id==='second')!;assert.equal(p.days,4);assert.equal(p.bonus,0);assert.equal(p.perDiem,280);});
 test('legacy and disabled travel do not invent payment allowances',()=>{const q=fixture();delete q.estimators;assert.equal(quotePerDiem(q).people.length,0);q.estimators=emptyEstimators();assert.equal(quotePerDiem(q).perDiem,0);});
 test('reports produce readable PDFs without altering quote',async()=>{const q=fixture(),before=JSON.stringify(q);for(const kind of ['per-diem','bom'] as const){const bytes=await renderProjectDocument(q,{project:'Illustrative project — quoted allowances',client:'Example',revision:4},kind);assert.ok((await PDFDocument.load(bytes)).getPageCount()>0);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile(`/private/tmp/project-${kind}-sample.pdf`,bytes);}assert.equal(JSON.stringify(q),before);});
+
+test('recipient assignments accept only names and preserve quoted amounts',async()=>{const q=fixture(),before=JSON.stringify(q),amounts=quotePerDiem(q);const names=parsePerDiemRecipients({lead:'  Example Installer  ',second:''});assert.deepEqual(names,{lead:'Example Installer'});for(const invalid of [{rate:90},{lead:40},{lead:'a'.repeat(121)},{lead:'bad\nname'}])assert.throws(()=>parsePerDiemRecipients(invalid));const bytes=await renderProjectDocument(q,{project:'Named recipient example',client:'Example',revision:4},'per-diem',names);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile('/private/tmp/named-per-diem.pdf',bytes);assert.equal(JSON.stringify(q),before);assert.deepEqual(quotePerDiem(q),amounts);});

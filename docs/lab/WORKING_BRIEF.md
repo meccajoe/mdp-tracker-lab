@@ -1,3 +1,8 @@
+## Per diem recipient assignments — November 8, 2026
+- Project Documents now has shared role-to-name assignments beside read-only quoted days/per diem/bonus/total. Explicit save/reload; download disabled while names are unsaved/loading/failed. PDF reads saved assignments and marks blank roles NOT ASSIGNED. Quoted amounts and quote revisions unchanged; names are separate project data.
+- Append-only lab_per_diem_recipient_revisions scoped to project/workspace/baseline revision, actor/time and optimistic version. View members read; edit-capable roles append. Migration 20261108200000 applied only to lab after rollback validation. Authenticated insert/stale revision/nonmember read tests passed in rollback-only SQL transaction.
+- Full lab:check passed including name validation, no amount mutation, download names, API edit/baseline/conflict guards. Named PDF visually reviewed. Deployment and live UI verification pending.
+
 ## Project Documents and Per Diem Summary — November 8, 2026
 - Added Project detail Documents tab with authenticated PDF downloads for Per Diem Summary, CAD Turnover and combined/per-item BOM. All use exact lab_project_quote_sources.workbook_revision, never latest silently. Workspace permission checked in addition to project source RLS. No saved quote, project, pricing or schedule mutations.
 - Per diem/lead road bonus use saved Travel Estimator per-person day counts and rates; install/dismantle/off/travel rows show daily amounts and subtotals. Bonus day categories listed. Install Labor differences and missing legacy details flagged. Recipient names/daily calendar itinerary are not in current quote schema; not inferred. Saved install/dismantle dates shown as reference. Paul confirmed exact quoted counts only; do not infer dates.
