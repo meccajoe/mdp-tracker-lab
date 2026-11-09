@@ -1,3 +1,6 @@
+## Select all planning quotes — November 8, 2026
+- Added Select All beside Deselect All; selects all eligible open Used-for-Capacity quotes, including search-hidden entries. Disabled when all eligible quotes are selected or none exist. Keeps existing temporary date previews; no quote/schedule writes. TypeScript and diff checks passed. Hosted verification pending.
+
 ## Deselect all planning quotes — November 8, 2026
 - Added Deselect All beside the What if we win quote search. Shares Clear scenario behavior: clears all selected IDs (including search-hidden quotes), temporary dates/errors and review week; committed baseline and saved data unchanged. Disabled with no selection. TypeScript and diff checks passed; release ef0ed7c deployed successfully (J729FaMC1osywFPcUGRJdthNb47c). Hosted test selected Old Navy and Nvidia, filtered to Old Navy, then Deselect All cleared both: 11 committed / 0 proposed, both unchecked after clearing search. Left scenario empty; no saved data changed. Screenshot /private/tmp/planning-deselect-all.png.
 
