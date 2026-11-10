@@ -1,3 +1,9 @@
+## HubSpot manual refresh permission fix — November 10, 2026
+- User browser test reached HubSpot successfully but the save RPC failed: service_role lacked SELECT on lab_capacity_quote_versions. Reproduced under the real server role in a rollback-only Lab transaction.
+- Applied migration 20261110220209 only to Lab, granting the missing server SELECT privilege. RPC remains SECURITY INVOKER and service-only; client privileges and RLS unchanged. No Vercel redeploy required.
+- Full disposable identity/status database regression passed, now including the service_role refresh path and client RPC denial. Hosted service-role save passed in rollback-only verification. Ribbon 26223 remains Completed, revision 8, quote total 19091.767955801104, build budget 6547.84, original source hash and identity audit unchanged. Signed-in browser retry pending.
+- Local vet attempted immediately after edits; unavailable because tokenizer download DNS failed. No external review retry.
+
 ## Materials Catalog responsiveness — November 10, 2026
 - Memoize duplicate review, sorted/searchable entries and rendered rows; reuse natural-sort collator and currency formatter. Searching filters already sorted rows. Edit keystrokes no longer rebuild the 716-row catalog. Key edit form by item ID so switching materials resets the cost input correctly.
 - Successful edit uses the audited API's authoritative returned material/revision instead of full reload; notify Takeoffs consumers as before. Write guard prevents duplicate submits; errors retain the draft and original row. Import/archive/restore still refresh; generation guards ignore obsolete loads.

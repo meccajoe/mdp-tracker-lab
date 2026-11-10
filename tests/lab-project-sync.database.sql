@@ -28,6 +28,18 @@ insert into lab_project_quote_sources(project_id,workspace_id,workbook_revision,
  ('two','00000000-0000-4000-8000-000000000004',1,repeat('b',64),'{"totals":{"price":200}}');
 \ir ../supabase/migrations/20261110160000_lab_project_identity_status.sql
 \ir ../supabase/migrations/20261110163000_lab_private_project_projections.sql
+\ir ../supabase/migrations/20261110220209_lab_hubspot_refresh_read_permission.sql
+-- Match hosted table grants: service_role does not implicitly own every table.
+alter role service_role bypassrls;
+grant select,update on projects,ada_quote_workspaces to service_role;
+set role service_role;
+select apply_lab_hubspot_identity('one','deal1','Server verified name','101');
+reset role;
+do $$ begin
+ if (select name from projects where id='one')<>'Server verified name' then raise exception 'Server refresh failed'; end if;
+ if (select status from projects where id='one')<>'Completed' or (select contract_amount from projects where id='one')<>123.45 then raise exception 'Server refresh changed status/budget'; end if;
+ if has_function_privilege('authenticated','public.apply_lab_hubspot_identity(text,text,text,text)','execute') or has_function_privilege('anon','public.apply_lab_hubspot_identity(text,text,text,text)','execute') then raise exception 'Client can call identity refresh directly'; end if;
+end $$;
 do $$ begin if (select status from projects where id='one')<>'Completed' then raise exception 'Backfill ignored newest group head'; end if; end $$;
 select apply_lab_hubspot_identity('one','deal1','Exact HubSpot name  ','101');
 do $$ begin
