@@ -37,3 +37,26 @@
 .quotesTable tbody td:nth-child(5) { box-shadow: none; }
 .quotesTable thead th:nth-child(5) { box-shadow: 0 1px 0 var(--border, #ddd); }
 .quotesTable thead th:nth-child(6):not([colspan]) { z-index: 4; box-shadow: 2px 0 0 var(--border, #ddd), 0 1px 0 var(--border, #ddd); }
+
+/* Job number joins project identity in the frozen columns. */
+.capacityTable :is(th,td):nth-child(6):not([colspan]),
+.quotesTable :is(th,td):nth-child(7):not([colspan]) {
+ position: sticky !important;
+ left: var(--column-offset-6, 809px);
+ z-index: 2;
+ background: var(--background, white);
+ box-shadow: 2px 0 0 var(--border, #ddd);
+}
+.quotesTable :is(th,td):nth-child(7):not([colspan]) { left: var(--column-offset-7, 919px); }
+.capacityTable thead th:nth-child(6), .quotesTable thead th:nth-child(7) { z-index: 4; }
+
+/* On phones, keep only selection frozen so every data column can scroll into view. */
+@media (max-width: 767px) {
+ :is(.capacityTable,.quotesTable) tbody td:nth-child(n+2):not([colspan]) {
+  position: static !important;
+  box-shadow: none;
+ }
+ :is(.capacityTable,.quotesTable) thead th:nth-child(n+2) {
+  left: auto !important;
+ }
+}

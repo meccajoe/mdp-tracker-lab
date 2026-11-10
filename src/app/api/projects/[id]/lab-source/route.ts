@@ -12,5 +12,5 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   if (!source.data) return json({ error: 'Quote-backed Lab project not found.' }, 404);
   const project = await access.actorSupabase.from('projects').select('*').eq('id', id).maybeSingle();
   if (project.error || !project.data) return json({ error: 'Project details could not load.' }, 503);
-  return json({ project: project.data, source: source.data });
+  return json({ project: project.data, source: source.data, liveProjectStatus: project.data.status === 'Completed' ? 'Complete' : project.data.status === 'Active' ? 'Active' : 'Not Active' });
 }

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
   let query = admin.supabase
     .from("ada_quote_workspaces")
-    .select("id, ada_project_id, title, client_name, contact_name, hubspot_deal_id, tracker_project_id, status, last_activity_at, pinned_at, archived_at, created_by_email, created_at, updated_at")
+    .select("id, ada_project_id, title, job_number, client_name, contact_name, hubspot_deal_id, tracker_project_id, status, last_activity_at, pinned_at, archived_at, created_by_email, created_at, updated_at")
     .in("id", workspaceIds)
     .order("pinned_at", { ascending: false, nullsFirst: false })
     .order("last_activity_at", { ascending: false })

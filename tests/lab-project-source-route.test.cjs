@@ -16,6 +16,6 @@ test('project baseline reads require Lab, identity and actor RLS; failures never
  authorized=true;source=null;assert.equal((await get()).status,404);assert.deepEqual(reads,['lab_project_quote_sources']);
  sourceError={message:'PRIVATE'};assert.equal((await get()).status,503);sourceError=null;
  source={workspace_id:'w',snapshot:{totals:{price:12}}};projectError={message:'PRIVATE'};const failed=await get();assert.equal(failed.status,503);assert.equal((await failed.text()).includes('PRIVATE'),false);
- projectError=null;const response=await get();assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'private, no-store');assert.equal((await response.json()).source.snapshot.totals.price,12);
+ projectError=null;project.status='Completed';const response=await get();assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'private, no-store');const body=await response.json();assert.equal(body.source.snapshot.totals.price,12);assert.equal(body.liveProjectStatus,'Complete');
  assert.equal(module.exports.POST,undefined);
 });
