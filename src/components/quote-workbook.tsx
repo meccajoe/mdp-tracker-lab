@@ -1,4 +1,5 @@
 "use client";
+import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import {confirmAction,confirmLinkNavigation} from "./confirm-action";
 import {QuoteCapacityVersion} from './quote-capacity-version';
 import {effectiveProjectSchedule,forecastLabel,withForecastStatus} from '@/lib/quote-schedule';
@@ -25,8 +26,8 @@ import { quoteItemLabel } from '@/lib/quote-takeoff-grid';
 import { newEditHistory, recordEdit, moveEditHistory, type EditHistory } from '@/lib/quote-edit-history';
 import { parseQuoteV27 } from '@/lib/quote-v27-validation';
 
-const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-const number = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const money = quoteMoney;
+const number = quoteNumber;
 const control = 'rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50';
 const button = `${control} hover:bg-accent`;
 const cell = 'p-2 text-left align-top';
@@ -220,7 +221,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
       {(tab==='Pricing') && <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Item <select aria-label="Selected item" disabled={busy} className={`${control} ml-2 max-w-xs`} value={selected} onChange={e=>setSelected(e.target.value)}>{document.lines.map(line=><option key={line.id} value={line.id}>{line.name}</option>)}</select></label>{!libraryItem&&<button disabled={!canEdit || busy} className={button} onClick={addLine}>Add item</button>}{selectedLine && <><input aria-label="Item name" disabled={!canEdit || busy} className={control} value={selectedLine.name} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.name=e.target.value;})}/><select aria-label="Item type" disabled={!canEdit || busy} className={control} value={selectedLine.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===selected)!.type=e.target.value as typeof selectedLine.type;})}>{LINE_TYPES.map(type=><option key={type}>{type}</option>)}</select></>}</div>}
       {['Install Labor','Travel Estimator','Shipping Estimator','beMatrix Estimator'].includes(tab)&&<QuoteGridInteraction onSummary={setSelectionSummary}><QuoteEstimators laborRate={calculation?.laborRate??0} key={`${restoreKey}-${tab}`} panel={{'Install Labor':'Install','Travel Estimator':'Travel','Shipping Estimator':'Shipping','beMatrix Estimator':'beMatrix'}[tab]} quote={document} edit={edit} readOnly={!canEdit||busy} result={calculation?.estimators}/></QuoteGridInteraction>}
-      {tab==='BOM'&&calculation&&<QuoteBOM quote={document}/>}
+      {tab==='BOM'&&calculation&&<QuoteBOM quote={document} calculation={calculation}/>}
       {workbackOpened&&<div hidden={tab!=='Workback Schedule'}><WorkbackSchedule key={workspaceId} workspaceId={workspaceId} quoteVersion={version} onDirtyChange={setWorkbackDirty}/></div>}
       {tab==='Capacity'&&<div className="rounded border bg-white p-4"><h2>Capacity handoff</h2><p>The quote name, header dates, forecast status and calculated shop/trade hours appear in the Capacity tracker after saving. Planning overrides remain separate from quote inputs.</p><a className="underline" href={`/capacity/${workspaceId}`}>Open this project’s capacity & timeline</a> · <a className="underline" href="/capacity">All projects</a></div>}
       {tab==='Materials DB'&&<QuoteMaterialsDB/>}

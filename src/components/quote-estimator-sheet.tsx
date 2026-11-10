@@ -1,9 +1,10 @@
 'use client';
+import {quoteMoney} from '@/lib/quote-format';
 import type {ReactNode} from 'react';
 import {INSTALLERS,PEOPLE,PERSON_LABELS,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
 import {type QuoteV27} from '@/lib/quote-v27';
 import styles from './quote-estimator-sheet.module.css';
-const money=(n:number)=>n.toLocaleString('en-US',{style:'currency',currency:'USD'});
+const money=quoteMoney;
 function NumberCell({label,value,change,nullable=false,placeholder='',signed=false}:{label:string;value:number|null;change:(value:number|null)=>void;nullable?:boolean;placeholder?:string;signed?:boolean}){
  return <input aria-label={label} key={value??'auto'} type="number" step="any" min={signed?undefined:0} defaultValue={value===0&&!nullable?'':value??''} placeholder={placeholder} onBlur={event=>{const next=event.target.value===''?(nullable?null:0):Number(event.target.value);if(next!==value)change(next);}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}}/>;
 }

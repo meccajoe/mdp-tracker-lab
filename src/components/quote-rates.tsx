@@ -1,4 +1,5 @@
 "use client";
+import {quoteMoney} from '@/lib/quote-format';
 import {ALLOWANCE_DEFAULTS,ALLOWANCE_KEYS} from '@/lib/travel-allowances';
 
 import { applyLevyPricing, LINE_TYPES, type QuoteV27, type Settings } from '@/lib/quote-v27';
@@ -47,7 +48,7 @@ const groups: { title: string; rows: Rate[] }[] = [
     {key:'freightMarkup',label:'Freight markup',unit:'%',note:'Percentage added to freight cost.'},
   ]},
 ];
-const money = (value: number) => value.toLocaleString('en-US',{style:'currency',currency:'USD'});
+const money = quoteMoney;
 
 function RateInput({label,value,unit,onChange,nullable=false}: {
   label:string; value:number|null; unit:Unit; onChange:(value:number|null)=>void; nullable?:boolean;

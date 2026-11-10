@@ -1,4 +1,5 @@
 "use client";
+import {quoteMoney} from '@/lib/quote-format';
 import {addQuoteWall,renameQuoteWall} from '@/lib/quote-wall-items';
 import { useState } from 'react';
 import {QuoteReportTable} from './quote-report-table';
@@ -6,7 +7,7 @@ import {QuoteEstimatorSheet,QuoteShippingSheet} from './quote-estimator-sheet';
 import { emptyEstimators, FRAME_SIZES, INSTALLERS, PEOPLE, PERSON_LABELS, type Estimators, type calculateEstimators } from '@/lib/quote-v27-estimators';
 import type { Inputs, QuoteV27 } from '@/lib/quote-v27';
 
-const money=(n:number)=>n.toLocaleString('en-US',{style:'currency',currency:'USD'});
+const money=quoteMoney;
 const control='rounded border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50';
 function Numbers({values,labels,change}:{values:object;labels:Record<string,string>;change:(key:string,value:number|null)=>void}) {
   return <div className="flex flex-wrap gap-3">{Object.entries(labels).map(([key,label])=>{

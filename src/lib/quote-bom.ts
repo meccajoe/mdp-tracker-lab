@@ -1,8 +1,8 @@
 import {calculateQuoteV27,type QuoteV27} from './quote-v27';
 /** Purchasing uses recorded takeoff costs, never current inventory prices. */
-export function quoteBOM(quote:QuoteV27){
+export function quoteBOM(quote:QuoteV27, takeoffs:ReturnType<typeof calculateQuoteV27>['takeoffs']=calculateQuoteV27(quote).takeoffs){
  const groups=new Map<string,{name:string;unit:string;quantity:number;unitCost:number;cost:number;items:Set<string>}>();
- for(const row of calculateQuoteV27(quote).takeoffs){
+ for(const row of takeoffs){
   const material=quote.catalog.find(m=>m.id===row.materialId),unit=row.unit??material?.unit??'';
   if(!row.quantity||/^(hours?|hrs?)$/i.test(unit))continue;
   const name=material?.name??row.description,key=JSON.stringify([name,unit]);

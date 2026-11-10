@@ -1,4 +1,5 @@
 "use client";
+import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import {builderItemName,showBuilderLine} from '@/lib/quote-builder-display';
 import {useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
@@ -9,8 +10,8 @@ import {QuoteColumnResize} from './quote-column-resize';
 import styles from './quote-sheet.module.css';
 
 type Calculation = ReturnType<typeof calculateQuoteV27>;
-const amount = (n: number) => n.toLocaleString('en-US', {style:'currency',currency:'USD'});
-const numeric = (n: number) => n === 0 ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+const amount = quoteMoney;
+const numeric = (n: number) => n === 0 ? '—' : quoteNumber(n);
 const inputs: { key: keyof Inputs; heading: string }[] = [
   {key:'materials',heading:'Fab material cost $'}, {key:'resale',heading:'Resale parts $ (in item)'},
   {key:'hours',heading:'Hours'}, {key:'days',heading:'Fab days (1 person)'},
@@ -59,8 +60,9 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
         {['materials','resale','rental','cost'].includes(key)&&<span className={styles.currencyPrefix} aria-hidden="true">$</span>}
         <input type="number" min="0" step="any" aria-label={`${label} · ${line.name}`}
           title={`Calculated: ${numeric(calculated)}. Enter a manual override; clear to restore.`}
-          value={overridden ? override : calculated === 0 ? '' : calculated} placeholder="—"
-          onChange={e=>update(e.target.value==='' ? null : Number(e.target.value))}/>
+          key={`${overridden}-${override}-${calculated}`} defaultValue={overridden ? override : calculated === 0 ? '' : calculated} placeholder="—"
+          onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=String(overridden?override:calculated||'');e.currentTarget.blur();}}}
+          onBlur={e=>{const shown=String(overridden?override:calculated||'');if(e.target.value!==shown)update(e.target.value==='' ? null : Number(e.target.value));}}/>
         {overridden && <button type="button" className={styles.restore} aria-label={`Restore ${label} · ${line.name}`} title={`Restore calculated: ${numeric(calculated)}`} onClick={()=>update(null)}>↺</button>}
       </div>
     </td>;
@@ -92,7 +94,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
             {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}
             {inputCell(line,'cost','Cost $')}
             <td>{row ? amount(row.calculatedPrice) : '—'}</td>
-            <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} value={line.priceOverride??''} placeholder="—" onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=e.target.value===''?null:Number(e.target.value);})}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
+            <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} key={line.priceOverride??'auto'} defaultValue={line.priceOverride??''} placeholder="—" onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=String(line.priceOverride??'');e.currentTarget.blur();}}} onBlur={e=>{const value=e.target.value===''?null:Number(e.target.value);if(value!==line.priceOverride)edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=value;});}}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
             <td className={styles.finalPrice}>{row ? amount(row.finalPrice) : '—'}</td>
             {outputs.map(([key])=><td key={key} title={install&&['laborBudget','buildBudget'].includes(key)?'Installation costs remain in project economics; review Install Labor for details.':undefined}>{install&&['laborBudget','buildBudget'].includes(key)?'':row ? (key==='hoursAllowed'?numeric(row[key]):key==='margin'?<MarginDetail row={row}>{amount(row.margin)}</MarginDetail>:amount(row[key])) : '—'}</td>)}
             <td className={row?.belowOverhead?styles.belowOverhead:undefined} title="Red means margin is below the OpEx recovery percentage.">{row?.marginPercent != null ? <MarginDetail row={row}>{`${(row.marginPercent*100).toFixed(1)}%`}</MarginDetail> : '—'}</td>
