@@ -1,3 +1,8 @@
+## Capacity responsiveness — November 9, 2026
+- Lazily retain visited Dashboard, Field Load and Team Schedule views within the current Capacity page so date/filter/expansion state survives tab switches. Dashboard memoized against unchanged project/settings references; number/date formatters reused. Capacity Planning retains its existing leave/reset behavior.
+- Team Schedule pauses polling while hidden and reuses a successful same-range result for up to 60 seconds on return. Schedule/identity events invalidate freshness; identity clears result and filters. Invalid/inverted/over-year dates block requests; cleared results invalidate freshness so returning to previous dates reloads. Existing async generation guard ignores obsolete responses. Allocation filtering memoized. No scheduler formulas or saved data changed.
+- 76 capacity/team/Gantt tests and TypeScript passed. Hosted verification pending.
+
 ## Workbook tab and cell performance — November 9, 2026
 - Shared cached currency/number formatters across Quote Builder, Settings, Install/Travel/Shipping/beMatrix estimators, Client Quote, Budget Handoff and BOM. BOM view now reuses workbook calculated takeoffs instead of recalculating the entire quote once per line. Existing standalone BOM callers keep original fallback behavior.
 - Quote Builder numeric inputs/price overrides commit on blur or Enter (like estimator cells), avoiding quote clone/history/serialization/calculation per digit. Escape restores the prior displayed value; blank overrides still restore calculated values. Formula and snapshot semantics unchanged.

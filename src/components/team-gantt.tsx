@@ -5,7 +5,8 @@ import {dateString,dayNumber} from '@/lib/capacity';
 import {validDate} from '@/lib/quote-schedule';
 import {teamGanttRows,teamGanttLanes,type GanttGroup,type GanttResult} from '@/lib/team-gantt';
 import styles from './team-gantt.module.css';
-const n=(v:number)=>v.toLocaleString(undefined,{maximumFractionDigits:1});
+const numberFormat=new Intl.NumberFormat(undefined,{maximumFractionDigits:1});
+const n=(v:number)=>numberFormat.format(v);
 import {TEAM_STAGE_COLORS} from '@/lib/team-stage-colors';
 export function TeamGantt({result,filter,range}:{range:{start:string;finish:string};result:GanttResult;filter:{project:string;person:string;trade:string}}){
  const [group,setGroup]=useState<GanttGroup>('Project');

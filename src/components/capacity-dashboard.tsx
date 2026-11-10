@@ -4,8 +4,10 @@ import {currentCapacityWeek,capacityViewRange,dashboardLoad,type CapacityProject
 import {dateString,dayNumber,monday,SHOP_TRADES,SUPPORT_TRADES,type CapacitySettings} from '@/lib/capacity';
 import styles from './capacity-dashboard.module.css';
 const SHOP_CHARTS=[['CNC + cutting','CNC'],['Carpentry','Carpentry'],['Finish / Paint','Finish/Paint'],['I&D shop','I&D (shop)'],['Electrical','Electrical'],['Graphic / Vinyl Install','Graphic/Vinyl'],['Metal Work','Metal'],['Sculpting','Sculpting']] as const;
-const number=(value:number)=>value.toLocaleString('en-US',{maximumFractionDigits:1});
-const date=(value:string)=>new Date(`${value}T00:00:00Z`).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+const numberFormat=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
+const number=(value:number)=>numberFormat.format(value);
+const dateFormat=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+const date=(value:string)=>dateFormat.format(new Date(`${value}T00:00:00Z`));
 const total=(values:number[])=>values.reduce((sum,value)=>sum+value,0);
 type Contribution={id:string;name:string;hours:number[]};
 const LaborChart=memo(function LaborChart({title,weeks,needed,available,projects,period='week'}:{projects:Contribution[];period?:'day'|'week';title:string;weeks:string[];needed:number[];available:number|number[]|null}){
@@ -24,7 +26,7 @@ const LaborChart=memo(function LaborChart({title,weeks,needed,available,projects
  {available===null&&<p className={styles.warning}>{title==='Unassigned shop hours'?'No trade capacity applies until these hours are assigned.':'Set available hours in Roster & Settings to show the red capacity line.'}</p>}
  <details className={styles.values}><summary>{period==='day'?'Daily':'Weekly'} values</summary><div className={styles.chartScroll}><table><caption>{title} — hours by {period}</caption><thead><tr><th>{period==='day'?'Date':'Week'}</th><th>Available hours</th><th>Needed hours</th><th>Over capacity</th></tr></thead><tbody>{weeks.map((week,i)=><tr key={week}><th>{date(week)}–{date(dateString(dayNumber(week)+span))}, {week.slice(0,4)}</th><td>{available===null?'Not configured':number(limits![i])}</td><td>{number(needed[i]??0)}</td><td>{available===null?'—':number(Math.max(0,(needed[i]??0)-limits![i]))}</td></tr>)}</tbody></table></div></details></section>;
 },(a,b)=>JSON.stringify(a.projects)===JSON.stringify(b.projects)&&a.period===b.period&&a.title===b.title&&JSON.stringify(a.available)===JSON.stringify(b.available)&&a.weeks.join()===b.weeks.join()&&a.needed.join()===b.needed.join());
-export function CapacityDashboard({projects,settings,settingsUnavailable=false,mode='shop'}:{projects:CapacityProject[];settings:CapacitySettings;settingsUnavailable?:boolean;mode?:'shop'|'field'}){
+export const CapacityDashboard=memo(function CapacityDashboard({projects,settings,settingsUnavailable=false,mode='shop'}:{projects:CapacityProject[];settings:CapacitySettings;settingsUnavailable?:boolean;mode?:'shop'|'field'}){
  const [period,setPeriod]=useState<'day'|'week'>('week');
  const [selected,setSelected]=useState<string[]|null>(null),[search,setSearch]=useState(''),[start,setStart]=useState(()=>currentCapacityWeek()),[preset,setPreset]=useState(4),[custom,setCustom]=useState(false),[end,setEnd]=useState(''),[basis,setBasis]=useState<DemandBasis>('committed');
  const currentWeek=currentCapacityWeek();
@@ -72,4 +74,4 @@ export function CapacityDashboard({projects,settings,settingsUnavailable=false,m
  </div>
  <p className={styles.explanation}>I&D and Crate & pack share one crew budget. The shared-crew chart adds field installation and packing demand. Shop availability subtracts field demand; field availability subtracts packing demand, across all projects using the selected forecast basis, even when project filters hide their demand. These are alternate views of the same people, not extra capacity to add together. Secondary skills do not add hours. Field dates follow Roster & Settings; CAD remains separate. These view controls do not change saved quotes, roster settings, or project schedules.</p>
  </div>;
-}
+});

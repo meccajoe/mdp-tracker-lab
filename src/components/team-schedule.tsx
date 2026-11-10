@@ -1,13 +1,15 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useState,useRef,useMemo} from 'react';
 import {adaFetch} from '@/lib/ada-client';
 import {dateString,dayNumber} from '@/lib/capacity';
+import {validDate} from '@/lib/quote-schedule';
 import type {TeamOptions,TeamResult} from '@/lib/team-schedule';
 import {TeamGantt} from './team-gantt';
 import {capacityTrade} from '@/lib/capacity-trades';
 import styles from './capacity-tracker.module.css';
 type Result=TeamResult&{projects:{id:string;name:string;status:string}[]};
-const n=(v:number)=>v.toLocaleString(undefined,{maximumFractionDigits:1});
+const numberFormat=new Intl.NumberFormat(undefined,{maximumFractionDigits:1});
+const n=(v:number)=>numberFormat.format(v);
 const attentionNotes:Record<string,string>={
  'Build deadline is before this schedule':'The build deadline falls before this schedule starts. If the project is finished, set Project Status to Complete. Otherwise, review its build dates and remaining work.',
  'Prerequisite unfinished or missing':'An earlier production step could not be scheduled or has not been marked complete. Review that step before scheduling the work that follows.',
@@ -40,33 +42,39 @@ function SchedulingAttention({result}:{result:Result}){
   {!projects.size&&<p>No unassigned work in this schedule.</p>}
  </section>;
 }
-export function TeamSchedule(){
+export function TeamSchedule({active:visible=true}:{active?:boolean}){
+ const loaded=useRef({start:"",finish:"",at:0});
  const today=new Date().toLocaleDateString('en-CA');
  const [options,setOptions]=useState<TeamOptions>({start:today,finish:dateString(dayNumber(today)+27),priority:[],availability:[]});
  const [result,setResult]=useState<Result>(),[error,setError]=useState(''),[loading,setLoading]=useState(true),[person,setPerson]=useState(''),[project,setProject]=useState(''),[trade,setTrade]=useState('');
  const [refresh,setRefresh]=useState(0);
  useEffect(()=>{
   let active=true,running=false,generation=0;
-  setResult(undefined);setLoading(true);setError('');
+  const sameRange=loaded.current.start===options.start&&loaded.current.finish===options.finish;
+  const valid=validDate(options.start)&&validDate(options.finish)&&options.finish>=options.start&&dayNumber(options.finish)-dayNumber(options.start)<=365;
+  if(!visible)return;
+  if(!valid){loaded.current.at=0;setResult(undefined);setLoading(false);setError('Choose valid schedule dates, in order, no more than one year apart.');return;}
+  if(!sameRange){loaded.current.at=0;setResult(undefined);setLoading(true);}setError('');
   const read=async()=>{
    if(running)return;running=true;const current=++generation;
    try{
     const response=await adaFetch('/api/capacity/team-schedule?view=live&start='+encodeURIComponent(options.start)+'&finish='+encodeURIComponent(options.finish));
     const payload=await response.json();if(!response.ok)throw Error(payload.error);
-    if(active&&current===generation){setResult(payload.result);setError('');}
-   }catch(e){if(active){setResult(undefined);setError(e instanceof Error?e.message:'Schedule unavailable.');}}
+    if(active&&current===generation){loaded.current={start:options.start,finish:options.finish,at:Date.now()};setResult(payload.result);setError('');}
+   }catch(e){if(active){loaded.current.at=0;setResult(undefined);setError(e instanceof Error?e.message:'Schedule unavailable.');}}
    finally{running=false;if(active)setLoading(false);}
   };
   const update=()=>{if(document.visibilityState==='visible')void read();};
-  const identity=()=>{setResult(undefined);setRefresh(value=>value+1);};
-  const initial=setTimeout(()=>void read(),250),timer=setInterval(update,60000);
+  const identity=()=>{loaded.current.at=0;setResult(undefined);setRefresh(value=>value+1);};
+  const initial=setTimeout(()=>{if(!sameRange||Date.now()-loaded.current.at>=60000)void read();},250),timer=setInterval(update,60000);
   document.addEventListener('visibilitychange',update);
   window.addEventListener('production-plan-saved',update);
   window.addEventListener('capacity-schedules-refresh',update);
   window.addEventListener('quote-library-identity-changed',identity);
   return()=>{active=false;clearTimeout(initial);clearInterval(timer);document.removeEventListener('visibilitychange',update);window.removeEventListener('production-plan-saved',update);window.removeEventListener('capacity-schedules-refresh',update);window.removeEventListener('quote-library-identity-changed',identity);};
- },[options.start,options.finish,refresh]);
- const rows=result?.allocations.filter(a=>a.date>=options.start&&a.date<=options.finish&&(!person||a.personId===person)&&(!project||a.workspaceId===project)&&(!trade||capacityTrade(a.trade)===trade))??[];
+ },[options.start,options.finish,refresh,visible]);
+ useEffect(()=>{const invalidate=()=>{loaded.current.at=0;};const identity=()=>{invalidate();setResult(undefined);setPerson('');setProject('');setTrade('');};window.addEventListener('production-plan-saved',invalidate);window.addEventListener('capacity-schedules-refresh',invalidate);window.addEventListener('quote-library-identity-changed',identity);return()=>{window.removeEventListener('production-plan-saved',invalidate);window.removeEventListener('capacity-schedules-refresh',invalidate);window.removeEventListener('quote-library-identity-changed',identity);};},[]);
+ const rows=useMemo(()=>result?.allocations.filter(a=>a.date>=options.start&&a.date<=options.finish&&(!person||a.personId===person)&&(!project||a.workspaceId===project)&&(!trade||capacityTrade(a.trade)===trade))??[],[result,options.start,options.finish,person,project,trade]);
  return <section aria-label="Team Schedule">
  <div className={styles.toolbar}><div className={styles.scheduleDateFields}><label>From<input aria-label="Schedule start date" type="date" value={options.start} onInput={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,start:value}));}} onBlur={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,start:value}));}}/></label><label>Through<input aria-label="Schedule end date" type="date" value={options.finish} onInput={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,finish:value}));}} onBlur={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,finish:value}));}}/></label><button onClick={()=>setOptions({...options,start:today,finish:dateString(dayNumber(today)+27)})}>Next 4 weeks</button></div>
  <div aria-live="polite" className={styles.liveScheduleSummary}>
@@ -86,7 +94,7 @@ export function TeamSchedule(){
 
 </>}
  {error&&<p role="alert" className={styles.error}>{error}</p>}
- {error&&<button onClick={()=>setRefresh(value=>value+1)}>Retry loading schedule</button>}
+ {error&&<button onClick={()=>{loaded.current.at=0;setRefresh(value=>value+1);}}>Retry loading schedule</button>}
  {result&&<>
  <details><summary>Daily assignment list ({rows.length})</summary><div className={styles.scroll} style={{maxHeight:'60vh'}}><table aria-label="Team daily assignments"><thead><tr>{['Date','Employee','Project','Item','Trade','Hours','Shift','Skill'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((a,i)=><tr key={i}><td>{a.date}</td><th>{a.person}</th><td>{a.project}</td><td>{a.item}</td><td>{a.trade}</td><td>{n(a.hours)}</td><td>{a.workMode??'Regular'}</td><td>{a.secondary?'Secondary':'Primary'}</td></tr>)}</tbody></table>{!rows.length&&<p>No assignments in this view.</p>}</div></details>
  {!!result.preparation?.length&&<details><summary>CAD & project turnover details</summary><table aria-label="CAD and turnover schedule"><thead><tr>{['Project','Activity','Start','Finish','Working days','Quoted hours / staffing'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{result.preparation.filter(p=>!project||p.workspaceId===project).map((p,i)=><tr key={i}><th>{p.project}</th><td>{p.kind==='CAD'?'CAD — maximum 15%':'Project turnover — maximum 20%'}</td><td>{p.start}</td><td>{p.finish}</td><td>{n(p.workdays)}</td><td>{p.hours===null?'No labor estimate':`${n(p.hours)}h`} · {p.staffingNote}</td></tr>)}</tbody></table></details>}
