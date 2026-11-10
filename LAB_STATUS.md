@@ -1,3 +1,8 @@
+## Materials Catalog responsiveness — November 10, 2026
+- Memoize duplicate review, sorted/searchable entries and rendered rows; reuse natural-sort collator and currency formatter. Searching filters already sorted rows. Edit keystrokes no longer rebuild the 716-row catalog. Key edit form by item ID so switching materials resets the cost input correctly.
+- Successful edit uses the audited API's authoritative returned material/revision instead of full reload; notify Takeoffs consumers as before. Write guard prevents duplicate submits; errors retain the draft and original row. Import/archive/restore still refresh; generation guards ignore obsolete loads.
+- Management-only GET omits duplicate materials selection array; default Takeoffs API response unchanged. Independent initialization/capability reads overlap. No database, pricing or audit-write changes. TypeScript and 10 interaction/API/catalog tests passed (save response/revision, duplicate submission, conflicts, memo reuse, response parity, price history and quote snapshots). Deployment/live verification pending.
+
 ## Identity/status interface publishing approved — November 10, 2026
 - Joe explicitly approved: "Yes, you may publish this interface update to Lab." Publish reviewed application commit 42056f3 and these handoff notes only to meccajoe/mdp-tracker-lab main / Lab Vercel project prj_H6frjmh8wPjYXFzK4aBHRjd7VhmF, team team_EEoCcHOGaLxcpWCZACyMGC54. This resolves the publishing approval item below.
 - Database identity/state alignment is already applied and verified. Manual Refresh from HubSpot still needs the separate server-only LAB_HUBSPOT_READ_TOKEN; no credential has been configured and no live button refresh is claimed.

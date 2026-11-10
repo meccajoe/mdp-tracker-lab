@@ -9,6 +9,7 @@ const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'C
 async function access(){if(process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://gkvaeqlqrthztobxitvn.supabase.co')return {ok:false as const,response:json({error:'Catalog is available only in Tracker Lab.'},403)};return requireQuoteProductAccess();}
 export async function GET(request:Request){
  const actor=await access();if(!actor.ok)return actor.response;
+ const managementView=request?new URL(request.url).searchParams.get('view')==='management':false;
  const historyItem=request?new URL(request.url).searchParams.get('historyItem'):null;
  if(historyItem!==null){
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(historyItem))return json({error:'Invalid catalog item.'},400);
@@ -29,13 +30,15 @@ export async function GET(request:Request){
   }
   return json({changes:changes.map(({changedById,...row})=>({...row,changedBy:changedById?(people.get(changedById)??'Account unavailable'):'Not recorded',source:row.source?.workspace_id&&!visibleQuotes.has(row.source.workspace_id)?{kind:'unavailable'}:row.source}))});
  }
- const imported=await actor.actorSupabase.from('lab_material_catalog_import').select('imported_count,warnings,imported_at').maybeSingle();
+ const [imported,capability]=await Promise.all([
+  actor.actorSupabase.from('lab_material_catalog_import').select('imported_count,warnings,imported_at').maybeSingle(),
+  actor.actorSupabase.from('quote_user_capabilities').select('capability').eq('capability','create_workspace').is('revoked_at',null).limit(1),
+ ]);
  if(imported.error){if(['42P01','PGRST205'].includes(imported.error.code)){try{const source=await fetchLiveCatalog();return json({...source,entries:[],ready:false,initialized:false,canEdit:false,setupMessage:'Tracker catalog needs its lab storage migration. Google Sheet selections remain available until the one-time copy.'});}catch{}}return json({error:'Tracker catalog storage could not load. Saved quote prices remain unchanged.',ready:false},503);}
- const capability=await actor.actorSupabase.from('quote_user_capabilities').select('capability').eq('capability','create_workspace').is('revoked_at',null).limit(1);
  const canEdit=!capability.error&&Boolean(capability.data?.length),materials=[];
  if(!imported.data){try{const source=await fetchLiveCatalog();return json({...source,entries:[],ready:true,initialized:false,canEdit,setupMessage:'Copy Google Sheet DB once to activate the Tracker catalog.'});}catch{return json({materials:[],entries:[],ready:true,initialized:false,canEdit,warnings:[],setupMessage:'Google Sheet is unavailable. Retry the one-time import later.'});}}
  for(let offset=0;;offset+=500){const result=await actor.actorSupabase.from('lab_material_catalog').select('*').order('name').order('item_id').range(offset,offset+499);if(result.error)return json({error:'Tracker catalog could not load.'},503);materials.push(...result.data.map(catalogMaterial));if(result.data.length<500)break;}
- return json({entries:materials.filter(row=>!row.deletedAt),deletedEntries:materials.filter(row=>row.deletedAt),materials:materials.filter(row=>!row.deletedAt&&row.unitCost!==null&&row.unit.trim()),ready:true,initialized:Boolean(imported.data),canEdit,warnings:imported.data?.warnings??[],fetchedAt:new Date().toISOString()});
+ return json({entries:materials.filter(row=>!row.deletedAt),deletedEntries:materials.filter(row=>row.deletedAt),...(managementView?{}:{materials:materials.filter(row=>!row.deletedAt&&row.unitCost!==null&&row.unit.trim())}),ready:true,initialized:Boolean(imported.data),canEdit,warnings:imported.data?.warnings??[],fetchedAt:new Date().toISOString()});
 }
 export async function POST(request:Request){
  const actor=await access();if(!actor.ok)return actor.response;
