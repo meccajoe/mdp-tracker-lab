@@ -1,3 +1,9 @@
+## Tracker V2 activity pilot assessment — November 10, 2026
+- Completed read-only inspection of all 12 imported projects against Production Tracker. Current Lab states: seven Active, four Completed, one Pending; Production still marks all 12 Active. No project data or integration changes.
+- Selected Fossil Holiday 2026, job 26218, matching HubSpot deal 343941874378. 21 expense rows total 18744.80; 141 canonical time rows total 309.02 hours. 100.70 hours lack verified pay rates; verified base wage subtotal 5548.285 is incomplete. No manual labor/actual adjustments; no exact normalized vendor/date/amount duplicate expense candidates.
+- Documented pinned Lab revision 22, 23 quote lines, budget/contract differences, source identities, category scope, missing rates and import/acceptance design in docs/lab/FOSSIL_PROJECT_PILOT_ASSESSMENT.md. No import, interface implementation or deployment performed; assessment was the agreed first step.
+- Joe explicitly approved publishing this assessment to the Lab repository. Documentation only; activity import and hosted interface work remain separate next steps.
+
 ## HubSpot manual refresh permission fix — November 10, 2026
 - User browser test reached HubSpot successfully but the save RPC failed: service_role lacked SELECT on lab_capacity_quote_versions. Reproduced under the real server role in a rollback-only Lab transaction.
 - Applied migration 20261110220209 only to Lab, granting the missing server SELECT privilege. RPC remains SECURITY INVOKER and service-only; client privileges and RLS unchanged. No Vercel redeploy required.
