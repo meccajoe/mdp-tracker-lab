@@ -1,3 +1,7 @@
+## Quotes live status verification — November 10, 2026
+- Paul explicitly approved one temporary hosted lab quote and archival. Created 2fc00d4d-7d34-4db1-b65f-9467c7827069 (Lab verification — Quotes statuses Nov 10, Internal test, zero-value blank workbook).
+- Main list Forecast Likely, Draft → Final, Use for Capacity → Not Used, Project Status → Complete all saved successfully; full reload retained all four values. Final → Draft also saved. Row remained visible during status save. Archived test record and verified it in Archived quotes with controls disabled. No working quotes changed. Resolves prior hosted status-save QA limitation; no code changes needed. Evidence /private/tmp/quotes-status-test-archived.png.
+
 ## Main Quotes responsiveness — November 9, 2026
 - Quote list server overlaps version metadata with controls/workbook reads and uses ID maps for enrichment. Same actor access, saved-price calculation, pagination and failure rules; no cross-user cache or DB changes.
 - Local invalidation events identify their source so the saving QuoteLibrary does not trigger a redundant reload of itself (other consumers still refresh). Explicit reloads remain for group/capacity/archive and Closed Won/Lost side effects. Background refresh retains table rows; identity changes clear old rows and selection. Group preparation memoized across expansion/selection/dialog changes; reuse date/currency/hour formatters.
