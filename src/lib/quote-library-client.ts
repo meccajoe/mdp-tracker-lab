@@ -11,9 +11,9 @@ function identify(key:string|null){
   if(identity!==key){const previous=identity;identity=key;if(previous!==null&&typeof window!=='undefined')window.dispatchEvent(new Event('quote-library-identity-changed'));}
 }
 if(typeof window!=='undefined')supabase.auth.onAuthStateChange((_event,session)=>identify(actorKey(session?.user??null)));
-export function invalidateQuoteLibrary(){
+export function invalidateQuoteLibrary(source?:object){
   cache.invalidate();
-  if(typeof window!=='undefined')window.dispatchEvent(new Event('quote-workbook-saved'));
+  if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('quote-workbook-saved',{detail:{source}}));
 }
 export async function loadSavedQuotes(options:{excludeWorkspaceId?:string;maxAgeMs?:number}={}){
   const {data,error}=await supabase.auth.getSession();
