@@ -13,14 +13,16 @@ export function QuoteMaterialCell({value,label,materials,usage,disabled,commit,h
   const input=useRef<HTMLInputElement>(null),list=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[index,setIndex]=useState(-1);
   useEffect(()=>{if(!open)return;const close=(event:PointerEvent)=>{const target=event.target as Node;if(!input.current?.contains(target)&&!list.current?.contains(target)){setOpen(false);input.current?.blur();}};document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);},[open]);
-  const choices=useMemo(()=>materials.filter(m=>m.name.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>compareCatalogChoices(a,b,usage)),[materials,query,usage]);
+  // Only the active editor needs suggestions. Closed cells must not sort the catalog.
+  const ranked=useMemo(()=>open?[...materials].sort((a,b)=>compareCatalogChoices(a,b,usage)):[],[open,materials,usage]);
+  const choices=useMemo(()=>{const search=query.toLowerCase();return ranked.filter(m=>m.name.toLowerCase().includes(search));},[ranked,query]);
   function locate(){const rect=input.current?.getBoundingClientRect();if(!rect)return;const width=Math.min(480,window.innerWidth-24);setPosition({position:'fixed',zIndex:100,left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12)),width,...(rect.bottom>window.innerHeight*.55?{bottom:window.innerHeight-rect.top,top:'auto'}:{top:rect.bottom,bottom:'auto'})});}
   useEffect(()=>{if(!open)return;locate();window.addEventListener('resize',locate);window.addEventListener('scroll',locate,true);return()=>{window.removeEventListener('resize',locate);window.removeEventListener('scroll',locate,true);};},[open]);
   useEffect(()=>{if(open&&index>=0)list.current?.querySelector(`[data-index="${index}"]`)?.scrollIntoView({block:'nearest'});},[open,index]);
   function choose(material:Material){const name=material.name;if(!(onPick?onPick(material.id):commit(name,true)))return false;saved.current=name;if(input.current)input.current.value=name;setOpen(false);setIndex(-1);return true;}
   function keepText(element:HTMLInputElement){const text=element.value;if(text===saved.current)return true;if(!commit(text,false)){element.value=saved.current;return false;}saved.current=text;return true;}
   return <><input aria-label={label} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={open?listId:undefined} aria-activedescendant={open&&index>=0?`${listId}-${index}`:undefined} ref={input} defaultValue={value} disabled={disabled}
-    onFocus={e=>{selectTextCell(e.currentTarget);locate();setOpen(false);setQuery(e.currentTarget.value);setIndex(-1);}}
+    onFocus={e=>{selectTextCell(e.currentTarget);setOpen(false);setQuery(e.currentTarget.value);setIndex(-1);}}
     onMouseDown={e=>{if(e.detail>=2)editTextCell(e.currentTarget);}}
     onMouseUp={e=>{if(e.detail<2&&!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}
     onClick={e=>{if(e.detail===1&&!isEditingText(e.currentTarget))selectTextCell(e.currentTarget);}}

@@ -30,7 +30,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [filterItem,setFilterItem]=useState('');
   const [filterQuery,setFilterQuery]=useState('');
   const defaultItem=filterItem||selected;
-  const rows=takeoffWorksheetRows(quote,rowCount,defaultItem);
+  const rows=useMemo(()=>takeoffWorksheetRows(quote,rowCount,defaultItem),[quote,rowCount,defaultItem]);
   const visibleRows=rows.map((row,index)=>({row,index})).filter(({row})=>!filterItem||!row.lineId||row.lineId===filterItem);
   const visibleIndices=visibleRows.map(({index})=>index);
   const [active,setActive]=useState<Cell|null>(null);
@@ -43,7 +43,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [itemPicker,setItemPicker]=useState<number|null>(null);
   const [learnedUsage,setLearnedUsage]=useState<Record<string,number>>({});
   useEffect(()=>{let active=true,generation=0;const load=()=>{const started=++generation;void loadQuoteLibrary({excludeWorkspaceId:workspaceId,maxAgeMs:60000}).then(({quotes})=>{const usage:Record<string,number>={};for(const saved of quotes)for(const [name,count] of Object.entries(saved.document.catalogUsage??{}))usage[name]=(usage[name]??0)+count;if(active&&started===generation)setLearnedUsage(usage);}).catch(()=>{if(active&&started===generation)setLearnedUsage({});});};const clear=()=>{if(active)setLearnedUsage({});load();};load();window.addEventListener('quote-library-identity-changed',clear);window.addEventListener('quote-workbook-saved',load);return()=>{active=false;window.removeEventListener('quote-library-identity-changed',clear);window.removeEventListener('quote-workbook-saved',load);};},[workspaceId]);
-  const usage={...learnedUsage};for(const [name,count] of Object.entries(quote.catalogUsage??{}))usage[name]=(usage[name]??0)+count;
+  const usage=useMemo(()=>{const counts={...learnedUsage};for(const [name,count] of Object.entries(quote.catalogUsage??{}))counts[name]=(counts[name]??0)+count;return counts;},[learnedUsage,quote.catalogUsage]);
   const filterChoices=quote.lines.filter(line=>`${quoteItemLabel(quote,line.id)} ${line.name}`.toLowerCase().includes(filterQuery.toLowerCase()));
   function setFilter(id:string) {
     setFilterItem(id);setFilterOpen(false);setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;
@@ -59,10 +59,10 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const calculation=useMemo(()=>{
     try {return calculateQuoteV27(quote);} catch {return null; /* Workbook displays calculation errors. */}
   },[quote]);
-  const computed=new Map(calculation?.takeoffs.map(row=>[row.id,row]));
-  const catalog=new Map(quote.catalog.map(material=>[material.id,material]));
+  const computed=useMemo(()=>new Map(calculation?.takeoffs.map(row=>[row.id,row])),[calculation]);
+  const catalog=useMemo(()=>new Map(quote.catalog.map(material=>[material.id,material])),[quote.catalog]);
   const choices=live.materials??quote.catalog;
-  const units=Array.from(new Set(['each','sheet','feet','sqft','hours','day','lot','gallon','quart','roll','pair','set',...choices.map(m=>m.unit),...quote.takeoffs.map(row=>row.unit??'')].filter(Boolean))).sort();
+  const units=useMemo(()=>Array.from(new Set(['each','sheet','feet','sqft','hours','day','lot','gallon','quart','roll','pair','set',...choices.map(m=>m.unit),...quote.takeoffs.map(row=>row.unit??'')].filter(Boolean))).sort(),[choices,quote.takeoffs]);
   function valueAt(r:number,key:SheetColumn):string {
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
