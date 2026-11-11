@@ -103,6 +103,8 @@ export default function ExpensesClient({
   const [flagSubmitting, setFlagSubmitting] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
   const [expandedBillcomRows, setExpandedBillcomRows] = useState<Set<string>>(new Set());
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [referenceRole, setReferenceRole] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [pmFilter, setPmFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -144,7 +146,11 @@ export default function ExpensesClient({
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) setCurrentUserEmail(session.user.email);
+      if (session?.user?.email) {
+        setCurrentUserEmail(session.user.email);
+        supabase.from("user_roles").select("role").eq("email", session.user.email.toLowerCase()).maybeSingle().then(({ data }) => setReferenceRole(data?.role ?? null));
+      }
+      setFlaggedOnly(new URLSearchParams(window.location.search).get("flagged") === "1");
     });
   }, []);
 
@@ -305,6 +311,7 @@ export default function ExpensesClient({
     if (categoryFilter !== "all") {
       rows = rows.filter((e) => e.category === categoryFilter);
     }
+    if (flaggedOnly) rows = rows.filter(e => e.flagged);
     if (dateFrom) rows = rows.filter((e) => e.date >= dateFrom);
     if (dateTo) rows = rows.filter((e) => e.date <= dateTo);
     if (search) {
@@ -315,7 +322,9 @@ export default function ExpensesClient({
           e.category?.toLowerCase().includes(q) ||
           e.notes?.toLowerCase().includes(q) ||
           projectMap.get(e.project_id)?.name?.toLowerCase().includes(q) ||
-          projectMap.get(e.project_id)?.job_number?.toLowerCase().includes(q)
+          projectMap.get(e.project_id)?.job_number?.toLowerCase().includes(q) ||
+          e.purchaser?.toLowerCase().includes(q) ||
+          String(e.amount ?? "").includes(q)
       );
     }
 
@@ -336,7 +345,7 @@ export default function ExpensesClient({
     });
 
     return rows;
-  }, [expenses, pmFilter, categoryFilter, dateFrom, dateTo, search, sortField, sortDir, projects, projectMap]);
+  }, [expenses, flaggedOnly, pmFilter, categoryFilter, dateFrom, dateTo, search, sortField, sortDir, projects, projectMap]);
 
   const totalAmount = useMemo(() => filtered.reduce((s, e) => s + (e.amount ?? 0), 0), [filtered]);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -358,6 +367,7 @@ export default function ExpensesClient({
   }
 
   function resetFilters() {
+    setFlaggedOnly(false);
     setSearch("");
     setPmFilter("all");
     setCategoryFilter("all");
@@ -366,18 +376,20 @@ export default function ExpensesClient({
     setPage(0);
   }
 
-  const hasFilters = search || pmFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo;
+  const hasFilters = flaggedOnly || search || pmFilter !== "all" || categoryFilter !== "all" || dateFrom || dateTo;
 
   return (
-    <PageShell>
+    <PageShell className="pm-readable-financials">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">All Expenses</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Expenses</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            {filtered.length} expense{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalAmount)} total
+            {filtered.length} expense{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalAmount)} in matching expenses
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {(referenceRole === "admin" || referenceRole === "production") && <Link href="/admin/vendors" className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">Manage vendors</Link>}
+          {referenceRole === "production" && <Link href="/admin/vendors" className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">Manage purchasers</Link>}
           {/* Single expense */}
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger>
@@ -515,27 +527,26 @@ export default function ExpensesClient({
             </DialogContent>
           </Dialog>
 
-          <Link href="/">
-            <Button variant="outline" size="sm">← Dashboard</Button>
-          </Link>
+
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-4 pb-3">
+      <Card className="pm-worklist-toolbar border-0 shadow-none">
+        <CardContent className="p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end">
             <div className="flex min-w-0 flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search</label>
+              <label className="text-sm font-medium text-muted-foreground">Search</label>
               <Input
-                placeholder="Project, vendor, notes…"
+                aria-label="Search expenses"
+                placeholder="Search project, vendor, category or notes…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                className="w-full sm:max-w-xs"
+                className="w-full sm:w-96"
               />
             </div>
             <div className="flex min-w-0 flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PM</label>
+              <label className="text-sm font-medium text-muted-foreground">PM</label>
               <Select value={pmFilter} onValueChange={(v) => { setPmFilter(v ?? "all"); setPage(0); }}>
                 <SelectTrigger className="w-full sm:w-36">
                   <SelectValue>{pmFilter === "all" ? "All PMs" : (PM_NAMES[pmFilter] ?? pmFilter)}</SelectValue>
@@ -549,7 +560,7 @@ export default function ExpensesClient({
               </Select>
             </div>
             <div className="flex min-w-0 flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category</label>
+              <label className="text-sm font-medium text-muted-foreground">Category</label>
               <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v ?? "all"); setPage(0); }}>
                 <SelectTrigger className="w-full sm:w-44">
                   <SelectValue>{categoryFilter === "all" ? "All categories" : (categoryFilter.charAt(0).toUpperCase() + categoryFilter.slice(1).toLowerCase())}</SelectValue>
@@ -563,10 +574,11 @@ export default function ExpensesClient({
               </Select>
             </div>
             <div className="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date Range</label>
+              <label className="text-sm font-medium text-muted-foreground">Date Range</label>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                 <Input
                   type="date"
+                  aria-label="Expenses from date"
                   value={dateFrom}
                   onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
                   className="w-full sm:w-36"
@@ -574,12 +586,14 @@ export default function ExpensesClient({
                 <span className="text-muted-foreground text-sm">to</span>
                 <Input
                   type="date"
+                  aria-label="Expenses through date"
                   value={dateTo}
                   onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
                   className="w-full sm:w-36"
                 />
               </div>
             </div>
+            <Button variant={flaggedOnly ? "secondary" : "outline"} size="sm" aria-pressed={flaggedOnly} onClick={() => { setFlaggedOnly(!flaggedOnly); setPage(0); }}>Flagged expenses</Button>
             {hasFilters && (
               <div className="flex flex-col gap-1">
                 <label className="text-xs invisible">x</label>
@@ -593,13 +607,13 @@ export default function ExpensesClient({
       </Card>
 
       {/* Table */}
-      <Card>
+      <Card className="pm-workspace-section border-0 shadow-none">
         <CardContent className="p-0">
           {filtered.length === 0 ? (
             <p className="text-muted-foreground py-12 text-center text-sm">No expenses match your filters.</p>
           ) : (
             <>
-              <div data-slot="expenses-mobile-list" className="divide-y lg:hidden">
+              <div data-slot="expenses-mobile-list" data-layout="responsive-list" className="divide-y lg:hidden">
                 {pageRows.map((expense) => {
                   const project = projectMap.get(expense.project_id);
                   const billcomDetails = getBillcomExpenseDisplayDetails(expense);
@@ -609,7 +623,7 @@ export default function ExpensesClient({
                       <div className="flex min-w-0 items-start justify-between gap-3">
                         <div className="min-w-0">
                           {project ? (
-                            <Link href={`/projects/${project.id}`} className="block break-words font-medium text-blue-600 hover:underline dark:text-blue-400">
+                            <Link href={`/projects/${project.id}`} className="block break-words font-medium text-foreground hover:underline">
                               {project.job_number ? `${project.job_number} · ` : ""}{project.name}
                             </Link>
                           ) : (
@@ -619,7 +633,7 @@ export default function ExpensesClient({
                             {expense.vendor || "No vendor"} · {expense.category || "No category"}
                           </p>
                         </div>
-                        <p className="shrink-0 font-mono text-sm font-semibold">{formatCurrency(expense.amount)}</p>
+                        <p className="shrink-0 text-right tabular-nums text-sm font-semibold">{formatCurrency(expense.amount)}{!!expense.amount_pending && <span className="block text-xs font-normal text-amber-700 dark:text-amber-400">Pending</span>}</p>
                       </div>
                       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                         <div><dt className="text-muted-foreground">Date</dt><dd>{expense.date}</dd></div>
@@ -653,27 +667,18 @@ export default function ExpensesClient({
                   );
                 })}
               </div>
-              <div className="hidden lg:block">
-              <Table>
+              <div data-layout="responsive-table" className="hidden lg:block">
+              <Table data-layout="fluid-table">
+                <colgroup>{[11, 24, 5, 19, 13, 8, 10, 10].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("date")}>
-                      Date <SortIcon field="date" />
-                    </TableHead>
-                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("project")}>
-                      Project <SortIcon field="project" />
-                    </TableHead>
+                    <TableHead aria-sort={sortField === "date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=""><button type="button" className="inline-flex items-center gap-1 font-medium whitespace-nowrap" onClick={() => toggleSort("date")}> Date <SortIcon field="date" /></button></TableHead>
+                    <TableHead aria-sort={sortField === "project" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=""><button type="button" className="inline-flex items-center gap-1 font-medium whitespace-nowrap" onClick={() => toggleSort("project")}> Project <SortIcon field="project" /></button></TableHead>
                     <TableHead className="hidden md:table-cell">PM</TableHead>
-                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("vendor")}>
-                      Vendor <SortIcon field="vendor" />
-                    </TableHead>
-                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("category")}>
-                      Category <SortIcon field="category" />
-                    </TableHead>
+                    <TableHead aria-sort={sortField === "vendor" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=""><button type="button" className="inline-flex items-center gap-1 font-medium whitespace-nowrap" onClick={() => toggleSort("vendor")}> Vendor <SortIcon field="vendor" /></button></TableHead>
+                    <TableHead aria-sort={sortField === "category" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=""><button type="button" className="inline-flex items-center gap-1 font-medium whitespace-nowrap" onClick={() => toggleSort("category")}> Category <SortIcon field="category" /></button></TableHead>
                     <TableHead className="hidden lg:table-cell">Purchaser</TableHead>
-                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("amount")}>
-                      Amount <SortIcon field="amount" />
-                    </TableHead>
+                    <TableHead aria-sort={sortField === "amount" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className="text-right"><button type="button" className="inline-flex items-center gap-1 font-medium whitespace-nowrap" onClick={() => toggleSort("amount")}> Amount <SortIcon field="amount" /></button></TableHead>
                     <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -686,11 +691,12 @@ export default function ExpensesClient({
                       <Fragment key={expense.id}>
                         <TableRow className="hover:bg-muted/40">
                           <TableCell className="text-sm whitespace-nowrap">{expense.date}</TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-sm whitespace-normal">
                             {project ? (
                               <Link
                                 href={`/projects/${project.id}`}
-                                className="hover:underline text-blue-600 dark:text-blue-400"
+                                className="block break-words font-medium text-foreground hover:underline"
+                                title={`${project.job_number} · ${project.name}`}
                               >
                                 {project.job_number} · {project.name}
                               </Link>
@@ -701,20 +707,22 @@ export default function ExpensesClient({
                           <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
                             {project?.pm ?? "—"}
                           </TableCell>
-                          <TableCell className="text-sm">
-                            <span className="flex items-center gap-1.5">
+                          <TableCell className="text-sm whitespace-normal">
+                            <span className="flex flex-wrap items-center gap-1.5 break-words">
                               {expense.vendor || "—"}
                               {expense.source === "billcom" && (
                                 <span className="inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">BILL</span>
                               )}
                             </span>
+                            {expense.notes && <p className="mt-1 break-words text-xs text-muted-foreground" title={expense.notes} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{expense.notes}</p>}
                           </TableCell>
-                          <TableCell className="text-sm">{expense.category || "—"}</TableCell>
+                          <TableCell className="text-sm whitespace-normal break-words">{expense.category || "—"}</TableCell>
                           <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                             {expense.purchaser || "—"}
                           </TableCell>
-                          <TableCell className="text-right text-sm font-medium">
+                          <TableCell className="text-right text-sm font-medium tabular-nums whitespace-nowrap">
                             {formatCurrency(expense.amount)}
+                            {!!expense.amount_pending && <span className="block text-xs font-normal text-amber-700 dark:text-amber-400">Pending</span>}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
@@ -756,7 +764,7 @@ export default function ExpensesClient({
                         </TableRow>
                         {billcomDetails.isBillcom && billcomDetailsOpen && (
                           <TableRow className="bg-muted/20">
-                            <TableCell colSpan={7}>
+                            <TableCell colSpan={8}>
                               <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
                                 <div className="mb-2 font-medium text-foreground">Bill.com details</div>
                                 <div className="grid gap-2 sm:grid-cols-3">
@@ -771,7 +779,7 @@ export default function ExpensesClient({
                                     </div>
                                   </div>
                                   <div>
-                                    <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Synced</div>
+                                    <div className="uppercase tracking-wide text-[10px] text-muted-foreground">Last imported change</div>
                                     <div>{billcomDetails.syncedAt ? formatDateTimeCentral(billcomDetails.syncedAt) : "—"}</div>
                                   </div>
                                 </div>

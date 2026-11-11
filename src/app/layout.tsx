@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./lab-tracker-ui.css";
 import { AdminViewProvider } from "@/components/admin-view-provider";
 import { Toaster } from "@/components/ui/sonner";
 import AppShell from "@/components/AppShell";

@@ -123,17 +123,17 @@ export default function VendorManagementPage() {
   if (loading) return <div className="flex items-center justify-center min-h-dvh"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
-    <PageShell>
-      <h1 className="text-2xl font-bold">Vendor Management</h1>
+    <PageShell className="pm-readable-financials">
+      <h1 className="text-2xl font-bold">Vendors and purchasers</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Vendors */}
-        <Card>
-          <CardHeader className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>Vendors <span className="text-muted-foreground font-normal text-sm ml-1">({vendors.length})</span></CardTitle>
+        <section className="space-y-4">
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Vendors <span className="text-muted-foreground font-normal text-sm ml-1">({vendors.length})</span></h2>
             <Button size="sm" onClick={() => setShowVendorForm(!showVendorForm)}>+ Add Vendor</Button>
-          </CardHeader>
-          <CardContent className="space-y-4 p-0">
+          </div>
+          <div className="space-y-4 p-0">
             {showVendorForm && (
               <div className="flex flex-col gap-2 px-4 pb-2 pt-4 sm:flex-row">
                 <Input value={newVendorName} onChange={(e) => setNewVendorName(e.target.value)} placeholder="Vendor name" onKeyDown={(e) => e.key === "Enter" && handleAddVendor()} autoFocus />
@@ -185,16 +185,16 @@ export default function VendorManagementPage() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {/* Purchasers */}
-        <Card>
-          <CardHeader className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>Purchasers <span className="text-muted-foreground font-normal text-sm ml-1">({purchasers.length})</span></CardTitle>
+        <section className="space-y-4">
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Purchasers <span className="text-muted-foreground font-normal text-sm ml-1">({purchasers.length})</span></h2>
             <Button size="sm" onClick={() => setShowPurchaserForm(!showPurchaserForm)}>+ Add Purchaser</Button>
-          </CardHeader>
-          <CardContent className="space-y-4 p-0">
+          </div>
+          <div className="space-y-4 p-0">
             {showPurchaserForm && (
               <div className="flex flex-col gap-2 px-4 pb-2 pt-4 sm:flex-row">
                 <Input value={newPurchaserInitials} onChange={(e) => setNewPurchaserInitials(e.target.value)} placeholder="Initials" className="w-full sm:w-24" />
@@ -255,8 +255,8 @@ export default function VendorManagementPage() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     </PageShell>
   );

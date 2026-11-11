@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {PageShell} from "@/components/ui/page-shell";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { buttonVariants } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export default function MaterialsClient() {
   }, [items]);
 
   return (
-    <div className="space-y-6">
+    <PageShell className="pm-readable-financials">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Materials</h1>
@@ -135,17 +136,17 @@ export default function MaterialsClient() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="pm-worklist-toolbar flex flex-wrap gap-3">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search materials"
-          className="md:col-span-1"
+          className="w-full sm:min-w-64 sm:flex-1 sm:w-auto"
         />
 
         <Select value={category} onValueChange={(value) => setCategory(value ?? "all")}>
-          <SelectTrigger>
-            <SelectValue placeholder="Category" />
+          <SelectTrigger aria-label="Material category" className="w-full sm:w-44">
+            <SelectValue>{category==='all'?'All categories':category}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
@@ -156,8 +157,8 @@ export default function MaterialsClient() {
         </Select>
 
         <Select value={vendorId} onValueChange={(value) => setVendorId(value ?? "all")}>
-          <SelectTrigger>
-            <SelectValue placeholder="Vendor" />
+          <SelectTrigger aria-label="Material vendor" className="w-full sm:w-44">
+            <SelectValue>{vendorId==='all'?'All vendors':vendors.find(v=>v.id===vendorId)?.name||'Vendor'}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Vendors</SelectItem>
@@ -168,8 +169,8 @@ export default function MaterialsClient() {
         </Select>
 
         <Select value={active} onValueChange={(value) => setActive(value ?? "all")}>
-          <SelectTrigger>
-            <SelectValue placeholder="Active" />
+          <SelectTrigger aria-label="Material status" className="w-full sm:w-36">
+            <SelectValue>{active==='all'?'All statuses':active==='active'?'Active':'Inactive'}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
@@ -179,7 +180,7 @@ export default function MaterialsClient() {
         </Select>
       </div>
 
-      <div className="rounded-lg border border-border bg-background">
+      <div className="pm-workspace-section">
         <div data-slot="materials-mobile-list" className="divide-y md:hidden">
           {loading ? (
             <p className="p-6 text-center text-sm text-muted-foreground">Loading materials…</p>
@@ -257,6 +258,6 @@ export default function MaterialsClient() {
         </Table>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -1,0 +1,35 @@
+'use client';
+import {CalendarDays,UserRound,Circle,ArrowRight} from 'lucide-react';
+import {PM_NAMES} from '@/lib/types';
+import {CountdownClock} from '@/components/countdown-clock';
+import {useLabProjectActivity} from '@/components/lab-project-activity-provider';
+import {quotedWorkHours,healthMoney,projectDate} from '@/lib/lab-project-presentation';
+import type {Payload} from '@/components/lab-project-detail';
+const cash=(n:number|null)=>n==null?'Not available':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
+const number=(n:number)=>n.toLocaleString('en-US',{maximumFractionDigits:2});
+function Usage({title,actual,budget,hours=false}:{title:string;actual:number;budget:number;hours?:boolean}){
+ const pct=budget>0?actual/budget*100:null,fmt=(n:number)=>hours?number(n)+' hrs':cash(n);
+ return <div><dt>{title}</dt><dd>{fmt(actual)}<span className="pm-table-subtitle">of {fmt(budget)} · {pct==null?'No positive budget':`${pct.toFixed(1)}% used`}</span></dd>{pct!=null&&<div className="pm-health-progress" role="progressbar" aria-label={`${title} budget used`} aria-valuenow={Math.min(100,Math.max(0,pct))} aria-valuemin={0} aria-valuemax={100} aria-valuetext={`${pct.toFixed(1)}% used`}><span style={{width:`${Math.min(100,Math.max(0,pct))}%`,background:pct>100?'#b91c1c':'var(--foreground)'}}/></div>}</div>;
+}
+export function LabProjectOverview({data,onNavigate}:{data:Payload;onNavigate:(tab:string)=>void}){
+ const {data:activity,error,retry}=useLabProjectActivity(),p=data.project,s=data.source.snapshot;
+ const summary=activity?.summary??null,m=healthMoney(s.totals.buildBudget,summary),quoted=quotedWorkHours(s.lines);
+ const alerts=s.warnings.map((description,i)=>({key:`source-${i}`,title:'Quote and project information',description,tab:'hubspot',action:'Review quote'}));
+ if(summary?.missingHours)alerts.push({key:'rates',title:'Labor cost is incomplete',description:`${number(summary.missingHours)} hours have no verified pay rate. Remaining cost budget is unavailable.`,tab:'labor',action:'Review labor'});
+ if(summary&&summary.groups.design.hours>quoted.design)alerts.push({key:'design',title:'Design hours exceed the quote allowance',description:`${number(summary.groups.design.hours)} recorded hours against ${number(quoted.design)} quoted hours.`,tab:'budget',action:'View budget detail'});
+ const importNote=p.notes?.startsWith('Tracker V2 Lab mirror.');
+ const status=['Active','Completed','On Hold','Pending'].includes(p.status)?p.status as 'Active'|'Completed'|'On Hold'|'Pending':'Pending';
+ return <div className="pm-overview">
+  <dl className="pm-status-strip"><div><CalendarDays aria-hidden="true"/><span><dt>Delivery</dt><dd>{projectDate(p.due_date)}</dd></span></div><div><UserRound aria-hidden="true"/><span><dt>Project manager</dt><dd>{s.hubspot.accountManager||(p.pm&&(PM_NAMES[p.pm]||p.pm))||'Not assigned'}</dd></span></div><div><Circle aria-hidden="true"/><span><dt>Project status</dt><dd>{p.status}</dd></span></div></dl>
+  <section aria-label="Project health" className="pm-project-health"><div className="flex flex-wrap items-center justify-between gap-3"><h2>Project health</h2><button className="pm-text-action" onClick={()=>onNavigate('budget')}>View budget detail<ArrowRight aria-hidden="true"/></button></div>
+   {p.due_date?<CountdownClock dueDate={p.due_date} closeDate={p.close_date??undefined} status={status}/>:<p className="pm-table-subtitle mt-3">No delivery date recorded.</p>}<p className="pm-table-subtitle mt-2">Timeline progress measures time since the close date, not work completed.</p>
+   {error?<p role="alert" className="pm-evidence-note">{error} <button className="pm-text-action" onClick={retry}>Retry activity</button></p>:!activity?<p role="status" className="pm-quiet-state">Loading project health…</p>:!summary?<p className="pm-quiet-state">Activity has not been imported for this project. The quote allocation is available.</p>:<>
+    <dl className="pm-health-grid"><div><dt>{m.incomplete?'Recorded subtotal':'Recorded cost'}</dt><dd>{cash(m.cost)}<span className="pm-table-subtitle">of {cash(s.totals.buildBudget)} cost budget · {m.percent==null?'Percentage unavailable':`${m.incomplete?'at least ':''}${m.percent.toFixed(1)}% used`}</span></dd></div><div><dt>Remaining / overrun</dt><dd>{m.remaining==null?'Not available':`${cash(Math.abs(m.remaining))} ${m.remaining<0?'over budget':'remaining'}`}<span className="pm-table-subtitle">{cash(summary.pendingExpenses)} pending amounts included in recorded expenses</span></dd></div><Usage title="Shop hours" actual={summary.groups.shop.hours} budget={quoted.shop} hours/><Usage title="Designer hours" actual={summary.groups.design.hours} budget={quoted.design} hours/><Usage title="Materials + other categories" actual={summary.expenses} budget={s.totals.materialsBudget}/></dl>
+    <p className="pm-table-subtitle">Hours and costs use the same snapshot and quote revision as Budget Detail. Wages are verified base wages; missing costs remain pending.</p><p className="pm-table-subtitle mt-2">Activity captured {new Date(activity.activity!.captured_at).toLocaleString('en-US',{timeZone:'America/Chicago'})} Central.</p>
+   </>}
+  </section>
+  <section><h2>What needs attention</h2><p className="pm-section-intro">Review these items before your next project update.</p><div className="pm-attention-list">{alerts.map(item=><div className="pm-attention-row" key={item.key}><span className="pm-attention-dot" aria-hidden="true"/><div><h3>{item.title}</h3><p>{item.description}</p></div><button className="pm-text-action" onClick={()=>onNavigate(item.tab)}>{item.action}<ArrowRight aria-hidden="true"/></button></div>)}{!alerts.length&&<p className="pm-quiet-state">{!summary?'Import and review project activity before assessing cost health.':'No alerts found in the available quote and cost evidence. Confirm progress with your team.'}</p>}</div></section>
+  <section className="pm-notes"><h3>Project notes</h3>{importNote?<details className="pm-inline-details"><summary>Original project import note</summary><p>{p.notes}</p><p>This note describes the initial import. Current activity availability is shown in Project health above.</p></details>:<p>{p.notes||'No project notes recorded.'}</p>}</section>
+  <details className="pm-disclosure"><summary><strong>Schedule and quote foundation</strong><span>Dates, original quote name and saved budget revision</span></summary><div className="pm-disclosure-content"><dl className="pm-accounting-values">{[['Closed',p.close_date],['Quote due date',s.schedule.dueDate],['Build start',s.schedule.buildStart],['Build finish',s.schedule.buildFinish],['Ship',s.schedule.shipDate],['Install',s.schedule.installDate],['Dismantle',s.schedule.dismantleDate]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||'Pending'}</dd></div>)}</dl><p>Original quote: {s.title}. Budget baseline: saved revision {data.source.workbook_revision}. Later quote edits do not silently replace it.</p></div></details>
+ </div>;
+}

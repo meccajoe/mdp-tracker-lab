@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { PageShell } from "@/components/ui/page-shell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import {adaFetch} from "@/lib/ada-client";
 import {
   Select,
   SelectContent,
@@ -65,7 +66,7 @@ function fmtDate(d: string | null) {
 }
 
 function buildCsvRows(items: LineItem[]): string {
-  const headers = ["Source", "Job #", "Date", "SKU", "Description", "Project", "Unit Cost", "Qty", "Line Total", "Vendor"];
+  const headers = ["Source", "Quote Job / Invoice Number", "Date", "SKU", "Description", "Project", "Unit Price", "Qty", "Line Total", "Vendor"];
   const rows = items.map((item) => [
     item.source,
     item.source_ref ?? "",
@@ -128,6 +129,7 @@ const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => String(CURRENT_YEAR - 
 const LIMIT = 100;
 
 export default function LineItemSearchClient() {
+  const [source, setSource] = useState("hubspot");
   const [filters, setFilters] = useState<Filters>({ q: "", jobNumber: "", year: "", projectName: "" });
   const [pendingQ, setPendingQ] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
@@ -139,6 +141,7 @@ export default function LineItemSearchClient() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [filterOpen, setFilterOpen] = useState(false);
+  const requestId = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
 
@@ -164,10 +167,12 @@ export default function LineItemSearchClient() {
   }, [pendingQ]);
 
   const fetchItems = useCallback(async () => {
+    const activeRequest = ++requestId.current;
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
+      params.set("source", source);
       if (filters.q) params.set("q", filters.q);
       if (filters.jobNumber) params.set("job_number", filters.jobNumber);
       if (filters.year) params.set("year", filters.year);
@@ -177,17 +182,18 @@ export default function LineItemSearchClient() {
       params.set("limit", String(LIMIT));
       params.set("offset", String(offset));
 
-      const res = await fetch(`/api/line-items/search?${params.toString()}`);
+      const res = await adaFetch(`/api/line-items/search?${params.toString()}`);
       if (!res.ok) throw new Error(`Search failed: ${res.status}`);
       const data = await res.json() as { items: LineItem[]; total: number };
+      if (activeRequest !== requestId.current) return;
       setItems(data.items);
       setTotal(data.total);
     } catch (e) {
-      setError(String(e));
+      if (activeRequest === requestId.current) setError(String(e));
     } finally {
-      setLoading(false);
+      if (activeRequest === requestId.current) setLoading(false);
     }
-  }, [filters, sortCol, sortDir, offset]);
+  }, [filters, sortCol, sortDir, offset, source]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -225,12 +231,12 @@ export default function LineItemSearchClient() {
   const hasFilters = filters.q || filters.jobNumber || filters.year || filters.projectName;
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <PageShell className="pm-readable-financials">
       {/* ── Header ── */}
-      <div className="flex flex-shrink-0 items-center gap-3 border-b border-border bg-background px-4 py-4 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex-1">
-          <h1 className="text-lg font-semibold text-foreground leading-none mb-0.5">Search Items</h1>
-          <p className="text-xs text-muted-foreground">Search across all HubSpot quotes and QBO invoices</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Search Items</h1>
+          <p className="text-xs text-muted-foreground">Find previous items and see what was quoted.</p>
         </div>
         <Button
           variant="outline"
@@ -239,19 +245,23 @@ export default function LineItemSearchClient() {
           disabled={items.length === 0}
           className="text-xs h-8"
         >
-          Export CSV
+          Export this page
         </Button>
       </div>
 
       {/* ── Search bar row ── */}
-      <div className="flex-shrink-0 border-b border-border bg-background px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2 max-w-3xl">
+      <div className="pm-worklist-toolbar rounded-lg p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={source} onValueChange={(value) => { setSource(value ?? "hubspot"); setOffset(0); setExpandedId(null); }}>
+            <SelectTrigger aria-label="Item source" className="w-full sm:w-48"><SelectValue>{source === "hubspot" ? "HubSpot quotes" : source === "qbo" ? "QBO invoice history" : "Both sources"}</SelectValue></SelectTrigger>
+            <SelectContent><SelectItem value="hubspot">HubSpot quotes</SelectItem><SelectItem value="qbo">QBO invoice history</SelectItem><SelectItem value="all">Both sources</SelectItem></SelectContent>
+          </Select>
           <Input
+            aria-label="Search items"
             placeholder="Search SKU, description, project..."
             value={pendingQ}
             onChange={(e) => setPendingQ(e.target.value)}
-            className="h-9 text-sm flex-1"
-            autoFocus
+            className="h-9 text-sm w-full sm:min-w-64 sm:flex-1"
           />
 
           {/* Filter button */}
@@ -317,6 +327,7 @@ export default function LineItemSearchClient() {
           </div>
         </div>
 
+        {source !== "hubspot" && <p className="mt-3 text-sm text-muted-foreground">{source === "all" ? "Quotes and invoices may represent the same work. " : "Historical billed items. "}Invoice amounts may be deposits, installments or additions; they may not represent the full agreed price.</p>}
         {/* Active filter chips */}
         {activeFilterChips.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -337,7 +348,7 @@ export default function LineItemSearchClient() {
       </div>
 
       {/* ── Results ── */}
-      <div className="flex-1 overflow-auto px-6 py-3">
+      <div className="pm-workspace-section min-w-0">
         {error && (
           <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mb-3">
             {error}
@@ -367,32 +378,29 @@ export default function LineItemSearchClient() {
           )}
         </div>
 
-        <div className="rounded-lg border border-border overflow-hidden">
-          <Table>
+        <div data-layout="responsive-list" className="divide-y lg:hidden">
+          {loading ? <p className="py-8 text-sm text-muted-foreground">Loading items…</p> : items.map(item => <article key={item.id} className="space-y-3 py-4">
+            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground"><span className="inline-flex items-center gap-2"><span className="text-xs font-medium text-muted-foreground">{item.source === "hubspot" ? "HubSpot" : "QBO"}</span>{item.sku ?? "—"}</span><span className="whitespace-nowrap">{fmtDate(item.source_date)}</span></div>
+            <button type="button" className="block text-left text-sm font-medium break-words" aria-expanded={expandedId === item.id} onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>{item.description ?? "Unnamed item"}</button>
+            <p className="text-sm text-muted-foreground break-words">{item.project_name ?? "—"}</p>
+            <dl className="grid grid-cols-3 gap-3 text-sm tabular-nums"><div><dt className="text-xs text-muted-foreground">Quantity</dt><dd>{item.quantity ?? "—"}</dd></div><div><dt className="text-xs text-muted-foreground">Unit price</dt><dd>{fmt(item.unit_cost)}</dd></div><div><dt className="text-xs text-muted-foreground">Line total</dt><dd className="font-medium">{fmt(item.line_total)}</dd></div></dl>
+            {expandedId === item.id && <div className="space-y-2 text-sm"><p className="break-words">{item.source === "hubspot" ? "Quote reference" : "Invoice number"}: {item.source_ref ?? "—"}</p><p className="text-xs text-muted-foreground">Imported {new Date(item.synced_at).toLocaleDateString("en-US", { timeZone: "America/Chicago" })}. {item.source === "hubspot" ? "Date is the deal close date; prices are quoted selling prices." : "Date is the invoice date; prices may reflect partial billing. — means not supplied or mixed prices."}</p><a className="text-primary underline" target="_blank" rel="noopener noreferrer" href={item.source === "qbo" ? `https://app.qbo.intuit.com/app/invoice?txnId=${item.source_id}` : item.hubspot_deal_id ? `https://app.hubspot.com/contacts/23392178/deal/${item.hubspot_deal_id}` : `https://app.hubspot.com/quotes/23392178/${item.source_id}`}>Open {item.source === "hubspot" ? "HubSpot" : "QBO"} →</a></div>}
+          </article>)}
+          {!loading && !items.length && <p className="py-8 text-sm text-muted-foreground">No items match your search.</p>}
+        </div>
+        <div data-layout="responsive-table" className="hidden min-w-0 overflow-x-auto lg:block">
+          <Table data-layout="fluid-table">
+            <colgroup>{[7,8,26,21,11,5,11,11].map((width,index)=><col key={index} style={{width: `${width}%`}} />)}</colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead className="cursor-pointer select-none w-20" onClick={() => toggleSort("source")}>
-                  Source <SortArrow col="source" />
-                </TableHead>
-                <TableHead className="cursor-pointer select-none w-24" onClick={() => toggleSort("sku")}>
-                  SKU <SortArrow col="sku" />
-                </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("description")}>
-                  Description <SortArrow col="description" />
-                </TableHead>
-                <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("project_name")}>
-                  Project <SortArrow col="project_name" />
-                </TableHead>
-                <TableHead className="cursor-pointer select-none w-28" onClick={() => toggleSort("source_date")}>
-                  Date <SortArrow col="source_date" />
-                </TableHead>
+                <TableHead aria-sort={sortCol === "source" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=" w-20"><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("source")}> Source <SortArrow col="source" /></button></TableHead>
+                <TableHead aria-sort={sortCol === "sku" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=" w-24"><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("sku")}> SKU <SortArrow col="sku" /></button></TableHead>
+                <TableHead aria-sort={sortCol === "description" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=""><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("description")}> Description <SortArrow col="description" /></button></TableHead>
+                <TableHead aria-sort={sortCol === "project_name" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=""><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("project_name")}> Project <SortArrow col="project_name" /></button></TableHead>
+                <TableHead aria-sort={sortCol === "source_date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=" w-28"><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("source_date")}> Date <SortArrow col="source_date" /></button></TableHead>
                 <TableHead className="text-right w-12 select-none">Qty</TableHead>
-                <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("unit_cost")}>
-                  Unit <SortArrow col="unit_cost" />
-                </TableHead>
-                <TableHead className="cursor-pointer select-none text-right w-28" onClick={() => toggleSort("line_total")}>
-                  Total <SortArrow col="line_total" />
-                </TableHead>
+                <TableHead aria-sort={sortCol === "unit_cost" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=" text-right w-28"><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("unit_cost")}> Unit price <SortArrow col="unit_cost" /></button></TableHead>
+                <TableHead aria-sort={sortCol === "line_total" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className=" text-right w-28"><button type="button" className="inline-flex items-center font-medium whitespace-nowrap" onClick={() => toggleSort("line_total")}> Line total <SortArrow col="line_total" /></button></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -411,19 +419,18 @@ export default function LineItemSearchClient() {
                   onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                 >
                   <TableCell>
-                    <Badge variant={item.source === "hubspot" ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                      {item.source === "hubspot" ? "HubSpot" : "QBO"}
-                    </Badge>
+                    <span className="text-xs font-medium text-muted-foreground">{item.source === "hubspot" ? "HubSpot" : "QBO"}</span>
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{item.sku ?? "—"}</TableCell>
-                  <TableCell className="max-w-xs">
-                    <div className="text-sm truncate max-w-[280px]" title={item.description ?? undefined}>{item.description ?? "—"}</div>
+                  <TableCell className="text-sm tabular-nums text-muted-foreground break-words">{item.sku ?? "—"}</TableCell>
+                  <TableCell className="align-top whitespace-normal">
+                    <button type="button" aria-expanded={expandedId === item.id} onClick={(e) => { e.stopPropagation(); setExpandedId(expandedId === item.id ? null : item.id); }} className="block w-full text-left text-sm font-medium whitespace-normal break-words" title={item.description ?? undefined} style={expandedId === item.id ? undefined : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.description ?? "Unnamed item"}</button>
                     {expandedId === item.id && (
                       <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-xs border-t border-border pt-3 sm:grid-cols-2">
                         <div className="sm:col-span-2 min-w-0">
-                          <span className="text-muted-foreground">Job #/Deal Name: </span>
+                          <span className="text-muted-foreground">{item.source === "qbo" ? "Invoice number: " : "Job #/Deal Name: "}</span>
                           <span className="font-medium whitespace-normal break-words">{item.source_ref ?? "—"}</span>
                         </div>
+                        <p className="sm:col-span-2 text-muted-foreground">Imported {new Date(item.synced_at).toLocaleDateString("en-US", { timeZone: "America/Chicago" })}. {item.source === "hubspot" ? "Date shown is the deal close date. Prices are quoted selling prices." : "Date shown is the invoice date. Unit price may reflect partial billing; — means not supplied or mixed prices."}</p>
                         {item.vendor && (
                           <div className="min-w-0 sm:col-span-2">
                             <span className="text-muted-foreground">Vendor: </span>
@@ -451,11 +458,11 @@ export default function LineItemSearchClient() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate" title={item.project_name ?? undefined}>{item.project_name ?? "—"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-normal break-words" title={item.project_name ?? undefined}>{item.project_name ?? "—"}</TableCell>
                   <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtDate(item.source_date)}</TableCell>
                   <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{item.quantity ?? "—"}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">{fmt(item.unit_cost)}</TableCell>
-                  <TableCell className="text-right text-sm font-medium tabular-nums">{fmt(item.line_total)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums whitespace-nowrap">{fmt(item.unit_cost)}</TableCell>
+                  <TableCell className="text-right text-sm font-medium tabular-nums whitespace-nowrap">{fmt(item.line_total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -470,6 +477,6 @@ export default function LineItemSearchClient() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

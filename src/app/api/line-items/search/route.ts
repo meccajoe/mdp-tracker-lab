@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireQuoteProductAccess } from '@/lib/ada-server';
+import { labManagementGuard } from '@/lib/quote-management-server';
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,10 +15,14 @@ function getSupabaseAdmin() {
 
 // GET /api/line-items/search
 export async function GET(req: NextRequest) {
+  const blocked=labManagementGuard();if(blocked)return blocked;
+  const access=await requireQuoteProductAccess();if(!access.ok)return access.response;
   const supabase = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
 
   const q = searchParams.get("q")?.trim() ?? "";
+  const source = searchParams.get('source') ?? 'all';
+  if(!['all','hubspot','qbo'].includes(source))return NextResponse.json({error:'Invalid item source.'},{status:400});
   const jobNumber = searchParams.get("job_number")?.trim() ?? "";
   const year = searchParams.get("year")?.trim() ?? "";
   const projectName = searchParams.get("project_name")?.trim() ?? "";
@@ -37,6 +43,7 @@ export async function GET(req: NextRequest) {
 
   if (q) query = query.ilike("description", `%${q}%`);
 
+  if (source!=='all') query=query.eq('source',source);
   if (jobNumber) query = query.ilike("source_ref", `${jobNumber}%`);
 
   if (year) {

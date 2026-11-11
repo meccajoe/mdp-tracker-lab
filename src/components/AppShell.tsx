@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import LabTrackerShell from "@/components/lab-tracker-shell";
+import { usesTrackerV2Ui } from "@/lib/lab-tracker-ui";
 
 function pageLabel(pathname: string) {
   if (pathname === "/") return "Dashboard";
@@ -45,6 +47,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   if (isAdaWorkspace) {
     return <main data-slot="ada-workspace-shell" className="h-dvh w-full overflow-hidden bg-background">{children}</main>;
   }
+
+  if (usesTrackerV2Ui(pathname)) return <LabTrackerShell>{children}</LabTrackerShell>;
 
   return (
     <div className="min-h-dvh w-full max-w-full overflow-x-clip bg-background">

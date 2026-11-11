@@ -139,35 +139,24 @@ export default function UsersPage() {
   );
 
   return (
-    <PageShell>
+    <PageShell className="pm-readable-financials">
       <div>
-        <h1 className="text-2xl font-bold">User Management</h1>
+        <h1 className="text-2xl font-bold">Users</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage who can access the tracker and what they can see.</p>
       </div>
 
-      {/* Role legend */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {ROLES.map((role) => (
-          <div key={role} className="rounded-lg border p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant={role === "admin" ? "default" : role === "pm" ? "secondary" : "outline"}>{role}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[role]}</p>
-          </div>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>
+      <dl aria-label="Role access key" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">{ROLES.map(role=><div key={role} className="flex gap-2"><dt className="font-medium capitalize text-foreground">{role==='pm'?'PM':role}</dt><dd>{ROLE_DESCRIPTIONS[role]}</dd></div>)}</dl>
+      <section className="space-y-4">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold">
             Users
             <span className="text-muted-foreground font-normal text-sm ml-1">({users.length})</span>
-          </CardTitle>
+          </h2>
           <Button size="sm" onClick={() => { setShowAddForm(!showAddForm); resetAddForm(); }}>
             {showAddForm ? "Cancel" : "+ Add User"}
           </Button>
-        </CardHeader>
-        <CardContent className="p-0">
+        </div>
+        <div className="p-0">
 
           {/* Add form */}
           {showAddForm && (
@@ -381,8 +370,8 @@ export default function UsersPage() {
             </TableBody>
           </Table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </PageShell>
   );
 }

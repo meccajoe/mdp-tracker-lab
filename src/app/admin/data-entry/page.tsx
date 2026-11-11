@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[status] ?? STATUS_COLORS["On Hold"]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium ${STATUS_COLORS[status] ?? STATUS_COLORS["On Hold"]}`}>
       {status}
     </span>
   );
@@ -687,12 +687,12 @@ export default function DataEntryPage() {
       <div className="flex-shrink-0 border-b border-border bg-background px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold">Data Entry Hub</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Data Entry Hub</h1>
             <p className="text-sm text-muted-foreground">Manage projects, budgets, and details</p>
           </div>
           <div className="flex items-center gap-2">
             {qboSyncResult && <span className="text-xs text-muted-foreground">{qboSyncResult}</span>}
-            <Button size="sm" variant="outline" onClick={handleSyncQboUrls} disabled={syncingQboUrls}>
+            <Button size="sm" variant="outline" onClick={handleSyncQboUrls} disabled={syncingQboUrls} title="Find matching QuickBooks projects by job number and update their Tracker links.">
               {syncingQboUrls ? "Syncing..." : "🔗 Sync QBO Links"}
             </Button>
             <Button size="sm" variant="outline" onClick={openNewProject}>+ New Project</Button>
@@ -725,7 +725,7 @@ export default function DataEntryPage() {
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm border-collapse">
+        <table data-layout="data-entry-table" className="w-full text-sm border-collapse">
           <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
             <tr>
               <th className="text-left px-4 py-3 font-semibold border-b border-border w-28">Job #</th>
@@ -756,15 +756,15 @@ export default function DataEntryPage() {
               return (
                 <>
                   <tr key={project.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${project.status === "Completed" ? "text-muted-foreground" : ""} ${isExpanded ? "bg-muted/20" : ""}`}>
-                    <td className="px-4 py-3 font-mono text-xs w-28">{project._isNew ? "NEW" : project.id}</td>
+                    <td className="px-4 py-3 tabular-nums w-28">{project._isNew ? "NEW" : project.id}</td>
                     <td className="px-4 py-3 font-medium max-w-[200px] truncate">{project.name || <span className="text-muted-foreground italic">Untitled</span>}</td>
                     <td className="px-4 py-3 text-muted-foreground truncate hidden sm:table-cell max-w-[160px]">{project.client}</td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{resolvePMName(project.pm ?? "", dbUsers)}</td>
                     <td className="px-4 py-3 w-28"><StatusBadge status={project.status} /></td>
-                    <td className="px-4 py-3 text-right font-mono text-xs hidden lg:table-cell w-32">{project.contract_amount ? formatCurrency(project.contract_amount) : "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell w-32">{project.close_date ?? "—"}</td>
+                    <td className="px-4 py-3 text-right tabular-nums hidden lg:table-cell w-32">{project.contract_amount ? formatCurrency(project.contract_amount) : "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground tabular-nums hidden lg:table-cell w-32">{project.close_date ?? "—"}</td>
                     <td className="px-4 py-3 text-center w-24">
-                      <Button size="sm" variant={isExpanded ? "secondary" : "ghost"} className="h-7 px-3 text-xs" onClick={() => isExpanded ? cancelEdit() : openEdit(project)}>
+                      <Button size="sm" variant={isExpanded ? "secondary" : "ghost"} className="h-8 px-3 text-sm" onClick={() => isExpanded ? cancelEdit() : openEdit(project)}>
                         {isExpanded ? "Close" : "Edit"}
                       </Button>
                     </td>
