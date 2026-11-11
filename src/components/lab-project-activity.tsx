@@ -1,0 +1,53 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { adaFetch } from '@/lib/ada-client';
+import { Card } from '@/components/ui/card';
+import { hasActivityRate, type ActivityCapture, type summarizeProjectActivity } from '@/lib/lab-project-activity';
+
+type BudgetLine={id:string;type:string;hoursAllowed:number};
+type Budget={price:number;buildBudget:number;hoursAllowed:number;materialsBudget:number;laborBudget:number};
+type Payload={activity:null|{captured_at:string;imported_at:string;source_sha256:string;snapshot:ActivityCapture};summary?:ReturnType<typeof summarizeProjectActivity>};
+const dollars=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'});
+const numbers=new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
+const money=(v:number|null|undefined)=>v==null?'Pending':dollars.format(v);
+const num=(v:number)=>numbers.format(v);
+const stamp=(v:string)=>new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Chicago'}).format(new Date(v))+' Central';
+export function LabProjectActivity({projectId,view,budget,lines,revision}:{projectId:string;view:'budget'|'expenses'|'labor';budget:Budget;lines:BudgetLine[];revision:number}){
+ const [data,setData]=useState<Payload|null>(null),[error,setError]=useState(''),[attempt,setAttempt]=useState(0);
+ useEffect(()=>{let current=true;setData(null);setError('');
+  adaFetch(`/api/projects/${encodeURIComponent(projectId)}/activity`).then(async response=>{
+   const body=await response.json();if(!response.ok)throw Error(body.error||'Project activity could not load.');if(current)setData(body);
+  }).catch(e=>{if(current)setError(e instanceof Error?e.message:'Project activity could not load.');});
+  return()=>{current=false;};
+ },[projectId,attempt]);
+ if(error)return <Card className="space-y-3 p-4"><p role="alert">{error}</p><button className="underline" onClick={()=>setAttempt(a=>a+1)}>Retry activity</button></Card>;
+ if(!data)return <p role="status">Loading project activity…</p>;
+ if(!data.activity||!data.summary)return <Card className="space-y-2 p-4"><h2 className="font-semibold">Activity not yet imported</h2><p>The quote allocation is available. Expenses and labor will appear after this project’s activity has been reconciled and imported.</p></Card>;
+ const {activity,summary:s}=data,c=activity.snapshot;
+ const quoted={shop:0,design:0,install:0,dismantle:0,unclassified:0};
+ for(const line of lines){const group=line.type==='Fabrication'?'shop':line.type==='Design / Engineering / CAD'?'design':line.type==='Installer Days'?'install':'unclassified';quoted[group]+=line.hoursAllowed;}
+ const groupLabels={shop:'Shop / fabrication',design:'Design / CAD',install:'Lead installer / field',dismantle:'Dismantle',unclassified:'Other / unclassified'};
+ const headers=(labels:string[])=> <thead><tr className="border-b">{labels.map(label=><th key={label} className="whitespace-nowrap p-3 text-left">{label}</th>)}</tr></thead>;
+ return <section className="space-y-4">
+  <div className="rounded border p-3 text-sm"><p>Production Tracker activity captured {stamp(activity.captured_at)}. This is a dated snapshot.</p><p>Job #{c.project.job_number} · {c.expenses.length} expenses · {c.labor.length} time records. Actuals are project-level; they have not been assigned to quote items.</p></div>
+  {!s.complete&&<p role="status" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Labor cost is incomplete: {num(s.missingHours)} hours across {s.missingEntries} records have no verified pay rate. {money(s.knownCost)} is the verified base wage subtotal for the remaining hours. Missing costs are pending.</p>}
+  {view==='budget'&&<>
+   <Card className="overflow-x-auto"><h2 className="p-4 font-semibold">Budget detail · Lab quote revision {revision}</h2><table className="w-full text-sm">{headers(['Measure','Lab quoted budget','Actual to date','Remaining'])}<tbody>
+    <tr className="border-b"><td className="p-3">Employee labor hours — all work</td><td className="p-3">{num(budget.hoursAllowed)}</td><td className="p-3">{num(s.hours)}</td><td className="p-3">{num(budget.hoursAllowed-s.hours)}</td></tr>
+    <tr className="border-b"><td className="p-3">Employee labor cost</td><td className="p-3">{money(budget.laborBudget)}</td><td className="p-3">{money(s.knownCost)}{!s.complete?' + pending':''}</td><td className="p-3">{s.complete?money(budget.laborBudget-s.knownCost):'Pending full labor cost'}</td></tr>
+    <tr className="border-b"><td className="p-3">Materials / other purchased costs</td><td className="p-3">{money(budget.materialsBudget)}</td><td className="p-3">{money(s.expenses)}</td><td className="p-3">{money(budget.materialsBudget-s.expenses)}</td></tr>
+    <tr className="font-semibold"><td className="p-3">Direct build cost</td><td className="p-3">{money(budget.buildBudget)}</td><td className="p-3">{money(s.expenses+s.knownCost)}{!s.complete?' + pending':''}</td><td className="p-3">{s.complete?money(budget.buildBudget-s.expenses-s.knownCost):'Pending full labor cost'}</td></tr>
+   </tbody></table><p className="p-4 text-sm text-muted-foreground">Purchased costs include external crews and other non-employee costs. Base wages exclude payroll burden. Remaining budget is arithmetic, not a forecast or final margin.</p></Card>
+   <Card className="overflow-x-auto"><h2 className="p-4 font-semibold">Hours by work category</h2><table className="w-full text-sm">{headers(['Work','Quoted hours','Recorded hours','Remaining'])}<tbody>{(Object.keys(quoted) as (keyof typeof quoted)[]).filter(key=>quoted[key]||s.groups[key].hours).map(key=><tr key={key} className="border-b"><td className="p-3">{groupLabels[key]}</td><td className="p-3">{num(quoted[key])}</td><td className="p-3">{num(s.groups[key].hours)}</td><td className="p-3">{num(quoted[key]-s.groups[key].hours)}</td></tr>)}</tbody></table></Card>
+   <Card className="space-y-3 p-4"><h2 className="font-semibold">Production comparison</h2><p className="text-sm">These source figures use a different budget method and remain separate from the Lab quote.</p><dl className="grid gap-3 text-sm sm:grid-cols-2"><div><dt>Lab quote selling price</dt><dd className="font-semibold">{money(budget.price)}</dd></div><div><dt>Production contract amount</dt><dd className="font-semibold">{money(c.project.contract_amount)}</dd></div><div><dt>Production fabrication hours allowance</dt><dd>{c.project.budget_hrs==null?'Pending':num(c.project.budget_hrs)}</dd></div><div><dt>Production materials allowance</dt><dd>{money(c.project.budget_materials)}</dd></div></dl><p className="text-sm">Contract / quote difference: {money(c.project.contract_amount-budget.price)}. Production’s fabrication hours exclude separately budgeted design and installation. Lab’s hours above include all quoted work.</p></Card>
+  </>}
+  {view==='expenses'&&<>
+   <div className="grid gap-3 sm:grid-cols-2"><Card className="p-4"><p>Total recorded expenses</p><p className="text-xl font-semibold">{money(s.expenses)}</p></Card><Card className="p-4"><p>Pending amounts included in total</p><p className="text-xl font-semibold">{money(s.pendingExpenses)}</p></Card></div>
+   <Card className="overflow-x-auto"><h2 className="p-4 font-semibold">Expense activity</h2><table className="w-full text-sm">{headers(['Date','Vendor / notes','Category','Source','Amount','Review'])}<tbody>{c.expenses.map(row=><tr key={row.id} className="border-b align-top"><td className="whitespace-nowrap p-3">{row.date}</td><td className="min-w-48 p-3">{row.vendor||'Not recorded'}{row.notes&&<p className="mt-1 text-xs text-muted-foreground">{row.notes}</p>}<details className="mt-1 text-xs"><summary>Source reference</summary><p>{row.id}</p>{row.external_id&&<p>{row.external_id}</p>}</details></td><td className="p-3">{row.category||'Uncategorized'}</td><td className="p-3">{row.source==='billcom'?'BILL':row.source||'Not recorded'}</td><td className="whitespace-nowrap p-3">{money(row.amount)}</td><td className="p-3">{row.amount_pending?'Amount pending':'Confirmed'}{row.flagged&&<p>Flagged: {row.flag_note||'Review required'}</p>}</td></tr>)}</tbody></table>{!c.expenses.length&&<p className="p-4">No expense records in this capture.</p>}</Card>
+  </>}
+  {view==='labor'&&<>
+   <div className="grid gap-3 sm:grid-cols-3">{[['Recorded hours',num(s.hours)],['Verified base wage subtotal',money(s.knownCost)],['Hours awaiting rates',num(s.missingHours)]].map(([label,value])=><Card className="p-4" key={label}><p>{label}</p><p className="text-xl font-semibold">{value}</p></Card>)}</div>
+   <Card className="overflow-x-auto"><h2 className="p-4 font-semibold">Labor activity · QBO Time</h2><table className="w-full text-sm">{headers(['Date','Person','Work','Regular hours','OT hours','Verified rate','Base wage cost'])}<tbody>{c.labor.map(row=><tr key={row.qbo_entry_id} className="border-b"><td className="whitespace-nowrap p-3">{row.date}</td><td className="p-3">{row.employee_name}<details className="text-xs"><summary>Source reference</summary>{row.qbo_entry_id}</details></td><td className="p-3">{row.service_item||'Unclassified'}</td><td className="p-3">{num(row.reg_hours)}</td><td className="p-3">{num(row.ot_hours)}</td><td className="p-3">{hasActivityRate(row)?money(row.hourly_rate):'Pending'}</td><td className="whitespace-nowrap p-3">{hasActivityRate(row)?money((row.reg_hours+row.ot_hours)*row.hourly_rate!):'Pending'}</td></tr>)}</tbody></table>{!c.labor.length&&<p className="p-4">No time records in this capture.</p>}</Card><p className="text-sm text-muted-foreground">Wages are calculated from recorded hours and verified employee rates. Payroll burden and any unrecorded overtime premiums are not included.</p>
+  </>}
+ </section>;
+}
