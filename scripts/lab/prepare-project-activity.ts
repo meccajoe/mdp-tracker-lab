@@ -8,6 +8,7 @@ const projectId=argument('--project'),job=argument('--job'),deal=argument('--dea
 if(!/^[a-zA-Z0-9-]+$/.test(projectId)||!/^\d+$/.test(job)||!/^\d+$/.test(deal))throw Error('Invalid project identity.');
 const capture:unknown=JSON.parse(readFileSync(argument('--input'),'utf8'));
 validateActivityCapture(capture);
+if(capture.costing||capture.labor.some(row=>row.approved_cost))throw Error('Import approved cost evidence separately from original activity records.');
 if(capture.project.job_number!==job||capture.project.hubspot_deal_id!==deal)throw Error('Source project identity does not match the reviewed destination.');
 const serialized=JSON.stringify(capture),hash=createHash('sha256').update(serialized).digest('hex');
 const literal=(s:string)=>"'"+s.replace(/'/g,"''")+"'";

@@ -15,7 +15,9 @@ Fossil Holiday 2026, job 26218, is the first Tracker V2 activity project. Quote 
 
 ## Money and hours
 
-Verified base wage cost uses hours times the saved employee rate only when its rate_source is qbo_time_users or qbo_time_users_matched and the rate is positive. Unrated hours remain included in hours; their cost is pending. No assumed rate, payroll burden or missing overtime premium is invented. Summaries aggregate unrounded source values before display rounding.
+The November 11 approved costing extension supersedes the initial rate-only coverage described below. See [Approved project costing](APPROVED_PROJECT_COSTING.md) for dated authority, day rates, salary exclusions and genuine exceptions.
+
+For the initial capture without a separate approved costing packet, verified base wage cost uses hours times the saved employee rate only when its rate_source is qbo_time_users or qbo_time_users_matched and the rate is positive. Unrated hours remain included in hours; their cost is pending. No assumed rate, payroll burden or missing overtime premium is invented. Summaries aggregate unrounded source values before display rounding.
 
 Budget Detail does not show a complete remaining labor/build cost when any positive hours lack verified rates. It compares shop, design and field hours separately. It shows Production contract/stored allowances as a separate comparison, not a replacement Lab baseline. Activity is project-level; no invented allocation to quote items or item margins.
 

@@ -14,11 +14,20 @@ export async function GET(){
   for(let offset=0;offset<sources.length;offset+=200){
    const ids=sources.slice(offset,offset+200).map(s=>s.project_id);
    for(let from=0;;from+=200){
-    const page=await access.actorSupabase.from('lab_project_activity_snapshots').select('project_id,captured_at,job_number,hubspot_deal_id,snapshot').in('project_id',ids).order('captured_at',{ascending:false}).order('id').range(from,from+199);
+    const page=await access.actorSupabase.from('lab_project_activity_snapshots').select('id,source_sha256,project_id,captured_at,job_number,hubspot_deal_id,snapshot').in('project_id',ids).order('captured_at',{ascending:false}).order('id').range(from,from+199);
     if(page.error)throw Error('activity');for(const row of page.data??[])if(!latest.has(row.project_id))latest.set(row.project_id,row);
     if((page.data??[]).length<200)break;
    }
   }
-  return json({projects:sources.map(source=>directoryProject(source,latest.get(source.project_id)))});
+  const costing=new Map(),snapshotIds=[...latest.values()].map(row=>row.id);
+  for(let offset=0;offset<snapshotIds.length;offset+=200){
+   const ids=snapshotIds.slice(offset,offset+200);
+   for(let from=0;;from+=200){
+    const page=await access.actorSupabase.from('lab_project_costing_snapshots').select('activity_snapshot_id,evidence').in('activity_snapshot_id',ids).order('resolved_at',{ascending:false}).order('id').range(from,from+199);
+    if(page.error)throw Error('costing');for(const row of page.data??[])if(!costing.has(row.activity_snapshot_id))costing.set(row.activity_snapshot_id,row);
+    if((page.data??[]).length<200)break;
+   }
+  }
+  return json({projects:sources.map(source=>{const activity=latest.get(source.project_id);return directoryProject(source,activity,activity?costing.get(activity.id):null);})});
  }catch{return json({error:'Projects could not be loaded. Try again.'},503);}
 }

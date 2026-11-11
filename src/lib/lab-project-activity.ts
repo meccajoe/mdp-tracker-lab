@@ -1,4 +1,5 @@
 import { getLaborWorkGroup } from './labor-service-item';
+import {activityLaborCost,roundedCostSum,type ApprovedLaborCost} from './lab-project-costing';
 
 export type ActivityExpense = {
  id:string; date:string; category:string|null; vendor:string|null; amount:number;
@@ -9,6 +10,7 @@ export type ActivityLabor = {
  qbo_entry_id:string; employee_name:string; date:string; service_item:string|null;
  reg_hours:number; ot_hours:number; hourly_rate:number|null; rate_source:string|null;
  rate_verified_at:string|null;
+ approved_cost?:ApprovedLaborCost;
 };
 export type ActivityCapture = {
  version:1; source:'production-tracker'; capturedAt:string;
@@ -16,22 +18,31 @@ export type ActivityCapture = {
   contract_amount:number; budget_hrs:number|null; budget_materials:number|null;
   budget_design:number|null; budget_id_labor:number|null};
  expenses:ActivityExpense[]; labor:ActivityLabor[]; manualLabor:unknown[]; manualActuals:unknown[];
+ costing?:{resolvedAt:string;sourceView:string;sourceViewSha256:string};
 };
 export function hasActivityRate(row:ActivityLabor) {
  return row.hourly_rate!=null && row.hourly_rate>0 && ['qbo_time_users','qbo_time_users_matched'].includes(row.rate_source??'');
 }
 export function summarizeProjectActivity(capture:ActivityCapture) {
  const groups={design:{hours:0,cost:0,missingHours:0},shop:{hours:0,cost:0,missingHours:0},install:{hours:0,cost:0,missingHours:0},dismantle:{hours:0,cost:0,missingHours:0},unclassified:{hours:0,cost:0,missingHours:0}};
- let hours=0,knownCost=0,missingHours=0,missingEntries=0;
+ let hours=0,knownCost=0,missingHours=0,missingEntries=0,excludedHours=0;
+ const exceptions=new Map<string,{worker:string;workerId:number|null;hours:number;entries:number;firstDate:string;lastDate:string}>();
+ const costAmounts:number[]=[];
  for(const row of capture.labor){
   const h=row.reg_hours+row.ot_hours,group=groups[getLaborWorkGroup(row.service_item)];
   hours+=h;group.hours+=h;
-  if(hasActivityRate(row)){const cost=h*row.hourly_rate!;knownCost+=cost;group.cost+=cost;}
-  else if(h>0){missingHours+=h;missingEntries++;group.missingHours+=h;}
+  const cost=activityLaborCost(row);
+  if(cost!=null){knownCost+=cost;costAmounts.push(cost);group.cost+=cost;if(row.approved_cost?.basis==='excluded')excludedHours+=h;}
+  else if(h>0){missingHours+=h;missingEntries++;group.missingHours+=h;
+   const key=row.approved_cost?.workerId!=null?'id:'+row.approved_cost.workerId:'name:'+row.employee_name;
+   const e=exceptions.get(key)??{worker:row.employee_name,workerId:row.approved_cost?.workerId??null,hours:0,entries:0,firstDate:row.date,lastDate:row.date};
+   e.hours+=h;e.entries++;if(row.date<e.firstDate)e.firstDate=row.date;if(row.date>e.lastDate)e.lastDate=row.date;exceptions.set(key,e);
+  }
  }
  const expenseCategories:Record<string,number>={};let expenses=0,pendingExpenses=0;
+ if(capture.costing)knownCost=roundedCostSum(costAmounts);
  for(const row of capture.expenses){expenses+=row.amount;const category=row.category||'Uncategorized';expenseCategories[category]=(expenseCategories[category]??0)+row.amount;if(row.amount_pending)pendingExpenses+=row.amount;}
- return {hours,knownCost,missingHours,missingEntries,complete:missingEntries===0,expenses,pendingExpenses,expenseCategories,groups};
+ return {hours,knownCost,missingHours,missingEntries,excludedHours,exceptions:[...exceptions.values()].sort((a,b)=>a.worker.localeCompare(b.worker)),complete:missingEntries===0,expenses,pendingExpenses,expenseCategories,groups};
 }
 
 // Reject incomplete captures rather than silently dropping unsupported records.
