@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import {QuoteTimer} from './quote-timer';
 import { QuoteWorkbook } from "@/components/quote-workbook";
 import { AdaWorkspaceDetail } from "@/components/ada-workspace-detail";
 import { QuoteReviewWorkspace } from "@/components/quote-review-workspace";
@@ -50,6 +51,7 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to quotes
         </Link>
+        <QuoteTimer key={workspaceId} workspaceId={workspaceId}/>
         <div className="flex items-center rounded-md border border-border p-0.5" aria-label="Quote workspace mode">
           <button type="button" onClick={() => setView("workbook")} className={`rounded px-2.5 py-1 text-xs font-medium ${view === "workbook" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>Quote builder</button>
           <button type="button" onClick={() => setView("workspace")} className={`rounded px-2.5 py-1 text-xs font-medium ${view === "workspace" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}>Workspace</button>
