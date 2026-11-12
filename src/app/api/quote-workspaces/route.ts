@@ -13,21 +13,24 @@ export async function GET(request:NextRequest){
  const response=await adaGet(request);if(!response.ok)return response;
  const payload=await response.json(),ids=(payload.workspaces??[]).map((w:{id:string})=>w.id);
  if(!ids.length){const check=await actor.actorSupabase.from('lab_quote_controls').select('workspace_id').limit(1);if(check.error&&!missingManagement(check.error.code))return json({error:'Quote controls could not load.'},500);return json({...payload,managementReady:!check.error});}
- const [versionResult,controls,revisions]=await Promise.all([
+ const includeTime=new URL(request.url).searchParams.get('includeTime')==='1';
+ const [versionResult,controls,revisions,timeTotals]=await Promise.all([
   capacityVersions(actor.actorSupabase).then(data=>({data,error:''}),e=>({data:null,error:(e as Error).message})),
   actor.actorSupabase.from('lab_quote_controls').select('workspace_id,quote_status,version,modified_at').in('workspace_id',ids),
   actor.actorSupabase.from('ada_quote_workspaces').select('id,quote_workbook_revisions(revision,created_at,document,forecast_status:document->schedule->>status,planning_status:document->planning->>status,project_status:document->schedule->>projectStatus)').in('id',ids).order('revision',{referencedTable:'quote_workbook_revisions',ascending:false}).limit(1,{referencedTable:'quote_workbook_revisions'}),
+  includeTime?actor.actorSupabase.rpc('lab_quote_time_totals',{p_workspace_ids:ids}):Promise.resolve({data:[],error:null}),
  ]);
+ const timeById=new Map<string,number>((timeTotals.data??[]).map((row:{workspace_id:string;total_ms:number})=>[row.workspace_id,Number(row.total_ms)]));
  if(!versionResult.data)return json({error:versionResult.error},503);
  const versions=versionResult.data;
  const controlsById=new Map(controls.data?.map(row=>[row.workspace_id,row]));
  const revisionsById=new Map(revisions.data?.map(row=>[row.id,row.quote_workbook_revisions?.[0]]));
  if((controls.error&&!missingManagement(controls.error.code))||revisions.error)return json({error:'Quote status and modification dates could not load.'},500);
- return json({...payload,managementReady:!controls.error,workspaces:payload.workspaces.map((w:{id:string;updated_at:string;last_activity_at:string})=>{
+ return json({...payload,managementReady:!controls.error,timeWarning:timeTotals.error?'Time spent could not load. Reload to retry.':null,workspaces:payload.workspaces.map((w:{id:string;updated_at:string;last_activity_at:string})=>{
   const c=controlsById.get(w.id),r=revisionsById.get(w.id);
   let quoteTotal:number|null=null;
   if(r?.document){try{const total=calculateQuoteV27(parseQuoteV27(r.document)).totals.price;if(Number.isFinite(total))quoteTotal=total;}catch{/* Unreadable saved workbooks show no amount rather than a misleading zero. */}}
-  return {...w,capacity_group:versions.get(w.id)?.group_id,capacity_selected:versions.get(w.id)?.selected??false,capacity_version:versions.get(w.id)?.version??0,quote_total:quoteTotal,quote_status:c?.quote_status??'draft',status_version:c?.version??0,workbook_revision:r?.revision??0,forecast_status:salesForecast(r?.planning_status||r?.forecast_status||''),project_status:projectStatusFor({status:r?.forecast_status,projectStatus:r?.project_status},r?.planning_status||''),last_modified:[w.updated_at,w.last_activity_at,c?.modified_at,r?.created_at].filter(Boolean).sort().at(-1)};
+  return {...w,capacity_group:versions.get(w.id)?.group_id,capacity_selected:versions.get(w.id)?.selected??false,capacity_version:versions.get(w.id)?.version??0,quote_total:quoteTotal,...(includeTime?{time_spent_ms:timeTotals.error?null:timeById.get(w.id)??null}:{}),quote_status:c?.quote_status??'draft',status_version:c?.version??0,workbook_revision:r?.revision??0,forecast_status:salesForecast(r?.planning_status||r?.forecast_status||''),project_status:projectStatusFor({status:r?.forecast_status,projectStatus:r?.project_status},r?.planning_status||''),last_modified:[w.updated_at,w.last_activity_at,c?.modified_at,r?.created_at].filter(Boolean).sort().at(-1)};
  })});
 }
 export async function POST(request:NextRequest){

@@ -93,12 +93,13 @@ test('client edit requires access, rejects blank/stale names and preserves other
 });
 
 test('quote list totals use latest saved pricing and omit documents; missing or invalid workbooks have no amount',async()=>{
- const workspaces=[{id:'saved'},{id:'missing'},{id:'invalid'}],seen=[];
- const actor={ok:true,actorSupabase:{from:table=>query(table==='lab_quote_controls'?[]:[{id:'saved',quote_workbook_revisions:[{revision:4,document:{savedPrice:1234.56}}]},{id:'invalid',quote_workbook_revisions:[{revision:1,document:{invalid:true}}]}])}};
+ const workspaces=[{id:'saved'},{id:'missing'},{id:'invalid'}],seen=[],timeCalls=[];let timeError=null;
+ const actor={ok:true,actorSupabase:{rpc:(name,args)=>{timeCalls.push({name,args});return query([{workspace_id:'saved',total_ms:3661000},{workspace_id:'missing',total_ms:0}],timeError)},from:table=>query(table==='lab_quote_controls'?[]:[{id:'saved',quote_workbook_revisions:[{revision:4,document:{savedPrice:1234.56}}]},{id:'invalid',quote_workbook_revisions:[{revision:1,document:{invalid:true}}]}])}};
  const route=load('src/app/api/quote-workspaces/route.ts',{'next/server':{NextRequest:Request},'@/app/api/ada/workspaces/route':{GET:async()=>json({workspaces})},'@/lib/ada-server':{requireQuoteProductAccess:async()=>actor},'@/lib/quote-v27-template':{},'@/lib/quote-defaults':{},'@/lib/quote-v27-validation':{parseQuoteV27:d=>{if(d.invalid)throw Error('invalid');return d}},'@/lib/quote-v27':{calculateQuoteV27:d=>{seen.push(d);return {totals:{price:d.savedPrice}}}},'@/lib/quote-management-server':management});
  const response=await route.GET(new Request('https://lab.test')),body=await response.json();
  assert.equal(response.status,200);assert.equal(body.workspaces[0].quote_total,1234.56);assert.equal(body.workspaces[0].workbook_revision,4);
  assert.equal(body.workspaces[1].quote_total,null);assert.equal(body.workspaces[2].quote_total,null);assert.equal(seen.length,1);assert.equal(JSON.stringify(body).includes('savedPrice'),false);
+ assert.equal(timeCalls.length,0);const timed=await(await route.GET(new Request('https://lab.test?includeTime=1'))).json();assert.equal(timeCalls.length,1);assert.equal(timeCalls[0].name,'lab_quote_time_totals');assert.deepEqual([...timeCalls[0].args.p_workspace_ids],['saved','missing','invalid']);assert.equal(timed.workspaces[0].time_spent_ms,3661000);assert.equal(timed.workspaces[1].time_spent_ms,0);assert.equal(timed.workspaces[2].time_spent_ms,null);timeError={message:'unavailable'};const failed=await(await route.GET(new Request('https://lab.test?includeTime=1'))).json();assert.ok(failed.timeWarning);assert.equal(failed.workspaces[0].time_spent_ms,null);
 });
 
 test('explicit Closed Won selection activates a project without changing dates or read-time history',()=>{

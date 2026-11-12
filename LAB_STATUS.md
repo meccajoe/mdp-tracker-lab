@@ -1,3 +1,8 @@
+## Quotes list Time Spent — November 12, 2026
+- Added resizable/account-width-aware Time Spent column next to Quote Total on main and archived Quotes lists; Capacity columns unchanged. Saved h:mm:ss totals per version; first header click sorts longest-first, next shortest-first. Existing project sections/version grouping remain. Unknown totals show a dash, sort last, and query errors show a retry warning. Tooltip identifies tracking start date; no historical effort inferred.
+- Optional includeTime=1 list read uses one bulk actor/member-scoped RPC per page (max 100 IDs), unioning overlapping sessions per person exactly like individual timers. Read-only migration 20261112140000 applied in Lab after rollback query validation. No quote/pricing/time-log writes.
+- Full lab:check passed plus focused list sorting and bulk API checks (zero vs unavailable, numeric duration order, no extra RPC for Capacity). Deployment/live list verification pending.
+
 ## Quote time tracking — November 12, 2026
 - Added top-of-quote Time spent timer, separate from workbook snapshots/revisions/pricing. Paul chose to keep counting when switching tabs/apps; leaving the quote pauses, Final stops and Draft resumes. Shared total sums people’s time; overlapping sessions for the same person are unioned. Starts with this feature; no historical time inferred. Clones start their own log.
 - New actor/member-checked timer API and append-only lab_quote_time_spans/RPC. Fifteen-second sync, leave/pagehide flush, idempotent interval IDs and same-tab retry queue. Calendar elapsed time counts while page remains open (including background throttling); force-close/crash before sync may lose the last unsaved interval. No idle timeout. Timer rerenders independently of workbook calculations.
