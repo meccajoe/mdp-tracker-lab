@@ -1,3 +1,7 @@
+## Sync preview corrections deployed — November 12, 2026
+- Published 84661cfbe39c632dcc1ab2ac876a8a22febb73fb to Lab main and sync branch under Joe’s publishing approval. Vercel dpl_F6ppdi3UiEWB8cP4fZfiCc1bmDAg READY; exact SHA and primary alias verified. 351 tests + TypeScript and sanitized build passed. Recent affected-route runtime error scan clean.
+- Reuses approved Nicholas/Nick and Destiny aliases; outcome labels use project/quote names and job numbers. Quote errors distinguish access denied, missing record and rate limit. First preview source DB access passed, but quote reads blocked all linked-project progress; no project/activity update occurred. Requested check of HubSpot crm.objects.quotes.read. Scope confirmation and a new hosted preview/apply are still pending. Daily schedule remains disabled.
+
 ## First hosted sync preview — November 12, 2026
 - Joe ran signed-in Preview sync b677b70f-8765-4b73-8493-4f3977797553. Production read-only connection and approved costing definition check passed. Preview ended without project writes: nine HUBSPOT_QUOTE_READ_FAILED, three HUBSPOT_PM_MAPPING_REQUIRED, two missing deal/job links.
 - All PM cases were existing Nicholas Gonzales → NG. Sync now reuses the established HubSpot PM resolver/approved aliases instead of exact PM_NAMES matching. Added regression for Nicholas, Destiny and normalized names; unknowns still fail closed. Quote HTTP failures distinguish denied access / missing quote / rate limit. Exception labels use project/quote names and job numbers rather than UUIDs.
