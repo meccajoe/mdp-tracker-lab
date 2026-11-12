@@ -8,6 +8,7 @@ export function QuoteTimer({workspaceId}:{workspaceId:string}){
  const togglePause=useRef<()=>void>(()=>{});
  useEffect(()=>{
   let disposed=false,canTrack=false,manualPaused=false,total=0,queue:QuoteTimeSpan[]=[],key='',actorId='',syncError='',segmentStart=0,segmentEnd=0,last=Date.now(),sending=false,flushAgain=false;
+  const sessionId=crypto.randomUUID();
   let pauseVersion=0,pendingPause:{paused:boolean;version:number}|null=null,initialSync=true;
   let interval:ReturnType<typeof setInterval>|undefined;
   const persist=()=>{if(key)try{sessionStorage.setItem(key,JSON.stringify(queue));}catch{/* Keep the in-memory queue and visible pending indicator. */}};
@@ -31,7 +32,7 @@ export function QuoteTimer({workspaceId}:{workspaceId:string}){
    closeSegment();if(!key)return;if(sending){flushAgain=true;return;}sending=true;flushAgain=false;
    const batch=queue.slice(0,100),change=pendingPause;
    try{
-    const response=await adaFetch(`/api/quote-workspaces/${workspaceId}/time`,(batch.length||change)?{method:'POST',headers:{'Content-Type':'application/json','X-Quote-Time-Actor':actorId},body:JSON.stringify({spans:batch,...(change?{paused:change.paused,pauseVersion:change.version}:{})}),keepalive:final}:{cache:'no-store'});
+    const response=await adaFetch(`/api/quote-workspaces/${workspaceId}/time`,{method:'POST',headers:{'Content-Type':'application/json','X-Quote-Time-Actor':actorId},body:JSON.stringify({spans:batch,sessionId,sessionOpen:!disposed&&pageOpen,...(change?{paused:change.paused,pauseVersion:change.version}:{})}),keepalive:final});
     const data=await response.json();if(!response.ok){if([401,403,409].includes(response.status))canTrack=false;if(response.status===409){pendingPause=null;initialSync=false;}throw Error(data.error||'Time could not sync.');}
     if(data.actorId!==actorId){canTrack=false;throw Error('Account changed');}
     tick();if(change===pendingPause)pendingPause=null;pauseVersion=data.pauseVersion;manualPaused=pendingPause?true:Boolean(data.paused);

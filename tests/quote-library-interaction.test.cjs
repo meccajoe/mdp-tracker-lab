@@ -1,21 +1,23 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
 function harness(additionalRows=[]){
- const states=[],effects=[],memos=[];let index=0,pending=[],tree,gets=0,fail=false,hold=false,release;
- const window=new EventTarget(),row={id:'one',title:'Example',capacity_group:'group',capacity_selected:true,capacity_version:1,created_at:'2026-11-01',last_modified:'2026-11-01',quote_status:'draft',status_version:1,workbook_revision:1,forecast_status:'Possible',project_status:'Not Active',quote_total:123,time_spent_ms:3661000};
+ const states=[],effects=[],memos=[];let timerPaused=false,timerVersion=0,timerPosts=0;let index=0,pending=[],tree,gets=0,fail=false,hold=false,release;
+ const window=new EventTarget(),row={id:'one',title:'Example',capacity_group:'group',capacity_selected:true,capacity_version:1,created_at:'2026-11-01',last_modified:'2026-11-01',quote_status:'draft',status_version:1,workbook_revision:1,forecast_status:'Possible',project_status:'Not Active',quote_total:123,time_spent_ms:3661000,timer:{paused:false,pause_version:0,running:false,can_toggle:true}};
  const same=(a,b)=>a&&b&&a.length===b.length&&a.every((x,i)=>Object.is(x,b[i]));
  const react={Fragment:'fragment',useRef(value){const i=index++;return states[i]??=( {current:value});},useState(value){const i=index++;if(!(i in states))states[i]=typeof value==='function'?value():value;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v}];},useCallback(fn,deps){return react.useMemo(()=>fn,deps)},useMemo(fn,deps){const i=index++;if(!memos[i]||!same(memos[i].deps,deps))memos[i]={deps,value:fn()};return memos[i].value},useEffect(fn,deps){const i=index++;if(!effects[i]||!same(effects[i].deps,deps)){pending.push(()=>{effects[i]?.cleanup?.();effects[i]={deps,cleanup:fn()}})}}};
  const jsx=(type,props)=>({type,props});
  let groupCalls=0;
  const imports={react,'react/jsx-runtime':{jsx,jsxs:jsx},'@/lib/quote-time':{quoteTimeLabel:ms=>`${Math.floor(ms/3600000)}:${String(Math.floor(ms/60000)%60).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')}`},'next/navigation':{useRouter:()=>({push(){}})},'@/lib/quote-version-groups':{groupQuoteVersions:(rows,matches,compare)=>{groupCalls++;return rows.filter(matches).sort(compare).map(primary=>({id:primary.id,primary,others:[{...primary,id:'older',title:'Example v1'}]}))}},'@/lib/quote-schedule':{forecastLabel:x=>x,SALES_FORECAST_STATUSES:['Possible','Likely'],PROJECT_STATUSES:['Not Active','Active','Complete']},'@/lib/quote-library-client':{invalidateQuoteLibrary:source=>window.dispatchEvent(new CustomEvent('quote-workbook-saved',{detail:{source}}))},'@/lib/ada-client':{adaFetch:async(url,options)=>{
- if(!options){gets++;if(hold)await new Promise(r=>release=r);return Response.json({workspaces:[row,...additionalRows],managementReady:true,hasMore:false});}
+ if(url.includes('/timers?'))return Response.json({actorId:'actor',timers:[{workspace_id:'one',total_ms:3661000,paused:timerPaused,pause_version:timerVersion,running:false,can_toggle:true}]});
+ if(url.endsWith('/time')){timerPosts++;const body=JSON.parse(options.body);assert.deepEqual(body.spans,[]);assert.equal(options.headers['X-Quote-Time-Actor'],'actor');if(fail)return Response.json({error:'Conflict'},{status:409});timerPaused=body.paused;timerVersion++;return Response.json({});}
+ if(!options){gets++;if(hold)await new Promise(r=>release=r);return Response.json({workspaces:[row,...additionalRows],managementReady:true,timerActorId:'actor',hasMore:false});}
  if(fail)return Response.json({error:'Conflict'}, {status:409});return Response.json({status:'final',version:2});
  }}};
  const module={exports:{}};
  const source=ts.transpileModule(fs.readFileSync('src/components/quote-library.tsx','utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
- vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n]??new Proxy({},{get:(_,key)=>String(key)}),window,Event,CustomEvent,Response,crypto,Set,Map,Intl,Date});
+ vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n]??new Proxy({},{get:(_,key)=>String(key)}),window,document:{visibilityState:'visible'},setInterval:()=>1,clearInterval:()=>{},Event,CustomEvent,Response,crypto,Set,Map,Intl,Date});
  const render=()=>{index=0;tree=module.exports.QuoteLibrary({});const work=pending;pending=[];work.forEach(f=>f());return tree;};
  const nodes=()=>{const out=[];function visit(x){if(!x)return;if(Array.isArray(x)){x.forEach(visit);return;}if(typeof x==='object'){out.push(x);visit(x.props?.children)}}visit(tree);return out};
- return {render,nodes,find:label=>nodes().find(n=>n.props?.['aria-label']===label),text:()=>JSON.stringify(tree),settle:async()=>{await new Promise(r=>setImmediate(r));render()},gets:()=>gets,groups:()=>groupCalls,window,fail:()=>fail=true,hold:()=>hold=true,release:()=>{hold=false;release()},row};
+ return {render,nodes,find:label=>nodes().find(n=>n.props?.['aria-label']===label),text:()=>JSON.stringify(tree),settle:async()=>{await new Promise(r=>setImmediate(r));render()},timerPosts:()=>timerPosts,gets:()=>gets,groups:()=>groupCalls,window,fail:()=>fail=true,hold:()=>hold=true,release:()=>{hold=false;release()},row};
 }
 test('status update stays in place without self-triggering a full list reload; external refresh still loads',async()=>{
  const h=harness();h.render();await h.settle();assert.equal(h.gets(),1);
@@ -52,4 +54,14 @@ test('Time Spent displays hours/minutes/seconds and sorts numerically, longest f
  const button=()=>h.nodes().find(n=>n.type==='button'&&n.props.children?.[0]==='Time Spent');
  button().props.onClick();h.render();let text=h.text();assert.ok(text.indexOf('Long quote')<text.indexOf('Example'));assert.ok(text.indexOf('Example')<text.indexOf('No time yet'));
  button().props.onClick();h.render();text=h.text();assert.ok(text.indexOf('No time yet')<text.indexOf('Example'));assert.ok(text.indexOf('Example')<text.indexOf('Long quote'));
+});
+
+test('list Pause and Resume save account state without opening or reloading quotes',async()=>{
+ const h=harness();h.render();await h.settle();assert.match(h.text(),/Ready on open/);
+ await h.find('Pause timer · Example').props.onClick();await h.settle();assert.ok(h.find('Resume timer · Example'));assert.equal(h.timerPosts(),1);assert.equal(h.gets(),1);
+ await h.find('Resume timer · Example').props.onClick();await h.settle();assert.ok(h.find('Pause timer · Example'));assert.match(h.text(),/Ready on open/);assert.equal(h.gets(),1);
+});
+test('failed timer action retains authoritative state and Final has no timer control',async()=>{
+ const h=harness();h.render();await h.settle();h.fail();await h.find('Pause timer · Example').props.onClick();await h.settle();assert.match(h.text(),/Conflict/);assert.ok(h.find('Pause timer · Example'));
+ const f=harness();f.row.quote_status='final';f.render();await f.settle();assert.match(f.text(),/Paused · Final/);assert.equal(f.find('Pause timer · Example'),undefined);
 });

@@ -60,3 +60,15 @@
   left: auto !important;
  }
 }
+
+/* Leave room to reach Time Spent/actions on laptop-width Quotes lists. */
+@media (min-width: 768px) and (max-width: 1440px) {
+ .quotesTable tbody td:nth-child(n+3):not([colspan]) {
+  position: static !important;
+  box-shadow: none;
+ }
+ .quotesTable thead th:nth-child(n+3) {
+  left: auto !important;
+  z-index: 3 !important;
+ }
+}
