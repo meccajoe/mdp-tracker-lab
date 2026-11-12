@@ -23,5 +23,12 @@ test('manual allowed-hour overrides keep actual trade assignments and expose the
  assert.equal(result.assigned+result.untyped-result.overallocated,result.total);
 });
 test('blank handoff reports zero hours rather than fabricated trade demand',()=>{
- const q=createBlankQuoteV27();assert.deepEqual(budgetHandoffHours(q,calculateQuoteV27(q)),{total:0,trades:[],assigned:0,untyped:0,overallocated:0});
+ const q=createBlankQuoteV27(),{lines,...totals}=budgetHandoffHours(q,calculateQuoteV27(q));assert.equal(lines.length,q.lines.length);assert.deepEqual(totals,{total:0,trades:[],assigned:0,untyped:0,overallocated:0});
+});
+
+test('legacy exact unique trade names match Capacity without changing calculations or guessing ambiguous names',()=>{
+ const q=fixture();q.takeoffs[0].tradeId=null;q.takeoffs[0].description='CNC';
+ const calculation=calculateQuoteV27(q),before=JSON.stringify(calculation),result=budgetHandoffHours(q,calculation);
+ assert.equal(result.trades.find(t=>t.id==='cnc')?.hours,8);assert.equal(result.lines[0].tradeHours.cnc,6);assert.equal(result.untyped,6);assert.equal(JSON.stringify(calculation),before);
+ q.trades.push({id:'other-cnc',name:'CNC',wage:20});const ambiguous=budgetHandoffHours(q,calculateQuoteV27(q));assert.equal(ambiguous.trades.find(t=>t.id==='cnc')?.hours,2);assert.equal(ambiguous.untyped,12);
 });
