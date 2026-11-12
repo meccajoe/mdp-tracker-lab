@@ -1,3 +1,7 @@
+## Daily sync publishing approved — November 12, 2026
+- Joe explicitly approved pushing the sync update. LAB_TRACKER_READ_TOKEN is now confirmed by name only in the Lab Production environment; Joe’s redeploy served older main 6c04881, so it did not yet include the sync code. No token value retrieved.
+- Merged latest Lab main 887c18d to preserve Paul’s list timer/header work. Combined 348 tests and TypeScript passed; sanitized build and release verification in progress. Publish only to the Lab repository/primary Lab Vercel project. Recurrence remains disabled until token-backed hosted preview/apply succeeds; publishing approval is now resolved.
+
 ## Quotes list timer controls — November 12, 2026
 - Time Spent now includes the current account’s Running / Paused / Ready on open status and Pause/Resume controls. Paul confirmed Resume on the list should only enable counting when the quote is open. Final/archived/read-only rows have no controls. Team totals remain distinct from personal timer state.
 - Lightweight bounded bulk timer refresh every 15 seconds/focus without workbook reload/calculation. Presence heartbeat per open quote-page session, explicit leave closure, 45-second stale expiration; crashes/background throttling can delay status. Account pause changes reuse optimistic version checks; stale polling cannot overwrite an action, identity changes discard old responses. No quote prices/revisions changed.
