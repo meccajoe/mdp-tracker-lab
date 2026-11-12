@@ -17,6 +17,9 @@ export function budgetHandoffHours(quote:QuoteV27,calculation:ReturnType<typeof 
   for(const [id,hours] of Object.entries(tradeHours))combined[id]=(combined[id]??0)+hours;
   return {...line,tradeHours,untypedHours:Math.max(0,line.hoursAllowed-assigned),overallocatedTradeHours:Math.max(0,assigned-line.hoursAllowed)};
  });
+ const namedPurposes=new Set(['Design / Engineering / CAD','Lead Installer — Install','Lead Installer — Dismantle','Off Days — Lead','Off Days — Support','Install Support Labor','Travel — Lead Installer','Travel — Project Manager','Travel — Install Support','Stage / Pack / Prep','Disposal','Installer Days']);
+ const otherHours=lines.filter(line=>line.untypedHours>0).map(line=>({id:line.id,name:line.name,type:line.type,hours:line.untypedHours,purposeKnown:namedPurposes.has(line.type)}));
+ const purposeHours=otherHours.filter(line=>line.purposeKnown).reduce((sum,line)=>sum+line.hours,0),needsTradeHours=otherHours.filter(line=>!line.purposeKnown).reduce((sum,line)=>sum+line.hours,0);
  const trades=Object.entries(combined).filter(([,hours])=>hours!==0).map(([id,hours])=>({id,name:quote.trades.find(trade=>trade.id===id)?.name||`Unknown trade (${id})`,hours})).sort((a,b)=>a.name.localeCompare(b.name));
- return {lines,total:calculation.totals.hoursAllowed,trades,assigned:trades.reduce((sum,trade)=>sum+trade.hours,0),untyped:lines.reduce((sum,line)=>sum+line.untypedHours,0),overallocated:lines.reduce((sum,line)=>sum+line.overallocatedTradeHours,0)};
+ return {lines,otherHours,purposeHours,needsTradeHours,total:calculation.totals.hoursAllowed,trades,assigned:trades.reduce((sum,trade)=>sum+trade.hours,0),untyped:lines.reduce((sum,line)=>sum+line.untypedHours,0),overallocated:lines.reduce((sum,line)=>sum+line.overallocatedTradeHours,0)};
 }

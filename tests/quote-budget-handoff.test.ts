@@ -23,7 +23,7 @@ test('manual allowed-hour overrides keep actual trade assignments and expose the
  assert.equal(result.assigned+result.untyped-result.overallocated,result.total);
 });
 test('blank handoff reports zero hours rather than fabricated trade demand',()=>{
- const q=createBlankQuoteV27(),{lines,...totals}=budgetHandoffHours(q,calculateQuoteV27(q));assert.equal(lines.length,q.lines.length);assert.deepEqual(totals,{total:0,trades:[],assigned:0,untyped:0,overallocated:0});
+ const q=createBlankQuoteV27(),{lines,otherHours,purposeHours,needsTradeHours,...totals}=budgetHandoffHours(q,calculateQuoteV27(q));assert.equal(lines.length,q.lines.length);assert.deepEqual(otherHours,[]);assert.equal(purposeHours,0);assert.equal(needsTradeHours,0);assert.deepEqual(totals,{total:0,trades:[],assigned:0,untyped:0,overallocated:0});
 });
 
 test('legacy exact unique trade names match Capacity without changing calculations or guessing ambiguous names',()=>{
@@ -31,4 +31,14 @@ test('legacy exact unique trade names match Capacity without changing calculatio
  const calculation=calculateQuoteV27(q),before=JSON.stringify(calculation),result=budgetHandoffHours(q,calculation);
  assert.equal(result.trades.find(t=>t.id==='cnc')?.hours,8);assert.equal(result.lines[0].tradeHours.cnc,6);assert.equal(result.untyped,6);assert.equal(JSON.stringify(calculation),before);
  q.trades.push({id:'other-cnc',name:'CNC',wage:20});const ambiguous=budgetHandoffHours(q,calculateQuoteV27(q));assert.equal(ambiguous.trades.find(t=>t.id==='cnc')?.hours,2);assert.equal(ambiguous.untyped,12);
+});
+
+test('named CAD and installer hours have purposes; only unexplained fabrication hours need a trade',()=>{
+ const q=fixture();q.lines[2].inputs.hours=32;
+ q.lines.push({...q.lines[2],id:'lead',name:'Lead Installer — Install/Dismantle/Off Days/Travel',type:'Lead Installer — Install',inputs:{...q.lines[2].inputs,hours:0,siteDays:5/q.settings.siteHours}});
+ const result=budgetHandoffHours(q,calculateQuoteV27(q));
+ assert.equal(result.purposeHours,37);assert.equal(result.needsTradeHours,1);assert.equal(result.untyped,38);
+ assert.deepEqual(result.otherHours.filter(line=>line.purposeKnown).map(line=>[line.name,line.hours]),[[q.lines[2].name,32],['Lead Installer — Install/Dismantle/Off Days/Travel',5]]);
+ assert.equal(result.otherHours.find(line=>!line.purposeKnown)?.id,q.lines[1].id);
+ assert.equal(result.purposeHours+result.needsTradeHours,result.untyped);
 });
