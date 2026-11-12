@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function harness(additionalRows=[]){
+function harness(additionalRows=[],realGroups=false){
  const states=[],effects=[],memos=[];let timerPaused=false,timerVersion=0,timerPosts=0;let index=0,pending=[],tree,gets=0,fail=false,hold=false,release;
  const window=new EventTarget(),row={id:'one',title:'Example',capacity_group:'group',capacity_selected:true,capacity_version:1,created_at:'2026-11-01',last_modified:'2026-11-01',quote_status:'draft',status_version:1,workbook_revision:1,forecast_status:'Possible',project_status:'Not Active',quote_total:123,time_spent_ms:3661000,timer:{paused:false,pause_version:0,running:false,can_toggle:true}};
  const same=(a,b)=>a&&b&&a.length===b.length&&a.every((x,i)=>Object.is(x,b[i]));
@@ -12,6 +12,7 @@ function harness(additionalRows=[]){
  if(!options){gets++;if(hold)await new Promise(r=>release=r);return Response.json({workspaces:[row,...additionalRows],managementReady:true,timerActorId:'actor',hasMore:false});}
  if(fail)return Response.json({error:'Conflict'}, {status:409});return Response.json({status:'final',version:2});
  }}};
+ if(realGroups){const grouping={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/quote-version-groups.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:grouping,exports:grouping.exports});imports['@/lib/quote-version-groups']=grouping.exports;}
  const module={exports:{}};
  const source=ts.transpileModule(fs.readFileSync('src/components/quote-library.tsx','utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
  vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n]??new Proxy({},{get:(_,key)=>String(key)}),window,document:{visibilityState:'visible'},setInterval:()=>1,clearInterval:()=>{},Event,CustomEvent,Response,crypto,Set,Map,Intl,Date});
@@ -64,4 +65,22 @@ test('list Pause and Resume save account state without opening or reloading quot
 test('failed timer action retains authoritative state and Final has no timer control',async()=>{
  const h=harness();h.render();await h.settle();h.fail();await h.find('Pause timer · Example').props.onClick();await h.settle();assert.match(h.text(),/Conflict/);assert.ok(h.find('Pause timer · Example'));
  const f=harness();f.row.quote_status='final';f.render();await f.settle();assert.match(f.text(),/Paused · Final/);assert.equal(f.find('Pause timer · Example'),undefined);
+});
+
+test('timer filter separates running, paused/Final, ready and unavailable; combines with search and updates after Pause',async()=>{
+ const fixture=(id,timer,quote_status='draft')=>({id,title:id,quote_status,timer});
+ const h=harness([fixture('Running quote',{running:true,paused:false,can_toggle:true}),fixture('Paused quote',{running:false,paused:true,can_toggle:true}),fixture('Final quote',null,'final'),fixture('Unavailable quote',null)]);
+ h.render();await h.settle();const choose=value=>{h.find('Filter timer status').props.onChange({target:{value}});h.render();};
+ choose('Running');assert.ok(h.find('Quote Status · Running quote'));assert.equal(h.find('Quote Status · Example'),undefined);assert.equal(h.find('Quote Status · Paused quote'),undefined);
+ choose('Paused');assert.ok(h.find('Quote Status · Paused quote'));assert.ok(h.find('Quote Status · Final quote'));assert.equal(h.find('Quote Status · Unavailable quote'),undefined);
+ h.find('Search quotes').props.onChange({target:{value:'Final'}});h.render();assert.ok(h.find('Quote Status · Final quote'));assert.equal(h.find('Quote Status · Paused quote'),undefined);
+ h.find('Search quotes').props.onChange({target:{value:''}});choose('Ready on open');assert.ok(h.find('Quote Status · Example'));assert.equal(h.find('Quote Status · Running quote'),undefined);
+ await h.find('Pause timer · Example').props.onClick();await h.settle();assert.equal(h.find('Quote Status · Example'),undefined);assert.match(h.text(),/No quotes found/);
+ choose('Paused');assert.ok(h.find('Quote Status · Example'));choose('all');assert.ok(h.find('Quote Status · Unavailable quote'));assert.equal(h.gets(),1);
+});
+
+test('timer filter reveals matching older versions without including nonmatching versions',async()=>{
+ const h=harness([{id:'old',title:'Old running version',capacity_group:'versions',created_at:'2026-10-01',quote_status:'draft',timer:{running:true,paused:false,can_toggle:true}},{id:'new',title:'New paused version',capacity_group:'versions',created_at:'2026-11-01',quote_status:'draft',timer:{running:false,paused:true,can_toggle:true}}],true);
+ h.render();await h.settle();h.find('Filter timer status').props.onChange({target:{value:'Running'}});h.render();assert.ok(h.find('Quote Status · Old running version'));assert.equal(h.find('Quote Status · New paused version'),undefined);
+ h.find('Filter timer status').props.onChange({target:{value:'Paused'}});h.render();assert.ok(h.find('Quote Status · New paused version'));assert.equal(h.find('Quote Status · Old running version'),undefined);
 });
