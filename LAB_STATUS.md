@@ -1,3 +1,8 @@
+## Budget Handoff labor totals — November 12, 2026
+- Added overall Total hours, Assigned trade hours and Hours without a trade plus a quote-wide table of total hours per trade above the existing per-item Budget Handoff. Uses existing calculator allowed hours and exact trade assignments, including section multipliers; includes CAD/field allowed hours, leaves untyped hours separate. No inferred trade allocation or cost/pricing changes.
+- Overallocated trade assignments show an explicit mismatch note instead of silently scaling. Per-item report retains original columns and now also includes zero-price/zero-budget lines with nonzero hours. Frozen headers/item columns retained. Existing budget/contingency totals retained.
+- Three focused regression tests and TypeScript passed: multiple items/section multipliers, unassigned takeoff exclusion, CAD hours, manual override mismatch and blank quote. Added suite to lab:check. Hosted deployment/read-only verification pending.
+
 ## First hosted sync preview — November 12, 2026
 - Joe ran signed-in Preview sync b677b70f-8765-4b73-8493-4f3977797553. Production read-only connection and approved costing definition check passed. Preview ended without project writes: nine HUBSPOT_QUOTE_READ_FAILED, three HUBSPOT_PM_MAPPING_REQUIRED, two missing deal/job links.
 - All PM cases were existing Nicholas Gonzales → NG. Sync now reuses the established HubSpot PM resolver/approved aliases instead of exact PM_NAMES matching. Added regression for Nicholas, Destiny and normalized names; unknowns still fail closed. Quote HTTP failures distinguish denied access / missing quote / rate limit. Exception labels use project/quote names and job numbers rather than UUIDs.
