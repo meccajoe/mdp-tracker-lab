@@ -42,3 +42,15 @@ test('failed account pause remains locally stopped and retries, failed Resume ne
 test('stale device cannot overwrite a newer account decision',async()=>{
  const account={paused:false,version:0};const h=harness(false,account);await h.settle();account.version=2;await h.toggle();assert.equal(account.paused,false);assert.match(h.state().error,/not synced/);await h.event('focus');assert.equal(h.state().paused,false);await h.leave();
 });
+
+test('quote presence heartbeats stop on leave and resume on cached-page restoration',async()=>{
+ const h=harness();await h.settle();const body=()=>JSON.parse(h.requests.at(-1).body);assert.equal(body().sessionOpen,true);const id=body().sessionId;assert.ok(id);
+ await h.event('pagehide');assert.equal(body().sessionOpen,false);await h.event('pageshow');assert.equal(body().sessionOpen,true);assert.equal(body().sessionId,id);await h.leave();assert.equal(body().sessionOpen,false);
+});
+
+test('bulk timer refresh validates IDs and exposes only member-scoped RPC results',async()=>{
+ let allowed=true,calls=0,error=null;
+ const route=load('src/app/api/quote-workspaces/timers/route.ts',{'@/lib/ada-server':{requireQuoteProductAccess:async()=>({ok:allowed,response:Response.json({}, {status:403}),actorId:'actor',actorSupabase:{rpc:async(name,args)=>{calls++;assert.equal(name,'lab_quote_time_list');assert.equal(args.p_workspace_ids.length,1);return {data:[],error};}}})},'@/lib/quote-management-server':{labManagementGuard:()=>null,managementJson:(body,status=200)=>Response.json(body,{status})}},{URL});
+ const call=ids=>route.GET(new Request('https://test/timers?ids='+ids));assert.equal((await call('bad')).status,400);assert.equal(calls,0);
+ const id='11111111-1111-4111-8111-111111111111';assert.deepEqual(await(await call(id)).json(),{timers:[],actorId:'actor'});error={message:'fail'};assert.equal((await call(id)).status,503);allowed=false;assert.equal((await call(id)).status,403);
+});
