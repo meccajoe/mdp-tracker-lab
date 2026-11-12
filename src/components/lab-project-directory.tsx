@@ -6,12 +6,14 @@ import {adaFetch} from '@/lib/ada-client';
 import type {LabDirectoryProject} from '@/lib/lab-project-directory';
 import {projectDate} from '@/lib/lab-project-presentation';
 import {PM_NAMES} from '@/lib/types';
+import {LabProjectSyncStatus} from '@/components/lab-project-sync-status';
 import {PageShell} from '@/components/ui/page-shell';
 const cash=(n:number|null)=>n==null?'Not imported':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
 export function LabProjectDirectory({dashboard=false}:{dashboard?:boolean}){
  const [projects,setProjects]=useState<LabDirectoryProject[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[attempt,setAttempt]=useState(0);
  const [search,setSearch]=useState(''),[status,setStatus]=useState('Active'),[pm,setPm]=useState('All'),[sort,setSort]=useState('name'),[direction,setDirection]=useState(1);
  useEffect(()=>{let current=true;setLoading(true);setError('');adaFetch('/api/projects/lab-directory').then(async response=>{const body=await response.json();if(!response.ok)throw Error(body.error||'Projects could not load.');if(current){setProjects(body.projects);setLoading(false);}}).catch(e=>{if(current){setError(e instanceof Error?e.message:'Projects could not load.');setLoading(false);}});return()=>{current=false;};},[attempt]);
+ useEffect(()=>{const refresh=()=>setAttempt(n=>n+1);window.addEventListener('lab-project-sync-complete',refresh);return()=>window.removeEventListener('lab-project-sync-complete',refresh);},[]);
  const filtered=projects.filter(p=>(status==='All'||p.status===status)&&(pm==='All'||p.pm===pm)&&(!search.trim()||[p.name,p.client,p.job_number].some(v=>String(v??'').toLowerCase().includes(search.trim().toLowerCase())))).sort((a,b)=>{
   const left=a[sort],right=b[sort];if(left==null||right==null)return left==null?(right==null?0:1):-1;
   return (typeof left==='number'?left-right:String(left).localeCompare(String(right),undefined,{numeric:true}))*direction;
@@ -21,6 +23,7 @@ export function LabProjectDirectory({dashboard=false}:{dashboard?:boolean}){
  function order(key:string){if(sort===key)setDirection(d=>-d);else{setSort(key);setDirection(1);}}
  const cost=(p:LabDirectoryProject)=>p.activityState==='link-changed'||p.activityState==='reconcile'?'Review source':p.cost==null?'Not imported':cash(p.cost)+(p.incomplete?' + pending':'');
  return <PageShell className="pm-worklist-page pm-readable-financials space-y-0 sm:space-y-0"><header className="pm-directory-header"><div><h1>{dashboard?'Dashboard':'Projects'}</h1><p className="pm-section-intro">{dashboard?'Project status, quoted budgets and recorded activity.':'Find a project and open it to see the details.'}</p></div>{dashboard&&<Link className="pm-text-action" href="/projects">All projects<ArrowUpRight aria-hidden="true"/></Link>}</header>
+  <LabProjectSyncStatus/>
   {dashboard&&!loading&&!error&&<dl className="pm-status-strip"><div><span><dt>Active projects</dt><dd>{active.length}</dd></span></div><div><span><dt>Quoted value · active projects</dt><dd>{cash(active.reduce((n,p)=>n+p.quotePrice,0))}</dd></span></div><div><span><dt>Activity imported</dt><dd>{imported.length} of {projects.length} projects</dd></span></div></dl>}
   <div className="pm-worklist-toolbar"><label className="pm-search"><Search aria-hidden="true"/><span className="sr-only">Search projects</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search project, client or job number…"/></label></div>
   <div className="flex flex-wrap gap-2 py-4" role="group" aria-label="Project status">{['Active','Pending','On Hold','Completed','All'].map(value=><button type="button" key={value} aria-pressed={status===value} onClick={()=>setStatus(value)} className={`rounded-md px-3 py-2 text-sm font-medium ${status===value?'bg-primary text-primary-foreground':'bg-muted/50 hover:bg-muted'}`}>{value==='All'?'All statuses':value}</button>)}</div>
