@@ -1,3 +1,8 @@
+## Daily sync interface deployed — November 12, 2026
+- Published approved release 95abcdb105cac4d6d9af4dfbad0c13298961b621 to Lab main and codex/tracker-v2-daily-sync. Vercel dpl_8a7vuD4RxuwVTgMPtSuLY4Fukrkg READY, exact SHA verified on primary mdp-tracker-lab.vercel.app alias. Projects returns 200; sync history/manual and scheduled endpoints both return 401 without credentials. 348 combined tests + TypeScript and sanitized build passed.
+- Current scope: 56 quote groups, 12 linked project groups, two unlinked won-active candidates (Advent_FSU_v27 v3 and Rock n Roll Denim v2), both missing deal/job identifiers. They remain exceptions pending verified association. Fossil original capture and revision-22 quote hash unchanged.
+- Requested Joe’s signed-in Preview sync through Projects; source token-backed read permissions and outcomes still need live verification. No authenticated browser is available here; no JWT simulation. No recurring schedule enabled. Publishing approval is resolved; preview/apply and 6 a.m. activation remain the next steps.
+
 ## Daily sync publishing approved — November 12, 2026
 - Joe explicitly approved pushing the sync update. LAB_TRACKER_READ_TOKEN is now confirmed by name only in the Lab Production environment; Joe’s redeploy served older main 6c04881, so it did not yet include the sync code. No token value retrieved.
 - Merged latest Lab main 887c18d to preserve Paul’s list timer/header work. Combined 348 tests and TypeScript passed; sanitized build and release verification in progress. Publish only to the Lab repository/primary Lab Vercel project. Recurrence remains disabled until token-backed hosted preview/apply succeeds; publishing approval is now resolved.
