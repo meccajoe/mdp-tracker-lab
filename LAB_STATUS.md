@@ -1,3 +1,7 @@
+## Manual quote timer break — November 12, 2026
+- Pause/Resume button beside Time spent. Pause flushes elapsed time immediately; break duration is excluded and Resume continues without resetting. Per-actor/quote sessionStorage remembers the break in the current browser tab across reloads/visits. Other tabs/people remain independent. Final/read-only/loading disables the button; returning to Draft does not silently cancel a manual break.
+- Eight timer validation/component/API tests and TypeScript passed, including background refresh while paused, saved break restoration, unchanged totals, and Final restriction. No schema, quote revision or pricing changes. Deployment/hosted verification pending.
+
 ## Quotes list Time Spent — November 12, 2026
 - Added resizable/account-width-aware Time Spent column next to Quote Total on main and archived Quotes lists; Capacity columns unchanged. Saved h:mm:ss totals per version; first header click sorts longest-first, next shortest-first. Existing project sections/version grouping remain. Unknown totals show a dash, sort last, and query errors show a retry warning. Tooltip identifies tracking start date; no historical effort inferred.
 - Optional includeTime=1 list read uses one bulk actor/member-scoped RPC per page (max 100 IDs), unioning overlapping sessions per person exactly like individual timers. Read-only migration 20261112140000 applied in Lab after rollback query validation. No quote/pricing/time-log writes.
