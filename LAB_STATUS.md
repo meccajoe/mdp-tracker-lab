@@ -1,3 +1,8 @@
+## Quotes timer status filter — November 12, 2026
+- Main Quotes has Timer Status: All timer statuses / Running / Paused / Ready on open. Uses the same account-state label as Time Spent; Final/read-only quotes belong under Paused, unavailable state only appears in All. Existing timer refresh and Pause/Resume immediately recompute filtered rows, without reloading workbooks.
+- Combines with search/Quote Status. Shows only matching versions and opens their sections, including a matching older version when the newest has another timer state. Capacity version counts still use the full group. Archived and Capacity views unchanged. No database, pricing or saved-quote changes.
+- Ten interaction tests passed, including combined filters, older-version matching, unavailable states and disappearing/reappearing rows after Pause; TypeScript passed. Deployment and hosted read-only checks pending.
+
 ## Daily sync publishing approved — November 12, 2026
 - Joe explicitly approved pushing the sync update. LAB_TRACKER_READ_TOKEN is now confirmed by name only in the Lab Production environment; Joe’s redeploy served older main 6c04881, so it did not yet include the sync code. No token value retrieved.
 - Merged latest Lab main 887c18d to preserve Paul’s list timer/header work. Combined 348 tests and TypeScript passed; sanitized build and release verification in progress. Publish only to the Lab repository/primary Lab Vercel project. Recurrence remains disabled until token-backed hosted preview/apply succeeds; publishing approval is now resolved.
