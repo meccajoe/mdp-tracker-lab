@@ -69,6 +69,6 @@
  }
  .quotesTable thead th:nth-child(n+3) {
   left: auto !important;
-  z-index: 3;
+  z-index: 3 !important;
  }
 }
