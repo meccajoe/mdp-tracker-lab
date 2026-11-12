@@ -3,6 +3,7 @@ import {approvedCostingQuery} from './lab-approved-costing-query';
 import {validateActivityCapture,type ActivityCapture} from './lab-project-activity';
 import {validateProjectCosting,type ProjectCostingPacket} from './lab-project-costing';
 import {PM_NAMES} from './types';
+import {resolveHubSpotProjectManagerInitials} from './hubspot';
 
 export const SOURCE_REF='yaftybqzlbbvzwwdzlny';
 export const COST_VIEW_HASH='ce17aff3430b5491b21f66f9a51936ad66102137b19f5d807836d6a2a5f931c3';
@@ -73,7 +74,7 @@ export async function readDeal(dealId:string,token:string,fetcher:typeof fetch=f
  if(d.id!==dealId||typeof p?.dealname!=='string'||!p.dealname.trim()||p.dealname.length>300||!/^\d+$/.test(p.job_number??''))throw new SyncIssue('HUBSPOT_INVALID_IDENTITY');
  if(!['closedate','due_date','account_manager','amount'].every(key=>Object.hasOwn(p,key)))throw new SyncIssue('HUBSPOT_FIELDS_MISSING');
  const date=(value:unknown)=>{if(value==null||value==='')return null;if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))throw new SyncIssue('HUBSPOT_INVALID_DATE');return new Date(value).toISOString().slice(0,10);};
- const manager=p.account_manager||null,pm=manager?(Object.entries(PM_NAMES).find(([,name])=>name===manager)?.[0]??null):null;
+ const manager=p.account_manager||null,pm=manager?resolveHubSpotProjectManagerInitials(manager,Object.entries(PM_NAMES).map(([pm_initials,full_name])=>({pm_initials,full_name}))):null;
  if(manager&&!pm)throw new SyncIssue('HUBSPOT_PM_MAPPING_REQUIRED');
  const quotes=[];
  const association=d.associations?.quotes;
@@ -82,7 +83,7 @@ export async function readDeal(dealId:string,token:string,fetcher:typeof fetch=f
  for(const q of association?.results??[]){
   if(!/^\d+$/.test(q.id))throw new SyncIssue('HUBSPOT_INVALID_QUOTE');
   const r=await fetcher(`https://api.hubapi.com/crm/v3/objects/quotes/${q.id}?properties=hs_title,hs_status,hs_quote_amount,hs_quote_link,hs_pdf_download_link`,{headers:{Authorization:`Bearer ${token}`},redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});
-  if(!r.ok)throw new SyncIssue('HUBSPOT_QUOTE_READ_FAILED');const quote=await r.json(),v=quote.properties;
+  if(!r.ok)throw new SyncIssue(r.status===401||r.status===403?'HUBSPOT_QUOTE_ACCESS_DENIED':r.status===404?'HUBSPOT_QUOTE_NOT_FOUND':r.status===429?'HUBSPOT_QUOTE_RATE_LIMITED':'HUBSPOT_QUOTE_READ_FAILED');const quote=await r.json(),v=quote.properties;
   if(quote.id!==q.id||!v)throw new SyncIssue('HUBSPOT_INVALID_QUOTE');
   const total=v.hs_quote_amount==null||v.hs_quote_amount===''?null:Number(v.hs_quote_amount);if(total!=null&&!Number.isFinite(total))throw new SyncIssue('HUBSPOT_INVALID_QUOTE');
   quotes.push({id:q.id,title:v.hs_title||'Untitled quote',status:v.hs_status||'Unknown',total,url:v.hs_quote_link||null,pdf:v.hs_pdf_download_link||null});

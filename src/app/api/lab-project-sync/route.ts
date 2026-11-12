@@ -9,7 +9,7 @@ export async function GET(){
  const runs=await access.supabase.from('lab_project_sync_runs').select('id,mode,status,started_at,finished_at,error_code').order('started_at',{ascending:false}).limit(10);
  if(runs.error)return json({error:'Sync history could not load.'},503);
  const ids=(runs.data??[]).map(r=>r.id);
- const outcomes=ids.length?await access.supabase.from('lab_project_sync_results').select('run_id,scope_id,project_id,outcome,code,missing_hours,details,created_at').eq('run_id',ids[0]).order('created_at',{ascending:false}).limit(1001):{data:[],error:null};
+ const outcomes=ids.length?await access.supabase.from('lab_project_sync_results').select('run_id,scope_id,project_id,outcome,code,missing_hours,details,created_at,projects(name,job_number)').eq('run_id',ids[0]).order('created_at',{ascending:false}).limit(1001):{data:[],error:null};
  if(outcomes.error||(outcomes.data?.length??0)>1000)return json({error:'Sync outcomes could not load.'},503);
  return json({configured:syncConfigured(),enabled:process.env.LAB_DAILY_SYNC_ENABLED==='true',schedule:'Daily at 6:00 a.m. America/Chicago',runs:runs.data,results:outcomes.data});
 }

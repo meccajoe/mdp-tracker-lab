@@ -45,14 +45,14 @@ export async function runProjectSync({db,query,hubspotToken,mode,fetcher=fetch,n
      const activity=await readActivity(boundedQuery,definition,deal,identity.jobNumber);
      const baseline=row.project_id?null:prepareBaseline(row,identity);
      if(mode==='preview'){
-      await rpc(db,'lab_record_project_sync_result',{p_run:runId,p_scope:row.group_id,p_project:row.project_id??null,p_outcome:'preview',p_code:row.project_id?'WOULD_REFRESH':'WOULD_CREATE',p_details:{jobNumber:identity.jobNumber,revision:row.revision,expenses:activity.capture.expenses.length,timeRecords:activity.capture.labor.length,...activity.evidence.expected}});return;
+      await rpc(db,'lab_record_project_sync_result',{p_run:runId,p_scope:row.group_id,p_project:row.project_id??null,p_outcome:'preview',p_code:row.project_id?'WOULD_REFRESH':'WOULD_CREATE',p_details:{title:row.title,jobNumber:identity.jobNumber,revision:row.revision,expenses:activity.capture.expenses.length,timeRecords:activity.capture.labor.length,...activity.evidence.expected}});return;
      }
      await rpc(db,'lab_apply_project_sync',{p_run:runId,p_scope:row.group_id,p_payload:{
       workspaceId:row.workspace_id,expectedProjectId:row.project_id??null,expectedJobNumber:job,revision:row.revision,document:row.document,
       identity,baseline,baselineHash:baseline?sha(baseline):null,activityId:activity.activityId,activityHash:activity.activityHash,activity:activity.capture,costing:activity.evidence,costingHash:activity.costingHash,
      }});
     }catch(error){
-     await rpc(db,'lab_record_project_sync_result',{p_run:runId,p_scope:row.group_id,p_project:row.project_id??null,p_outcome:'exception',p_code:error instanceof SyncIssue?error.code:'VALIDATION_FAILED'});
+     await rpc(db,'lab_record_project_sync_result',{p_run:runId,p_scope:row.group_id,p_project:row.project_id??null,p_outcome:'exception',p_code:error instanceof SyncIssue?error.code:'VALIDATION_FAILED',p_details:{title:row.title,jobNumber:row.linked_job_number??row.job_number??null}});
     }
    }));
   }

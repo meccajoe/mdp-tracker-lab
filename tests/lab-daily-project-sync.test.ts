@@ -48,3 +48,10 @@ test('runner respects global overlap claim and records fatal source failures wit
  const args:any[]=[];const failing={async rpc(name:string,arg:any){calls.push(name);args.push(arg);return {data:name==='lab_claim_project_sync'?'run':null,error:null};}};
  const failed=await runProjectSync({db:failing,query:async()=>{throw Error('private source error');},hubspotToken:'fixture',mode:'manual'});assert.equal(failed.failed,true);assert.deepEqual(calls,['lab_claim_project_sync','lab_finish_project_sync']);assert.equal(args[1].p_code,'RUN_FAILED');assert.equal(JSON.stringify(args).includes('private source error'),false);
 });
+
+test('CRM sync shares the approved Production PM aliases and identifies quote access denials',async()=>{
+ for(const [name,expected] of [['Nicholas Gonzales','NG'],['Destiny Freeman','DG'],[' greg   mayberry ','GM']]){
+  const deal=await readDeal('456','fixture',async()=>Response.json({id:'456',properties:{dealname:'Canonical',job_number:'123',account_manager:name,closedate:null,due_date:null,amount:null}}));assert.equal(deal.pm,expected);
+ }
+ for(const [status,code] of [[403,'HUBSPOT_QUOTE_ACCESS_DENIED'],[404,'HUBSPOT_QUOTE_NOT_FOUND'],[429,'HUBSPOT_QUOTE_RATE_LIMITED']] as const){let call=0;await assert.rejects(()=>readDeal('456','fixture',async()=>++call===1?Response.json({id:'456',properties:{dealname:'Canonical',job_number:'123',account_manager:null,closedate:null,due_date:null,amount:null},associations:{quotes:{results:[{id:'789'}]}}}):new Response('PRIVATE',{status})),new RegExp(code));}
+});
