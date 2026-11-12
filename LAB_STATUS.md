@@ -1,3 +1,8 @@
+## Quoted Item Database responsiveness — November 11, 2026
+- Add authenticated purpose=insert read returning latest validated snapshot/revision in one database query, omitting unused editor permissions/history/calculation. Editor overlaps permissions/history reads and requests purpose=editor to omit duplicate server calculation (workbook computes locally). Default API response and revision history retained; no saved item cache or DB changes.
+- Memoize name-search indexes/matches and toolbar material options/usage object so unrelated rerenders do not rerank choices. Toolbar insert guard blocks duplicate in-flight requests. Reusable insertion indexes occupied slots and source/current/target catalogs, retaining exact-name/unit matching, ambiguity rejection, first-empty placement and saved custom values.
+- TypeScript plus ten API/reusable-item tests passed, including 500-row insertion/current-price totals, ambiguous-match rollback, access denial, invalid/missing item and response modes. React performance checklist applied. Hosted deployment/verification pending.
+
 ## Catalog live price-save verification — November 11, 2026
 - Paul authorized temporary catalog price-save/history testing and archival. Created QA Catalog Price History Nov 11 2026 A0884674 through an isolated blank test quote a0884674-a125-45ff-ba83-a3b813d79399 (Lab test — Catalog price history Nov 11). Initial $10/each; quantity 1 saved in quote revision 2.
 - Catalog edit saved $12.50 and persisted after full reload. History showed revision 2 $10.00 → $12.50, Paul Mecca, Catalog edit, Nov 11 3:27:56 PM; initial $10 entry linked the test quote at 3:27:32 PM. Reloaded test quote retained $10.00 unit cost and quantity 1, confirming snapshot isolation.

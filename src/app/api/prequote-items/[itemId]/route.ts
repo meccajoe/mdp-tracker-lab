@@ -14,12 +14,19 @@ export async function GET(request: Request, { params }: Context) {
   if(process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://gkvaeqlqrthztobxitvn.supabase.co')return json({error:'Prequote items are available only in Tracker Lab.'},403);
   const access = await requireQuoteProductAccess();
   if (!access.ok) return access.response;
-  const capability=await access.actorSupabase.from('quote_user_capabilities').select('capability').eq('capability','create_workspace').is('revoked_at',null).limit(1);
-  const canEdit=!capability.error&&Boolean(capability.data?.length);
   const search = new URL(request.url).searchParams;
-  const history = await access.actorSupabase.from('lab_prequote_revisions')
-    .select('revision, created_at, created_by_email').eq('item_id', itemId)
-    .order('revision', { ascending: false }).limit(20);
+  if(search.get('purpose')==='insert'&&!search.has('revision')){
+    const latest=await access.actorSupabase.from('lab_prequote_revisions').select('document,revision').eq('item_id',itemId).order('revision',{ascending:false}).limit(1).maybeSingle();
+    if(latest.error)return json({error:'Reusable item could not load.'},500);
+    if(!latest.data)return json({error:'Reusable item not found.'},404);
+    try{return json({document:parseQuoteV27(latest.data.document),version:latest.data.revision});}
+    catch{return json({error:'This saved reusable item is invalid. Its history has been preserved.'},422);}
+  }
+  const [capability,history]=await Promise.all([
+    access.actorSupabase.from('quote_user_capabilities').select('capability').eq('capability','create_workspace').is('revoked_at',null).limit(1),
+    access.actorSupabase.from('lab_prequote_revisions').select('revision, created_at, created_by_email').eq('item_id', itemId).order('revision', { ascending: false }).limit(20),
+  ]);
+  const canEdit=!capability.error&&Boolean(capability.data?.length);
   if (history.error) return json({ error: 'Reusable item history could not load.' }, 500);
   const latestVersion = history.data?.[0]?.revision ?? 0;
   const requested = search.get('revision');
@@ -32,7 +39,7 @@ export async function GET(request: Request, { params }: Context) {
   if (!result.data) return json({ error: 'Reusable item revision not found.' }, 404);
   try {
     const document = parseQuoteV27(result.data.document);
-    return json({ document, version, latestVersion, history: history.data, canEdit, calculation: calculateQuoteV27(document) });
+    return json({ document, version, latestVersion, history: history.data, canEdit, ...(search.get('purpose')==='editor'?{}:{calculation: calculateQuoteV27(document)}) });
   } catch {
     return json({ error: 'This saved reusable item is invalid. Its history has been preserved.' }, 422);
   }

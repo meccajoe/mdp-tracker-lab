@@ -4,18 +4,26 @@ import {calculateQuoteV27,type QuoteV27} from './quote-v27';
 export function insertReusableItem(target:QuoteV27,source:QuoteV27,lineId:string,live:QuoteV27['catalog']) {
   if(source.takeoffs.some(row=>!row.lineId&&(row.materialId||row.quantity||row.hours||row.notes||row.description!=='Untitled takeoff')))throw new Error('This reusable item has unassigned takeoff rows. Assign them to its item in the library before inserting.');
   const original=source.lines.find(line=>line.id===lineId);if(!original)throw new Error('Reusable item is missing.');
-  const available=target.lines.findIndex(line=>/^(Item \d+|Spare \d+)$/.test(line.name)&&line.type==='Fabrication'&&!target.takeoffs.some(row=>row.lineId===line.id)&&Object.values(line.inputs).every(value=>value===0)&&Object.values(line.overrides).every(value=>value==null)&&line.priceOverride===null);
+  const occupied=new Set(target.takeoffs.map(row=>row.lineId));
+  const available=target.lines.findIndex(line=>/^(Item \d+|Spare \d+)$/.test(line.name)&&line.type==='Fabrication'&&!occupied.has(line.id)&&Object.values(line.inputs).every(value=>value===0)&&Object.values(line.overrides).every(value=>value==null)&&line.priceOverride===null);
   if(available<0&&target.lines.length>=200)throw new Error('Quote has reached its item limit.');
   const next=structuredClone(target),id=available>=0?next.lines[available].id:crypto.randomUUID();
   let name=original.name,index=2;while(next.lines.some(line=>line.name.toLowerCase()===name.toLowerCase()))name=`${original.name} (${index++})`;
   const calculated=calculateQuoteV27(source).lines.find(line=>line.id===lineId)!;
   const line={...structuredClone(original),id,name,inputs:{...calculated.calculatedInputs}};
+  const materialKey=(name:string,unit:string)=>JSON.stringify([name,unit]);
+  const inventory=new Map<string,QuoteV27['catalog']>();
+  for(const material of live){const key=materialKey(material.name,material.unit);const matches=inventory.get(key)??[];matches.push(material);inventory.set(key,matches);}
+  const originalCatalog=new Map<string,QuoteV27['catalog'][number]>();
+  for(const material of source.catalog)if(!originalCatalog.has(material.id))originalCatalog.set(material.id,material);
+  const targetCatalog=new Map<string,QuoteV27['catalog'][number]>();
+  for(const material of next.catalog)if(!targetCatalog.has(material.id))targetCatalog.set(material.id,material);
   const rows=source.takeoffs.filter(row=>row.lineId===lineId).map(row=>{
     const copy={...row,id:crypto.randomUUID(),lineId:id};
-    if(row.materialId){const old=source.catalog.find(material=>material.id===row.materialId)!;
-      const matches=live.filter(material=>material.name===old.name&&material.unit===old.unit);
+    if(row.materialId){const old=originalCatalog.get(row.materialId)!;
+      const matches=inventory.get(materialKey(old.name,old.unit))??[];
       if(matches.length!==1)throw new Error(`Current inventory match missing or ambiguous: ${old.name}. Update the saved item before inserting.`);
-      const material=matches[0],existing=next.catalog.find(entry=>entry.id===material.id);if(existing&&(existing.unitCost!==material.unitCost||existing.name!==material.name||existing.unit!==material.unit))throw new Error('Catalog identity conflict. Refresh inventory before inserting.');if(!existing)next.catalog.push({...material});
+      const material=matches[0],existing=targetCatalog.get(material.id);if(existing&&(existing.unitCost!==material.unitCost||existing.name!==material.name||existing.unit!==material.unit))throw new Error('Catalog identity conflict. Refresh inventory before inserting.');if(!existing){next.catalog.push({...material});targetCatalog.set(material.id,material);}
       copy.materialId=material.id;copy.unitCostOverride=null;
     }
     if(copy.tradeId){const trade=source.trades.find(t=>t.id===copy.tradeId);copy.tradeId=next.trades.find(t=>t.name===trade?.name)?.id??null;}

@@ -105,3 +105,19 @@ test('new walls have independent linked items; renaming and unit display preserv
  assert.equal(saved.estimators!.beMatrix.walls[0].frameSize,'992x2480');assert.equal(saved.estimators!.beMatrix.walls[0].lengthFit,'nearest');
  assert.ok(Math.abs(calculateQuoteV27(saved).estimators!.walls[0].sqft-2976/304.8*8)<1e-8);assert.ok(Math.abs(calculateQuoteV27(saved).estimators!.walls[1].sqft-1984/304.8*8)<1e-8);
 });
+
+test('large repeated-material insert uses current prices and rejects ambiguous inventory atomically',()=>{
+ const source=createBlankQuoteV27(),target=createBlankQuoteV27();source.lines[0].name='Large saved item';
+ const material=source.catalog[0];
+ applySheetCells(source,50,source.lines[0].id,0,2,[[material.name,'2']],null);
+ applySheetCells(source,50,source.lines[0].id,0,0,[[source.lines[0].id]],null);
+ source.takeoffs=Array.from({length:500},(_,i)=>({...source.takeoffs[0],id:`row-${i}`}));
+ const live=[{...material,id:'current',unitCost:21}];
+ const before=JSON.stringify(target);
+ assert.throws(()=>insertReusableItem(target,source,source.lines[0].id,[...live,{...live[0],id:'ambiguous'}]),/ambiguous/);
+ assert.equal(JSON.stringify(target),before);
+ const id=insertReusableItem(target,source,source.lines[0].id,live);
+ assert.equal(target.takeoffs.filter(row=>row.lineId===id).length,500);
+ assert.equal(target.catalog.filter(row=>row.id==='current').length,1);
+ assert.equal(calculateQuoteV27(target).lines.find(row=>row.id===id)?.calculatedInputs.materials,21000);
+});

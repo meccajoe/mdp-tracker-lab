@@ -1,0 +1,12 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+test('insertion fetches latest authorized snapshot without editor queries/calculation; editor retains history',async()=>{
+ let allowed=true,invalid=false,missing=false,calculations=0,reads=[];
+ const document={lines:[{id:'line',name:'Test'}]},db={from(table){let fields;reads.push(table);const q={select:f=>(fields=f,q),eq:()=>q,is:()=>q,order:()=>q,limit:()=>q,maybeSingle:()=>Promise.resolve({data:missing?null:{document,revision:4}}),then:resolve=>Promise.resolve({data:table==='quote_user_capabilities'?[{capability:'create_workspace'}]:[{revision:4}]}).then(resolve)};return q;}};
+ const imports={'next/server':{NextResponse:Response},'@/lib/ada-server':{requireQuoteProductAccess:async()=>allowed?{ok:true,actorSupabase:db}:{ok:false,response:Response.json({}, {status:403})}},'@/lib/quote-v27':{calculateQuoteV27:()=>{calculations++;return {price:1}}},'@/lib/quote-v27-validation':{parseQuoteV27:d=>{if(invalid)throw Error();return d;}}};
+ const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/prequote-items/[itemId]/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module,exports:module.exports,require:n=>imports[n],Response,Request,URL,process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://gkvaeqlqrthztobxitvn.supabase.co'}}});
+ const get=purpose=>module.exports.GET(new Request('https://lab.test?purpose='+purpose),{params:Promise.resolve({itemId:'11111111-1111-4111-8111-111111111111'})});
+ let result=await get('insert');assert.deepEqual(await result.json(),{document,version:4});assert.deepEqual(reads,['lab_prequote_revisions']);assert.equal(calculations,0);assert.match(result.headers.get('cache-control'),/no-store/);
+ reads=[];result=await get('editor');let body=await result.json();assert.equal(body.latestVersion,4);assert.equal(body.canEdit,true);assert.equal(body.history.length,1);assert.equal(body.calculation,undefined);assert.equal(calculations,0);assert.equal(reads.length,3);
+ await get('');assert.equal(calculations,1);
+ invalid=true;assert.equal((await get('insert')).status,422);invalid=false;missing=true;assert.equal((await get('insert')).status,404);missing=false;allowed=false;reads=[];assert.equal((await get('insert')).status,403);assert.equal(reads.length,0);
+});

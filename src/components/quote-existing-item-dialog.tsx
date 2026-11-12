@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useId,useRef,useState} from 'react';
+import {useEffect,useMemo,useId,useRef,useState} from 'react';
 import {adaFetch} from '@/lib/ada-client';
 import {parseQuoteV27} from '@/lib/quote-v27-validation';
 import {insertReusableItem} from '@/lib/quote-reusable-items';
@@ -11,8 +11,9 @@ export function QuoteExistingItemDialog({open,onOpenChange,quote,edit,live,readO
  const [selected,setSelected]=useState<string|null>(null);
  const [items,setItems]=useState<Entry[]>([]),[query,setQuery]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(false),[inserting,setInserting]=useState(false);
  useEffect(()=>{if(!open)return;let active=true;setQuery('');setSelected(null);setError('');setItems([]);setLoading(true);void (async()=>{try{const response=await adaFetch('/api/prequote-items'),data=await response.json();if(!response.ok)throw new Error(data.error);if(active)setItems(data.items);}catch(error){if(active)setError(error instanceof Error?error.message:'Could not load existing items.');}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[open]);
- async function insert(id:string){if(readOnly||inFlight.current||!live)return;inFlight.current=true;setInserting(true);setError('');try{const response=await adaFetch(`/api/prequote-items/${id}`),data=await response.json();if(!response.ok)throw new Error(data.error);const source=parseQuoteV27(data.document);let added='';edit(next=>{added=insertReusableItem(next,source,source.lines[0].id,live);});onInserted(added);onOpenChange(false);}catch(error){setError(error instanceof Error?error.message:'Could not add existing item.');}finally{inFlight.current=false;setInserting(false);}}
- const matches=items.filter(item=>item.title.toLowerCase().includes(query.trim().toLowerCase()));
+ async function insert(id:string){if(readOnly||inFlight.current||!live)return;inFlight.current=true;setInserting(true);setError('');try{const response=await adaFetch(`/api/prequote-items/${id}?purpose=insert`),data=await response.json();if(!response.ok)throw new Error(data.error);const source=parseQuoteV27(data.document);let added='';edit(next=>{added=insertReusableItem(next,source,source.lines[0].id,live);});onInserted(added);onOpenChange(false);}catch(error){setError(error instanceof Error?error.message:'Could not add existing item.');}finally{inFlight.current=false;setInserting(false);}}
+ const indexed=useMemo(()=>items.map(item=>({item,title:item.title.toLowerCase()})),[items]);
+ const matches=useMemo(()=>{const term=query.trim().toLowerCase();return indexed.filter(row=>row.title.includes(term)).map(row=>row.item);},[indexed,query]);
  const activeIndex=matches.findIndex(item=>item.item_id===selected);
  const unavailable=readOnly||loading||inserting||!live;
  useEffect(()=>{if(open&&activeIndex>=0)list.current?.querySelector(`[data-index="${activeIndex}"]`)?.scrollIntoView({block:'nearest'});},[open,activeIndex]);

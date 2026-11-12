@@ -70,7 +70,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const load = useCallback(async (revision?: number) => {
     autosavePaused.current=false;setSelectionSummary('');setBusy(true); setError('');
     try {
-      const response = await adaFetch(endpoint + (revision ? `?revision=${revision}&activation=1` : '?activation=1'));
+      const response = await adaFetch(endpoint + (revision ? `?revision=${revision}&activation=1` : '?activation=1') + (libraryItem?'&purpose=editor':''));
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Workbook could not load.');
       let next = payload.document ? parseQuoteV27(payload.document) : null;
