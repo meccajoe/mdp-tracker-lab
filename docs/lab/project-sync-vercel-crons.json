@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/lab-project-sync/scheduled",
-      "schedule": "0 11,12 * * *"
-    }
-  ]
-}

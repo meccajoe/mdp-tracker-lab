@@ -1,84 +1,55 @@
 # Daily Tracker V2 project sync
 
-Agreed November 12, 2026: include existing linked projects and newly Closed Won Active Lab quotes; run daily at 6:00 a.m. America/Chicago. This is a design and implementation scope, not an enabled schedule. No recurring sync or source connection was created by the costing release.
+Joe approved daily sync at **6:00 a.m. America/Chicago**, including existing linked projects and newly Closed Won Active Lab quotes. The actor-checked admin panel in Projects provides Preview sync, Run sync now and run history. See LAB_STATUS.md for current deployment and activation receipts.
 
-## Source ownership
+## Authority and identity
 
-| Information | Authority | Sync behavior |
+| Information | Authority | Behavior |
 | --- | --- | --- |
-| Project name and job number | Linked HubSpot deal | Mirror exact values after identity/conflict checks |
-| PM, close date and other approved CRM reference fields | Linked HubSpot deal / verified property mappings | Extend current identity-only refresh with explicit mappings; do not guess field names or overwrite populated values from failed reads |
-| Budget, quoted hours and item allocation | Approved Lab quote baseline | Pin the selected workspace/revision when creating a project; later working revisions do not silently change an existing budget |
-| Active/completed state | Linked Lab quote state | Preserve existing quote-driven status behavior; do not import conflicting Production status |
-| Expenses, canonical time and approved direct labor costing | Production Tracker during transition | Read only, validate, and save one matching full activity/costing capture per project/run |
+| Name and job number | Linked HubSpot deal | Mirror exact canonical values after conflict checks |
+| PM, close/due dates, CRM amount, associated quote references | HubSpot | Explicit property mapping and established approved PM aliases; reference amounts stay separate from Lab budgets |
+| Budget, quoted hours and item allocation | Pinned Lab quote revision | New projects pin the approved saved head revision; existing budgets never silently reprice |
+| Active/completed state | Current linked Lab quote head | Preserve existing quote-driven status projection; ignore conflicting Production status |
+| Expenses, canonical time and approved costing | Production Tracker during transition | Full, validated, dated read-only exports; atomic activity + costing publication only in Lab |
 
-Open quotes remain outside project creation. Already completed quotes do not trigger a historical bulk import. Existing linked projects retain history when completed. Quotes and Capacity workflows, scenarios, estimates and pricing remain owned by Paul.
+New-project discovery excludes open and already completed quotes. Existing linked project history remains available after completion. Use stable deal/job/group identifiers, never name-only matching. Missing or conflicting links remain exceptions; no duplicate project, quote or accounting record is created. The head rule is newest surviving workspace creation, selected as the tie-breaker, not the largest revision across unrelated workspaces.
 
-## Project selection and identity
+Quotes, Capacity, personal scenarios, working quote documents and pinned financial baselines remain owned by Paul. Current approved PM mapping includes Nicholas/Nick Gonzales and Destiny Freeman/Gardner; unknown or ambiguous names fail closed.
 
-Refresh existing reviewed links. Discover newly Closed Won Active quote groups and create one project from the selected version. Use stable HubSpot deal ID plus job number, workspace/group identity and uniqueness constraints; never match on project name alone. A missing job/deal, duplicate association, ambiguous quote group or conflicting existing link goes to an exception list. Similar or reversed worker names do not establish identity.
+## Data path and privileges
 
-Project creation must be repeatable without duplicates. Baseline capture, project linkage and initial quote-driven status belong in one transaction. Confirm the existing selected-version/head rules rather than choosing the largest revision number across workspaces.
+The only source database transport is Supabase Management API `/database/query/read-only` for Production `yaftybqzlbbvzwwdzlny`, using `LAB_TRACKER_READ_TOKEN` scoped only to that project with Database Read. HubSpot uses the dedicated server-only `LAB_HUBSPOT_READ_TOKEN`, with deal and quote read scopes. No Production credentials were copied and no source roles, permissions, functions or data changed.
 
-## Daily activity import
+The approved costing view and worker-matching SQL body are separately hash-checked. The read-only role lacks EXECUTE on `normalize_labor_worker_name`, so the export embeds that exact reviewed scalar SQL expression. It does not guess matching rules or broaden source permissions. New evidence records its worker-rule hash. Rule drift, incomplete rows, unsupported manual adjustments and failed reads stop that project’s import.
 
-1. Obtain the allowlisted Lab project scope and newly eligible quote links.
-2. Read approved HubSpot fields through the narrow read-only connection. The current manual refresh reads only name/job; PM and other fields need implementation and mapping validation.
-3. Obtain full expenses, canonical time and corresponding approved costing evidence using a dedicated least-privilege read-only source export. Do not place Production service-role credentials in Lab or enable inherited accounting/TSheets/BILL integration routes.
-4. Validate source identity, completeness, unique IDs, dated approvals and reconciliation totals. Publish activity and its matching costing packet together, avoiding a window where a new activity capture appears without its cost evidence.
-5. Record run/project outcomes, source timestamps, capture IDs, counts, totals and exceptions. Retain immutable history and use explicit run/project idempotency keys for retries.
+Lab-only migrations create private run/outcome tables and service-only invoker RPCs. Global six-minute leases prevent overlap; max invocation is 300 seconds, with no new source requests after 240 seconds. Three projects run concurrently. Creation checks the current quote head/revision, canonical identity and uniqueness under locks. Activity and matching cost evidence save in one transaction. Retries within a run are no-ops; prior captures and original quote titles remain retained. Expired/finished/preview runs cannot publish captures.
 
-A source/read/validation failure retains the last good capture and marks that project's refresh failed/stale; it must not masquerade as zero activity or delete history. Other independent projects can continue, with the whole run marked partial. Genuine missing pay rates remain explicit exceptions rather than guessed amounts. Handle source corrections/deletions via a validated full later capture.
+Preview writes only the run log. A project failure keeps its last good capture. Other projects continue; a run with expected exceptions is marked partial. Missing rates remain unknown costs, including on otherwise successful imports. Authenticated clients cannot call server sync RPCs, read global run tables or dispatch scheduled jobs; the admin API authorizes the actor first.
 
-## Scheduling and acceptance
+## Scheduler
 
-Implement an authenticated application job with overlap protection, bounded work/retries and a persistent run log. Preserve America/Chicago 6:00 a.m. through daylight saving changes. Existing Lab vercel.json has no crons and inherited integration routes are blocked; simply turning those routes on is outside this design.
+Lab uses **Supabase pg_cron + pg_net** to call the fixed HTTPS Lab endpoint. Vercel Hobby cron has [per-hour delivery precision](https://vercel.com/docs/cron-jobs/usage-and-pricing), so root `vercel.json` retains its empty cron array. The obsolete Vercel-only cron template was removed.
 
-Before enabling recurrence: implement and review the scoped source connection and atomic importer, run manually with a preview/diff, validate new-project creation and retry idempotency, confirm source identities and quote baselines, test partial failure/changed links, and verify last successful sync visibility. Never create a ChatGPT reminder and describe it as a functioning data pipeline.
+The named job `mdp-lab-project-sync` runs `0 11,12 * * *` UTC. Private `lab_project_internal.dispatch_project_sync()` checks Chicago’s hour and dispatches only during 06:00, handling daylight saving automatically. The server independently checks its actual Chicago clock. The scheduled daily claim prevents duplicate publications.
 
-## Implemented November 12
+The dispatcher is SECURITY INVOKER, callable only by its database owner, with no browser/application EXECUTE grants. It reads a dedicated Lab Vault secret named `lab_project_sync_cron` and sends it as a bearer credential. The same private value is configured as Lab Vercel `CRON_SECRET`; source read tokens are not copied into Vault. URL and 300,000ms timeout are fixed in code. Credentials never appear in cron command text or Git. Initial migration stages the job inactive until deployment and transport verification.
 
-The dedicated Lab implementation now includes:
+Required app flag: `LAB_DAILY_SYNC_ENABLED=true`. The database job’s `active` value is the scheduling source of truth. Manual admin sync remains available independent of recurrence.
 
-- Actor-checked admin preview/apply/history API at `/api/lab-project-sync`, and a bearer-authenticated scheduled endpoint at `/api/lab-project-sync/scheduled`.
-- A private Projects/Dashboard sync panel with preview, manual run, the latest ten runs and latest-run outcomes. Nonadmins cannot read global logs or invoke the job.
-- Service-only RPCs for scope, six-minute global fenced run claims, per-project atomic application and completion. The invocation is capped at 300 seconds; it starts no new project work after 240 seconds. Three projects run concurrently. Finished/expired/preview runs cannot publish captures. A scheduled completed/partial day is deduplicated; manual retries are explicit.
-- New project creation from the existing current quote-group-head rule, pinned saved revision and unchanged calculator. Repeat calls within a run are no-ops. Existing budgets, source hashes and quote documents remain unchanged. Pre-link quote titles are preserved before canonical HubSpot names reach the group.
-- Identity/job/revision/group checks under locks, plus atomically inserted full activity and matching costing evidence. Missing links, manual actual adjustments, changed costing rules, unknown PM mappings, truncated CRM quote associations and incomplete exports fail closed with sanitized codes.
-- HubSpot name/job/PM/close/due/amount and associated quote references read directly. The established `account_manager`, `closedate`, and `due_date` fields are used. Nulls are distinguished from absent requested fields. Reference amounts do not replace Lab quote budgets.
-- Production reads only through Supabase's dedicated `/database/query/read-only` Management API endpoint, using the built-in read-only role. No Production functions, roles, grants or data changed. No accounting/TSheets/BILL sync routes enabled. No dependency upgrades.
+### Operations
 
-Migrations `20261112215251` and `20261112220832` were applied only to Lab after disposable database tests. The existing source baseline SHA is retained on refresh. New baseline hashes cover the calculated financial snapshot; source metadata/identity history remain separate appended provenance, consistent with existing baselines.
+- Pause immediately in Lab SQL: `select cron.alter_job(job_id := (select jobid from cron.job where jobname='mdp-lab-project-sync'), active := false);`. Also set the app flag false and redeploy when appropriate.
+- Resume only after verifying source access and recent outcomes, then set that job active with the matching app flag deployed.
+- Inspect `cron.job` and `cron.job_run_details` for trigger status. pg_net responses are in `net._http_response` for roughly six hours; application outcomes persist in `lab_project_sync_runs` and `lab_project_sync_results`.
+- On failure, retain last good data, fix the connection/link/rule exception and rerun manually. Do not guess rates or merge reversed worker names.
+- Rotate the dedicated Lab cron credential privately in Vault and Vercel together; redeploy before reenabling the job. Do not print/pull source credentials or put them in CLI arguments.
 
-### Required configuration and activation
+## Verification
 
-`LAB_HUBSPOT_READ_TOKEN` already exists in Lab Production. It must read the requested deals and associated quotes; the live preview will surface a per-project error if quote permissions are missing. No credential values were retrieved.
+The first successful hosted preview was `c7cbef90-cacd-4e4f-99f1-4714d2296ed6`. Joe’s authenticated manual run `5a344729-d6a4-440a-8475-7427beac515d` refreshed all **12 linked projects**, with only two missing-link exceptions (Advent_FSU_v27 v3 and Rock n Roll Denim v2). Partial describes those skipped quotes, not failed linked-project imports.
 
-Create a new [Supabase scoped access token](https://supabase.com/dashboard/account/tokens) for **only** Production project `yaftybqzlbbvzwwdzlny`, granting **Database Read** (`database_read`) only. Save it as server-only `LAB_TRACKER_READ_TOKEN` in **mdp-tracker-lab**, Vercel **Production** environment. Scoped tokens start `sbp_fc`. Do not use a Production service-role key or a legacy full-account PAT, and do not post the token in chat. [Supabase read-only endpoint and required permission](https://supabase.com/docs/reference/api/v1-read-only-query).
+Independent reconciliation confirmed exactly one new full activity capture and cost packet per linked project, agreement with preview counts/hours/costs, current quote-driven statuses, unchanged pinned revisions/budget hashes/totals, and retained original Fossil history (13 total captures afterward). Ten projects have complete labor coverage; Fossil 41.78h and Whatnot 25.48h remain genuine missing-rate exceptions.
 
-A new random 256-bit `CRON_SECRET` was created privately for Lab Production. `LAB_DAILY_SYNC_ENABLED=false` is explicitly set. No secrets were printed/pulled, no recurring task exists, and root `vercel.json` retains its empty cron array.
+363 combined tests + TypeScript and sanitized build passed for the source correction. Restricted-role SQL tests prove matching parity for 20 worker cases while direct custom-function execution stays denied; a single-statement Fossil comparison matched all 228 cost records exactly. Source exports across all 12 projects passed runtime validation. Desktop/mobile real-component sync controls and protected page checks passed.
 
-After the source token is saved and the code is deployed with that configuration:
-
-1. Sign into Lab as an administrator. Open Projects → Project sync → Preview sync. Inspect every outcome. Preview writes the run log only, without changing projects, quote budgets or activity.
-2. Run the manual apply, then independently compare identities, baseline hashes, expense/time/cost totals and retained history. Repeating must preserve one project/link per source identity. Genuine missing rates remain pending.
-3. Set `LAB_DAILY_SYNC_ENABLED=true` and apply the reviewed cron configuration from `docs/lab/project-sync-vercel-crons.json` to root `vercel.json`; deploy and verify the Vercel job. That schedule invokes at 11:00/12:00 UTC; the authenticated handler runs only during Chicago's 06:00 hour, preserving 6 a.m. through DST. The database claim prevents duplicate scheduled daily publications.
-4. Verify the first scheduled run and private per-project outcomes. Failed projects retain the last good capture; missing costs never become zero.
-
-### Verification and remaining boundary
-
-341 tests and TypeScript plus a sanitized Node 24 webpack build passed. Four disposable database suites cover row-lock privileges, new-project creation, full rollback, idempotent retries, immutable financial baselines, original title preservation, run overlap/expiry, scheduled deduplication, preview denial and client access denial. Hosted Lab service-role scope/claim/finish passed inside a rollback-only transaction. Global run-log tables intentionally have RLS with no client policies; the actor-checked admin API reads them through its Lab server role.
-
-The actual new full source-export query read Fossil in a single snapshot: 35 expenses, 228 time rows, 528.97h, 13845.56 approved direct labor, 41.78h unresolved. Runtime costing validation passed on that export. This was a read-only source probe, not a replacement of the saved Lab activity. Private source exports remain outside Git. Token-backed hosted preview/apply and scheduled execution are still pending source configuration. Local vet could not download its tokenizer due DNS; no external private-code upload.
-
-After incorporating Paul’s latest account-timer release, all 344 combined tests and TypeScript passed. Desktop/mobile real-component tests passed for preview/apply controls, exceptions and directory refresh; the full project UI regression and protected Quotes/Capacity rendering also passed without JavaScript errors. The source token remains absent by name-only Vercel verification.
-
-Publication boundary: automatic approval review rejected pushing this separate implementation to main/its feature branch without explicit release approval. The implementation is committed locally; no sync interface deployment occurred. Lab schema and disabled configuration are staged, but live preview/apply and schedule activation cannot proceed until publication and the source-token setup are complete.
-
-Joe subsequently saved LAB_TRACKER_READ_TOKEN (confirmed by name in Lab Production) and explicitly approved pushing the sync release. The earlier publication block is resolved. His configuration redeploy still served old main 6c04881. The source token value was not retrieved; token-backed preview/apply remains the next verification after this code release. Latest main 887c18d was merged with 348 combined tests and TypeScript passing.
-
-### Read-only worker matching correction
-
-The second hosted preview passed CRM reads but failed activity exports with Postgres 42501: the built-in read-only role cannot execute `public.normalize_labor_worker_name`. Its SELECT rights already cover the required source tables. Lab now reads that function's SQL body through catalog metadata, checks its reviewed SHA-256, and embeds the identical expression in the read-only costing query. No Production grants, roles or functions change, and no credentials are broadened. New costing packets record `sourceNormalizerSha256`; older reviewed packets remain supported. View and worker-rule drift still stop the run.
-
-`tests/lab-worker-normalizer.database.sql` verifies equivalence for 20 cases under a disposable role denied direct function execution. A single-statement source comparison confirmed exact original/corrected Fossil evidence for all 228 records. Corrected full exports for all 12 linked projects passed runtime validation; ten have complete rate coverage, while Fossil (41.78h) and Whatnot (25.48h) retain genuine exceptions. These checks did not publish new Lab project captures. The next hosted preview verifies the corrected query with the saved scoped token.
+Scheduler logic is tested in a disposable database with Vault/pg_net/cron fixtures (the external extensions are not installed locally). Tests cover inactive staging, target/auth/timeout, winter/summer and DST transition dates, denied client/application invocation and missing credentials. Hosted extension interfaces and the authenticated HTTP response are verified before activation. First timed execution is a future event; do not describe configuration/manual verification as an already completed scheduled run.

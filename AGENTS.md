@@ -10,11 +10,12 @@ Paul directs quote and capacity workflows. Joe owns infrastructure, integration 
 
 ## Environment boundary
 - Only repository meccajoe/mdp-tracker-lab.
-- Only hosted Supabase project gkvaeqlqrthztobxitvn in organization cqyvrbacdmbytzmoakag (Mecca Design & Production).
+- Make hosted database changes only in Supabase project gkvaeqlqrthztobxitvn in organization cqyvrbacdmbytzmoakag (Mecca Design & Production).
 - Vercel lab project is mdp-tracker-lab (prj_H6frjmh8wPjYXFzK4aBHRjd7VhmF), team Meccanics (team_EEoCcHOGaLxcpWCZACyMGC54). Deploy only to this destination with the lab-only environment. Vercel's production target here means the lab's primary URL, not business production.
 - Never use production credentials, copy production environment files, restart production services, or mutate the production database.
-- Do not enable live accounting, CRM, Google Drive/Sheets, Slack, email, or other outbound integrations, except the narrow read-only Materials DB connection Paul authorized on October 4, 2026: spreadsheet 1Z34DH5kc3c7K9g-yOUyzF_sEhhNPFZeIdfh1gMTNL-0, gid 1318845246. No spreadsheet writes or sharing changes. Preserve quote price snapshots; this exception does not authorize other integrations. Otherwise use fixtures or explicit lab-only substitutes.
-- Empty Vercel cron configuration prevents scheduled invocation; it does not disable API routes. Runtime route guards and environment validation remain required before deployment.
+- Do not enable live accounting, CRM, Google Drive/Sheets, Slack, email, or other outbound integrations, except the narrow read-only Materials DB connection Paul authorized on October 4, 2026: spreadsheet 1Z34DH5kc3c7K9g-yOUyzF_sEhhNPFZeIdfh1gMTNL-0, gid 1318845246. No spreadsheet writes or sharing changes. Preserve quote price snapshots; this exception does not authorize other integrations. The explicitly authorized read-only daily project sync below is a separate narrow exception. Otherwise use fixtures or explicit lab-only substitutes.
+- Joe authorized the narrow daily project sync on November 12, 2026: linked Lab projects plus newly Closed Won Active quotes, read-only HubSpot/Production data, writes only to Lab. Use only LAB_HUBSPOT_READ_TOKEN and the Production-only Database Read scoped LAB_TRACKER_READ_TOKEN; never copy Production service-role/integration credentials. Preserve pinned quote budgets and Paul’s quote/capacity work.
+- The daily 6 a.m. America/Chicago trigger uses Lab pg_cron/pg_net and its private Vault credential, calling only /api/lab-project-sync/scheduled. Root Vercel crons stay empty (Hobby timing limits). All inherited outbound integration routes remain blocked. Runtime environment/auth guards remain required.
 - Preserve sandbox data across deployments. Data refreshes require explicit scope and must not overwrite Paul's scenarios.
 - Never print credentials or commit environment files.
 
