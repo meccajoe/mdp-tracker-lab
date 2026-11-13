@@ -1,5 +1,5 @@
 .sheet {border:1px solid #cbd5df;background:white;color:#273549;font:12px Arial,sans-serif;}
-.toolbar {display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:8px;background:#e8eef7;}
+.toolbar {display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:5px 8px;background:#f5f7f9;}
 .toolbar button {border:1px solid #b6c5d6;background:#f8fafc;padding:4px 8px;border-radius:4px;}
 .sheet p {padding:6px 10px;color:#4b5b6a;font-size:11px;}
 .sheet p[role=alert] {color:#a12525;background:#fff0eb;}

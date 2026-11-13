@@ -23,16 +23,13 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
 }) {
   const tableRef=useStickyTableColumns(3);
   const [existingOpen,setExistingOpen]=useState(false);
-  const pickerRef=useRef<HTMLDivElement>(null),filterRef=useRef<HTMLDivElement>(null);
+  const pickerRef=useRef<HTMLDivElement>(null);
   const scrollRef=useRef<HTMLDivElement>(null);
   const rowCapacity=quote.takeoffRowCapacity??50;
   const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
-  const [filterOpen,setFilterOpen]=useState(false);
-  const [filterItem,setFilterItem]=useState('');
-  const [filterQuery,setFilterQuery]=useState('');
-  const defaultItem=filterItem||selected;
+  const defaultItem=selected;
   const rows=useMemo(()=>takeoffWorksheetRows(quote,rowCount,defaultItem),[quote,rowCount,defaultItem]);
-  const visibleRows=rows.map((row,index)=>({row,index})).filter(({row})=>!filterItem||!row.lineId||row.lineId===filterItem);
+  const visibleRows=rows.map((row,index)=>({row,index}));
   const visibleIndices=visibleRows.map(({index})=>index);
   const [active,setActive]=useState<Cell|null>(null);
   const [selectionEnd,setSelectionEnd]=useState<Cell|null>(null);
@@ -45,18 +42,17 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   const [learnedUsage,setLearnedUsage]=useState<Record<string,number>>({});
   useEffect(()=>{let active=true,generation=0;const load=()=>{const started=++generation;void loadQuoteLibrary({excludeWorkspaceId:workspaceId,maxAgeMs:60000}).then(({quotes})=>{const usage:Record<string,number>={};for(const saved of quotes)for(const [name,count] of Object.entries(saved.document.catalogUsage??{}))usage[name]=(usage[name]??0)+count;if(active&&started===generation)setLearnedUsage(usage);}).catch(()=>{if(active&&started===generation)setLearnedUsage({});});};const clear=()=>{if(active)setLearnedUsage({});load();};load();window.addEventListener('quote-library-identity-changed',clear);window.addEventListener('quote-workbook-saved',load);return()=>{active=false;window.removeEventListener('quote-library-identity-changed',clear);window.removeEventListener('quote-workbook-saved',load);};},[workspaceId]);
   const usage=useMemo(()=>{const counts={...learnedUsage};for(const [name,count] of Object.entries(quote.catalogUsage??{}))counts[name]=(counts[name]??0)+count;return counts;},[learnedUsage,quote.catalogUsage]);
-  const filterChoices=quote.lines.filter(line=>`${quoteItemLabel(quote,line.id)} ${line.name}`.toLowerCase().includes(filterQuery.toLowerCase()));
-  function setFilter(id:string) {
-    setFilterItem(id);setFilterOpen(false);setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;
+  function resetSelection() {
+    setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;
   }
-  const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem,onChanged:()=>setFilter(''),onAddExisting:()=>setExistingOpen(true)});
+  const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem,onChanged:resetSelection,onAddExisting:()=>setExistingOpen(true)});
   const drag=useRef<{row:number;column:number;end:number;endColumn:number;value:string}|null>(null);
   const live=useQuoteCatalog();
   useEffect(()=>{
-    if(itemPicker===null&&!filterOpen)return;
-    const close=(event:PointerEvent)=>{const target=event.target as Node;if(itemPicker!==null&&!pickerRef.current?.contains(target)&&!(target as HTMLElement).closest?.('[data-item-picker-trigger]'))setItemPicker(null);if(filterOpen&&!filterRef.current?.contains(target)&&!(target as HTMLElement).closest?.('[data-item-filter-trigger]'))setFilterOpen(false);};
+    if(itemPicker===null)return;
+    const close=(event:PointerEvent)=>{const target=event.target as Node;if(itemPicker!==null&&!pickerRef.current?.contains(target)&&!(target as HTMLElement).closest?.('[data-item-picker-trigger]'))setItemPicker(null);};
     document.addEventListener('pointerdown',close,true);return()=>document.removeEventListener('pointerdown',close,true);
-  },[itemPicker,filterOpen]);
+  },[itemPicker]);
   const calculation=useMemo(()=>{
     try {return calculateQuoteV27(quote);} catch {return null; /* Workbook displays calculation errors. */}
   },[quote]);
@@ -119,28 +115,12 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   }
   return <div className={styles.sheet}>
     {itemActions.feedback}
-    <QuoteExistingItemDialog open={existingOpen} onOpenChange={setExistingOpen} quote={quote} edit={edit} live={live.materials} readOnly={readOnly} onInserted={id=>{onSelectItem?.(id);setFilter('');}}/>
-    <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong>{!libraryItem&&<button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>}
-      <button disabled={readOnly||quote.takeoffs.length>=5000} onClick={()=>{const id=filterItem||(active?rows[active[0]].lineId:selected);edit(next=>{const last=next.takeoffs.findLastIndex(row=>row.lineId===id);const added=takeoffWorksheetRows({...next,takeoffs:[]},5,id).map(row=>({...row,id:crypto.randomUUID()}));next.takeoffs.splice(last+1,0,...added.slice(0,5000-next.takeoffs.length));});setActive(null);setSelectionEnd(null);}}>Insert 5 blank rows after item</button>
-      <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(active)deleteRow(active[0]);}}>Delete selected row</button>
-      <button disabled={readOnly||rowCount>=5000} onClick={()=>edit(next=>{next.takeoffRowCapacity=Math.min(5000,rowCount+50);})}>Add 50 more rows</button><span>{rowCount} rows</span>
-      {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
+    <QuoteExistingItemDialog open={existingOpen} onOpenChange={setExistingOpen} quote={quote} edit={edit} live={live.materials} readOnly={readOnly} onInserted={id=>{onSelectItem?.(id);resetSelection();}}/>
+    <div className={styles.toolbar}><strong>Takeoffs</strong>
+      {!libraryItem&&<button disabled={readOnly} onClick={()=>{resetSelection();onAddItem();}}>Add item</button>}
+      <button disabled={readOnly||rowCount>=5000} onClick={()=>edit(next=>{next.takeoffRowCapacity=Math.min(5000,rowCount+50);})}>Add 50 rows</button><span>{rowCount} rows</span>
+      {active && active[0]<quote.takeoffs.length && <button disabled={readOnly||!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
-    <div className={styles.itemToolbar}>
-      <strong>{filterItem?`Showing ${quoteItemLabel(quote,filterItem)} — ${quote.lines.find(line=>line.id===filterItem)?.name}`:'All items — one worksheet'}</strong>
-      <button type="button" data-item-filter-trigger aria-expanded={filterOpen} onClick={()=>{setFilterOpen(!filterOpen);setFilterQuery('');}}>Filter items</button>
-      {filterItem&&<button type="button" onClick={()=>setFilter('')}>Show all items</button>}
-      <span>Assign only the rows you need. Drag-copy Item # or name to link more rows.</span>
-      {filterOpen&&<div ref={filterRef} className={styles.filterPanel} role="dialog" aria-label="Filter takeoffs by item" onKeyDown={e=>{if(e.key==='Escape')setFilterOpen(false);}}>
-        <div className={styles.pickerTools}><input autoFocus aria-label="Search item number or name" placeholder="Search item # or name…" value={filterQuery} onChange={e=>setFilterQuery(e.target.value)}/><button type="button" aria-label="Close item filter" onClick={()=>setFilterOpen(false)}>×</button></div>
-        <div className={styles.choices}><button type="button" onClick={()=>setFilter('')}>All items</button>{filterChoices.map(line=><button type="button" key={line.id} onClick={()=>setFilter(line.id)}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,quote.lines.indexOf(line))}</span></button>)}{!filterChoices.length&&<p>No matching items.</p>}</div>
-      </div>}
-    </div>
-
-    <div className={styles.catalogStatus}><span role="status">{live.status}</span><button type="button" onClick={()=>void live.refresh()}>Refresh now</button></div>
-    {live.warnings.length>0&&<p role="status">{live.warnings.join(' ')}</p>}
-    <p>Build each item from as many material and labor rows as you need. Click Materials & Labor and type to search, or enter custom text. Enter labor hours in Qty when the row is labor. Double-click or F2 edits text; Delete clears a selected cell. Drag the blue cell corner to repeat a value; Shift-click to copy a range.</p>
-    {calculation?.lines.filter(line=>line.type==='beMatrix / SEG'&&(!filterItem||line.id===filterItem)&&(line.inputs.rental||line.inputs.sqft)).map(line=><p key={line.id}><strong>{line.name}</strong>: frame rental ${line.inputs.rental.toFixed(2)} + SEG ({line.inputs.sqft} sq. ft.) ${(line.inputs.sqft*quote.settings.graphicsSell).toFixed(2)} · Final quote ${line.finalPrice.toFixed(2)}. Dimensions and destination are set in beMatrix Estimator.</p>)}
     {error&&<p role="alert">{error}</p>}{catalogNotice&&<p role="status">{catalogNotice}</p>}
     <div ref={scrollRef} className={styles.scroll}
       onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=drag.current.column<=1?drag.current.column:Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
@@ -206,6 +186,6 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       </table>
     </div>
 
-    <p>Blank sections = 1. Clear unit cost to restore the recorded catalog price; 0 is an explicit override. Tracker catalog choices refresh every 15 seconds. Custom names are added after a unit and explicit unit cost are entered. Use latest price for selected row to update an existing selection. Saved rows do not reprice automatically.</p>
+
   </div>;
 }

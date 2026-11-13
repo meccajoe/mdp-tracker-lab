@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function harness(){
+function harness(extraRows=[]){
  const states=[],effects=[],memos=[];let index=0,pending=[],tree,gets=0,posts=[],fail=false,duplicates=0;
- const rows=[{itemId:'a',revision:1,name:'Plywood 10',unit:'sheet',unitCost:100,source:'Google Sheet DB'},{itemId:'b',revision:1,name:'Plywood 2',unit:'sheet',unitCost:20,source:'Added from Takeoff'}];
+ const rows=[{itemId:'a',revision:1,name:'Plywood 10',unit:'sheet',unitCost:100,source:'Google Sheet DB'},{itemId:'b',revision:1,name:'Plywood 2',unit:'sheet',unitCost:20,source:'Added from Takeoff'},...extraRows];
  const same=(a,b)=>a&&b&&a.length===b.length&&a.every((x,i)=>Object.is(x,b[i]));
  const react={useRef(value){const i=index++;return states[i]??={current:value}},useState(value){const i=index++;if(!(i in states))states[i]=typeof value==='function'?value():value;return [states[i],v=>states[i]=typeof v==='function'?v(states[i]):v]},useCallback(fn,deps){return react.useMemo(()=>fn,deps)},useMemo(fn,deps){const i=index++;if(!memos[i]||!same(memos[i].deps,deps))memos[i]={deps,value:fn()};return memos[i].value},useEffect(fn,deps){const i=index++;if(!effects[i]||!same(effects[i].deps,deps))pending.push(()=>{effects[i]?.cleanup?.();effects[i]={deps,cleanup:fn()}})}};
  const jsx=(type,props)=>({type,props});const window=new EventTarget();let events=0;window.addEventListener('tracker-catalog-changed',()=>events++);
@@ -29,4 +29,10 @@ test('price save uses authoritative response/revision without reloading catalog 
 });
 test('conflict preserves unsaved edit and leaves current catalog price unchanged',async()=>{
  const h=harness();h.render();await h.settle();h.fail();h.find('Edit catalog entry Plywood 10').props.onClick();h.render();h.form().props.onSubmit({preventDefault(){}});await h.settle();assert.ok(h.form());assert.match(JSON.stringify(h.body()),/\$100.00/);assert.equal(h.events(),0);assert.equal(h.gets(),1);assert.ok(h.nodes().some(n=>n.props?.role==='alert'&&n.props.children==='Catalog changed'));
+});
+
+test('missing price and unit flags live in catalog and clear after correction; explicit zero is valid',async()=>{
+ const h=harness([{itemId:'c',revision:1,name:'Z Clips',unit:'each',unitCost:null,source:'Google Sheet DB'},{itemId:'d',revision:1,name:'Free material',unit:'each',unitCost:0,source:'Google Sheet DB'}]);h.render();await h.settle();
+ assert.ok(h.find('Fix missing pricing or unit for Z Clips'));assert.equal(h.find('Fix missing pricing or unit for Free material'),undefined);
+ h.find('Fix missing pricing or unit for Z Clips').props.onClick();h.render();h.nodes().find(n=>n.type==='input'&&n.props.type==='number').props.onChange({target:{value:'5'}});h.render();h.form().props.onSubmit({preventDefault(){}});await h.settle();assert.equal(h.find('Fix missing pricing or unit for Z Clips'),undefined);
 });
