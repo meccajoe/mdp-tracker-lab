@@ -49,6 +49,21 @@ export function takeoffWorksheetRows(quote: QuoteV27, count: number, selected: s
       quantity: 0, sections: null, unitCostOverride: 0, hours: 0, resale: false});
 }
 
+/** Insert beside a worksheet row, preserving positions and only its item association. */
+export function insertTakeoffRow(quote:QuoteV27, count:number, anchor:number, side:'above'|'below') {
+  if(!Number.isInteger(anchor)||anchor<0||anchor>=count||count>5000)throw new Error('Choose a worksheet row.');
+  const position=anchor+(side==='below'?1:0);
+  const length=Math.max(quote.takeoffs.length,position);
+  if(length>=5000)throw new Error('The worksheet limit is 5,000 rows.');
+  const view=takeoffWorksheetRows(quote,count,'');
+  const rows=view.slice(0,length).map((row,index)=>index<quote.takeoffs.length?row:{...row,id:crypto.randomUUID()});
+  const blank=takeoffWorksheetRows({...quote,takeoffs:[]},1,'')[0];
+  rows.splice(position,0,{...blank,id:crypto.randomUUID(),lineId:view[anchor].lineId});
+  quote.takeoffs=rows;
+  quote.takeoffRowCapacity=Math.min(5000,Math.max(count+1,rows.length));
+  return position;
+}
+
 /** Materialize through the edited row to preserve worksheet positions on save/reopen. */
 export function applyWorksheetCells(quote: QuoteV27, count: number, selected: string,
   start: number, column: number, values: string[][]) {

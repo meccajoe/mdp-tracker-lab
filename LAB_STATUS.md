@@ -1,3 +1,8 @@
+## Insert Takeoff rows anywhere — November 12, 2026
+- Added Insert row above / Insert row below to every Takeoff row’s three-dot menu, including blank rows and Quoted Item Database editing. New row inherits only its anchor’s item association; all material/labor fields start empty. Unassigned anchors stay unassigned. Physical positions retained under item filters; existing rows keep IDs, prices and notes.
+- Uses ordinary workbook edit/history/autosave flow; placeholder positions materialized for save/reopen. Row DOM keys now use persistent IDs to avoid reusing another row’s input when inserting. Enforces 5,000-row limit without partial mutation. Existing whole-item menu and Quote Builder behavior retained.
+- 21 grid/history tests plus TypeScript passed, including insertion at item boundaries, placeholder gaps, serialization, filtered physical indices, limits and undo/redo. React review: no extra effects; menu actions use existing edit flow. Deployment/browser check pending.
+
 ## Archived capacity exclusion and CAD Takeoff instructions — November 12, 2026
 - Confirmed current capacity manifest and live Team Schedule sources exclude archived lifecycle / archived_at records. Dashboard, Field Load and Planning consume that manifest; saved what-if scenarios only select currently eligible quotes, not stored quote snapshots. Historical saved schedule revisions remain untouched for audit.
 - Fixed archive/restore notification: successful list actions invalidate the quote library; capacity refreshes live schedule sources as well as dashboard demand on quote events. Other browser sessions use existing visibility/minute refresh.
