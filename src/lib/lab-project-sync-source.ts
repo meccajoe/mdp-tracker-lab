@@ -6,6 +6,8 @@ import {PM_NAMES} from './types';
 import {resolveHubSpotProjectManagerInitials} from './hubspot';
 
 export const SOURCE_REF='yaftybqzlbbvzwwdzlny';
+export const NORMALIZER_HASH='d0521f7b77d4bc826eaf3d1811a651d88b4796ae4b69f7050a6312a06e40cd49';
+export type ApprovedSourceRules={definition:string;normalizerBody:string};
 export const COST_VIEW_HASH='ce17aff3430b5491b21f66f9a51936ad66102137b19f5d807836d6a2a5f931c3';
 export const sha=(value:unknown)=>createHash('sha256').update(typeof value==='string'?value:JSON.stringify(value)).digest('hex');
 export class SyncIssue extends Error {constructor(public code:string){super(code);}}
@@ -25,14 +27,27 @@ export function sourceReader(token:string,fetcher:typeof fetch=fetch):SourceQuer
  };
 }
 export async function approvedDefinition(query:SourceQuery){
- const rows=await query("select pg_catalog.pg_get_viewdef('public.project_labor_reconciliation_summary'::regclass,true) definition");
+ const rows=await query("select pg_catalog.pg_get_viewdef('public.project_labor_reconciliation_summary'::regclass,true) definition, (select p.prosrc from pg_catalog.pg_proc p where p.oid='public.normalize_labor_worker_name(text)'::regprocedure) normalizer_body");
  const definition=rows[0]?.definition?.trim().replace(/\bpublic\.(qbo_labor_entries|labor_worker_cost_policies|labor_worker_rate_authority|labor_rate_imports|normalize_labor_worker_name)\b/g,'$1');
  if(typeof definition!=='string'||sha(definition)!==COST_VIEW_HASH)throw new SyncIssue('COSTING_RULES_CHANGED');
- return definition;
+ const normalizerBody=rows[0]?.normalizer_body?.trim();
+ if(typeof normalizerBody!=='string'||sha(normalizerBody)!==NORMALIZER_HASH)throw new SyncIssue('WORKER_NORMALIZER_RULES_CHANGED');
+ return {definition,normalizerBody};
 }
 // Management read-only queries require schema-qualified persistent references.
 export function qualifyCostDefinition(definition:string){
  return definition.replace(/(?<![\w.])(qbo_labor_entries|labor_worker_cost_policies|labor_worker_rate_authority|labor_rate_imports|normalize_labor_worker_name)\b/g,'public.$1');
+}
+// Preserve the exact approved SQL rules without executing a restricted user function.
+// The body is read-only source metadata and must match the reviewed hash.
+export function inlineWorkerNormalizer(definition:string,normalizerBody:string){
+ if(sha(normalizerBody.trim())!==NORMALIZER_HASH)throw new SyncIssue('WORKER_NORMALIZER_RULES_CHANGED');
+ const call='public.normalize_labor_worker_name(labor.employee_name)';
+ if(!definition.includes(call))throw new SyncIssue('WORKER_NORMALIZER_CALL_CHANGED');
+ const expression='('+normalizerBody.trim().replace(/;$/,'').replace(/\bworker_name\b/g,'labor.employee_name')+')';
+ const result=definition.replaceAll(call,expression);
+ if(result.includes('public.normalize_labor_worker_name('))throw new SyncIssue('WORKER_NORMALIZER_CALL_CHANGED');
+ return result;
 }
 const literal=(v:string)=>"'"+v.replaceAll("'","''")+"'";
 export function activityExportQuery(projectId:string,costingQuery:string){
@@ -47,7 +62,7 @@ export function activityExportQuery(projectId:string,costingQuery:string){
  'manualActuals',coalesce((select jsonb_agg(to_jsonb(m)) from public.project_actuals m where m.project_id=${id}),'[]'::jsonb)
  ),'costing',(select costing_export from (${costingQuery}) c)) export from public.projects p where p.id=${id}`;
 }
-export async function readActivity(query:SourceQuery,definition:string,dealId:string,jobNumber:string){
+export async function readActivity(query:SourceQuery,rules:ApprovedSourceRules,dealId:string,jobNumber:string){
  if(!/^\d+$/.test(dealId)||!/^\d+$/.test(jobNumber))throw new SyncIssue('MISSING_DEAL_OR_JOB');
  const matches=await query(`select p.id from public.projects p where p.hubspot_deal_id=${literal(dealId)} and p.job_number=${literal(jobNumber)}`);
  if(matches.length!==1)throw new SyncIssue('SOURCE_PROJECT_LINK_NOT_UNIQUE');
@@ -55,13 +70,13 @@ export async function readActivity(query:SourceQuery,definition:string,dealId:st
  if(typeof id!=='string'||!/^[A-Za-z0-9-]+$/.test(id))throw new SyncIssue('INVALID_SOURCE_PROJECT');
  // If time IDs change between these reads, exact packet coverage fails safely.
  const entries=await query(`select l.qbo_entry_id from public.qbo_labor_entries l where l.project_id=${literal(id)} and l.qbo_entry_id like 'ts_%' order by l.qbo_entry_id`);
- const costQuery=approvedCostingQuery(qualifyCostDefinition(definition),id,entries.map(r=>r.qbo_entry_id),true);
+ const costQuery=approvedCostingQuery(inlineWorkerNormalizer(qualifyCostDefinition(rules.definition),rules.normalizerBody),id,entries.map(r=>r.qbo_entry_id),true);
  const rows=await query(activityExportQuery(id,costQuery)),data=rows[0]?.export;
  if(rows.length!==1||!data?.costing)throw new SyncIssue('INCOMPLETE_ACTIVITY_EXPORT');
  const capture:ActivityCapture=data.activity;validateActivityCapture(capture);
  if(capture.project.id!==id||capture.project.job_number!==jobNumber||capture.project.hubspot_deal_id!==dealId)throw new SyncIssue('SOURCE_IDENTITY_CHANGED');
  const c=data.costing,summary=c.summary,activityId=randomUUID(),activityHash=sha(capture);
- const evidence:ProjectCostingPacket={version:1,activitySnapshotId:activityId,activitySourceSha256:activityHash,sourceProjectId:id,jobNumber,dealId,resolvedAt:c.resolvedAt,sourceView:'public.project_labor_reconciliation_summary',sourceViewSha256:COST_VIEW_HASH,
+ const evidence:ProjectCostingPacket={version:1,activitySnapshotId:activityId,activitySourceSha256:activityHash,sourceProjectId:id,jobNumber,dealId,resolvedAt:c.resolvedAt,sourceView:'public.project_labor_reconciliation_summary',sourceViewSha256:COST_VIEW_HASH,sourceNormalizerSha256:NORMALIZER_HASH,
  expected:{rows:Number(summary.source_row_count??0),hours:Number(summary.total_hours??0),knownCost:Number(summary.verified_direct_wages??0),missingHours:Number(summary.missing_rate_hours??0),excludedHours:Number(summary.excluded_project_cost_hours??0)},rows:c.rows};
  validateProjectCosting(capture,evidence,activityId,activityHash);
  return {activityId,activityHash,capture,evidence,costingHash:sha(evidence)};

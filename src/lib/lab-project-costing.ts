@@ -8,7 +8,7 @@ export type ApprovedLaborCost={
 };
 export type ProjectCostingPacket={
  version:1;activitySnapshotId:string;activitySourceSha256:string;sourceProjectId:string;jobNumber:string;dealId:string;
- resolvedAt:string;sourceView:'public.project_labor_reconciliation_summary';sourceViewSha256:string;
+ resolvedAt:string;sourceView:'public.project_labor_reconciliation_summary';sourceViewSha256:string;sourceNormalizerSha256?:string;
  expected:{rows:number;hours:number;knownCost:number;missingHours:number;excludedHours:number};rows:ApprovedLaborCost[];
 };
 const hourlySources=new Set(['qbo_time_users','qbo_time_users_matched','payroll_rate_sheet','fixed_design_rate','approved_contractor_rate','approved_historical_payroll_rate']);
@@ -38,7 +38,7 @@ function approvedForDate(row:ApprovedLaborCost){
 export function validateProjectCosting(capture:ActivityCapture,packet:ProjectCostingPacket,snapshotId:string,sourceHash:string){
  if(packet.version!==1||packet.activitySnapshotId!==snapshotId||packet.activitySourceSha256!==sourceHash||!hash(sourceHash)||
   packet.sourceProjectId!==capture.project.id||packet.jobNumber!==capture.project.job_number||packet.dealId!==capture.project.hubspot_deal_id||
-  !timestamp(packet.resolvedAt)||packet.sourceView!=='public.project_labor_reconciliation_summary'||!hash(packet.sourceViewSha256)||!Array.isArray(packet.rows))throw Error('Cost evidence is not bound to this activity snapshot.');
+  !timestamp(packet.resolvedAt)||packet.sourceView!=='public.project_labor_reconciliation_summary'||!hash(packet.sourceViewSha256)||(packet.sourceNormalizerSha256!==undefined&&!hash(packet.sourceNormalizerSha256))||!Array.isArray(packet.rows))throw Error('Cost evidence is not bound to this activity snapshot.');
  const original=new Map(capture.labor.map(row=>[row.qbo_entry_id,row]));
  if(packet.rows.length!==original.size||new Set(packet.rows.map(r=>r.entryId)).size!==original.size)throw Error('Incomplete or duplicate cost evidence.');
  const hours:number[]=[],cost:number[]=[],missing:number[]=[],excluded:number[]=[];

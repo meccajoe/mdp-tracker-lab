@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {chicagoClock,eligibleQuote,prepareBaseline,runProjectSync} from '../src/lib/lab-project-sync';
-import {sourceReader,approvedDefinition,qualifyCostDefinition,activityExportQuery,readDeal} from '../src/lib/lab-project-sync-source';
+import {sourceReader,approvedDefinition,qualifyCostDefinition,activityExportQuery,readDeal,inlineWorkerNormalizer,NORMALIZER_HASH,sha} from '../src/lib/lab-project-sync-source';
 const quote=JSON.parse(readFileSync('src/data/quote-v27-fonroche.json','utf8'));
 test('6 a.m. Chicago follows standard/daylight time; other UTC trigger skips',()=>{
  assert.equal(chicagoClock(new Date('2026-11-12T12:00:00Z')).hour,6);assert.equal(chicagoClock(new Date('2026-07-12T11:00:00Z')).hour,6);
@@ -54,4 +54,13 @@ test('CRM sync shares the approved Production PM aliases and identifies quote ac
   const deal=await readDeal('456','fixture',async()=>Response.json({id:'456',properties:{dealname:'Canonical',job_number:'123',account_manager:name,closedate:null,due_date:null,amount:null}}));assert.equal(deal.pm,expected);
  }
  for(const [status,code] of [[403,'HUBSPOT_QUOTE_ACCESS_DENIED'],[404,'HUBSPOT_QUOTE_NOT_FOUND'],[429,'HUBSPOT_QUOTE_RATE_LIMITED']] as const){let call=0;await assert.rejects(()=>readDeal('456','fixture',async()=>++call===1?Response.json({id:'456',properties:{dealname:'Canonical',job_number:'123',account_manager:null,closedate:null,due_date:null,amount:null},associations:{quotes:{results:[{id:'789'}]}}}):new Response('PRIVATE',{status})),new RegExp(code));}
+});
+
+test('read-only export inlines exact approved worker rules without calling the restricted function',()=>{
+ const body=readFileSync('tests/fixtures/lab-sync/approved-worker-normalizer.sql','utf8');assert.equal(sha(body.trim()),NORMALIZER_HASH);
+ const definition='select public.normalize_labor_worker_name(labor.employee_name) from public.qbo_labor_entries labor where public.normalize_labor_worker_name(labor.employee_name) is not null';
+ const sql=inlineWorkerNormalizer(definition,body);assert.equal(sql.includes('public.normalize_labor_worker_name('),false);assert.equal((sql.match(/WITH cleaned AS/g)||[]).length,2);assert.ok(sql.includes('COALESCE(labor.employee_name'));assert.ok(sql.includes("WHEN 'greg maslyk' THEN 'gregory maslyk'"));
+ assert.throws(()=>inlineWorkerNormalizer(definition,body.replace('gregory maslyk','guessed person')),/RULES_CHANGED/);
+ assert.throws(()=>inlineWorkerNormalizer('select public.normalize_labor_worker_name(other_name)',body),/CALL_CHANGED/);
+ assert.throws(()=>inlineWorkerNormalizer(definition+' or public.normalize_labor_worker_name(other_name) is null',body),/CALL_CHANGED/);
 });
