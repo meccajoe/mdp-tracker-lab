@@ -72,7 +72,7 @@ export async function renderCadTurnoverPdf(report:CadTurnover):Promise<Uint8Arra
       text(`Takeoff row ${m.row}${m.notes?` - ${m.notes}`:''}`,{size:9,color:muted,indent:12,gap:8});
     }
     if(item.labor.length){heading('Labor included in estimate');for(const labor of item.labor)text(labor);}
-    if(item.instructions.length){heading('Recorded scope / instructions');for(const instruction of item.instructions)text(instruction);}
+    if(item.instructions.length){heading('CAD instructions / Takeoff notes');for(const instruction of item.instructions)text(instruction);}
     if(item.warnings.length){heading('Estimator clarification');for(const warning of item.warnings)text(`- ${warning}`,{color:amber});}
     y-=12;
   }

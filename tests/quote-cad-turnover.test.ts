@@ -81,3 +81,19 @@ test('CAD header goal sums quoted CAD allowances and preserves source data',()=>
  assert.equal(report.cadHours,24);assert.equal(JSON.stringify(q),before);
  assert.equal(buildCadTurnover(createBlankQuoteV27(),meta).cadHours,0);
 });
+
+ test('CAD instructions include material, labor and note-only takeoff notes on their own item',()=>{
+ const q=cadFixture();
+ q.takeoffs[0].notes='Use exterior plywood.\nConfirm edge detail with CAD.';
+ q.takeoffs[3].notes='Dry fit before finishing.';
+ q.takeoffs.push({...q.takeoffs[0],id:'note-only',quantity:0,hours:0,notes:'Confirm dimensions on site.'});
+ q.takeoffs.push({...q.takeoffs[0],id:'orphan-note',lineId:'',notes:'Unassigned instruction'});
+ const before=JSON.stringify(q),report=buildCadTurnover(q,meta),arch=report.items[0];
+ assert.ok(arch.instructions.includes('Takeoff row 1 - ¾” plywood: Use exterior plywood.\nConfirm edge detail with CAD.'));
+ assert.ok(arch.instructions.some(s=>s.includes('Dry fit before finishing.')));
+ assert.ok(arch.instructions.some(s=>s.includes('Confirm dimensions on site.')));
+ assert.ok(arch.instructions.some(s=>s.includes('Paint finish; color to be confirmed.')));
+ assert.ok(report.items.slice(1).every(i=>!i.instructions.some(s=>s.includes('Confirm edge detail'))));
+ assert.ok(report.items.every(i=>!i.instructions.some(s=>s.includes('Unassigned instruction'))));
+ assert.equal(JSON.stringify(q),before);
+ });
