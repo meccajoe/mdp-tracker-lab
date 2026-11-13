@@ -11,7 +11,7 @@ import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {QuoteReusableToolbar} from './quote-reusable-items';
 import {QuoteEconomics} from './quote-economics';
-import {QuoteReportTable} from './quote-report-table';
+import {QuoteBudgetHandoff} from './quote-budget-handoff';
 import {QuoteBOM,QuoteMaterialsDB} from './quote-reference-sheets';
 import {EMPTY_SCHEDULE,FORECAST_STATUSES,parseSchedule} from '@/lib/quote-schedule';
 import { QuoteEstimators } from '@/components/quote-estimators';
@@ -22,7 +22,6 @@ import {QuoteGridInteraction} from './quote-grid-interaction';
 import { QuoteSheet } from '@/components/quote-sheet';
 import { adaFetch } from '@/lib/ada-client';
 import { calculateQuoteV27, EMPTY_INPUTS, LINE_TYPES, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
-import { quoteItemLabel } from '@/lib/quote-takeoff-grid';
 import { newEditHistory, recordEdit, moveEditHistory, type EditHistory } from '@/lib/quote-edit-history';
 import { parseQuoteV27 } from '@/lib/quote-v27-validation';
 
@@ -238,7 +237,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {tab==='Settings' && <QuoteRates key={restoreKey} quote={document} edit={edit} laborRate={calculation?.laborRate??null}/>}
       </fieldset></QuoteGridInteraction>
       {tab==='Client Quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · {quoteStatus==='final'?'Final':'Draft'}</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
-      {tab==='Budget Handoff' && calculation && <><QuoteReportTable label="Budget Handoff" widths={[90,260,150,120,130,140,320,120]}><thead><tr>{['Item #','Item name','Materials / other','Allowed hours','Labor cost','Build budget','Trade hours','Untyped hours'].map(h=><th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>{calculation.lines.filter(line=>line.buildBudget!==0||line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{quoteItemLabel(document,line.id)}</td><td className={cell}>{line.name}</td><td className={cell}>{money(line.materialsBudget)}</td><td className={cell}>{number(line.hoursAllowed)}</td><td className={cell}>{money(line.laborBudget)}</td><td className={cell}>{money(line.buildBudget)}</td><td className={cell}>{Object.entries(line.tradeHours).map(([id,hours])=>`${document.trades.find(t=>t.id===id)?.name}: ${number(hours)}`).join(', ')||'—'}</td><td className={cell}>{number(line.untypedHours)}</td></tr>)}</tbody></QuoteReportTable><p className="mt-4 font-semibold">Total build budget: {money(calculation.totals.buildBudget)}</p><p className="mt-2 text-sm">Contingency held separately: {money(calculation.totals.contingency)}</p></>}
+      {tab==='Budget Handoff' && calculation && <QuoteBudgetHandoff quote={document} calculation={calculation}/>}
     </>}
     </div>
     <footer className={styles.selectionFooter} role="status" aria-label="Selection summary">{selectionSummary||'Select numeric cells to see their total here.'}</footer>

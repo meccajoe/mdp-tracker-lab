@@ -1,5 +1,5 @@
 'use client';
-import {useState} from 'react';
+import {useState,type ReactNode} from 'react';
 import type {QuoteV27} from '@/lib/quote-v27';
 import {cloneQuoteItem,deleteQuoteItem} from '@/lib/quote-item-actions';
 import {savePrequoteItem} from './quote-reusable-items';
@@ -14,16 +14,17 @@ export function useQuoteItemActions({quote,edit,readOnly,libraryItem=false,onCha
  const [rename,setRename]=useState<string|null>(null),[name,setName]=useState('');
  const [pendingDelete,setPendingDelete]=useState<string|null>(null);
  const [notice,setNotice]=useState(''),[error,setError]=useState(''),[saving,setSaving]=useState(false);
- function menu(id:string,label:string){
+ function menu(id:string,label:string,rowActions?:ReactNode){
   const line=quote.lines.find(line=>line.id===id);
-  if(libraryItem||(!line&&!onAddExisting))return null;
+  if(!rowActions&&(libraryItem||(!line&&!onAddExisting)))return null;
   return <DropdownMenu><DropdownMenuTrigger data-quote-item-menu disabled={readOnly||saving} aria-label={label} title={line?`Actions for ${line.name}`:'Add an existing item'} className={styles.itemMenuButton}>⋮</DropdownMenuTrigger>
    <DropdownMenuContent className="min-w-48" onKeyDown={event=>event.stopPropagation()}>
-    {onAddExisting&&<DropdownMenuItem disabled={readOnly} onClick={onAddExisting}>Add Existing Item</DropdownMenuItem>}
+    {rowActions}
+    {!libraryItem&&<>{onAddExisting&&<DropdownMenuItem disabled={readOnly} onClick={onAddExisting}>Add Existing Item</DropdownMenuItem>}
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{try{edit(next=>{cloneQuoteItem(next,id);});setError('');onChanged?.();}catch(error){setError(error instanceof Error?error.message:'Could not clone item.');}}}>Clone</DropdownMenuItem>
     <DropdownMenuItem disabled={readOnly||!line} onClick={()=>{setRename(id);setName(line?.name??'');}}>Rename item</DropdownMenuItem>
-    <DropdownMenuItem disabled={readOnly||!line} onClick={()=>setPendingDelete(id)}>Delete</DropdownMenuItem>
-    <DropdownMenuItem disabled={readOnly||saving||!line} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line?.name} to the Quoted Item Database.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save to Quoted Item Database</DropdownMenuItem>
+    <DropdownMenuItem disabled={readOnly||!line} onClick={()=>setPendingDelete(id)}>{rowActions?'Delete entire item':'Delete'}</DropdownMenuItem>
+    <DropdownMenuItem disabled={readOnly||saving||!line} onClick={async()=>{setSaving(true);setError('');try{await savePrequoteItem(quote,id);setNotice(`Saved ${line?.name} to the Quoted Item Database.`);}catch(error){setError(error instanceof Error?error.message:'Could not save item.');}finally{setSaving(false);}}}>Save to Quoted Item Database</DropdownMenuItem></>}
    </DropdownMenuContent>
   </DropdownMenu>;
  }

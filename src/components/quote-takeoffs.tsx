@@ -3,7 +3,7 @@ import {builderItemName} from '@/lib/quote-builder-display';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
-import {applyTakeoffViewCells,isLaborTakeoff,TAKEOFF_VIEW_COLUMNS,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,type SheetColumn} from '@/lib/quote-takeoff-grid';
+import {insertTakeoffRow,applyTakeoffViewCells,isLaborTakeoff,TAKEOFF_VIEW_COLUMNS,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,type SheetColumn} from '@/lib/quote-takeoff-grid';
 import {adaFetch} from '@/lib/ada-client';
 import {manualCatalogInput} from '@/lib/tracker-catalog';
 import {useQuoteCatalog} from './use-quote-catalog';
@@ -13,6 +13,7 @@ import styles from './quote-takeoffs.module.css';
 import {loadQuoteLibrary} from '@/lib/quote-library-client';
 import {QuoteExistingItemDialog} from './quote-existing-item-dialog';
 import {useQuoteItemActions} from './use-quote-item-actions';
+import {DropdownMenuItem} from './ui/dropdown-menu';
 import {QuoteMaterialCell} from './quote-material-cell';
 const columns=TAKEOFF_VIEW_COLUMNS;
 const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Ext hrs','Notes'];
@@ -95,6 +96,18 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       return true;
     } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
   }
+  function deleteRow(index:number) {
+    if(readOnly||index<0||index>=quote.takeoffs.length)return;
+    edit(next=>{next.takeoffs.splice(index,1);});
+    setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;setError('');
+  }
+  function insertRow(anchor:number,side:'above'|'below') {
+    if(readOnly)return;
+    try {
+      edit(next=>{insertTakeoffRow(next,rowCount,anchor,side);});
+      setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;setError('');
+    } catch(error){setError(error instanceof Error?error.message:'Could not insert row.');}
+  }
   function finish() {
     const range=drag.current;drag.current=null;setEnd(null);setEndColumn(null);
     if(range&&(range.end!==range.row||range.endColumn!==range.column)) {
@@ -109,7 +122,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     <QuoteExistingItemDialog open={existingOpen} onOpenChange={setExistingOpen} quote={quote} edit={edit} live={live.materials} readOnly={readOnly} onInserted={id=>{onSelectItem?.(id);setFilter('');}}/>
     <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong>{!libraryItem&&<button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>}
       <button disabled={readOnly||quote.takeoffs.length>=5000} onClick={()=>{const id=filterItem||(active?rows[active[0]].lineId:selected);edit(next=>{const last=next.takeoffs.findLastIndex(row=>row.lineId===id);const added=takeoffWorksheetRows({...next,takeoffs:[]},5,id).map(row=>({...row,id:crypto.randomUUID()}));next.takeoffs.splice(last+1,0,...added.slice(0,5000-next.takeoffs.length));});setActive(null);setSelectionEnd(null);}}>Insert 5 blank rows after item</button>
-      <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(!active)return;const index=active[0];edit(next=>{next.takeoffs.splice(index,1);});setActive(null);setSelectionEnd(null);setItemPicker(null);}}>Delete selected row</button>
+      <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(active)deleteRow(active[0]);}}>Delete selected row</button>
       <button disabled={readOnly||rowCount>=5000} onClick={()=>edit(next=>{next.takeoffRowCapacity=Math.min(5000,rowCount+50);})}>Add 50 more rows</button><span>{rowCount} rows</span>
       {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
@@ -142,7 +155,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     }}>
       <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
         <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
-        <tbody>{visibleRows.map(({row,index:r})=><tr key={r} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
+        <tbody>{visibleRows.map(({row,index:r})=><tr key={row.id} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
           const isActive=active?.[0]===r&&active[1]===c;
           const inSelection=active&&selectionEnd&&r>=Math.min(active[0],selectionEnd[0])&&r<=Math.max(active[0],selectionEnd[0])&&c>=Math.min(active[1],selectionEnd[1])&&c<=Math.max(active[1],selectionEnd[1]);
@@ -162,7 +175,11 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               if(text.includes('\t')||text.includes('\n')){e.preventDefault();apply(r,c,text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t')));}
             }}>
             {protectedCell?display:key==='description'?<QuoteMaterialCell key={`${restoreKey}-${display}`} clearWholeCell value={display} label={`Materials & Labor row ${r+1}`} materials={choices} usage={usage} disabled={readOnly} onPick={id=>apply(r,c,[[id]],true)} commit={(name,picked)=>{return apply(r,c,[[name]],picked);}}/>:key==='lineId'?<>
-              <div className={styles.itemNumberCell}>{itemActions.menu(row.lineId,`Item actions row ${r+1} · ${display}`)}<button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button></div><button type="button" data-item-picker-trigger className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
+              <div className={styles.itemNumberCell}>{itemActions.menu(row.lineId,`Item actions row ${r+1} · ${display}`,<>
+                <DropdownMenuItem disabled={readOnly||Math.max(quote.takeoffs.length,r)>=5000} onClick={()=>insertRow(r,'above')}>Insert row above</DropdownMenuItem>
+                <DropdownMenuItem disabled={readOnly||Math.max(quote.takeoffs.length,r+1)>=5000} onClick={()=>insertRow(r,'below')}>Insert row below</DropdownMenuItem>
+                <DropdownMenuItem disabled={readOnly||r>=quote.takeoffs.length} onClick={()=>deleteRow(r)}>Delete row</DropdownMenuItem>
+              </>)}<button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button></div><button type="button" data-item-picker-trigger className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
               {itemPicker===r&&<div ref={pickerRef} role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
                 <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map((line,index)=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,index)===quoteItemLabel(quote,line.id)?'Name this item…':builderItemName(line,index)}</span></button>)}</div>

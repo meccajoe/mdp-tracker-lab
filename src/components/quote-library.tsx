@@ -129,6 +129,7 @@ export function QuoteLibrary({archived=false,capacity}:{archived?:boolean;capaci
   }catch(e){setError(e instanceof Error?e.message:'Quote could not be saved.');}finally{setBusy(false);guard.current=false;}
  }
  async function lifecycle(ids:string[],restore=false,confirmed=false){if(guard.current||!ids.length)return;if(!restore&&!confirmed){setPendingArchive(ids);return;}setPendingArchive(null);guard.current=true;setBusy(true);setError('');const outcome=await changeQuoteArchives(ids,restore,adaFetch),count=outcome.succeeded.length,failed=outcome.failed;
+  if(count)invalidateQuoteLibrary(eventSource.current);
   if(outcome.errors.length)setError([...new Set(outcome.errors)].join(' '));
   setSelected(new Set(failed));setMessage(`${count} quote${count===1?'':'s'} ${restore?'restored':'archived'}.${failed.length?` ${failed.length} could not be changed and remain selected.`:''}`);await load();guard.current=false;setBusy(false);
  }

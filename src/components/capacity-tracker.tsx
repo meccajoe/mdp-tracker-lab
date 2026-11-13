@@ -40,7 +40,7 @@ export function CapacityTracker(){
   },error=>{setQuotes([]);setNotice('Totals are unavailable — refresh before planning.');setError(error instanceof Error?error.message:'Quotes could not load.');},()=>window.document.visibilityState==='visible'&&!editingRef.current);
   refreshRef.current=controller;
   const visibility=()=>{if(window.document.visibilityState==='hidden')controller.pause();else void controller.request(true);};
-  const saved=()=>{void controller.request(true);};
+  const saved=()=>{window.dispatchEvent(new Event('capacity-schedules-refresh'));void controller.request(true);};
   const identity=()=>{setQuotes([]);setScenario([]);setEditing(null);setPlan(emptyOverride());editingRef.current=null;controller.pause();void controller.request(true);};
   window.document.addEventListener('visibilitychange',visibility);
   window.addEventListener('quote-workbook-saved',saved);

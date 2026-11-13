@@ -1,7 +1,8 @@
 import test from 'node:test';
+import {newEditHistory,recordEdit,moveEditHistory} from '../src/lib/quote-edit-history';
 import assert from 'node:assert/strict';
 import { createBlankQuoteV27 } from '../src/lib/quote-v27-template';
-import { applyTakeoffCells, applyVisibleSheetCells, applyTakeoffViewCells, TAKEOFF_VIEW_COLUMNS, isLaborTakeoff } from '../src/lib/quote-takeoff-grid';
+import { insertTakeoffRow, applyTakeoffCells, applyVisibleSheetCells, applyTakeoffViewCells, TAKEOFF_VIEW_COLUMNS, isLaborTakeoff } from '../src/lib/quote-takeoff-grid';
 import { calculateQuoteV27 } from '../src/lib/quote-v27';
 import { parseQuoteV27 } from '../src/lib/quote-v27-validation';
 function fixture() {
@@ -168,4 +169,30 @@ test('dropdown selection uses catalog identity when two entries share a name',()
  assert.equal(q.takeoffs[0].materialId,'choice-b');assert.equal(q.takeoffs[0].description,'Same material');
  assert.equal(q.catalog.find(m=>m.id==='choice-b')?.unitCost,75);
  assert.equal(q.takeoffs[1].description,'Test');
+});
+
+test('insert above/below preserves surrounding rows and links only the new row to the anchor item',()=>{
+ const q=fixture();q.takeoffs[1].notes='Keep original';q.takeoffs[1].quantity=3;q.takeoffs[1].unitCostOverride=12;
+ q.takeoffs[2].lineId=q.lines[1].id;const before=structuredClone(q.takeoffs);
+ assert.equal(insertTakeoffRow(q,50,1,'below'),2);
+ assert.deepEqual(q.takeoffs.filter(r=>before.some(b=>b.id===r.id)),before);
+ const added=q.takeoffs[2];assert.equal(added.lineId,before[1].lineId);assert.equal(added.description,'Untitled takeoff');assert.equal(added.quantity,0);assert.equal(added.hours,0);assert.equal(added.unitCostOverride,0);assert.equal(added.materialId,null);assert.equal(added.notes,undefined);
+ assert.equal(insertTakeoffRow(q,51,3,'above'),3);assert.equal(q.takeoffs[3].lineId,before[2].lineId);
+ assert.equal(new Set(q.takeoffs.map(r=>r.id)).size,5);
+ const reopened=parseQuoteV27(JSON.parse(JSON.stringify(q)));assert.deepEqual(reopened.takeoffs.map(r=>r.id),q.takeoffs.map(r=>r.id));assert.equal(reopened.takeoffRowCapacity,52);
+});
+test('inserting into an empty worksheet preserves gaps and does not infer an item',()=>{
+ const q=fixture();insertTakeoffRow(q,50,20,'below');assert.equal(q.takeoffs.length,22);assert.equal(q.takeoffs[21].lineId,'');assert.ok(q.takeoffs.slice(3).every(r=>r.lineId===''));assert.equal(q.takeoffRowCapacity,51);
+});
+test('insertion uses physical anchor even when other items are filtered out; limit errors are atomic',()=>{
+ const q=fixture();q.takeoffs[1].lineId=q.lines[1].id;const middle=structuredClone(q.takeoffs[1]);
+ insertTakeoffRow(q,50,2,'above');assert.deepEqual(q.takeoffs[1],middle);assert.equal(q.takeoffs[2].lineId,q.lines[0].id);
+ const before=JSON.stringify(q);assert.throws(()=>insertTakeoffRow(q,5000,4999,'below'),/5,000/);assert.equal(JSON.stringify(q),before);
+ assert.throws(()=>insertTakeoffRow(q,50,-1,'above'),/Choose/);assert.equal(JSON.stringify(q),before);
+});
+
+test('inserted row is one undoable edit and redo restores its identity and position',()=>{
+ const original=fixture(),next=structuredClone(original);insertTakeoffRow(next,50,0,'above');
+ const history=recordEdit(newEditHistory(original),next),undo=moveEditHistory(history,'undo');
+ assert.deepEqual(undo.present,original);assert.deepEqual(moveEditHistory(undo,'redo').present,next);
 });

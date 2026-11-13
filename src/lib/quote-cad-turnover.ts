@@ -38,7 +38,7 @@ export function buildCadTurnover(quote:QuoteV27, meta:Omit<CadTurnover,'cadHours
         const label=trade??`${description} (trade not assigned)`;
         labor.set(label,(labor.get(label)??0)+hours);
       }
-      if(row.notes?.trim()&&(!quantity||/^(hours?|hrs?)$/i.test(unit.trim())))item.instructions.push(`Takeoff row ${row.row} - ${description}: ${row.notes.trim()}`);
+      if(row.notes?.trim())item.instructions.push(`Takeoff row ${row.row} - ${description}: ${row.notes.trim()}`);
       if(!quantity&&!hours&&row.description.trim()&&!row.notes?.trim())item.instructions.push(`Takeoff row ${row.row}: ${description} - ${row.sections===0?'excluded by a zero section multiplier':'no nonzero quantity or labor allowance recorded'}.`);
       if(quantity&&/^(hours?|hrs?)$/i.test(unit.trim())&&!hours)item.warnings.push(`Row ${row.row}: labor quantity is entered but Labor hours is zero. It is not counted as labor hours.`);
     }
