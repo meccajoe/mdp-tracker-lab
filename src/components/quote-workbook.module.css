@@ -24,3 +24,27 @@
 .sheetViewport {flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;}
 .selectionFooter {flex:none;min-height:30px;display:flex;align-items:center;padding:5px 10px;border-top:1px solid #c5d4e4;background:#edf3fa;font-size:12px;font-variant-numeric:tabular-nums;}
 .workbook{position:relative}.economicsDock{position:absolute;top:12px;right:12px;z-index:35;width:300px;padding:10px 12px;background:#edf6f5;border:1px solid #b9d5d0;border-radius:8px;font-size:11px;box-shadow:0 2px 8px #2341}.economicsDock>strong{display:block;margin-bottom:5px}.economicsDock div{display:flex;justify-content:space-between;gap:12px;margin:4px 0}.economicsDock details{margin-top:6px;max-height:45vh;overflow:auto}.economicsDock summary{cursor:pointer}.frameHeader{padding-right:320px;min-height:125px}@media(max-width:850px){.economicsDock{position:relative;top:auto;right:auto;width:auto;flex:none;margin-bottom:8px}.frameHeader{padding-right:0;min-height:0}}
+
+/* Compact workbook header: full-width controls below identity and economics. */
+.workbook {padding:8px!important;}
+.frameHeader {padding-right:0;min-height:0;max-height:50%;}
+.headerSummary {display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:12px;align-items:start;}
+.titleActions {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;}
+.titleActions h1 {font-size:16px;line-height:1.3;}
+.titleActions button {padding:3px 7px;font-size:11px;}
+.headerSummary :global(.my-2) {margin-top:4px;margin-bottom:4px;}
+.headerSummary .economicsDock {position:relative;top:auto;right:auto;width:auto;padding:5px 8px;margin:0;box-shadow:none;}
+.headerSummary .economicsDock>strong {margin-bottom:2px;}
+.headerSummary .economicsDock div {margin:1px 0;}
+.headerSummary .economicsDock details {margin-top:2px;}
+.scheduleControls {display:flex;flex-wrap:wrap;align-items:end;gap:4px 8px;margin:5px 0;}
+.scheduleControls label {font-size:11px;line-height:1.2;}
+.scheduleControls input,.scheduleControls select {height:26px;padding:2px 5px;font-size:12px;}
+.scheduleControls input[type=date] {width:126px;}
+.scheduleControls input[type=number] {width:100px;}
+.statusControls {display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;margin:3px 0;}
+.statusControls select {padding:2px 5px;min-height:25px;}
+.tabControls {display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:5px 0;margin:0 0 5px;border-bottom:1px solid #d8dfe5;}
+.tabControls [role=tab] {padding:4px 7px;font-size:11px;}
+.tabControls>select {max-width:220px;padding:3px 5px;font-size:11px;}
+@media(max-width:700px){.headerSummary{grid-template-columns:1fr}.headerSummary .economicsDock{max-width:none}.frameHeader{max-height:55%;}.scheduleControls{gap:5px 8px}.scheduleControls input,.scheduleControls select{min-height:30px;}}

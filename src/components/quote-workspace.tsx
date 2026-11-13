@@ -46,8 +46,8 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
 
   return (
     <div data-slot="quote-workspace" className="fixed inset-0 z-40 flex h-[100dvh] min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-background">
-      <div className="flex min-h-11 flex-wrap shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1 sm:px-4">
-        <Link href="/quotes" className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+      <div className="flex min-h-9 flex-wrap shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-1 sm:px-4">
+        <Link href="/quotes" className="inline-flex min-h-7 items-center gap-1 rounded-md px-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to quotes
         </Link>
@@ -61,7 +61,7 @@ export function QuoteWorkspace({ workspaceId }: { workspaceId: string }) {
           aria-label="Switch quote workspace"
           value={workspaceId}
           onChange={async (event) => { const id=event.target.value; if (!workbookDirty || await confirmAction("Discard unsaved workbook edits and switch quotes?")) router.push(`/quotes/${id}`); }}
-          className="h-8 min-w-0 max-w-[38%] rounded-md border border-border bg-background px-2 text-sm font-medium outline-none focus:ring-2 focus:ring-ring/40 sm:max-w-xs"
+          className="h-7 min-w-0 max-w-[38%] rounded-md border border-border bg-background px-2 text-sm font-medium outline-none focus:ring-2 focus:ring-ring/40 sm:max-w-xs"
         >
           {!workspaces.some((workspace) => workspace.id === workspaceId) ? <option value={workspaceId}>Current quote</option> : null}
           {workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.title}{workspace.status === "archived" ? " — Archived" : ""}</option>)}
