@@ -1,3 +1,7 @@
+## Takeoff single-row menu deletion — November 12, 2026
+- Added Delete row to Takeoff three-dot menu, sharing the existing toolbar deletion handler. Removes only that physical row (including filtered views); item and other rows remain. Clears stale selection/picker/drag state. Virtual unused rows disable deletion. Read-only guard retained; normal edit/Undo/Redo/autosave applies.
+- Whole-item action is labeled Delete entire item in Takeoffs, preserving its confirmation. Quote Builder label unchanged. TypeScript and 21 grid/history regressions passed; no pricing or migration changes. Hosted verification pending.
+
 ## Insert Takeoff rows anywhere — November 12, 2026
 - Added Insert row above / Insert row below to every Takeoff row’s three-dot menu, including blank rows and Quoted Item Database editing. New row inherits only its anchor’s item association; all material/labor fields start empty. Unassigned anchors stay unassigned. Physical positions retained under item filters; existing rows keep IDs, prices and notes.
 - Uses ordinary workbook edit/history/autosave flow; placeholder positions materialized for save/reopen. Row DOM keys now use persistent IDs to avoid reusing another row’s input when inserting. Enforces 5,000-row limit without partial mutation. Existing whole-item menu and Quote Builder behavior retained.

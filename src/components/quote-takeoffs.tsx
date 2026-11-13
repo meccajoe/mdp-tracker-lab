@@ -96,6 +96,11 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       return true;
     } catch(e){setError(e instanceof Error?e.message:'Check the entered cells.');return false;}
   }
+  function deleteRow(index:number) {
+    if(readOnly||index<0||index>=quote.takeoffs.length)return;
+    edit(next=>{next.takeoffs.splice(index,1);});
+    setActive(null);setSelectionEnd(null);setItemPicker(null);setEnd(null);setEndColumn(null);drag.current=null;setError('');
+  }
   function insertRow(anchor:number,side:'above'|'below') {
     if(readOnly)return;
     try {
@@ -117,7 +122,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     <QuoteExistingItemDialog open={existingOpen} onOpenChange={setExistingOpen} quote={quote} edit={edit} live={live.materials} readOnly={readOnly} onInserted={id=>{onSelectItem?.(id);setFilter('');}}/>
     <div className={styles.toolbar}><strong>Item Takeoffs — the scratchpad that feeds the Quote Builder</strong>{!libraryItem&&<button disabled={readOnly} onClick={()=>{setFilter('');onAddItem();}}>Add item</button>}
       <button disabled={readOnly||quote.takeoffs.length>=5000} onClick={()=>{const id=filterItem||(active?rows[active[0]].lineId:selected);edit(next=>{const last=next.takeoffs.findLastIndex(row=>row.lineId===id);const added=takeoffWorksheetRows({...next,takeoffs:[]},5,id).map(row=>({...row,id:crypto.randomUUID()}));next.takeoffs.splice(last+1,0,...added.slice(0,5000-next.takeoffs.length));});setActive(null);setSelectionEnd(null);}}>Insert 5 blank rows after item</button>
-      <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(!active)return;const index=active[0];edit(next=>{next.takeoffs.splice(index,1);});setActive(null);setSelectionEnd(null);setItemPicker(null);}}>Delete selected row</button>
+      <button disabled={readOnly||!active||active[0]>=quote.takeoffs.length} onClick={()=>{if(active)deleteRow(active[0]);}}>Delete selected row</button>
       <button disabled={readOnly||rowCount>=5000} onClick={()=>edit(next=>{next.takeoffRowCapacity=Math.min(5000,rowCount+50);})}>Add 50 more rows</button><span>{rowCount} rows</span>
       {active && active[0]<quote.takeoffs.length && <button disabled={!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
@@ -173,6 +178,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
               <div className={styles.itemNumberCell}>{itemActions.menu(row.lineId,`Item actions row ${r+1} · ${display}`,<>
                 <DropdownMenuItem disabled={readOnly||Math.max(quote.takeoffs.length,r)>=5000} onClick={()=>insertRow(r,'above')}>Insert row above</DropdownMenuItem>
                 <DropdownMenuItem disabled={readOnly||Math.max(quote.takeoffs.length,r+1)>=5000} onClick={()=>insertRow(r,'below')}>Insert row below</DropdownMenuItem>
+                <DropdownMenuItem disabled={readOnly||r>=quote.takeoffs.length} onClick={()=>deleteRow(r)}>Delete row</DropdownMenuItem>
               </>)}<button type="button" className={styles.itemChoice} aria-label={`Item number row ${r+1}`} aria-expanded={itemPicker===r} disabled={readOnly} onClick={()=>setActive([r,c])} onDoubleClick={()=>setItemPicker(r)} onKeyDown={e=>{if(e.key==='Enter'||e.key==='F2'){e.preventDefault();setItemPicker(r);}}} title="Click to select and drag-fill; double-click or Enter to choose an item">{display||'—'}</button></div><button type="button" data-item-picker-trigger className={styles.itemArrow} aria-label={`Choose item row ${r+1}`} disabled={readOnly} onClick={()=>setItemPicker(itemPicker===r?null:r)}>▾</button>
               {itemPicker===r&&<div ref={pickerRef} role="dialog" aria-label={`Choose item for row ${r+1}`} className={styles.picker} onKeyDown={e=>{if(e.key==='Escape')setItemPicker(null);}}>
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
