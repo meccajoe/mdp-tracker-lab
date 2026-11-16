@@ -45,11 +45,12 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  './quote-v27':{calculateQuoteV27:()=>{baselineCalls++;return {laborRate:20,lines:[],totals:{price:100}}}},
  './quote-v27-validation':{parseQuoteV27:x=>x},
  './quote-schedule':{projectStatusFor:s=>s.projectStatus},
+ './lab-project-rate-approvals':{applyLabRateApprovals:(_capture,evidence,approvals)=>{assert.equal(approvals.length,0);return evidence;}},
  './lab-project-sync-source':{approvedDefinition:async()=>'',sha:()=>'',SyncIssue,
   readDeal:async deal=>({dealId:deal,jobNumber:deal==='1'?'10':'20',name:'Canonical'}),
   readActivity:async()=>({capture:{expenses:[],labor:[]},evidence:{expected:{hours:0,knownCost:0,missingHours:0}}})},
  },{Intl,Date,Set,fetch});
- const db={async rpc(name,args){calls.push({name,args});return {data:name==='lab_claim_project_sync'?'run':name==='lab_project_sync_scope'?[source,fresh,unresolved,open]:null,error:null}}};
+ const db={async rpc(name,args){calls.push({name,args});return {data:name==='lab_claim_project_sync'?'run':name==='lab_project_rate_approvals'?[]:name==='lab_project_sync_scope'?[source,fresh,unresolved,open]:null,error:null}}};
  await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'preview'});
  assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.filter(c=>c.name==='lab_record_project_sync_result'&&c.args.p_outcome==='preview').length,2);assert.equal(calls.find(c=>c.args?.p_scope==='unlinked').args.p_code,'MISSING_DEAL_OR_JOB');assert.equal(baselineCalls,1);
  calls.length=0;baselineCalls=0;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});

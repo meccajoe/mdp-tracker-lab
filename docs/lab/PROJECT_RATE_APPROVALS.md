@@ -1,0 +1,13 @@
+# Lab project rate approvals
+
+Production is read-only. Lab normally uses its approved costing reconciliation; Joe can authorize supplemental Lab-only rates when source costs are missing.
+
+Private `lab_project_internal.approved_hourly_rates` holds exact QBO Time worker IDs, accepted names, canonical identity, hourly rate, effective dates, owner approval time and evidence references. Only the database owner manages approvals. The service role reads active records through `lab_project_rate_approvals`; clients cannot enumerate the rate registry. Members still see the relevant per-entry cost evidence under existing project access rules.
+
+The November 16 approval records use `0001-01-01` as the technical lower bound for Joe's explicit assumption that the supplied rates cover all recorded history. This is an owner-approved historical assumption, not a claim that payroll supplied employment start dates. Open ends permit future missing entries until an approval is revoked or replaced. Do not create overlapping approvals for a worker; the adapter rejects ambiguity. Later source-approved costs take precedence over these gap-fill records.
+
+`applyLabRateApprovals` validates the source packet first, fills missing rows only, verifies ID and accepted name, records the canonical identity and approved historical payroll source, then validates recalculated totals against immutable time. It preserves source packet hash/summary in `labApproval`. Regular preview, manual and scheduled sync all use the same transformation. There is no update to Production, quote calculations, pinned budgets, or raw time rates.
+
+For already imported data, `scripts/lab/prepare-rate-revaluation.ts` accepts a private input file containing `projects` (latest activity/costing IDs, hashes, snapshots and evidence), `approvals` from the owner-managed registry and `resolvedAt`. It writes prepared packets to a private output file without publishing anything. Validate and append only changed packets in a guarded Lab transaction checking current activity/costing IDs, active approval IDs and absence of an active sync lease. Preserve prior packets. Keep all payroll input/output files outside Git.
+
+Validation: `tests/lab-project-rate-approvals.test.ts` and the ordinary Lab check; apply the migration and run `tests/lab-project-rate-approvals.database.sql` in a disposable PostgreSQL database for grant/revocation behavior. Inspect both Projects directory and per-project activity using the latest packet per activity snapshot. Old run logs remain historical and may still report source missing hours from before the approval.

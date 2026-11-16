@@ -1,6 +1,6 @@
 import type {ActivityCapture,ActivityLabor} from './lab-project-activity';
 
-export type CostApproval={id:string;approvedBy:string;approvedAt:string;effectiveStart:string;effectiveEnd:string|null;importId?:string|null;sourceLabel?:string|null;sourceSha256?:string|null};
+export type CostApproval={id:string;approvedBy:string;approvedAt:string;effectiveStart:string;effectiveEnd:string|null;importId?:string|null;sourceLabel?:string|null;sourceSha256?:string|null;sourceRefs?:string[]};
 export type ApprovedLaborCost={
  entryId:string;employeeName:string;workerId:number|null;normalizedName:string;date:string;regHours:number;otHours:number;
  basis:'hourly'|'daily'|'excluded'|'missing';source:string|null;hourlyRate:number|null;dailyRate:number|null;amount:number|null;
@@ -10,6 +10,7 @@ export type ProjectCostingPacket={
  version:1;activitySnapshotId:string;activitySourceSha256:string;sourceProjectId:string;jobNumber:string;dealId:string;
  resolvedAt:string;sourceView:'public.project_labor_reconciliation_summary';sourceViewSha256:string;sourceNormalizerSha256?:string;
  expected:{rows:number;hours:number;knownCost:number;missingHours:number;excludedHours:number};rows:ApprovedLaborCost[];
+ labApproval?:{sourceCostingSha256:string;sourceExpected:ProjectCostingPacket['expected'];rateApprovalIds:string[]};
 };
 const hourlySources=new Set(['qbo_time_users','qbo_time_users_matched','payroll_rate_sheet','fixed_design_rate','approved_contractor_rate','approved_historical_payroll_rate']);
 const rawSources=new Set(['qbo_time_users','qbo_time_users_matched']);

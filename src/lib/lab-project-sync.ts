@@ -2,6 +2,7 @@ import {calculateQuoteV27} from './quote-v27';
 import {parseQuoteV27} from './quote-v27-validation';
 import {projectStatusFor} from './quote-schedule';
 import {approvedDefinition,readActivity,readDeal,sha,SyncIssue,type SourceQuery} from './lab-project-sync-source';
+import {applyLabRateApprovals,type LabRateApproval} from './lab-project-rate-approvals';
 export function chicagoClock(now=new Date()){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now);
  const part=(key:string)=>parts.find(p=>p.type===key)!.value;
@@ -26,6 +27,8 @@ export async function runProjectSync({db,query,hubspotToken,mode,fetcher=fetch,n
  let fatal=false,fatalCode:string|null=null;
  try{
   const definition=await approvedDefinition(boundedQuery);
+  const rateApprovals:LabRateApproval[]=await rpc(db,'lab_project_rate_approvals');
+  if(!Array.isArray(rateApprovals))throw new SyncIssue('LAB_RATE_APPROVALS_UNAVAILABLE');
   const rows=await rpc(db,'lab_project_sync_scope');
   if(!Array.isArray(rows)||rows.length>1000)throw new SyncIssue('SCOPE_TOO_LARGE_OR_INVALID');
   const scope=rows.filter(row=>row.project_id||eligibleQuote(row));
@@ -43,6 +46,8 @@ export async function runProjectSync({db,query,hubspotToken,mode,fetcher=fetch,n
      // Existing job-number corrections are allowed only after source identity agrees.
      if(!row.project_id&&identity.jobNumber!==job)throw new SyncIssue('QUOTE_JOB_LINK_CHANGED');
      const activity=await readActivity(boundedQuery,definition,deal,identity.jobNumber);
+     activity.evidence=applyLabRateApprovals(activity.capture,activity.evidence,rateApprovals,new Date(now()).toISOString());
+     activity.costingHash=sha(activity.evidence);
      const baseline=row.project_id?null:prepareBaseline(row,identity);
      if(mode==='preview'){
       await rpc(db,'lab_record_project_sync_result',{p_run:runId,p_scope:row.group_id,p_project:row.project_id??null,p_outcome:'preview',p_code:row.project_id?'WOULD_REFRESH':'WOULD_CREATE',p_details:{title:row.title,jobNumber:identity.jobNumber,revision:row.revision,expenses:activity.capture.expenses.length,timeRecords:activity.capture.labor.length,...activity.evidence.expected}});return;
