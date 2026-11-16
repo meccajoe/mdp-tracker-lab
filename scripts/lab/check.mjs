@@ -7,6 +7,8 @@ if (Number(process.versions.node.split('.')[0]) !== 24) {
   process.exit(1);
 }
 const suites = [
+  ['--import', 'tsx', '--test', 'tests/lab-quote-allocation.test.ts'],
+  ['--test', 'tests/lab-quote-skus-route.test.cjs'],
   ['--import', 'tsx', '--test', 'tests/lab-project-rate-approvals.test.ts'],
   ['--test', 'tests/quote-timer.test.cjs', 'tests/lab-hubspot-refresh-route.test.cjs', 'tests/quote-library-interaction.test.cjs', 'tests/per-diem-recipients-route.test.cjs', 'tests/project-documents-route.test.cjs', 'tests/capacity-scenarios-route.test.cjs', 'tests/lab-find-items-route.test.cjs', 'tests/lab-directory-route.test.cjs', 'tests/lab-project-activity-route.test.cjs', 'tests/lab-daily-sync-routes.test.cjs', 'tests/lab-project-source-route.test.cjs', 'tests/capacity-column-widths-route.test.cjs', 'tests/quote-management-routes.test.cjs', 'tests/quote-efficiency-routes.test.cjs', 'tests/project-capacity-route.test.cjs', 'tests/production-plan-routes.test.cjs', 'tests/workback-routes.test.cjs', 'tests/team-schedule-routes.test.cjs', 'tests/tracker-catalog-routes.test.cjs', 'tests/lab-reporting-route.test.cjs', 'tests/lab-reporting-store.test.cjs'],
   ['--experimental-strip-types', '--test', 'tests/quote-v27.test.mjs', 'tests/quote-v27-estimators.test.mjs', 'tests/lab-safety.test.mjs'],

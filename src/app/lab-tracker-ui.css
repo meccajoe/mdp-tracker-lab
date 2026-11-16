@@ -327,6 +327,47 @@
 }
 
 /* Lab adapters retain the production hierarchy with quote-backed source labels. */
+:where([data-ui-experience="approved"]) .pm-quote-allocation { display:flex;flex-direction:column;gap:24px;min-width:0; }
+:where([data-ui-experience="approved"]) .pm-allocation-glance { display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--border);border-top:3px solid #990100;border-radius:10px;background:color-mix(in srgb,var(--muted) 45%,var(--background));padding:22px 8px; }
+:where([data-ui-experience="approved"]) .pm-allocation-glance > div { padding:0 18px;min-width:0; }
+:where([data-ui-experience="approved"]) .pm-allocation-glance > div + div { border-left:1px solid var(--border); }
+:where([data-ui-experience="approved"]) .pm-allocation-glance dt { color:var(--muted-foreground);font-size:13px;margin-bottom:8px; }
+:where([data-ui-experience="approved"]) .pm-allocation-glance dd { font-size:clamp(19px,2vw,27px);font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere; }
+:where([data-ui-experience="approved"]) .pm-allocation-glance :is(strong,span) { display:block;margin-top:6px;font-size:13px; }
+:where([data-ui-experience="approved"]) .pm-allocation-glance span { color:var(--muted-foreground); }
+:where([data-ui-experience="approved"]) .pm-allocation-toolbar { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px; }
+:where([data-ui-experience="approved"]) .pm-allocation-toolbar .pm-allocation-switch { margin:0; }
+:where([data-ui-experience="approved"]) .pm-quote-allocation .pm-allocation-switch button { padding:8px 13px;border:1px solid var(--border);border-radius:6px;min-height:38px;font-size:14px;cursor:pointer; }
+:where([data-ui-experience="approved"]) .pm-allocation-switch button[aria-pressed="true"] { background:#990100;color:#fff;border-color:#990100; }
+:where([data-ui-experience="approved"]) .pm-allocation-table-wrap { max-width:100%;overflow-x:auto; }
+:where([data-ui-experience="approved"]) .pm-allocation-table { width:100%;min-width:970px;table-layout:fixed;font-size:14px;font-variant-numeric:tabular-nums; }
+:where([data-ui-experience="approved"]) .pm-allocation-table :is(th,td) { text-align:left;vertical-align:top;padding:15px 10px;border-bottom:1px solid var(--border);overflow-wrap:anywhere; }
+:where([data-ui-experience="approved"]) .pm-allocation-table th { font-size:12px;color:var(--muted-foreground);font-weight:550;background:var(--muted); }
+:where([data-ui-experience="approved"]) .pm-allocation-table :is(th,td):first-child { width:85px; }
+:where([data-ui-experience="approved"]) .pm-allocation-table :is(th,td):nth-child(2) { width:21%; }
+:where([data-ui-experience="approved"]) .pm-allocation-table tfoot { font-weight:700;background:var(--muted); }
+:where([data-ui-experience="approved"]) .pm-allocation-table tfoot td[colspan] { width:auto; }
+:where([data-ui-experience="approved"]) .pm-allocation-type { display:block;font-size:12px;color:var(--muted-foreground);margin-top:5px; }
+:where([data-ui-experience="approved"]) .pm-allocation-amount { display:flex;flex-direction:column;gap:5px; }
+:where([data-ui-experience="approved"]) .pm-allocation-amount strong { font-weight:600; }
+:where([data-ui-experience="approved"]) .pm-allocation-amount span { font-size:11px;color:var(--muted-foreground); }
+:where([data-ui-experience="approved"]) .pm-allocation-skus { display:flex;flex-wrap:wrap;gap:5px; }
+:where([data-ui-experience="approved"]) .pm-sku-chip { display:inline-block;border:1px solid var(--border);padding:2px 6px;border-radius:5px;font-size:11px;font-weight:600;background:var(--muted); }
+:where([data-ui-experience="approved"]) .pm-sku-pending { color:#925f0c;font-size:11px; }
+:where([data-ui-experience="approved"]) .pm-sku-reference-table { width:100%;font-size:13px; }
+:where([data-ui-experience="approved"]) .pm-sku-reference-table :is(th,td) { padding:8px;border-bottom:1px solid var(--border);text-align:left; }
+@media(max-width:800px) {
+ :where([data-ui-experience="approved"]) .pm-allocation-glance { grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 0; }
+ :where([data-ui-experience="approved"]) .pm-allocation-glance > div + div { border-left:0; }
+ :where([data-ui-experience="approved"]) .pm-allocation-glance > div:first-child { grid-column:1 / -1; }
+ :where([data-ui-experience="approved"]) .pm-allocation-table { min-width:0; }
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-allocation-table :is(th,td):is(:first-child,:nth-child(2)) { width:auto; }
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-allocation-table td:first-child { grid-column:auto; }
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-allocation-table td:nth-child(2) { grid-column:1 / -1;grid-row:1; }
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-allocation-table tfoot { display:block; }
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-allocation-table tfoot td:first-child { grid-column:1 / -1;grid-row:auto; }
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-allocation-table tfoot td:nth-child(2) { grid-column:auto;grid-row:auto; }
+}
 :where([data-ui-experience="approved"]) .pm-budget-table table { table-layout:fixed; }
 :where([data-ui-experience="approved"]) .pm-budget-table :is(th,td) { padding:18px 16px;vertical-align:top;overflow-wrap:anywhere;font-variant-numeric:tabular-nums; }
 :where([data-ui-experience="approved"]) .pm-budget-table th { color:var(--muted-foreground);font-size:13px;font-weight:550;white-space:normal; }

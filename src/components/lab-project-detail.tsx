@@ -2,6 +2,8 @@
 import { LabProjectActivityProvider } from '@/components/lab-project-activity-provider';
 import { LabProjectOverview } from '@/components/lab-project-overview';
 import { LabProjectActivity } from '@/components/lab-project-activity';
+import {LabQuoteAllocation} from '@/components/lab-quote-allocation';
+import type {SkuReference} from '@/lib/lab-quote-allocation';
 import {ProjectPerDiemRecipients} from '@/components/project-per-diem-recipients';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -18,7 +20,7 @@ export type Payload = {
  source: { workspace_id:string; workbook_revision:number; imported_at:string; snapshot: {
   title:string; warnings:string[]; schedule:Record<string,string>; sourceProjectStatus:string;
   totals:{ price:number; buildBudget:number; hoursAllowed:number; materialsBudget:number; laborBudget:number };
-  lines:Line[]; hubspot:{ amount:number|null; accountManager:string|null; quotes:Quote[]; selectedQuoteId:string|null };
+  lines:Line[]; hubspot:{ amount:number|null; accountManager:string|null; quotes:Quote[]; selectedQuoteId:string|null;skuReference?:SkuReference };
  } };
 };
 const money=(v:number|null|undefined)=>v==null?'Pending':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(v);
@@ -54,7 +56,7 @@ export function LabProjectDetail({projectId}:{projectId:string}){
   {(tab==='expenses'||tab==='labor')&&<div className="pm-allocation-switch" role="group" aria-label="Activity type">{[['expenses','Expenses'],['labor','Labor']].map(([key,label])=><button key={key} aria-pressed={tab===key} className={tab===key?'pm-primary-action':'pm-text-action'} onClick={()=>setTab(key)}>{label}</button>)}</div>}
   {tab==='overview'&&<LabProjectOverview data={data} onNavigate={setTab}/>}
   {(tab==='budget'||tab==='expenses'||tab==='labor')&&<LabProjectActivity projectId={projectId} view={tab} budget={s.totals} lines={s.lines} revision={source.workbook_revision}/>}
-  {tab==='quote'&&<Card className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b">{['Quote item','Type','Sell','Hours','Materials / other','Labor budget','Build budget'].map(h=><th key={h} className="p-3 text-left whitespace-nowrap">{h}</th>)}</tr></thead><tbody>{s.lines.map(l=><tr key={l.id} className="border-b"><td data-label="Quote item" className="p-3 min-w-48">{l.name}</td><td data-label="Type" className="p-3">{l.type}</td><td data-label="Sell" className="p-3 whitespace-nowrap">{money(l.finalPrice)}</td><td data-label="Hours" className="p-3">{number(l.hoursAllowed)}</td><td data-label="Materials / other" className="p-3">{money(l.materialsBudget)}</td><td data-label="Labor budget" className="p-3">{money(l.laborBudget)}</td><td data-label="Build budget" className="p-3">{money(l.buildBudget)}</td></tr>)}</tbody><tfoot><tr className="font-semibold"><td className="p-3" colSpan={2}>Total</td><td className="p-3">{money(s.totals.price)}</td><td className="p-3">{number(s.totals.hoursAllowed)}</td><td className="p-3">{money(s.totals.materialsBudget)}</td><td className="p-3">{money(s.totals.laborBudget)}</td><td className="p-3">{money(s.totals.buildBudget)}</td></tr></tfoot></table></Card>}
+  {tab==='quote'&&<LabQuoteAllocation key={`${projectId}:${source.workspace_id}:${source.workbook_revision}:${s.hubspot.selectedQuoteId}`} projectId={projectId} source={source}/>}
   {tab==='documents'&&<section className="space-y-4"><ProjectPerDiemRecipients key={projectId} projectId={projectId} onBlocked={setRecipientBlocked}/><p className="text-sm text-muted-foreground">Documents use this project's saved quote revision {source.workbook_revision}. Later quote edits do not silently change the project baseline.</p><div className="grid gap-4 md:grid-cols-3">{[['per-diem','Per Diem Summary','Quoted travel, install, off and dismantle days, daily per diem, and lead road bonus.'],['cad','CAD Turnover','Quoted CAD goal, fabrication instructions and material requirements.'],['bom','BOM','Combined material quantities plus a breakdown for each item.']].map(([kind,title,description])=><Card className="space-y-3 p-4" key={kind}><h2 className="font-semibold">{title}</h2><p className="text-sm text-muted-foreground">{description}</p><button className="rounded-md border px-3 py-2 text-sm" disabled={!!documentBusy||(kind==='per-diem'&&recipientBlocked)} onClick={()=>void downloadDocument(kind)}>{documentBusy===kind?'Preparing…':`Download ${title}`}</button></Card>)}</div>{documentError&&<p role="alert">{documentError}</p>}</section>}
   {tab==='hubspot'&&<Card className="space-y-4 p-4"><h2 className="font-semibold">Associated HubSpot quotes</h2><p className="text-sm text-muted-foreground">HubSpot reported totals can include tax. They remain separate from the Lab quote total.</p>{s.hubspot.quotes.length?s.hubspot.quotes.map(q=><div key={q.id} className="space-y-1 border-t pt-3"><p className="font-medium">{q.title}{q.id===s.hubspot.selectedQuoteId?' · Production reference':''}</p><p className="text-sm">{q.status} · {money(q.total)}</p><div className="flex gap-4 text-sm"><External href={q.url}>View quote</External><External href={q.pdf}>Download PDF</External></div></div>):<p className="text-sm">HubSpot quote association pending confirmation.</p>}</Card>}
  </PageShell></LabProjectActivityProvider>;
