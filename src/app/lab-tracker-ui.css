@@ -274,13 +274,53 @@
 :where([data-ui-experience="approved"]) .pm-financial-worklist table { width: 100%; table-layout: fixed; min-width: 0; }
 :where([data-ui-experience="approved"]) .pm-financial-worklist :is(th,td) { padding: 14px 10px; overflow-wrap: anywhere; white-space: normal; font-variant-numeric: tabular-nums; }
 :where([data-ui-experience="approved"]) .pm-financial-worklist .pm-table-subtitle { display: block; margin-top: 4px; font-weight: 400; }
-:where([data-ui-experience="approved"]) .pm-project-health { padding-block: 20px; border-block: 1px solid var(--border); }
-:where([data-ui-experience="approved"]) .pm-health-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,190px),1fr)); gap: 20px; margin: 20px 0 12px; }
-:where([data-ui-experience="approved"]) .pm-health-grid dt { font-size: 13px; color: var(--muted-foreground); margin-bottom: 6px; }
-:where([data-ui-experience="approved"]) .pm-health-grid dd { font-size: 19px; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-:where([data-ui-experience="approved"]) .pm-health-grid .pm-table-subtitle { display: block; margin-top: 5px; font-weight: 400; font-size: 12px; }
-:where([data-ui-experience="approved"]) .pm-health-progress { height: 4px; background: var(--muted); margin-top: 10px; overflow: hidden; }
-:where([data-ui-experience="approved"]) .pm-health-progress span { display: block; height: 100%; }
+:where([data-ui-experience="approved"]) .pm-project-health { padding:0;border:0; }
+:where([data-ui-experience="approved"]) .pm-health-heading { display:flex;align-items:center;gap:10px; }
+:where([data-ui-experience="approved"]) .pm-manager-avatar { position:relative;display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;overflow:hidden;border-radius:50%;background:#f2e7e7;color:#7e1111;font-size:14px;font-weight:700; }
+:where([data-ui-experience="approved"]) .pm-manager-avatar img { position:absolute;inset:0;width:100%;height:100%;object-fit:cover; }
+:where([data-ui-experience="approved"]) .pm-status-dot { width:13px;height:13px;flex-shrink:0;border-radius:50%;background:#64748b;box-shadow:0 0 0 5px #64748b14;margin-inline:5px; }
+:where([data-ui-experience="approved"]) .pm-status-dot[data-status="Active"] { background:#16a34a;box-shadow:0 0 0 5px #16a34a14; }
+:where([data-ui-experience="approved"]) .pm-status-dot[data-status="Completed"] { background:#dc2626;box-shadow:0 0 0 5px #dc262614; }
+:where([data-ui-experience="approved"]) .pm-status-dot[data-status="On Hold"] { background:#b7790d;box-shadow:0 0 0 5px #b7790d14; }
+:where([data-ui-experience="approved"]) .pm-help { position:relative;display:inline-flex;flex-shrink:0;z-index:10; }
+:where([data-ui-experience="approved"]) .pm-help button { display:grid;place-items:center;width:32px;height:32px;border-radius:50%;color:var(--muted-foreground);cursor:help; }
+:where([data-ui-experience="approved"]) .pm-help button svg { width:18px;height:18px; }
+:where([data-ui-experience="approved"]) .pm-help button:focus-visible { outline:2px solid #990100;outline-offset:2px; }
+:where([data-ui-experience="approved"]) .pm-help-popup { position:absolute;left:50%;top:100%;transform:translateX(-50%);width:min(290px,calc(100vw - 40px));padding:12px 14px;border-radius:8px;background:#17212e;color:#fff;box-shadow:0 5px 20px #17212e26;font-size:13px;font-weight:400;line-height:1.6; }
+:where([data-ui-experience="approved"]) .pm-health-grid { display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin:22px 0 12px; }
+:where([data-ui-experience="approved"]) .pm-health-metric { grid-column:span 2;padding:20px;border:1px solid var(--border);border-radius:10px;background:var(--background);min-width:0; }
+:where([data-ui-experience="approved"]) .pm-health-primary { grid-column:span 3;background:color-mix(in srgb,var(--muted) 45%,var(--background));border-top:3px solid #990100; }
+:where([data-ui-experience="approved"]) .pm-health-grid dt { font-size:14px;color:var(--muted-foreground);font-weight:550;margin-bottom:8px; }
+:where([data-ui-experience="approved"]) .pm-health-grid dd { font-size:clamp(23px,2.2vw,29px);font-weight:700;letter-spacing:-.7px;line-height:1.2;overflow-wrap:anywhere;font-variant-numeric:tabular-nums; }
+:where([data-ui-experience="approved"]) .pm-health-primary dd { font-size:clamp(28px,3vw,38px); }
+:where([data-ui-experience="approved"]) .pm-metric-usage { display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px;margin-top:12px;font-size:13px;color:var(--muted-foreground); }
+:where([data-ui-experience="approved"]) .pm-metric-usage strong { color:var(--foreground);font-size:15px;font-weight:700; }
+:where([data-ui-experience="approved"]) .pm-health-grid .is-over { color:#b91c1c; }
+:where([data-ui-experience="approved"]) .pm-health-progress { height:7px;border-radius:5px;background:var(--muted);margin-top:14px;overflow:hidden; }
+:where([data-ui-experience="approved"]) .pm-health-progress span { display:block;height:100%;border-radius:inherit;background:#990100; }
+:where([data-ui-experience="approved"]) .pm-health-progress .is-over { background:#b91c1c; }
+:where([data-ui-experience="approved"]) .pm-data-disclosure { font-size:13px;color:var(--muted-foreground); }
+:where([data-ui-experience="approved"]) .pm-data-disclosure > summary { cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding-block:8px; }
+:where([data-ui-experience="approved"]) .pm-data-disclosure summary svg { width:14px;height:14px; }
+:where([data-ui-experience="approved"]) .pm-data-disclosure > div { margin-top:6px;padding:14px 16px;border-left:2px solid var(--border);line-height:1.7; }
+:where([data-ui-experience="approved"]) .pm-data-disclosure p + p { margin-top:5px; }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure { border:1px solid var(--border);border-radius:10px;overflow:clip; }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure > summary { display:flex;align-items:center;gap:12px;padding:20px;background:color-mix(in srgb,var(--muted) 45%,var(--background));list-style:none; }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure > summary::-webkit-details-marker { display:none; }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure > summary strong { font-size:17px;margin:0; }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure > summary svg { width:20px;height:20px;flex-shrink:0; }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure > summary svg:last-child { margin-left:auto; }
+:where([data-ui-experience="approved"]) :is(.pm-overview-disclosure,.pm-data-disclosure)[open] > summary svg:last-child { transform:rotate(180deg); }
+:where([data-ui-experience="approved"]) .pm-overview-disclosure.pm-notes { padding-bottom:0; }
+@media(max-width:600px) {
+ :where([data-ui-experience="approved"]) .pm-health-grid { grid-template-columns:minmax(0,1fr); }
+ :where([data-ui-experience="approved"]) .pm-health-metric { grid-column:span 1; }
+ :where([data-ui-experience="approved"]) .pm-manager-avatar { width:32px;height:32px;font-size:12px; }
+ :where([data-ui-experience="approved"]) .pm-status-strip { grid-template-columns:minmax(0,1fr);gap:20px;padding:20px; }
+ :where([data-ui-experience="approved"]) .pm-status-strip > div { padding:0;gap:16px; }
+ :where([data-ui-experience="approved"]) .pm-status-strip > div + div { border-left:0; }
+ :where([data-ui-experience="approved"]) .pm-status-strip > div > svg { display:block;width:32px; }
+}
 @container tracker-content (max-width: 1100px) {
  :where([data-ui-experience="approved"]) .pm-financial-worklist { display: none; }
  :where([data-ui-experience="approved"]) .pm-financial-mobile { display: block; }
