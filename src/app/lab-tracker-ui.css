@@ -415,3 +415,18 @@
  :where([data-ui-experience="approved"]) .lab-project-content table td[data-label]::before { content:attr(data-label);display:block;color:var(--muted-foreground);font-size:12px;margin-bottom:3px;font-weight:400; }
  :where([data-ui-experience="approved"]) .lab-project-content [data-slot="card"] { overflow:visible; }
 }
+
+/* Project Activity category totals and filters. */
+:where([data-ui-experience="approved"]) .pm-activity-categories h2 {font-size:18px;font-weight:650;margin:0 0 16px;}
+:where([data-ui-experience="approved"]) .pm-activity-category-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;}
+:where([data-ui-experience="approved"]) .pm-activity-category-heading button {font-size:14px;text-decoration:underline;padding:8px;border-radius:6px;}
+:where([data-ui-experience="approved"]) .pm-activity-card-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card {display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-width:0;text-align:left;padding:20px;border:1px solid #d5dee8;border-radius:12px;background:#f7f9fc;color:#183249;overflow-wrap:anywhere;}
+:where([data-ui-experience="approved"]) button.pm-activity-category-card:hover {border-color:#789bb8;background:#f0f5fa;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card[aria-pressed="true"] {border-color:#255c86;background:#e8f1f9;box-shadow:inset 0 0 0 1px #255c86;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card:focus-visible,:where([data-ui-experience="approved"]) .pm-activity-category-heading button:focus-visible {outline:3px solid #377eac;outline-offset:3px;}
+:where([data-ui-experience="approved"]) .pm-activity-card-label {font-size:14px;font-weight:650;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card strong {font-size:28px;line-height:1.2;font-variant-numeric:tabular-nums;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card small {font-size:16px;font-weight:500;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card>span:last-child {font-size:13px;}
+:where([data-ui-experience="approved"]) .pm-activity-category-card .pm-activity-card-cost {font-size:20px;font-weight:600;}
