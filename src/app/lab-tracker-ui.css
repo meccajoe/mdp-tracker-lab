@@ -327,6 +327,27 @@
 }
 
 /* Lab adapters retain the production hierarchy with quote-backed source labels. */
+:where([data-ui-experience="approved"]) .pm-budget-table table { table-layout:fixed; }
+:where([data-ui-experience="approved"]) .pm-budget-table :is(th,td) { padding:18px 16px;vertical-align:top;overflow-wrap:anywhere;font-variant-numeric:tabular-nums; }
+:where([data-ui-experience="approved"]) .pm-budget-table th { color:var(--muted-foreground);font-size:13px;font-weight:550;white-space:normal; }
+:where([data-ui-experience="approved"]) .pm-budget-table :is(th,td):first-child { width:31%; }
+:where([data-ui-experience="approved"]) .pm-budget-table td { font-size:15px; }
+:where([data-ui-experience="approved"]) .pm-budget-table td:first-child { font-weight:600; }
+:where([data-ui-experience="approved"]) .pm-budget-figure { display:flex;flex-direction:column;align-items:flex-start;gap:6px; }
+:where([data-ui-experience="approved"]) .pm-budget-amount { font-size:17px;font-weight:650;line-height:1.4; }
+:where([data-ui-experience="approved"]) .pm-budget-percentage { font-size:13px;font-weight:600;color:var(--muted-foreground); }
+:where([data-ui-experience="approved"]) .pm-budget-figure.is-over :is(.pm-budget-amount,.pm-budget-percentage) { color:#b91c1c; }
+:where([data-ui-experience="approved"]) .pm-budget-meter { display:block;width:min(100%,140px);height:5px;background:var(--muted);border-radius:4px;overflow:hidden;margin-top:3px; }
+:where([data-ui-experience="approved"]) .pm-budget-meter > span { display:block;height:100%;background:#990100;border-radius:inherit; }
+:where([data-ui-experience="approved"]) .pm-budget-total { background:color-mix(in srgb,var(--muted) 50%,var(--background));font-weight:700; }
+:where([data-ui-experience="approved"]) .pm-budget-disclosure > summary { display:flex;align-items:center;gap:12px;list-style:none; }
+:where([data-ui-experience="approved"]) .pm-budget-disclosure > summary::-webkit-details-marker { display:none; }
+:where([data-ui-experience="approved"]) .pm-budget-disclosure > summary svg { width:18px;height:18px;margin-left:auto;flex-shrink:0; }
+:where([data-ui-experience="approved"]) .pm-budget-disclosure[open] > summary svg { transform:rotate(180deg); }
+@media(max-width:800px) {
+ :where([data-ui-experience="approved"]) .lab-project-content .pm-budget-table :is(th,td):first-child { width:auto; }
+ :where([data-ui-experience="approved"]) .pm-budget-table td { padding:10px 12px; }
+}
 :where([data-ui-experience="approved"]) [data-slot="tracker-page-content"] h1 { font-size:clamp(26px,3vw,34px);font-weight:700;letter-spacing:-1px;line-height:1.2; }
 :where([data-ui-experience="approved"]) .lab-project-links { align-items:center; }
 :where([data-ui-experience="approved"]) .lab-project-links :is(a,button) { font-size:13px;text-decoration:none;padding:5px 10px;border:1px solid var(--border);border-radius:999px; }
