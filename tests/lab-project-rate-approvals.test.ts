@@ -42,3 +42,10 @@ test('invalid approvals or already-corrupt source evidence cannot become approve
  const {capture,packet}=fixture();for(const patch of [{hourlyRate:0},{hourlyRate:NaN},{approvedBy:''},{sourceRefs:[]},{effectiveStart:'not-date'},{workerId:1.1}])assert.throws(()=>applyLabRateApprovals(capture,packet,[{...approval(),...patch}],at));
  packet.expected.hours=1;assert.throws(()=>applyLabRateApprovals(capture,packet,[approval()],at));
 });
+
+test('confirmed ID-bound approval can replace a design policy without guessing unmatched identity',()=>{
+ const {capture,packet}=fixture();packet.rows[0]={...packet.rows[0],basis:'hourly',source:'fixed_design_rate',hourlyRate:41,dailyRate:null,amount:71.75,approval:{id:'policy',approvedBy:'Owner',approvedAt:at,effectiveStart:'1900-01-01',effectiveEnd:null}};packet.expected.knownCost=71.75;packet.expected.missingHours=3.5;
+ const before=JSON.stringify(packet);assert.equal(applyLabRateApprovals(capture,packet,[],at),packet);
+ const next=applyLabRateApprovals(capture,packet,[approval(1)],at);assert.equal(next.rows[0].source,'approved_historical_payroll_rate');assert.equal(next.rows[0].amount,42);assert.equal(JSON.stringify(packet),before);
+ packet.rows[0].workerId=null;assert.equal(applyLabRateApprovals(capture,packet,[approval(1)],at),packet);
+});

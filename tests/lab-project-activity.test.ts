@@ -8,7 +8,7 @@ test('hours include unrated time; cost remains explicitly incomplete; credits re
 });
 test('unknown rate source never becomes verified merely because it has a number',()=>{
  const f=fixture();f.labor[1].hourly_rate=99;assert.equal(summarizeProjectActivity(f).knownCost,60);
- f.labor[1].rate_source='qbo_time_users_matched';assert.equal(summarizeProjectActivity(f).knownCost,456);assert.equal(summarizeProjectActivity(f).complete,true);
+ f.labor[1].rate_source='qbo_time_users_matched';assert.equal(summarizeProjectActivity(f).knownCost,60);f.labor[1].rate_verified_at='2026-11-10';assert.equal(summarizeProjectActivity(f).knownCost,456);assert.equal(summarizeProjectActivity(f).complete,true);
 });
 test('duplicate feed IDs and unsupported manual adjustments block a capture',()=>{
  for(const key of ['labor','expenses'] as const){const f=fixture();(f[key] as unknown[]).push(f[key][0]);assert.throws(()=>validateActivityCapture(f),/Duplicate/);}

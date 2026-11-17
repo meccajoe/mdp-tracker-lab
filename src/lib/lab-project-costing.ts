@@ -81,10 +81,22 @@ export function attachProjectCosting(capture:ActivityCapture,packet:ProjectCosti
  const byId=new Map(packet.rows.map(row=>[row.entryId,row]));
  return {...clean,costing:{resolvedAt:packet.resolvedAt,sourceView:packet.sourceView,sourceViewSha256:packet.sourceViewSha256},labor:clean.labor.map(row=>({...row,approved_cost:byId.get(row.qbo_entry_id)!}))};
 }
+// Source policy values remain in the immutable packet, but are not confirmed actual pay.
+export function activityRateEvidence(row:ActivityLabor){
+ const source=row.approved_cost?.source??row.rate_source;
+ if(source==='fixed_design_rate')return {status:'unconfirmed' as const,label:'Unconfirmed · design cost policy'};
+ if(source==='payroll_rate_sheet')return {status:'confirmed' as const,label:'Confirmed · approved payroll workbook'};
+ if(source==='approved_historical_payroll_rate')return {status:'confirmed' as const,label:'Confirmed · Maribel / Joe historical approval'};
+ if(source==='approved_contractor_rate'||source==='approved_daily_rate')return {status:'confirmed' as const,label:'Confirmed · owner contractor-rate approval'};
+ if(source==='salary_below_gross_profit')return {status:'excluded' as const,label:'Salary exclusion policy'};
+ if(rawSources.has(source??'')&&(row.approved_cost?timestamp(row.approved_cost.verifiedAt):timestamp(row.rate_verified_at)&&row.hourly_rate!=null&&row.hourly_rate>0))return {status:'confirmed' as const,label:'Confirmed · verified QBO Time rate'};
+ return {status:'unconfirmed' as const,label:'Unconfirmed · rate evidence needed'};
+}
 export function activityLaborCost(row:ActivityLabor):number|null{
+ if(activityRateEvidence(row).status==='unconfirmed')return null;
  if(row.approved_cost)return row.approved_cost.amount;
  return row.hourly_rate!=null&&row.hourly_rate>0&&rawSources.has(row.rate_source??'')?(row.reg_hours+row.ot_hours)*row.hourly_rate:null;
 }
-export function activityCostBasis(row:ActivityLabor){return row.approved_cost?.basis??(activityLaborCost(row)==null?'missing':'hourly');}
-export function activityCostRate(row:ActivityLabor):number|null{return row.approved_cost?(row.approved_cost.basis==='daily'?row.approved_cost.dailyRate:row.approved_cost.hourlyRate):row.hourly_rate;}
+export function activityCostBasis(row:ActivityLabor){return activityLaborCost(row)==null?'missing':row.approved_cost?.basis??'hourly';}
+export function activityCostRate(row:ActivityLabor):number|null{if(activityCostBasis(row)==='missing')return null;return row.approved_cost?(row.approved_cost.basis==='daily'?row.approved_cost.dailyRate:row.approved_cost.hourlyRate):row.hourly_rate;}
 export function activityCostSource(row:ActivityLabor){return row.approved_cost?.source??row.rate_source;}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attachProjectCosting,validateProjectCosting,roundedCostSum,type ProjectCostingPacket,type ApprovedLaborCost} from '../src/lib/lab-project-costing';
+import {activityLaborCost,activityCostBasis,activityCostRate,activityRateEvidence,attachProjectCosting,validateProjectCosting,roundedCostSum,type ProjectCostingPacket,type ApprovedLaborCost} from '../src/lib/lab-project-costing';
 import {summarizeProjectActivity,type ActivityCapture} from '../src/lib/lab-project-activity';
 import {directoryProject} from '../src/lib/lab-project-directory';
 import {approvedCostingQuery} from '../scripts/lab/approved-costing-query';
@@ -52,4 +52,12 @@ test('bounded read-only adapter rejects malformed scope or changed approved defi
  const query=approvedCostingQuery(definition,'123',['ts_1']);assert.ok(query.includes("labor.project_id='123'"));assert.ok(query.includes("ARRAY['ts_1']"));
  for(const ids of [[],['ts_1','ts_1'],["ts_1';drop table x"]])assert.throws(()=>approvedCostingQuery(definition,'123',ids));
  assert.throws(()=>approvedCostingQuery(definition+' DELETE FROM x','123',['ts_1']));assert.throws(()=>approvedCostingQuery('WITH resolved AS (SELECT 1)','123',['ts_1']));
+});
+
+test('design policy is preserved as evidence but excluded from actuals and directory totals',()=>{
+ const {capture,packet}=fixture();packet.rows[0].source='fixed_design_rate';const before=JSON.stringify(packet);
+ const attached=attachProjectCosting(capture,packet,'snap',hash),row=attached.labor[0],summary=summarizeProjectActivity(attached);
+ assert.equal(row.approved_cost?.amount,50);assert.equal(activityRateEvidence(row).status,'unconfirmed');assert.equal(activityLaborCost(row),null);assert.equal(activityCostRate(row),null);assert.equal(activityCostBasis(row),'missing');
+ assert.equal(summary.hours,19);assert.equal(summary.knownCost,200);assert.equal(summary.missingHours,5);assert.equal(summary.missingEntries,2);assert.equal(summary.complete,false);assert.equal(JSON.stringify(packet),before);
+ const d=directoryProject({projects:{job_number:'123',hubspot_deal_id:'456'},snapshot:{totals:{price:1000,buildBudget:600,hoursAllowed:30}},workbook_revision:2},{id:'snap',source_sha256:hash,job_number:'123',hubspot_deal_id:'456',snapshot:capture,captured_at:capture.capturedAt},{evidence:packet});assert.equal(d.cost,200);assert.equal(d.activityState,'incomplete');
 });

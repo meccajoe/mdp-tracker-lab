@@ -31,7 +31,7 @@ export function LabProjectOverview({data,onNavigate}:{data:Payload;onNavigate:(t
  const {data:activity,error,retry}=useLabProjectActivity(),p=data.project,s=data.source.snapshot;
  const summary=activity?.summary??null,m=healthMoney(s.totals.buildBudget,summary),quoted=quotedWorkHours(s.lines);
  const alerts=s.warnings.map((description,i)=>({key:`source-${i}`,title:'Quote and project information',description,tab:'hubspot',action:'Review quote'}));
- if(summary?.missingHours)alerts.push({key:'rates',title:'Labor cost is incomplete',description:`${number(summary.missingHours)} hours have no approved cost evidence. Remaining cost budget is unavailable.`,tab:'labor',action:'Review labor'});
+ if(summary?.missingHours)alerts.push({key:'rates',title:'Labor cost is incomplete',description:`${number(summary.missingHours)} hours have no confirmed pay-rate evidence. Remaining cost budget is unavailable.`,tab:'labor',action:'Review labor'});
  if(summary&&summary.groups.design.hours>quoted.design)alerts.push({key:'design',title:'Design hours exceed the quote allowance',description:`${number(summary.groups.design.hours)} recorded hours against ${number(quoted.design)} quoted hours.`,tab:'budget',action:'View budget detail'});
  const importNote=p.notes?.startsWith('Tracker V2 Lab mirror.');
  const status=['Active','Completed','On Hold','Pending'].includes(p.status)?p.status as 'Active'|'Completed'|'On Hold'|'Pending':'Pending';

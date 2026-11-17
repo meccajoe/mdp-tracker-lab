@@ -17,8 +17,8 @@ export function applyLabRateApprovals(capture:ActivityCapture,source:ProjectCost
  }
  const used=new Set<string>();
  const rows=source.rows.map(row=>{
-  // Later source approvals, exclusions and day rates take precedence. Only fill gaps.
-  if(row.basis!=='missing')return row;
+  // Confirmed source rates, exclusions and day rates take precedence. Policy-only design rates may be replaced by a confirmed worker-bound Lab approval.
+  if(row.basis!=='missing'&&row.source!=='fixed_design_rate')return row;
   const matches=approvals.filter(a=>a.workerId===row.workerId&&row.date>=a.effectiveStart&&(!a.effectiveEnd||row.date<=a.effectiveEnd));
   if(matches.length>1)throw Error('Conflicting Lab rate approvals.');
   const a=matches[0];if(!a)return row;
