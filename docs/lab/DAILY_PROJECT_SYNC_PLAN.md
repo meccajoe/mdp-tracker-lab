@@ -55,3 +55,10 @@ Independent reconciliation confirmed exactly one new full activity capture and c
 363 combined tests + TypeScript and sanitized build passed for the source correction. Restricted-role SQL tests prove matching parity for 20 worker cases while direct custom-function execution stays denied; a single-statement Fossil comparison matched all 228 cost records exactly. Source exports across all 12 projects passed runtime validation. Desktop/mobile real-component sync controls and protected page checks passed.
 
 Scheduler logic is tested in a disposable database with Vault/pg_net/cron fixtures (the external extensions are not installed locally). Tests cover inactive staging, target/auth/timeout, winter/summer and DST transition dates, denied client/application invocation and missing credentials. Hosted extension interfaces and the authenticated HTTP response are verified before activation. First timed execution is a future event; do not describe configuration/manual verification as an already completed scheduled run.
+
+
+## Expanded scope verified November 17, 2026
+
+The scope now covers 19 linked quote-backed projects. Live apply created three Active projects (26247, 26248, 26249) and four Completed projects (26128, 26198, 26217, 26226), while refreshing the previous 12. A repeat run refreshed all 19 with no creates, duplicate identities or exceptions. Every saved activity/cost packet validated with no missing-rate hours. The existing 12 budget pins and all saved quote workbook revision counts/hashes were preserved; new baseline arithmetic matched each exact pinned quote revision.
+
+Preview: febe8a9d-ac38-45f5-88f4-8ea17bc5378f. Apply: 12c9f4cf-1589-4429-a1ef-341b471b8ecf. Repeat: fcbb3d53-fa36-4635-b3ca-2e048fb9cec8. The earlier failed apply 50fa6d5a-03d1-4ad8-a8b9-c0849c937208 timed out on the old oversized scope RPC before writes; the metadata-only scope fixed that bottleneck. The expanded scheduler remains enabled at 6 a.m. Central. Subsequent timed runs still need their normal operational verification; manual runs are not presented as future scheduled events already completed.
