@@ -1,6 +1,6 @@
 # Daily Tracker V2 project sync
 
-Joe approved daily sync at **6:00 a.m. America/Chicago**, including existing linked projects and newly Closed Won Active Lab quotes. The actor-checked admin panel in Projects provides Preview sync, Run sync now and run history. See LAB_STATUS.md for current deployment and activation receipts.
+Joe approved daily sync at **6:00 a.m. America/Chicago**, including existing linked projects and newly Closed Won Active and Complete Lab quotes (including legacy Completed status). The actor-checked admin panel in Projects provides Preview sync, Run sync now and run history. See LAB_STATUS.md for current deployment and activation receipts.
 
 ## Authority and identity
 
@@ -12,7 +12,7 @@ Joe approved daily sync at **6:00 a.m. America/Chicago**, including existing lin
 | Active/completed state | Current linked Lab quote head | Preserve existing quote-driven status projection; ignore conflicting Production status |
 | Expenses, canonical time and approved costing | Production Tracker during transition | Full, validated, dated read-only exports; atomic activity + costing publication only in Lab |
 
-New-project discovery excludes open and already completed quotes. Existing linked project history remains available after completion. Use stable deal/job/group identifiers, never name-only matching. Missing or conflicting links remain exceptions; no duplicate project, quote or accounting record is created. The head rule is newest surviving workspace creation, selected as the tie-breaker, not the largest revision across unrelated workspaces.
+New-project discovery includes won Active/Complete and legacy Completed quotes, excludes open/Not Active quotes, and preserves completed state. Existing linked project history remains available after completion. Use stable deal/job/group identifiers. For an unlinked won quote, accept only one exact normalized Production project name or explicit job match, then verify the returned deal/job against live HubSpot and the source activity export. No fuzzy matching; unresolved/ambiguous associations remain exceptions. Saved deal links can supply missing job numbers. Missing or conflicting links remain exceptions; no duplicate project, quote or accounting record is created. The head rule is newest surviving workspace creation, selected as the tie-breaker, not the largest revision across unrelated workspaces.
 
 Quotes, Capacity, personal scenarios, working quote documents and pinned financial baselines remain owned by Paul. Current approved PM mapping includes Nicholas/Nick Gonzales and Destiny Freeman/Gardner; unknown or ambiguous names fail closed.
 
@@ -35,6 +35,8 @@ The named job `mdp-lab-project-sync` runs `0 11,12 * * *` UTC. Private `lab_proj
 The dispatcher is SECURITY INVOKER, callable only by its database owner, with no browser/application EXECUTE grants. It reads a dedicated Lab Vault secret named `lab_project_sync_cron` and sends it as a bearer credential. The same private value is configured as Lab Vercel `CRON_SECRET`; source read tokens are not copied into Vault. URL and 300,000ms timeout are fixed in code. Credentials never appear in cron command text or Git. Initial migration stages the job inactive until deployment and transport verification.
 
 Required app flag: `LAB_DAILY_SYNC_ENABLED=true`. The database job’s `active` value is the scheduling source of truth. Manual admin sync remains available independent of recurrence.
+
+Private `lab_project_internal.request_project_sync(mode)` supports owner-only immediate preview/manual runs through the same Vault-authenticated fixed endpoint. It has no client or service-role EXECUTE grant; no source credentials leave the deployed server. Scheduled mode still independently enforces the Chicago window and daily claim. Manual operations share overlap/lease/budget/atomic-publication guards.
 
 ### Operations
 

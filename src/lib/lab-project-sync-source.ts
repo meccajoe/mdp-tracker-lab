@@ -81,6 +81,20 @@ export async function readActivity(query:SourceQuery,rules:ApprovedSourceRules,d
  validateProjectCosting(capture,evidence,activityId,activityHash);
  return {activityId,activityHash,capture,evidence,costingHash:sha(evidence)};
 }
+// Discover only a unique exact canonical name or an explicit job number in the
+// read-only Production source. HubSpot and the activity export verify it again.
+export async function resolveProjectLink(query:SourceQuery,row:{title?:string;hubspot_deal_id?:string|null;job_number?:string|null}){
+ const deal=row.hubspot_deal_id?.trim(),job=row.job_number?.trim();
+ if(deal){if(!/^\d+$/.test(deal))throw new SyncIssue('INVALID_DEAL_LINK');if(job&&!/^\d+$/.test(job))throw new SyncIssue('INVALID_JOB_LINK');return {dealId:deal,jobNumber:job||null};}
+ if(job&&!/^\d+$/.test(job))throw new SyncIssue('INVALID_JOB_LINK');
+ const title=row.title?.trim().replace(/\s+/g,' ').toLowerCase();
+ if(!job&&(!title||title.length>300))throw new SyncIssue('MISSING_DEAL_OR_JOB');
+ const where=job?`p.job_number=${literal(job)}`:`lower(regexp_replace(btrim(p.name),'[[:space:]]+',' ','g'))=${literal(title!)}`;
+ const matches=await query(`select p.hubspot_deal_id,p.job_number from public.projects p where ${where} order by p.id limit 3`);
+ if(matches.length!==1)throw new SyncIssue(matches.length?'AMBIGUOUS_PROJECT_LINK':'MISSING_DEAL_OR_JOB');
+ const match=matches[0];if(!/^\d+$/.test(match.hubspot_deal_id??'')||!/^\d+$/.test(match.job_number??''))throw new SyncIssue('MISSING_DEAL_OR_JOB');
+ return {dealId:String(match.hubspot_deal_id),jobNumber:String(match.job_number)};
+}
 export async function readDeal(dealId:string,token:string,fetcher:typeof fetch=fetch){
  if(!/^\d+$/.test(dealId))throw new SyncIssue('MISSING_DEAL_OR_JOB');
  const response=await fetcher(`https://api.hubapi.com/crm/v3/objects/deals/${dealId}?properties=dealname,job_number,account_manager,closedate,due_date,amount&associations=quotes`,{headers:{Authorization:`Bearer ${token}`},redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});

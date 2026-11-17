@@ -2,19 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {chicagoClock,eligibleQuote,prepareBaseline,runProjectSync} from '../src/lib/lab-project-sync';
-import {sourceReader,approvedDefinition,qualifyCostDefinition,activityExportQuery,readDeal,inlineWorkerNormalizer,NORMALIZER_HASH,sha} from '../src/lib/lab-project-sync-source';
+import {sourceReader,approvedDefinition,qualifyCostDefinition,activityExportQuery,readDeal,resolveProjectLink,inlineWorkerNormalizer,NORMALIZER_HASH,sha} from '../src/lib/lab-project-sync-source';
 const quote=JSON.parse(readFileSync('src/data/quote-v27-fonroche.json','utf8'));
 test('6 a.m. Chicago follows standard/daylight time; other UTC trigger skips',()=>{
  assert.equal(chicagoClock(new Date('2026-11-12T12:00:00Z')).hour,6);assert.equal(chicagoClock(new Date('2026-07-12T11:00:00Z')).hour,6);
  assert.equal(chicagoClock(new Date('2026-07-12T12:00:00Z')).hour,7);assert.equal(chicagoClock(new Date('2026-11-12T11:00:00Z')).hour,5);
  assert.equal(chicagoClock(new Date('2026-11-12T00:00:00Z')).day,'2026-11-11');
 });
-test('only won active discovery; legacy production overrides complete; open/completed omitted',()=>{
- for(const status of ['Possible','Likely','Lost','Completed'])assert.equal(eligibleQuote({document:{schedule:{status,projectStatus:'Active'}}}),false);
+test('won active and complete discovery; legacy lifecycle honored; open and Not Active omitted',()=>{
+ for(const status of ['Possible','Likely','Lost'])assert.equal(eligibleQuote({document:{schedule:{status,projectStatus:'Active'}}}),false);
  assert.equal(eligibleQuote({document:{schedule:{status:'Closed won',projectStatus:'Active'}}}),true);
- assert.equal(eligibleQuote({document:{schedule:{status:'Closed won',projectStatus:'Complete'}}}),false);
+ assert.equal(eligibleQuote({document:{schedule:{status:'Closed won',projectStatus:'Complete'}}}),true);
  assert.equal(eligibleQuote({document:{schedule:{status:'Closed won',projectStatus:'Not Active'}}}),false);
  assert.equal(eligibleQuote({document:{schedule:{projectStatus:'Complete'},planning:{status:'In production'}}}),true);
+ assert.equal(eligibleQuote({document:{schedule:{status:'Completed',projectStatus:'Active'}}}),true);
 });
 test('source adapter only targets the fixed read-only API and rejects unscoped tokens or incomplete responses',async()=>{
  assert.throws(()=>sourceReader('legacy-token'));
@@ -63,4 +64,14 @@ test('read-only export inlines exact approved worker rules without calling the r
  assert.throws(()=>inlineWorkerNormalizer(definition,body.replace('gregory maslyk','guessed person')),/RULES_CHANGED/);
  assert.throws(()=>inlineWorkerNormalizer('select public.normalize_labor_worker_name(other_name)',body),/CALL_CHANGED/);
  assert.throws(()=>inlineWorkerNormalizer(definition+' or public.normalize_labor_worker_name(other_name) is null',body),/CALL_CHANGED/);
+});
+
+test('identity discovery uses explicit deal, exact job or unique exact canonical name; never fuzzy matches',async()=>{
+ let sql='';const query=async(q:string)=>{sql=q;return [{hubspot_deal_id:'456',job_number:'123'}]};
+ assert.deepEqual(await resolveProjectLink(async()=>{throw Error('no query needed')},{hubspot_deal_id:'456',job_number:null}),{dealId:'456',jobNumber:null});
+ assert.deepEqual(await resolveProjectLink(query,{title:'Other',job_number:'123'}),{dealId:'456',jobNumber:'123'});assert.ok(sql.includes("p.job_number='123'"));
+ await resolveProjectLink(query,{title:"  Client's   Job  "});assert.ok(sql.includes("='client''s job'"));assert.ok(sql.includes('limit 3'));assert.equal(sql.includes('ilike'),false);
+ await assert.rejects(()=>resolveProjectLink(async()=>[],{title:'No exact match'}),/MISSING_DEAL_OR_JOB/);
+ await assert.rejects(()=>resolveProjectLink(async()=>[{hubspot_deal_id:'1',job_number:'2'},{hubspot_deal_id:'3',job_number:'4'}],{title:'Duplicated name'}),/AMBIGUOUS_PROJECT_LINK/);
+ await assert.rejects(()=>resolveProjectLink(query,{job_number:"123';bad"}),/INVALID_JOB_LINK/);
 });

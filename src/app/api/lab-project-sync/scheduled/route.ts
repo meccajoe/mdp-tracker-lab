@@ -10,7 +10,9 @@ export async function GET(request:Request){
  const receivedBytes=Buffer.from(provided),expectedBytes=Buffer.from(expected);
  if(!secret||secret.length<32||receivedBytes.length!==expectedBytes.length||!timingSafeEqual(receivedBytes,expectedBytes))return json({error:'Unauthorized'},401);
  if(process.env.LAB_DAILY_SYNC_ENABLED!=='true')return json({skipped:true,reason:'DISABLED'});
- if(chicagoClock().hour!==6)return json({skipped:true,reason:'OUTSIDE_CHICAGO_WINDOW'});
+ const mode=new URL(request.url).searchParams.get('mode')||'scheduled';
+ if(!['scheduled','manual','preview'].includes(mode))return json({error:'Invalid sync mode.'},400);
+ if(mode==='scheduled'&&chicagoClock().hour!==6)return json({skipped:true,reason:'OUTSIDE_CHICAGO_WINDOW'});
  if(!syncConfigured())return json({error:'Sync source configuration missing.'},503);
- try{return json(await executeSync('scheduled'));}catch{return json({error:'Scheduled sync failed. Check the run log.'},503);}
+ try{return json(await executeSync(mode as 'scheduled'|'manual'|'preview'));}catch{return json({error:'Scheduled sync failed. Check the run log.'},503);}
 }

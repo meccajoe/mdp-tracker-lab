@@ -12,9 +12,11 @@ export function LabProjectSyncStatus(){
  async function run(action:'preview'|'apply'){
   setBusy(true);setError('');try{const response=await adaFetch('/api/lab-project-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});const body=await response.json();if(!response.ok)throw Error(body.error||'Sync did not complete.');await load();if(body.skipped)setError('A sync is already running or today’s scheduled run is complete.');else if(action==='apply'&&!body.failed)window.dispatchEvent(new Event('lab-project-sync-complete'));}catch(e){setError(e instanceof Error?e.message:'Sync did not complete.');}finally{setBusy(false);}
  }
+ const latest=data?.runs?.find((run:any)=>run.mode!=='preview');
+ const attention=latest&&(['partial','failed'].includes(latest.status)||(latest.finished_at&&Date.now()-Date.parse(latest.finished_at)>36*60*60*1000));
  if(hidden)return null;
- return <details className="my-4 rounded border p-4"><summary className="cursor-pointer font-semibold">Project sync · {data?.enabled?'Scheduled daily at 6 a.m. Central':'Daily schedule not enabled'}</summary>
-  <div className="mt-3 space-y-3 text-sm"><p>New Closed Won Active quotes and existing linked projects. Quotes keep their approved budgets.</p>
+ return <details className="my-4 rounded border p-4"><summary className="cursor-pointer font-semibold">Project sync · {!data?'Loading status…':data.enabled?'Scheduled daily at 6 a.m. Central':'Daily schedule not enabled'}{latest&&<span> · {attention?'Needs attention':latest.status==='running'?'Running':`Last synced ${stamp(latest.finished_at||latest.started_at)}`}</span>}</summary>
+  <div className="mt-3 space-y-3 text-sm"><p>New Closed Won Active and Complete quotes, plus existing linked projects. Names and job numbers follow verified HubSpot records; approved quote budgets stay pinned.</p>
    {data&&!data.configured&&<p role="status">Read-only source connection needs configuration before sync can run.</p>}
    {error&&<p role="alert">{error}</p>}
    <div className="flex flex-wrap gap-4"><button className="underline disabled:opacity-50" disabled={busy||!data?.configured} onClick={()=>run('preview')}>Preview sync</button><button className="underline disabled:opacity-50" disabled={busy||!data?.configured} onClick={()=>run('apply')}>Run sync now</button><button className="underline disabled:opacity-50" disabled={busy} onClick={()=>load().catch(()=>setError('Sync history could not load.'))}>Refresh run log</button></div>

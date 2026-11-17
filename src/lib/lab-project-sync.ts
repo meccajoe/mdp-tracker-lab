@@ -1,7 +1,7 @@
 import {calculateQuoteV27} from './quote-v27';
 import {parseQuoteV27} from './quote-v27-validation';
 import {projectStatusFor} from './quote-schedule';
-import {approvedDefinition,readActivity,readDeal,sha,SyncIssue,type SourceQuery} from './lab-project-sync-source';
+import {approvedDefinition,readActivity,readDeal,resolveProjectLink,sha,SyncIssue,type SourceQuery} from './lab-project-sync-source';
 import {applyLabRateApprovals,type LabRateApproval} from './lab-project-rate-approvals';
 export function chicagoClock(now=new Date()){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now);
@@ -10,11 +10,11 @@ export function chicagoClock(now=new Date()){
 }
 export function eligibleQuote(row:any){
  const forecast=row.document?.planning?.status||row.document?.schedule?.status;
- return ['Closed won','In production'].includes(forecast)&&projectStatusFor(row.document?.schedule,row.document?.planning?.status)==='Active';
+ return ['Closed won','In production','Completed'].includes(forecast)&&['Active','Complete'].includes(projectStatusFor(row.document?.schedule,row.document?.planning?.status));
 }
 export function prepareBaseline(row:any,identity:any){
  const document=parseQuoteV27(row.document),calculation=calculateQuoteV27(document);
- return {schemaVersion:1,title:identity.name,schedule:document.schedule??{},sourceProjectStatus:'Active',laborRate:calculation.laborRate,lines:calculation.lines.filter(l=>l.name.trim()||l.finalPrice||l.buildBudget||l.hoursAllowed),totals:calculation.totals,warnings:[],hubspot:identity.hubspot};
+ return {schemaVersion:1,title:identity.name,schedule:document.schedule??{},sourceProjectStatus:projectStatusFor(document.schedule,document.planning?.status)==='Complete'?'Completed':'Active',laborRate:calculation.laborRate,lines:calculation.lines.filter(l=>l.name.trim()||l.finalPrice||l.buildBudget||l.hoursAllowed),totals:calculation.totals,warnings:[],hubspot:identity.hubspot};
 }
 export type SyncDb={rpc:(name:string,args?:any)=>PromiseLike<{data:any;error:any}>};
 async function rpc(db:SyncDb,name:string,args?:any){const result=await db.rpc(name,args);if(result.error)throw new SyncIssue('LAB_TRANSACTION_FAILED');return result.data;}
@@ -39,12 +39,13 @@ export async function runProjectSync({db,query,hubspotToken,mode,fetcher=fetch,n
    await Promise.all(scope.slice(offset,offset+3).map(async row=>{
     try{
      if(now()-started>240000)throw new SyncIssue('RUN_TIME_BUDGET');
-     const deal=row.project_id?row.linked_deal_id:row.hubspot_deal_id;
-     const job=row.project_id?row.linked_job_number:row.job_number;
-     if(!/^\d+$/.test(deal??'')||!/^\d+$/.test(job??''))throw new SyncIssue('MISSING_DEAL_OR_JOB');
+     const link=row.project_id?{dealId:row.linked_deal_id,jobNumber:row.linked_job_number}:await resolveProjectLink(boundedQuery,row);
+     const deal=link.dealId,job=link.jobNumber;
+     if(!/^\d+$/.test(deal??'')||(row.project_id&&!/^\d+$/.test(job??'')))throw new SyncIssue('MISSING_DEAL_OR_JOB');
+     if(!row.project_id&&scope.some(other=>other.group_id!==row.group_id&&((other.linked_deal_id||other.hubspot_deal_id)===deal||(job&&(other.linked_job_number||other.job_number)===job)||(!row.hubspot_deal_id&&!row.job_number&&!other.hubspot_deal_id&&!other.job_number&&typeof row.title==='string'&&typeof other.title==='string'&&row.title.trim().replace(/\s+/g,' ').toLowerCase()===other.title.trim().replace(/\s+/g,' ').toLowerCase()))))throw new SyncIssue('PROJECT_LINK_CONFLICT');
      const identity=await readDeal(deal,hubspotToken,boundedFetch);
      // Existing job-number corrections are allowed only after source identity agrees.
-     if(!row.project_id&&identity.jobNumber!==job)throw new SyncIssue('QUOTE_JOB_LINK_CHANGED');
+     if(!row.project_id&&job&&identity.jobNumber!==job)throw new SyncIssue('QUOTE_JOB_LINK_CHANGED');
      const activity=await readActivity(boundedQuery,definition,deal,identity.jobNumber);
      activity.evidence=applyLabRateApprovals(activity.capture,activity.evidence,rateApprovals,new Date(now()).toISOString());
      activity.costingHash=sha(activity.evidence);
@@ -53,7 +54,7 @@ export async function runProjectSync({db,query,hubspotToken,mode,fetcher=fetch,n
       await rpc(db,'lab_record_project_sync_result',{p_run:runId,p_scope:row.group_id,p_project:row.project_id??null,p_outcome:'preview',p_code:row.project_id?'WOULD_REFRESH':'WOULD_CREATE',p_details:{title:row.title,jobNumber:identity.jobNumber,revision:row.revision,expenses:activity.capture.expenses.length,timeRecords:activity.capture.labor.length,...activity.evidence.expected}});return;
      }
      await rpc(db,'lab_apply_project_sync',{p_run:runId,p_scope:row.group_id,p_payload:{
-      workspaceId:row.workspace_id,expectedProjectId:row.project_id??null,expectedJobNumber:job,revision:row.revision,document:row.document,
+      workspaceId:row.workspace_id,expectedProjectId:row.project_id??null,expectedJobNumber:job,expectedTitle:row.title,revision:row.revision,document:row.document,
       identity,baseline,baselineHash:baseline?sha(baseline):null,activityId:activity.activityId,activityHash:activity.activityHash,activity:activity.capture,costing:activity.evidence,costingHash:activity.costingHash,
      }});
     }catch(error){
