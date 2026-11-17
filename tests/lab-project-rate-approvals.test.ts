@@ -49,3 +49,8 @@ test('confirmed ID-bound approval can replace a design policy without guessing u
  const next=applyLabRateApprovals(capture,packet,[approval(1)],at);assert.equal(next.rows[0].source,'approved_historical_payroll_rate');assert.equal(next.rows[0].amount,42);assert.equal(JSON.stringify(packet),before);
  packet.rows[0].workerId=null;assert.equal(applyLabRateApprovals(capture,packet,[approval(1)],at),packet);
 });
+
+test('Joe-confirmed $41 designer policy retains precedence over unrelated historical approval',()=>{
+ const {capture,packet}=fixture();packet.rows[0]={...packet.rows[0],normalizedName:'marcelo t',basis:'hourly',source:'fixed_design_rate',hourlyRate:41,dailyRate:null,amount:71.75,approval:{id:'471caee0-6527-4952-a355-145c161152a0',approvedBy:'Owner',approvedAt:at,effectiveStart:'1900-01-01',effectiveEnd:null}};packet.expected.knownCost=71.75;packet.expected.missingHours=3.5;
+ assert.equal(applyLabRateApprovals(capture,packet,[approval(1)],at),packet);
+});

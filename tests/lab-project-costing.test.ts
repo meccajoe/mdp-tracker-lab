@@ -61,3 +61,13 @@ test('design policy is preserved as evidence but excluded from actuals and direc
  assert.equal(summary.hours,19);assert.equal(summary.knownCost,200);assert.equal(summary.missingHours,5);assert.equal(summary.missingEntries,2);assert.equal(summary.complete,false);assert.equal(JSON.stringify(packet),before);
  const d=directoryProject({projects:{job_number:'123',hubspot_deal_id:'456'},snapshot:{totals:{price:1000,buildBudget:600,hoursAllowed:30}},workbook_revision:2},{id:'snap',source_sha256:hash,job_number:'123',hubspot_deal_id:'456',snapshot:capture,captured_at:capture.capturedAt},{evidence:packet});assert.equal(d.cost,200);assert.equal(d.activityState,'incomplete');
 });
+
+test('Joe-confirmed designer policies restore actuals without changing source evidence',()=>{
+ for(const [name,id] of [['marcelo t','471caee0-6527-4952-a355-145c161152a0'],['mariam h','996fd28b-d43b-4454-bb71-32967b19ae61'],['rodrigo l','ab5bf49c-f20f-4b20-b70c-84c4fb13a82b']]){
+ const {capture,packet}=fixture();packet.rows[0]={...packet.rows[0],normalizedName:name,source:'fixed_design_rate',hourlyRate:41,amount:82,approval:{...approval(),id}};packet.expected.knownCost=282;
+ const before=JSON.stringify(packet);const attached=attachProjectCosting(capture,packet,'snap',hash),row=attached.labor[0],summary=summarizeProjectActivity(attached);
+ assert.equal(activityRateEvidence(row).status,'confirmed');assert.equal(activityLaborCost(row),82);assert.equal(activityCostRate(row),41);assert.equal(summary.knownCost,282);assert.equal(summary.missingHours,3);assert.equal(JSON.stringify(packet),before);
+ row.approved_cost!.hourlyRate=42;assert.equal(activityLaborCost(row),null);
+ row.approved_cost!.hourlyRate=41;row.approved_cost!.normalizedName='another designer';assert.equal(activityLaborCost(row),null);
+ }
+});

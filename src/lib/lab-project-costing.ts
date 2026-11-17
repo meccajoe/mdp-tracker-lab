@@ -81,10 +81,15 @@ export function attachProjectCosting(capture:ActivityCapture,packet:ProjectCosti
  const byId=new Map(packet.rows.map(row=>[row.entryId,row]));
  return {...clean,costing:{resolvedAt:packet.resolvedAt,sourceView:packet.sourceView,sourceViewSha256:packet.sourceViewSha256},labor:clean.labor.map(row=>({...row,approved_cost:byId.get(row.qbo_entry_id)!}))};
 }
-// Source policy values remain in the immutable packet, but are not confirmed actual pay.
+// Joe reconfirmed these existing $41 designer policies as effective/correct Nov 17, 2026.
+// Scope approval to the existing named policies; future/changed policies stay pending.
+export function confirmedDesignerPolicy(row:ApprovedLaborCost|undefined){
+ const policies:Record<string,string>={'marcelo t':'471caee0-6527-4952-a355-145c161152a0','mariam h':'996fd28b-d43b-4454-bb71-32967b19ae61','rodrigo l':'ab5bf49c-f20f-4b20-b70c-84c4fb13a82b'};
+ return !!row&&row.source==='fixed_design_rate'&&row.basis==='hourly'&&row.hourlyRate===41&&!!policies[row.normalizedName]&&policies[row.normalizedName]===row.approval?.id;
+}
 export function activityRateEvidence(row:ActivityLabor){
  const source=row.approved_cost?.source??row.rate_source;
- if(source==='fixed_design_rate')return {status:'unconfirmed' as const,label:'Unconfirmed · design cost policy'};
+ if(source==='fixed_design_rate')return confirmedDesignerPolicy(row.approved_cost)?{status:'confirmed' as const,label:'Confirmed · Joe-approved $41 designer policy'}:{status:'unconfirmed' as const,label:'Unconfirmed · design cost policy'};
  if(source==='payroll_rate_sheet')return {status:'confirmed' as const,label:'Confirmed · approved payroll workbook'};
  if(source==='approved_historical_payroll_rate')return {status:'confirmed' as const,label:'Confirmed · Maribel / Joe historical approval'};
  if(source==='approved_contractor_rate'||source==='approved_daily_rate')return {status:'confirmed' as const,label:'Confirmed · owner contractor-rate approval'};
