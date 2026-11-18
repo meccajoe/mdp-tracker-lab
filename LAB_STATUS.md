@@ -1,7 +1,7 @@
 ## Quote timer inactivity cutoff — November 18, 2026
 - Automatically pause after 10 minutes without pointer, keyboard, touch or scroll activity on the quote. Default chosen pending optional preference reply. Mouse movement updates only an internal timestamp, without per-event renders or requests. Autosaves/focus/polling do not extend the idle deadline.
 - Clamp accumulated spans at last activity + timeout even if the computer sleeps or browser timers are delayed. Save pause through existing account-backed optimistic state; explicit Resume required. Existing manual pause, corrections, Final/read-only behavior and raw logs remain intact; no database migration.
-- 17 timer tests and TypeScript passed, including simulated 29-hour sleep capped to 10m, continuous interaction, autosave inactivity, offline retry, reload pause and listener cleanup. Real ten-minute wall-clock hosted idle test not yet performed; deployment verification follows.
+- 17 timer tests and TypeScript passed, including simulated 29-hour sleep capped to 10m, continuous interaction, autosave inactivity, offline retry, reload pause and listener cleanup. Release 84cc107 deployed successfully (7u1uGtJPmMMxLRpuVibEDf1jwwuU). Hosted quote exposes the new ten-minute policy; KBIS remains 1:30:00 / Paused after reload. Idle cutoff verified with controlled-clock component tests, not a real ten-minute hosted wait.
 
 ## Manual quote time correction — November 18, 2026
 - Added Edit Time beside the quote timer: corrected hours/minutes and a required reason, with recent correction history. Saving pauses the current actor’s timer across computers; Resume retains existing count-on-open behavior. Shared total is corrected without changing quote prices, revisions or raw time logs.
