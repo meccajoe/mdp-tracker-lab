@@ -54,3 +54,20 @@ test('bulk timer refresh validates IDs and exposes only member-scoped RPC result
  const call=ids=>route.GET(new Request('https://test/timers?ids='+ids));assert.equal((await call('bad')).status,400);assert.equal(calls,0);
  const id='11111111-1111-4111-8111-111111111111';assert.deepEqual(await(await call(id)).json(),{timers:[],actorId:'actor'});error={message:'fail'};assert.equal((await call(id)).status,503);allowed=false;assert.equal((await call(id)).status,403);
 });
+
+test('idle timer caps a sleeping/background tab at ten minutes and saves account pause',async()=>{
+ const h=harness();await h.settle();await h.advance(29*3600000);assert.equal(h.total(),600000);assert.equal(h.state().ms,600000);assert.equal(h.account.paused,true);assert.match(h.state().state,/Inactive/);
+ await h.event('pointermove');await h.event('focus');await h.advance(60000);assert.equal(h.total(),600000);assert.equal(h.state().paused,true);
+ await h.toggle();await h.advance(5000);await h.leave();assert.equal(h.total(),605000);
+});
+test('editing and scrolling extend the deadline; workbook autosaves do not',async()=>{
+ const h=harness();await h.settle();for(const event of ['keydown','pointerdown','scroll','touchstart','pointermove']){await h.advance(300000);await h.event(event);assert.equal(h.state().paused,false);}
+ await h.advance(300000);await h.event('quote-workbook-saved');await h.advance(300000);assert.equal(h.state().paused,true);assert.equal(h.total(),2100000);await h.leave();
+});
+test('first interaction after sleep cannot reset an expired deadline; offline pause retries',async()=>{
+ const h=harness();await h.settle();h.fail(true);await h.advance(900000);await h.event('keydown');assert.equal(h.state().ms,600000);assert.equal(h.state().paused,true);h.fail(false);await h.event('focus');assert.equal(h.total(),600000);assert.equal(h.account.paused,true);await h.leave();
+});
+test('idle pause survives reopening and inactivity listeners are removed on leave',async()=>{
+ const h=harness();await h.settle();await h.advance(600000);await h.leave();const count=h.requests.length;await h.event('pointerdown');await h.event('keydown');assert.equal(h.requests.length,count);
+ const reopened=harness(false,h.account);await reopened.settle();await reopened.event('pointerdown');await reopened.advance(5000);assert.equal(reopened.state().paused,true);assert.equal(reopened.total(),0);await reopened.leave();
+});
