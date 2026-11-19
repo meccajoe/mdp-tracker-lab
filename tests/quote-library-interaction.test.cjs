@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function harness(additionalRows=[],realGroups=false){
+function harness(additionalRows=[],realGroups=false,props={}){
  const states=[],effects=[],memos=[];let timerPaused=false,timerVersion=0,timerPosts=0;let index=0,pending=[],tree,gets=0,fail=false,hold=false,release;
  const window=new EventTarget(),row={id:'one',title:'Example',capacity_group:'group',capacity_selected:true,capacity_version:1,created_at:'2026-11-01',last_modified:'2026-11-01',quote_status:'draft',status_version:1,workbook_revision:1,forecast_status:'Possible',project_status:'Not Active',quote_total:123,time_spent_ms:3661000,timer:{paused:false,pause_version:0,running:false,can_toggle:true}};
  const same=(a,b)=>a&&b&&a.length===b.length&&a.every((x,i)=>Object.is(x,b[i]));
@@ -17,7 +17,7 @@ function harness(additionalRows=[],realGroups=false){
  const module={exports:{}};
  const source=ts.transpileModule(fs.readFileSync('src/components/quote-library.tsx','utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
  vm.runInNewContext(source,{module,exports:module.exports,require:n=>imports[n]??new Proxy({},{get:(_,key)=>String(key)}),window,document:{visibilityState:'visible'},setInterval:()=>1,clearInterval:()=>{},Event,CustomEvent,Response,crypto,Set,Map,Intl,Date});
- const render=()=>{index=0;tree=module.exports.QuoteLibrary({});const work=pending;pending=[];work.forEach(f=>f());return tree;};
+ const render=()=>{index=0;tree=module.exports.QuoteLibrary(props);const work=pending;pending=[];work.forEach(f=>f());return tree;};
  const nodes=()=>{const out=[];function visit(x){if(!x)return;if(Array.isArray(x)){x.forEach(visit);return;}if(typeof x==='object'){out.push(x);visit(x.props?.children)}}visit(tree);return out};
  return {render,nodes,find:label=>nodes().find(n=>n.props?.['aria-label']===label),text:()=>JSON.stringify(tree),settle:async()=>{await new Promise(r=>setImmediate(r));render()},timerPosts:()=>timerPosts,gets:()=>gets,groups:()=>groupCalls,window,fail:()=>fail=true,hold:()=>hold=true,release:()=>{hold=false;release()},row};
 }
@@ -100,4 +100,19 @@ test('salesperson dropdown saves without reloading and rolls back conflicts',asy
  assert.equal(h.find('Salesperson · Example').props.value,'Maria Mecca');assert.equal(h.gets(),1);assert.match(h.text(),/Salesperson saved/);
  h.fail();h.find('Salesperson · Example').props.onChange({target:{value:'Paul Mecca'}});await h.settle();
  assert.equal(h.find('Salesperson · Example').props.value,'');assert.match(h.text(),/Conflict/);
+});
+
+test('Capacity Projects exposes editable salesperson, sorting and filtering',async()=>{
+ const h=harness([{id:'two',title:'Second',capacity_group:'two',salesperson:'Paul Mecca',workbook_revision:1,created_at:'2026-11-02',quote_status:'draft'}],true,{capacity:{projects:[],scenario:'committed',onRefresh:async()=>{}}});
+ h.render();await h.settle();
+ assert.ok(h.find('Salesperson · Example'));assert.ok(h.find('Salesperson · Second'));
+ h.find('Filter salesperson').props.onChange({target:{value:'person:Paul Mecca'}});h.render();
+ assert.equal(h.find('Salesperson · Example'),undefined);assert.ok(h.find('Salesperson · Second'));
+ h.find('Filter salesperson').props.onChange({target:{value:'unassigned'}});h.render();
+ assert.ok(h.find('Salesperson · Example'));assert.equal(h.find('Salesperson · Second'),undefined);
+ h.find('Filter salesperson').props.onChange({target:{value:'all'}});h.render();
+ const sort=h.nodes().find(n=>n.type==='button'&&n.props?.children?.[0]==='Salesperson');assert.ok(sort);
+ sort.props.onClick();h.render();assert.ok(h.nodes().some(n=>n.props?.['aria-sort']==='ascending'));
+ h.find('Salesperson · Example').props.onChange({target:{value:'Maria Mecca'}});await h.settle();
+ assert.equal(h.find('Salesperson · Example').props.value,'Maria Mecca');assert.equal(h.gets(),1);
 });
