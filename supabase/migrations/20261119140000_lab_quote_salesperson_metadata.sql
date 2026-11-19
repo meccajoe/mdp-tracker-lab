@@ -9,6 +9,9 @@ begin
  perform pg_advisory_xact_lock(hashtextextended(new.workspace_id::text,27));
  if exists(select 1 from public.lab_quote_controls where workspace_id=new.workspace_id and quote_status='final') then
   select document,engine_version into previous,previous_engine from public.quote_workbook_revisions where workspace_id=new.workspace_id order by revision desc limit 1;
+  -- Salesperson-only edits must also work on legacy documents without scheduling fields.
+  if previous is not null and new.engine_version is not distinct from previous_engine
+   and (new.document - 'salesperson') is not distinct from (previous - 'salesperson') then return new; end if;
   if previous is null or new.engine_version is distinct from previous_engine
    or (new.document - 'schedule' - 'planning' - 'salesperson') is distinct from (previous - 'schedule' - 'planning' - 'salesperson')
    or ((new.document->'schedule') - 'status' - 'projectStatus' - 'projectStartOverride' - 'buildStart' - 'buildFinish' - 'dueDate' - 'shipDate' - 'installDate' - 'dismantleDate') is distinct from (coalesce(previous->'schedule','{"buildStart":"","buildFinish":"","installDate":"","status":""}'::jsonb) - 'status' - 'projectStatus' - 'projectStartOverride' - 'buildStart' - 'buildFinish' - 'dueDate' - 'shipDate' - 'installDate' - 'dismantleDate')
