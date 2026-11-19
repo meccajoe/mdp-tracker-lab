@@ -10,7 +10,7 @@ function harness(additionalRows=[],realGroups=false){
  if(url.includes('/timers?'))return Response.json({actorId:'actor',timers:[{workspace_id:'one',total_ms:3661000,paused:timerPaused,pause_version:timerVersion,running:false,can_toggle:true}]});
  if(url.endsWith('/time')){timerPosts++;const body=JSON.parse(options.body);assert.deepEqual(body.spans,[]);assert.equal(options.headers['X-Quote-Time-Actor'],'actor');if(fail)return Response.json({error:'Conflict'},{status:409});timerPaused=body.paused;timerVersion++;return Response.json({});}
  if(!options){gets++;if(hold)await new Promise(r=>release=r);return Response.json({workspaces:[row,...additionalRows],managementReady:true,timerActorId:'actor',hasMore:false});}
- if(fail)return Response.json({error:'Conflict'}, {status:409});return Response.json({status:'final',version:2});
+ if(fail)return Response.json({error:'Conflict'}, {status:409});if(url.endsWith('/salesperson'))return Response.json({salesperson:JSON.parse(options.body).salesperson,version:2});return Response.json({status:'final',version:2});
  }}};
  const salespeople={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/quote-salesperson.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:salespeople,exports:salespeople.exports});imports['@/lib/quote-salesperson']=salespeople.exports;
  if(realGroups){const grouping={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/quote-version-groups.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:grouping,exports:grouping.exports});imports['@/lib/quote-version-groups']=grouping.exports;}
@@ -92,4 +92,12 @@ test('confirmed archive notifies capacity consumers and refreshes the list once'
  assert.equal(notifications,0);
  await h.nodes().find(n=>n.type==='Button'&&n.props.children==='Confirm archive').props.onClick();await h.settle();
  assert.equal(notifications,1);assert.equal(h.gets(),2);
+});
+
+test('salesperson dropdown saves without reloading and rolls back conflicts',async()=>{
+ const h=harness();h.render();await h.settle();
+ h.find('Salesperson · Example').props.onChange({target:{value:'Maria Mecca'}});await h.settle();
+ assert.equal(h.find('Salesperson · Example').props.value,'Maria Mecca');assert.equal(h.gets(),1);assert.match(h.text(),/Salesperson saved/);
+ h.fail();h.find('Salesperson · Example').props.onChange({target:{value:'Paul Mecca'}});await h.settle();
+ assert.equal(h.find('Salesperson · Example').props.value,'');assert.match(h.text(),/Conflict/);
 });

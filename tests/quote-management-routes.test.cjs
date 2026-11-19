@@ -119,3 +119,16 @@ test('date changes preserve commercial and forecast data, reject stale and inval
  assert.equal((await post({shipDate:'2026-11-24'})).status,200);assert.equal(saved.document.schedule.shipDate,'2026-11-24');assert.equal(saved.document.settings.laborSell,110);assert.equal(saved.document.planning.status,'Possible');assert.equal(saved.document.schedule.status,'Likely');assert.equal(doc.schedule.shipDate,undefined);
  assert.equal((await post({buildFinish:'2026-01-01'})).status,400);assert.equal((await post({status:'Closed won'})).status,400);assert.equal((await post({installDate:'2026-02-30'})).status,400);assert.equal((await post({},2)).status,409);allowed=false;assert.equal((await post({})).status,403);
 });
+
+test('salesperson metadata preserves all pricing and rejects stale, invalid and archived writes',async()=>{
+ let inserted,archived=false;
+ const original={salesperson:'Paul Mecca',lines:[{priceOverride:123.456}],settings:{rate:99},schedule:{status:'Closed won'},unknown:{keep:true}};
+ const client={from:()=>{const q=query({document:original,revision:7,engine_version:'saved-engine'});q.insert=value=>{inserted=value;return query({revision:8})};return q}};
+ const route=load('src/app/api/quote-workspaces/[workspaceId]/salesperson/route.ts',{'@/lib/ada-server':{requireQuoteProductWorkspaceAccess:async()=>({ok:true,actorSupabase:client,actorId:'actor',actorEmail:'test@example.com',workspaceLifecycle:archived?'archived':'active'})},'@/lib/quote-management-server':management});
+ const post=body=>route.POST(new Request('https://lab.test',{method:'POST',body:JSON.stringify(body)}),{params:Promise.resolve({workspaceId:id})});
+ let response=await post({salesperson:' Maria Mecca ',expectedVersion:7});assert.equal(response.status,200);assert.equal(inserted.document.salesperson,'Maria Mecca');assert.equal(inserted.created_by,'actor');assert.equal(inserted.engine_version,'saved-engine');assert.deepEqual({...inserted.document,salesperson:'Paul Mecca'},original);assert.equal(original.salesperson,'Paul Mecca');
+ inserted=undefined;assert.equal((await post({salesperson:'Maria',expectedVersion:6})).status,409);assert.equal(inserted,undefined);
+ assert.equal((await post({salesperson:'x'.repeat(201),expectedVersion:7})).status,400);
+ await post({salesperson:'',expectedVersion:7});assert.equal('salesperson' in inserted.document,false);
+ archived=true;assert.equal((await post({salesperson:'Maria',expectedVersion:7})).status,403);
+});
