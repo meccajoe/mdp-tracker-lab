@@ -1,3 +1,8 @@
+## Quotes list salesperson — November 19, 2026
+- Main and archived Quotes lists show a sortable/resizable Salesperson column beside Client name, using the latest saved revision. Added All salespeople, Unassigned, five preset names and distinct saved custom names filter; combines with search/status/timer filters. Matching older versions reveal their existing grouped family consistently with other list filters. Capacity columns remain unchanged.
+- List API returns only salesperson text alongside existing metadata, with no extra query/workbook hydration. No data writes/migration or business quote changes. Saved column widths remain keyed by labels.
+- Filter/grouping and route tests plus TypeScript checked; hosted deployment verification follows.
+
 ## Quote salesperson and two-decimal cells — November 19, 2026
 - Added optional quote-revision salesperson near commission: Paul Mecca, Maria Mecca, Peyton Hromcik, Kenneth Mecca, Carlos Chaidez, Other with free-text name. Existing quotes remain unassigned; clone/revision document retains the field. Parser validates up to 200 characters. No database migration.
 - Shared numeric input displays at most two decimals, allows natural typing, commits rounded new edits on blur/Enter, and preserves untouched original precision. Escape cancels; blanks keep existing zero/override semantics. Applied to Quote Builder, Rates, Pricing and estimator controls; Takeoff numeric edits/pastes and calculated hours, BOM quantities and estimator totals also display two decimals. Calculations and saved historical prices are not globally rounded or rewritten.

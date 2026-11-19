@@ -1,3 +1,4 @@
+import {quoteSalesperson} from '@/lib/quote-salesperson';
 import {capacityVersions} from '@/lib/capacity-versions-server';
 import {calculateQuoteV27} from '@/lib/quote-v27';
 import {projectStatusFor,salesForecast} from '@/lib/quote-schedule';
@@ -30,7 +31,7 @@ export async function GET(request:NextRequest){
   const c=controlsById.get(w.id),r=revisionsById.get(w.id);
   let quoteTotal:number|null=null;
   if(r?.document){try{const total=calculateQuoteV27(parseQuoteV27(r.document)).totals.price;if(Number.isFinite(total))quoteTotal=total;}catch{/* Unreadable saved workbooks show no amount rather than a misleading zero. */}}
-  return {...w,capacity_group:versions.get(w.id)?.group_id,capacity_selected:versions.get(w.id)?.selected??false,capacity_version:versions.get(w.id)?.version??0,quote_total:quoteTotal,...(includeTime?{time_spent_ms:timeTotals.error||!timeById.has(w.id)?null:Number(timeById.get(w.id)!.total_ms),timer:timeTotals.error?null:timeById.get(w.id)??null}:{}),quote_status:c?.quote_status??'draft',status_version:c?.version??0,workbook_revision:r?.revision??0,forecast_status:salesForecast(r?.planning_status||r?.forecast_status||''),project_status:projectStatusFor({status:r?.forecast_status,projectStatus:r?.project_status},r?.planning_status||''),last_modified:[w.updated_at,w.last_activity_at,c?.modified_at,r?.created_at].filter(Boolean).sort().at(-1)};
+  return {...w,capacity_group:versions.get(w.id)?.group_id,capacity_selected:versions.get(w.id)?.selected??false,capacity_version:versions.get(w.id)?.version??0,quote_total:quoteTotal,salesperson:quoteSalesperson(r?.document?.salesperson),...(includeTime?{time_spent_ms:timeTotals.error||!timeById.has(w.id)?null:Number(timeById.get(w.id)!.total_ms),timer:timeTotals.error?null:timeById.get(w.id)??null}:{}),quote_status:c?.quote_status??'draft',status_version:c?.version??0,workbook_revision:r?.revision??0,forecast_status:salesForecast(r?.planning_status||r?.forecast_status||''),project_status:projectStatusFor({status:r?.forecast_status,projectStatus:r?.project_status},r?.planning_status||''),last_modified:[w.updated_at,w.last_activity_at,c?.modified_at,r?.created_at].filter(Boolean).sort().at(-1)};
  })});
 }
 export async function POST(request:NextRequest){
