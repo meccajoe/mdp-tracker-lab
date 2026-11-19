@@ -1,7 +1,7 @@
 ## Quotes list salesperson — November 19, 2026
 - Main and archived Quotes lists show a sortable/resizable Salesperson column beside Client name, using the latest saved revision. Added All salespeople, Unassigned, five preset names and distinct saved custom names filter; combines with search/status/timer filters. Matching older versions reveal their existing grouped family consistently with other list filters. Capacity columns remain unchanged.
 - List API returns only salesperson text alongside existing metadata, with no extra query/workbook hydration. No data writes/migration or business quote changes. Saved column widths remain keyed by labels.
-- Filter/grouping and route tests plus TypeScript checked; hosted deployment verification follows.
+- Filter/grouping and route tests plus TypeScript passed. Release 6e12eb9 deployed successfully (cJW3M5wmJaH2H9TdXsksrvnzRFxM). Hosted main list verified Unassigned filtering, ascending/descending Salesperson header, and Maria no-match state. Archived list custom-name filter returned exactly the existing disposable quote with matching Salesperson cell. No saved data mutated.
 
 ## Quote salesperson and two-decimal cells — November 19, 2026
 - Added optional quote-revision salesperson near commission: Paul Mecca, Maria Mecca, Peyton Hromcik, Kenneth Mecca, Carlos Chaidez, Other with free-text name. Existing quotes remain unassigned; clone/revision document retains the field. Parser validates up to 200 characters. No database migration.
