@@ -89,7 +89,8 @@ export function quoteIdentityKey(row:{title?:string;client_name?:string|null}){
  const project=client&&title.startsWith(client+' ')?title.slice(client.length+1):title;
  return title?(client?client+'|':'')+project:'';
 }
-export async function resolveProjectLink(query:SourceQuery,row:{title?:string;client_name?:string|null;hubspot_deal_id?:string|null;job_number?:string|null}){
+export type ProjectLink={dealId:string;jobNumber:string|null;evidence?:{method:'client-date-scope';sourceQuoteId:string;sourceName:string;dueDate:string;matchedLine:string}};
+export async function resolveProjectLink(query:SourceQuery,row:{title?:string;client_name?:string|null;hubspot_deal_id?:string|null;job_number?:string|null;document?:{schedule?:{dueDate?:string}}},loadScope?:()=>Promise<string[]>):Promise<ProjectLink>{
  const deal=row.hubspot_deal_id?.trim(),job=row.job_number?.trim();
  if(deal){if(!/^\d+$/.test(deal))throw new SyncIssue('INVALID_DEAL_LINK');if(job&&!/^\d+$/.test(job))throw new SyncIssue('INVALID_JOB_LINK');return {dealId:deal,jobNumber:job||null};}
  if(job&&!/^\d+$/.test(job))throw new SyncIssue('INVALID_JOB_LINK');
@@ -101,16 +102,35 @@ export async function resolveProjectLink(query:SourceQuery,row:{title?:string;cl
  const names=title?[`${name}=${normalized(literal(title))}`]:[];
  if(title&&client&&identityText(client))names.push(`${name}=${normalized(literal(client+' '+title))}`);
  const where=job?`p.job_number=${literal(job)}`:`(${names.join(' or ')})${client&&identityText(client)?` and ${normalized('p.client')}=${normalized(literal(client))}`:''}`;
- const matches=await query(`select p.hubspot_deal_id,p.job_number,p.name,p.client from public.projects p where ${where} order by p.id limit 3`);
+ let matches=await query(`select p.hubspot_deal_id,p.job_number,p.name,p.client from public.projects p where ${where} order by p.id limit 3`);
+ let evidence:ProjectLink['evidence'];
+ const due=row.document?.schedule?.dueDate;
+ if(!matches.length&&!job&&title&&identityText(title).split(' ').length>=2&&client&&identityText(client)&&loadScope&&typeof due==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(due)&&Number.isFinite(Date.parse(due))&&new Date(due).toISOString().slice(0,10)===due){
+  const prefixes=[title,client+' '+title];
+  const prefixWhere=prefixes.map(prefix=>`left(${name},length(${normalized(literal(prefix))})+1)=${normalized(literal(prefix))}||' '`).join(' or ');
+  const quoteId="coalesce(p.quote_provenance#>>'{applied,quoteId}',p.hubspot_quote_id)";
+  const candidates=await query(`select p.hubspot_deal_id,p.job_number,p.name,p.client,p.due_date::text due_date,${quoteId} scope_quote_id,(select coalesce(jsonb_agg(distinct q.description),'[]'::jsonb) from public.quote_line_items q where q.project_id=p.id and q.source='hubspot' and q.line_total>0 and q.source_id=${quoteId}) scope_lines from public.projects p where ${normalized('p.client')}=${normalized(literal(client))} and p.due_date=${literal(due)}::date and (${prefixWhere}) order by p.id limit 3`);
+  if(candidates.length>1)throw new SyncIssue('AMBIGUOUS_PROJECT_LINK');
+  if(candidates.length===1){
+   const c=candidates[0],actual=identityText(c.name??'');
+   const prefix=prefixes.map(identityText).sort((a,b)=>b.length-a.length).find(value=>actual.startsWith(value+' '));
+   const extra=prefix?actual.slice(prefix.length+1):'';
+   if(extra&&identityText(c.client??'')===identityText(client)&&c.due_date===due&&/^\d+$/.test(c.scope_quote_id??'')&&Array.isArray(c.scope_lines)){
+    const sourceLines=new Set(c.scope_lines.filter((v:unknown)=>typeof v==='string').map(identityText));
+    const shared=(await loadScope()).find(line=>{const value=identityText(line);return sourceLines.has(value)&&value.endsWith(' '+extra)&&(actual===value||actual.endsWith(' '+value));});
+    if(shared){matches=candidates;evidence={method:'client-date-scope',sourceQuoteId:c.scope_quote_id,sourceName:c.name,dueDate:due,matchedLine:shared};}
+   }
+  }
+ }
  if(matches.length!==1)throw new SyncIssue(matches.length?'AMBIGUOUS_PROJECT_LINK':'MISSING_DEAL_OR_JOB');
  const match=matches[0];
  if(!job){
   if(typeof match.name!=='string'||(client&&identityText(client)!==identityText(match.client??'')))throw new SyncIssue('SOURCE_IDENTITY_CHANGED');
   const actual=identityText(match.name);
-  if(actual!==identityText(title!)&&(!client||actual!==identityText(client+' '+title)))throw new SyncIssue('SOURCE_IDENTITY_CHANGED');
+  if(!evidence&&actual!==identityText(title!)&&(!client||actual!==identityText(client+' '+title)))throw new SyncIssue('SOURCE_IDENTITY_CHANGED');
  }
  if(!/^\d+$/.test(match.hubspot_deal_id??'')||!/^\d+$/.test(match.job_number??''))throw new SyncIssue('MISSING_DEAL_OR_JOB');
- return {dealId:String(match.hubspot_deal_id),jobNumber:String(match.job_number)};
+ return {dealId:String(match.hubspot_deal_id),jobNumber:String(match.job_number),...(evidence?{evidence}:{})};
 }
 export async function readDeal(dealId:string,token:string,fetcher:typeof fetch=fetch){
  if(!/^\d+$/.test(dealId))throw new SyncIssue('MISSING_DEAL_OR_JOB');

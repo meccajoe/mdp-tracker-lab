@@ -43,7 +43,7 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  const complete={...fresh,group_id:'complete',workspace_id:'w3',hubspot_deal_id:'3',job_number:'30',document:{schedule:{status:'Closed won',projectStatus:'Complete'}}};
  const unresolved={...fresh,group_id:'unlinked',hubspot_deal_id:null};
  const open={...fresh,group_id:'open',document:{schedule:{status:'Possible',projectStatus:'Active'}}};
- const calls=[];let baselineCalls=0;
+ const calls=[];let baselineCalls=0,quotePresent=true;
  class SyncIssue extends Error{constructor(code){super(code);this.code=code}}
  const api=load('src/lib/lab-project-sync.ts',{
  './quote-v27':{calculateQuoteV27:()=>{baselineCalls++;return {laborRate:20,lines:[],totals:{price:100}}}},
@@ -52,8 +52,8 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  './lab-project-rate-approvals':{applyLabRateApprovals:(_capture,evidence,approvals)=>{assert.equal(approvals.length,0);return evidence;}},
  './lab-project-sync-source':{approvedDefinition:async()=>'',sha:()=>'',SyncIssue,
   quoteIdentityKey:row=>row.client_name==='Game Seven'?'same-fixture-identity':row.title||'',
-  resolveProjectLink:async(_query,row)=>{if(row.client_name==='Game Seven')return {dealId:'4',jobNumber:'40'};if(!row.hubspot_deal_id)throw new SyncIssue('MISSING_DEAL_OR_JOB');return {dealId:row.hubspot_deal_id,jobNumber:row.job_number}},
-  readDeal:async deal=>({dealId:deal,jobNumber:deal==='1'?'10':deal==='2'?'20':'30',name:'Canonical'}),
+  resolveProjectLink:async(_query,row,scope)=>{if(row.client_name==='Scope Client'){await scope();return {dealId:'2',jobNumber:'20',evidence:{method:'client-date-scope',sourceQuoteId:'999',sourceName:'Canonical Box',dueDate:'2026-11-25',matchedLine:'TNT Box'}};}if(row.client_name==='Game Seven')return {dealId:'4',jobNumber:'40'};if(!row.hubspot_deal_id)throw new SyncIssue('MISSING_DEAL_OR_JOB');return {dealId:row.hubspot_deal_id,jobNumber:row.job_number}},
+  readDeal:async deal=>({dealId:deal,jobNumber:deal==='1'?'10':deal==='2'?'20':'30',name:'Canonical',hubspot:{quotes:quotePresent?[{id:'999'}]:[]}}),
   readActivity:async()=>({capture:{expenses:[],labor:[]},evidence:{expected:{hours:0,knownCost:0,missingHours:0}}})},
  },{Intl,Date,Set,fetch});
  let dataset=[source,fresh,complete,unresolved,open];
@@ -65,4 +65,6 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  assert.equal(calls.filter(c=>c.name==='lab_project_sync_document').length,2);assert.equal(calls.some(c=>c.args?.p_scope==='open'),false);assert.equal(calls.at(-1).args.p_failed,false);
  calls.length=0;const failedLog={async rpc(name,args){if(name==='lab_record_project_sync_result'&&args.p_outcome==='exception'){calls.push({name,args});return {error:{code:'57014'},data:null}}return db.rpc(name,args)}};const failure=await api.runProjectSync({db:failedLog,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(failure.failed,true);assert.equal(calls.at(-1).args.p_code,'RESULT_LOG_FAILED');
  calls.length=0;dataset=[{...fresh,title:'Big 12 Pop Up',client_name:'Game Seven',hubspot_deal_id:null},{...fresh,group_id:'other-group',workspace_id:'other-workspace',title:'Game Seven - Big 12 Pop Up',client_name:'Game Seven',hubspot_deal_id:null}];await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'preview'});assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.filter(c=>c.args?.p_code==='PROJECT_LINK_CONFLICT').length,2);
+ calls.length=0;dataset=[{...fresh,group_id:'scope-proof',client_name:'Scope Client',hubspot_deal_id:null}];await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(calls.filter(c=>c.name==='lab_project_sync_document').length,1);assert.equal(calls.find(c=>c.name==='lab_apply_project_sync').args.p_payload.baseline.identityResolution.method,'client-date-scope');
+ calls.length=0;quotePresent=false;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.find(c=>c.name==='lab_record_project_sync_result').args.p_code,'SOURCE_QUOTE_LINK_CHANGED');
 });

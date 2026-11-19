@@ -88,3 +88,21 @@ test('distinctive name plus exact client recognizes Big 12 with punctuation/clie
  }
  await assert.rejects(()=>resolveProjectLink(async()=>[{hubspot_deal_id:'1',job_number:'2',name:'Big 12 Pop Up',client:'Game Seven'},{hubspot_deal_id:'3',job_number:'4',name:'Game Seven - Big 12 Pop Up',client:'Game Seven'}],row),/AMBIGUOUS_PROJECT_LINK/);
 });
+
+test('a descriptive suffix is supported by unique client, due date and shared priced quote scope',async()=>{
+ const row={title:'Whatnot TNT',client_name:'WAYLA',document:{schedule:{dueDate:'2026-11-25'}}};
+ const candidate={hubspot_deal_id:'373033167596',job_number:'26256',name:'Whatnot TNT Box',client:'WAYLA',due_date:'2026-11-25',scope_quote_id:'352472355555',scope_lines:['TNT Box','Design, Engineering, CAD','Project Management']};
+ let calls=0,scopeReads=0,sql='';
+ const query=async(q:string)=>{calls++;sql=q;return calls===1?[]:[candidate]};
+ const link=await resolveProjectLink(query,row,async()=>{scopeReads++;return ['TNT Box','Design, engineering & CAD']});
+ assert.equal(link.dealId,'373033167596');assert.equal(link.jobNumber,'26256');assert.equal(link.evidence?.matchedLine,'TNT Box');assert.equal(link.evidence?.sourceQuoteId,'352472355555');assert.equal(scopeReads,1);assert.ok(sql.includes('p.due_date='));assert.ok(sql.includes('q.line_total>0'));assert.ok(sql.includes('q.source_id='));assert.equal(sql.includes('ilike'),false);
+ async function attempt(patch:Record<string,unknown>,lines=['TNT Box']){let n=0;return resolveProjectLink(async()=>++n===1?[]:[{...candidate,...patch}],row,async()=>lines)}
+ await assert.rejects(()=>attempt({client:'Other'}),/MISSING_DEAL_OR_JOB/);
+ await assert.rejects(()=>attempt({due_date:'2026-11-26'}),/MISSING_DEAL_OR_JOB/);
+ await assert.rejects(()=>attempt({scope_quote_id:null}),/MISSING_DEAL_OR_JOB/);
+ await assert.rejects(()=>attempt({scope_lines:['Design, Engineering, CAD']}),/MISSING_DEAL_OR_JOB/);
+ await assert.rejects(()=>attempt({name:'Whatnot TNT Box Storage',scope_lines:['TNT Box','Storage']}),/MISSING_DEAL_OR_JOB/);
+ await assert.rejects(()=>attempt({scope_lines:['Box']},['Box']),/MISSING_DEAL_OR_JOB/);
+ let n=0;await assert.rejects(()=>resolveProjectLink(async()=>++n===1?[]:[candidate,{...candidate,job_number:'other'}],row,async()=>['TNT Box']),/AMBIGUOUS_PROJECT_LINK/);
+ let noDateQueries=0;await assert.rejects(()=>resolveProjectLink(async()=>{noDateQueries++;return []},{title:'Whatnot TNT',client_name:'WAYLA'},async()=>['TNT Box']),/MISSING_DEAL_OR_JOB/);assert.equal(noDateQueries,1);
+});
