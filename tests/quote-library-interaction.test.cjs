@@ -12,6 +12,7 @@ function harness(additionalRows=[],realGroups=false){
  if(!options){gets++;if(hold)await new Promise(r=>release=r);return Response.json({workspaces:[row,...additionalRows],managementReady:true,timerActorId:'actor',hasMore:false});}
  if(fail)return Response.json({error:'Conflict'}, {status:409});return Response.json({status:'final',version:2});
  }}};
+ const salespeople={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/quote-salesperson.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:salespeople,exports:salespeople.exports});imports['@/lib/quote-salesperson']=salespeople.exports;
  if(realGroups){const grouping={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/quote-version-groups.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{module:grouping,exports:grouping.exports});imports['@/lib/quote-version-groups']=grouping.exports;}
  const module={exports:{}};
  const source=ts.transpileModule(fs.readFileSync('src/components/quote-library.tsx','utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;

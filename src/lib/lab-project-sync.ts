@@ -1,7 +1,7 @@
 import {calculateQuoteV27} from './quote-v27';
 import {parseQuoteV27} from './quote-v27-validation';
 import {projectStatusFor} from './quote-schedule';
-import {approvedDefinition,readActivity,readDeal,resolveProjectLink,sha,SyncIssue,type SourceQuery} from './lab-project-sync-source';
+import {approvedDefinition,readActivity,readDeal,resolveProjectLink,quoteIdentityKey,sha,SyncIssue,type SourceQuery} from './lab-project-sync-source';
 import {applyLabRateApprovals,type LabRateApproval} from './lab-project-rate-approvals';
 export function chicagoClock(now=new Date()){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(now);
@@ -42,7 +42,7 @@ export async function runProjectSync({db,query,hubspotToken,mode,fetcher=fetch,n
      const link=row.project_id?{dealId:row.linked_deal_id,jobNumber:row.linked_job_number}:await resolveProjectLink(boundedQuery,row);
      const deal=link.dealId,job=link.jobNumber;
      if(!/^\d+$/.test(deal??'')||(row.project_id&&!/^\d+$/.test(job??'')))throw new SyncIssue('MISSING_DEAL_OR_JOB');
-     if(!row.project_id&&scope.some(other=>other.group_id!==row.group_id&&((other.linked_deal_id||other.hubspot_deal_id)===deal||(job&&(other.linked_job_number||other.job_number)===job)||(!row.hubspot_deal_id&&!row.job_number&&!other.hubspot_deal_id&&!other.job_number&&typeof row.title==='string'&&typeof other.title==='string'&&row.title.trim().replace(/\s+/g,' ').toLowerCase()===other.title.trim().replace(/\s+/g,' ').toLowerCase()))))throw new SyncIssue('PROJECT_LINK_CONFLICT');
+     if(!row.project_id&&scope.some(other=>other.group_id!==row.group_id&&((other.linked_deal_id||other.hubspot_deal_id)===deal||(job&&(other.linked_job_number||other.job_number)===job)||(!row.hubspot_deal_id&&!row.job_number&&!other.hubspot_deal_id&&!other.job_number&&quoteIdentityKey(row)!==''&&quoteIdentityKey(row)===quoteIdentityKey(other)))))throw new SyncIssue('PROJECT_LINK_CONFLICT');
      const identity=await readDeal(deal,hubspotToken,boundedFetch);
      // Existing job-number corrections are allowed only after source identity agrees.
      if(!row.project_id&&job&&identity.jobNumber!==job)throw new SyncIssue('QUOTE_JOB_LINK_CHANGED');

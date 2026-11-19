@@ -51,15 +51,18 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  './quote-schedule':{projectStatusFor:s=>s.projectStatus},
  './lab-project-rate-approvals':{applyLabRateApprovals:(_capture,evidence,approvals)=>{assert.equal(approvals.length,0);return evidence;}},
  './lab-project-sync-source':{approvedDefinition:async()=>'',sha:()=>'',SyncIssue,
-  resolveProjectLink:async(_query,row)=>{if(!row.hubspot_deal_id)throw new SyncIssue('MISSING_DEAL_OR_JOB');return {dealId:row.hubspot_deal_id,jobNumber:row.job_number}},
+  quoteIdentityKey:row=>row.client_name==='Game Seven'?'same-fixture-identity':row.title||'',
+  resolveProjectLink:async(_query,row)=>{if(row.client_name==='Game Seven')return {dealId:'4',jobNumber:'40'};if(!row.hubspot_deal_id)throw new SyncIssue('MISSING_DEAL_OR_JOB');return {dealId:row.hubspot_deal_id,jobNumber:row.job_number}},
   readDeal:async deal=>({dealId:deal,jobNumber:deal==='1'?'10':deal==='2'?'20':'30',name:'Canonical'}),
   readActivity:async()=>({capture:{expenses:[],labor:[]},evidence:{expected:{hours:0,knownCost:0,missingHours:0}}})},
  },{Intl,Date,Set,fetch});
- const db={async rpc(name,args){calls.push({name,args});return {data:name==='lab_claim_project_sync'?'run':name==='lab_project_rate_approvals'?[]:name==='lab_project_sync_scope_v2'?[source,fresh,complete,unresolved,open]:name==='lab_project_sync_document'?[fresh,complete].find(row=>row.workspace_id===args.p_workspace).document:null,error:null}}};
+ let dataset=[source,fresh,complete,unresolved,open];
+ const db={async rpc(name,args){calls.push({name,args});return {data:name==='lab_claim_project_sync'?'run':name==='lab_project_rate_approvals'?[]:name==='lab_project_sync_scope_v2'?dataset:name==='lab_project_sync_document'?[fresh,complete].find(row=>row.workspace_id===args.p_workspace).document:null,error:null}}};
  await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'preview'});
  assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.filter(c=>c.name==='lab_record_project_sync_result'&&c.args.p_outcome==='preview').length,3);assert.equal(calls.find(c=>c.args?.p_scope==='unlinked').args.p_code,'MISSING_DEAL_OR_JOB');assert.equal(baselineCalls,2);
  calls.length=0;baselineCalls=0;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});
  const writes=calls.filter(c=>c.name==='lab_apply_project_sync');assert.equal(writes.length,3);assert.equal(writes.find(c=>c.args.p_scope==='existing').args.p_payload.baseline,null);assert.equal(writes.find(c=>c.args.p_scope==='new').args.p_payload.baseline.totals.price,100);assert.equal(baselineCalls,2);assert.equal(writes.find(c=>c.args.p_scope==='complete').args.p_payload.baseline.sourceProjectStatus,'Completed');
  assert.equal(calls.filter(c=>c.name==='lab_project_sync_document').length,2);assert.equal(calls.some(c=>c.args?.p_scope==='open'),false);assert.equal(calls.at(-1).args.p_failed,false);
  calls.length=0;const failedLog={async rpc(name,args){if(name==='lab_record_project_sync_result'&&args.p_outcome==='exception'){calls.push({name,args});return {error:{code:'57014'},data:null}}return db.rpc(name,args)}};const failure=await api.runProjectSync({db:failedLog,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(failure.failed,true);assert.equal(calls.at(-1).args.p_code,'RESULT_LOG_FAILED');
+ calls.length=0;dataset=[{...fresh,title:'Big 12 Pop Up',client_name:'Game Seven',hubspot_deal_id:null},{...fresh,group_id:'other-group',workspace_id:'other-workspace',title:'Game Seven - Big 12 Pop Up',client_name:'Game Seven',hubspot_deal_id:null}];await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'preview'});assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.filter(c=>c.args?.p_code==='PROJECT_LINK_CONFLICT').length,2);
 });

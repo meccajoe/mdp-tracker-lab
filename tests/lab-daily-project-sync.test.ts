@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {chicagoClock,eligibleQuote,prepareBaseline,runProjectSync} from '../src/lib/lab-project-sync';
-import {sourceReader,approvedDefinition,qualifyCostDefinition,activityExportQuery,readDeal,resolveProjectLink,inlineWorkerNormalizer,NORMALIZER_HASH,sha} from '../src/lib/lab-project-sync-source';
+import {sourceReader,approvedDefinition,qualifyCostDefinition,activityExportQuery,readDeal,resolveProjectLink,quoteIdentityKey,inlineWorkerNormalizer,NORMALIZER_HASH,sha} from '../src/lib/lab-project-sync-source';
 const quote=JSON.parse(readFileSync('src/data/quote-v27-fonroche.json','utf8'));
 test('6 a.m. Chicago follows standard/daylight time; other UTC trigger skips',()=>{
  assert.equal(chicagoClock(new Date('2026-11-12T12:00:00Z')).hour,6);assert.equal(chicagoClock(new Date('2026-07-12T11:00:00Z')).hour,6);
@@ -67,11 +67,24 @@ test('read-only export inlines exact approved worker rules without calling the r
 });
 
 test('identity discovery uses explicit deal, exact job or unique exact canonical name; never fuzzy matches',async()=>{
- let sql='';const query=async(q:string)=>{sql=q;return [{hubspot_deal_id:'456',job_number:'123'}]};
+ let sql='';const query=async(q:string)=>{sql=q;return [{hubspot_deal_id:'456',job_number:'123',name:"Client's Job",client:'Client'}]};
  assert.deepEqual(await resolveProjectLink(async()=>{throw Error('no query needed')},{hubspot_deal_id:'456',job_number:null}),{dealId:'456',jobNumber:null});
  assert.deepEqual(await resolveProjectLink(query,{title:'Other',job_number:'123'}),{dealId:'456',jobNumber:'123'});assert.ok(sql.includes("p.job_number='123'"));
- await resolveProjectLink(query,{title:"  Client's   Job  "});assert.ok(sql.includes("='client''s job'"));assert.ok(sql.includes('limit 3'));assert.equal(sql.includes('ilike'),false);
+ await resolveProjectLink(query,{title:"  Client's   Job  "});assert.ok(sql.includes("'Client''s   Job'"));assert.ok(sql.includes('limit 3'));assert.equal(sql.includes('ilike'),false);
  await assert.rejects(()=>resolveProjectLink(async()=>[],{title:'No exact match'}),/MISSING_DEAL_OR_JOB/);
  await assert.rejects(()=>resolveProjectLink(async()=>[{hubspot_deal_id:'1',job_number:'2'},{hubspot_deal_id:'3',job_number:'4'}],{title:'Duplicated name'}),/AMBIGUOUS_PROJECT_LINK/);
  await assert.rejects(()=>resolveProjectLink(query,{job_number:"123';bad"}),/INVALID_JOB_LINK/);
+});
+
+test('distinctive name plus exact client recognizes Big 12 with punctuation/client-prefix differences',async()=>{
+ const row={title:'Big 12 Pop-Up',client_name:'Game Seven'};let sql='';
+ const query=async(q:string)=>{sql=q;return [{hubspot_deal_id:'360094393045',job_number:'26254',name:'Game Seven - Big 12 Pop Up',client:'Game Seven'}]};
+ assert.deepEqual(await resolveProjectLink(query,row),{dealId:'360094393045',jobNumber:'26254'});
+ assert.ok(sql.includes('p.client'));assert.ok(sql.includes("'Game Seven Big 12 Pop-Up'"));assert.equal(sql.includes('ilike'),false);
+ assert.equal(quoteIdentityKey(row),quoteIdentityKey({title:'Game Seven - Big 12 Pop Up',client_name:'Game Seven'}));
+ assert.notEqual(quoteIdentityKey(row),quoteIdentityKey({...row,client_name:'Another Client'}));
+ for(const [name,client] of [['Game Seven - Big 12 Pop Up - Storage','Game Seven'],['Game Seven - Big 12 Pop Up','Another Client']]){
+  await assert.rejects(()=>resolveProjectLink(async()=>[{hubspot_deal_id:'1',job_number:'2',name,client}],row),/SOURCE_IDENTITY_CHANGED/);
+ }
+ await assert.rejects(()=>resolveProjectLink(async()=>[{hubspot_deal_id:'1',job_number:'2',name:'Big 12 Pop Up',client:'Game Seven'},{hubspot_deal_id:'3',job_number:'4',name:'Game Seven - Big 12 Pop Up',client:'Game Seven'}],row),/AMBIGUOUS_PROJECT_LINK/);
 });

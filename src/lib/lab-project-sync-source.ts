@@ -81,18 +81,35 @@ export async function readActivity(query:SourceQuery,rules:ApprovedSourceRules,d
  validateProjectCosting(capture,evidence,activityId,activityHash);
  return {activityId,activityHash,capture,evidence,costingHash:sha(evidence)};
 }
-// Discover only a unique exact canonical name or an explicit job number in the
-// read-only Production source. HubSpot and the activity export verify it again.
-export async function resolveProjectLink(query:SourceQuery,row:{title?:string;hubspot_deal_id?:string|null;job_number?:string|null}){
+// Match project identity, allowing punctuation and a verified client prefix.
+// This is whole-name equivalence, never an arbitrary substring/similarity score.
+const identityText=(value:string)=>value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+export function quoteIdentityKey(row:{title?:string;client_name?:string|null}){
+ const title=identityText(row.title??''),client=identityText(row.client_name??'');
+ const project=client&&title.startsWith(client+' ')?title.slice(client.length+1):title;
+ return title?(client?client+'|':'')+project:'';
+}
+export async function resolveProjectLink(query:SourceQuery,row:{title?:string;client_name?:string|null;hubspot_deal_id?:string|null;job_number?:string|null}){
  const deal=row.hubspot_deal_id?.trim(),job=row.job_number?.trim();
  if(deal){if(!/^\d+$/.test(deal))throw new SyncIssue('INVALID_DEAL_LINK');if(job&&!/^\d+$/.test(job))throw new SyncIssue('INVALID_JOB_LINK');return {dealId:deal,jobNumber:job||null};}
  if(job&&!/^\d+$/.test(job))throw new SyncIssue('INVALID_JOB_LINK');
- const title=row.title?.trim().replace(/\s+/g,' ').toLowerCase();
- if(!job&&(!title||title.length>300))throw new SyncIssue('MISSING_DEAL_OR_JOB');
- const where=job?`p.job_number=${literal(job)}`:`lower(regexp_replace(btrim(p.name),'[[:space:]]+',' ','g'))=${literal(title!)}`;
- const matches=await query(`select p.hubspot_deal_id,p.job_number from public.projects p where ${where} order by p.id limit 3`);
+ const title=row.title?.trim(),client=row.client_name?.trim();
+ if(!job&&(!title||title.length>300||!identityText(title)))throw new SyncIssue('MISSING_DEAL_OR_JOB');
+ if(client&&client.length>300)throw new SyncIssue('INVALID_CLIENT_IDENTITY');
+ const normalized=(expression:string)=>`btrim(lower(regexp_replace(${expression},'[^[:alnum:]]+',' ','g')))`;
+ const name=normalized('p.name');
+ const names=title?[`${name}=${normalized(literal(title))}`]:[];
+ if(title&&client&&identityText(client))names.push(`${name}=${normalized(literal(client+' '+title))}`);
+ const where=job?`p.job_number=${literal(job)}`:`(${names.join(' or ')})${client&&identityText(client)?` and ${normalized('p.client')}=${normalized(literal(client))}`:''}`;
+ const matches=await query(`select p.hubspot_deal_id,p.job_number,p.name,p.client from public.projects p where ${where} order by p.id limit 3`);
  if(matches.length!==1)throw new SyncIssue(matches.length?'AMBIGUOUS_PROJECT_LINK':'MISSING_DEAL_OR_JOB');
- const match=matches[0];if(!/^\d+$/.test(match.hubspot_deal_id??'')||!/^\d+$/.test(match.job_number??''))throw new SyncIssue('MISSING_DEAL_OR_JOB');
+ const match=matches[0];
+ if(!job){
+  if(typeof match.name!=='string'||(client&&identityText(client)!==identityText(match.client??'')))throw new SyncIssue('SOURCE_IDENTITY_CHANGED');
+  const actual=identityText(match.name);
+  if(actual!==identityText(title!)&&(!client||actual!==identityText(client+' '+title)))throw new SyncIssue('SOURCE_IDENTITY_CHANGED');
+ }
+ if(!/^\d+$/.test(match.hubspot_deal_id??'')||!/^\d+$/.test(match.job_number??''))throw new SyncIssue('MISSING_DEAL_OR_JOB');
  return {dealId:String(match.hubspot_deal_id),jobNumber:String(match.job_number)};
 }
 export async function readDeal(dealId:string,token:string,fetcher:typeof fetch=fetch){
