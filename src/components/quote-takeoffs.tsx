@@ -1,4 +1,5 @@
 'use client';
+import {quoteInputNumber} from '@/lib/quote-format';
 import {builderItemName} from '@/lib/quote-builder-display';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useMemo,useRef,useState} from 'react';
@@ -64,15 +65,15 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
     if(key==='itemName'){const index=quote.lines.findIndex(line=>line.id===row.lineId);const name=index<0?'':builderItemName(quote.lines[index],index);return name===quoteItemLabel(quote,row.lineId)?'':name;}
-    if(key==='quantity'&&isLaborTakeoff(quote,row))return saved&&row.hours?String(row.hours):'';
+    if(key==='quantity'&&isLaborTakeoff(quote,row))return saved&&row.hours?quoteInputNumber(row.hours):'';
     if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
     if(key==='unit')return row.unit??catalog.get(row.materialId??'')?.unit??'';
     if(key==='tradeId')return quote.trades.find(trade=>trade.id===row.tradeId)?.name??'';
     if(key==='materialTotal')return saved?(computed.get(row.id)?.cost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
-    if(key==='extendedHours')return saved?String(computed.get(row.id)?.extendedHours??0):'';
+    if(key==='extendedHours')return saved?quoteInputNumber(computed.get(row.id)?.extendedHours??0):'';
     if(key==='resale')return row.resale?'Yes':'No';
     if(key==='unitCostOverride')return saved&&(row.description!==EMPTY_TAKEOFF_DESCRIPTION||row.quantity||row.unitCostOverride)?(row.unitCostOverride??catalog.get(row.materialId??'')?.unitCost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
-    return saved?String((key==='sections'?row[key]:row[key]||'')??''):'';
+    const value=(key==='sections'?row[key]:row[key]||'')??'';return saved?(['quantity','sections','hours'].includes(key)?quoteInputNumber(value):String(value)):'';
   }
   async function addManual(row:Takeoff){
     const input=manualCatalogInput(row);if(!input||!costEntered.current.has(row.id)||!live.materials)return;if(!live.initialized){setCatalogNotice('This entry is saved in your quote. Automatic catalog saving starts after Tracker catalog setup and import.');return;}
@@ -82,6 +83,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   }
   function apply(row:number,column:number,values:string[][],picked=false) {
     if(readOnly)return false;
+    values=values.map(cells=>cells.map((value,i)=>{const numeric=['quantity','sections','hours','unitCostOverride'].includes(columns[column+i]);const clean=value.replace(/[$,]/g,'').trim();return numeric&&clean!==''&&Number.isFinite(Number(clean))?quoteInputNumber(clean):value;}));
     try {
       if(values.some(cells=>column+cells.length>columns.length))throw new Error('Paste extends beyond the visible worksheet columns.');
       const trial=structuredClone(quote);

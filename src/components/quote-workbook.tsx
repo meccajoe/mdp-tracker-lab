@@ -1,4 +1,5 @@
 "use client";
+import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import {confirmAction,confirmLinkNavigation} from "./confirm-action";
 import {QuoteCapacityVersion} from './quote-capacity-version';
@@ -35,7 +36,7 @@ const inputLabels: Record<keyof Inputs, string> = { materials:'Material cost', r
 
 
 function Numeric({ label, value, onChange, nullable = false }: { label: string; value: number | null; onChange: (value: number | null) => void; nullable?: boolean }) {
-  return <input aria-label={label} type="number" min="0" step="any" className={`${control} w-28 tabular-nums`} value={value ?? ''} placeholder={nullable ? 'Calculated' : '0'} onChange={event => onChange(event.target.value === '' ? (nullable ? null : 0) : Number(event.target.value))} />;
+  return <QuoteNumberInput aria-label={label} type="number" min="0" step="any" className={`${control} w-28 tabular-nums`} value={value ?? ''} placeholder={nullable ? 'Calculated' : '0'} onChange={event => onChange(event.target.value === '' ? (nullable ? null : 0) : Number(event.target.value))} />;
 }
 
 export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryItem=false }: { libraryItem?:boolean;quoteName?:string;workspaceId: string; onDirtyChange: (dirty: boolean) => void }) {
@@ -208,7 +209,9 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     {!document && !busy && !error && <p>No saved workbook. An editor can create the first revision.</p>}
     <div className={styles.statusControls}>
     {document&&!libraryItem&&<fieldset disabled={!canEdit||busy} className={styles.inlineControls}>      <label className="text-xs">Forecast status<select aria-label="Quote forecast status" className={`${control} block`} value={document.schedule?.status??''} onChange={event=>edit(next=>{next.schedule=withForecastStatus({...EMPTY_SCHEDULE,...next.schedule},event.target.value as typeof EMPTY_SCHEDULE.status);})}><option value="">Choose status</option>{FORECAST_STATUSES.map(status=><option key={status} value={status}>{forecastLabel(status)}</option>)}</select></label>
-      <label className="text-xs">Sales commission %<input className={`${control} block w-28`} type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={document.commission===0?'':Number((document.commission*100).toFixed(8))} placeholder="—" onChange={event=>edit(next=>{next.commission=Number(event.target.value)/100;})}/></label>
+      <label className="text-xs">Salesperson<select aria-label="Salesperson" className={`${control} block`} value={['Paul Mecca','Maria Mecca','Peyton Hromcik','Kenneth Mecca','Carlos Chaidez'].includes(document.salesperson??'')?document.salesperson:document.salesperson?'Other':''} onChange={event=>edit(next=>{next.salesperson=event.target.value;})}><option value="">Choose salesperson</option>{['Paul Mecca','Maria Mecca','Peyton Hromcik','Kenneth Mecca','Carlos Chaidez','Other'].map(name=><option key={name}>{name}</option>)}</select></label>
+      {document.salesperson&&!['Paul Mecca','Maria Mecca','Peyton Hromcik','Kenneth Mecca','Carlos Chaidez'].includes(document.salesperson)&&<label className="text-xs">Salesperson name<input aria-label="Other salesperson name" className={`${control} block`} maxLength={200} value={document.salesperson==='Other'?'':document.salesperson} onChange={event=>edit(next=>{next.salesperson=event.target.value||'Other';})}/></label>}
+      <label className="text-xs">Sales commission %<QuoteNumberInput className={`${control} block w-28`} type="number" min="0" max="99.99" step="any" aria-label="Sales commission percent" value={document.commission===0?'':Number((document.commission*100).toFixed(2))} placeholder="—" onChange={event=>edit(next=>{next.commission=Number(event.target.value)/100;})}/></label>
       <a className="text-xs underline" href={`/capacity/${workspaceId}`}>Project capacity & timeline</a>
 </fieldset>}
     {!libraryItem&&<QuoteCapacityVersion key={`${workspaceId}:${version}`} workspaceId={workspaceId} disabled={busy||dirty||pendingInput||saving}/>}

@@ -36,3 +36,5 @@ test('blank takeoff row capacity survives save parsing without adding priced row
  for(const value of [0,49,5001,50.5,'100'])assert.throws(()=>parseQuoteV27({...fixture,takeoffRowCapacity:value}));
  assert.equal(parseQuoteV27(fixture).takeoffRowCapacity,undefined);
 });
+
+test('salesperson survives quote revisions without changing calculations',()=>{for(const salesperson of ['Paul Mecca','Maria Mecca','Peyton Hromcik','Kenneth Mecca','Carlos Chaidez','Other','Guest salesperson']){const q=parseQuoteV27({...fixture,salesperson});assert.equal(q.salesperson,salesperson);assert.equal(calculateQuoteV27(q).totals.price,calculateQuoteV27(parseQuoteV27(fixture)).totals.price);}assert.throws(()=>parseQuoteV27({...fixture,salesperson:42}));assert.throws(()=>parseQuoteV27({...fixture,salesperson:'x'.repeat(201)}));});

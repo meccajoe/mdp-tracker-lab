@@ -1,4 +1,5 @@
 "use client";
+import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney} from '@/lib/quote-format';
 import {ALLOWANCE_DEFAULTS,ALLOWANCE_KEYS} from '@/lib/travel-allowances';
 
@@ -56,7 +57,7 @@ function RateInput({label,value,unit,onChange,nullable=false}: {
   const shown = value===null ? '' : unit==='%' ? Number((value*100).toPrecision(15)) : value;
   return <div className={styles.input}>
     {unit==='$' && <span aria-hidden="true">$</span>}
-    <input aria-label={`${label} (${unit})`} type="number" min="0" step="any" key={shown} defaultValue={shown===0&&!nullable?'':shown}
+    <QuoteNumberInput aria-label={`${label} (${unit})`} type="number" min="0" step="any" key={shown} defaultValue={shown===0&&!nullable?'':shown}
       placeholder={nullable?'—':''} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}} onBlur={event=>{
         const entered=event.target.value;
         const next=entered==='' ? (nullable?null:0) : Number(entered)/(unit==='%'?100:1);
@@ -94,7 +95,7 @@ export function QuoteRates({quote,edit,laborRate}: {
           {row.key==='burdenedRateOverride' && quote.settings.burdenedRateOverride!==null && <button type="button" className={styles.restore} onClick={()=>setting(row.key,null)}>Restore calculated rate</button>}</div>
         <p>{levyPricing?(levyNotes[row.key]??row.note):row.note}</p>
       </div>)}
-      {group.title==='Professional services'&&<div className={styles.calculated}><span>PM loaded cost</span><strong>$0.00</strong><span>PM salaries recovered inside the {Number((quote.settings.opex*100).toFixed(4))}% OpEx (one address per dollar).</span></div>}
+      {group.title==='Professional services'&&<div className={styles.calculated}><span>PM loaded cost</span><strong>$0.00</strong><span>PM salaries recovered inside the {Number((quote.settings.opex*100).toFixed(2))}% OpEx (one address per dollar).</span></div>}
       {group.title==='Global parameters' && <div className={styles.calculated}><span>Labor cost in use / hour</span><strong>{laborRate===null?'Unavailable':money(laborRate)}</strong><span>{quote.settings.burdenedRateOverride===null?'Calculated from trade wages and burden multiplier.':'Manual rate override in use.'}</span></div>}
     </section>)}
     {levyPricing&&<section className={styles.group} aria-label="Line type contingency"><h3>Line type contingency</h3>

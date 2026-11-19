@@ -43,6 +43,7 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
   const parsed: QuoteV27 = {
     schemaVersion: 1, assumptionsVersion: text(v.assumptionsVersion, 'Assumptions version', 200),
     commission: num(v.commission),
+    ...optionalText(v,'salesperson',200),
     settings: { ...Object.fromEntries(settingKeys.map(key => [key, num(settings[key])])), burdenedRateOverride: nullable(settings.burdenedRateOverride) } as Settings,
     trades: list(v.trades, 100).map(row => ({ id: id(row.id), name: text(row.name, 'Trade name'), wage: nullable(row.wage) })),
     catalog: list(v.catalog, 2000).map(row => ({id:id(row.id),name:text(row.name,'Material name'),unit:typeof row.unit === 'string' && row.unit.length <= 200 ? row.unit : '',unitCost:num(row.unitCost)})),

@@ -42,6 +42,7 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
+  salesperson?: string;
   pricingVersion?: "levies-v1" | "scoped-levies-v2";
   contingencyByType?: Record<LineType, boolean>;
   importNotes?: string[];

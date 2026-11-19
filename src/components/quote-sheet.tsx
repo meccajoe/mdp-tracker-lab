@@ -1,4 +1,5 @@
 "use client";
+import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import {builderItemName,showBuilderLine} from '@/lib/quote-builder-display';
 import {useState} from "react";
@@ -58,7 +59,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
     return <td key={key} className={`${styles.entry} ${overridden ? styles.overridden : ''}`}>
       <div className={styles.inputCell}>
         {['materials','resale','rental','cost'].includes(key)&&<span className={styles.currencyPrefix} aria-hidden="true">$</span>}
-        <input type="number" min="0" step="any" aria-label={`${label} · ${line.name}`}
+        <QuoteNumberInput type="number" min="0" step="any" aria-label={`${label} · ${line.name}`}
           title={`Calculated: ${numeric(calculated)}. Enter a manual override; clear to restore.`}
           key={`${overridden}-${override}-${calculated}`} defaultValue={overridden ? override : calculated === 0 ? '' : calculated} placeholder="—"
           onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=String(overridden?override:calculated||'');e.currentTarget.blur();}}}
@@ -94,7 +95,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
             {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}
             {inputCell(line,'cost','Cost $')}
             <td>{row ? amount(row.calculatedPrice) : '—'}</td>
-            <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><input type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} key={line.priceOverride??'auto'} defaultValue={line.priceOverride??''} placeholder="—" onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=String(line.priceOverride??'');e.currentTarget.blur();}}} onBlur={e=>{const value=e.target.value===''?null:Number(e.target.value);if(value!==line.priceOverride)edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=value;});}}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
+            <td className={styles.entry}><div className={styles.inputCell}><span className={styles.currencyPrefix} aria-hidden="true">$</span><QuoteNumberInput type="number" min="0" step="any" aria-label={`Price override · ${line.name}`} key={line.priceOverride??'auto'} defaultValue={line.priceOverride??''} placeholder="—" onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){e.currentTarget.value=String(line.priceOverride??'');e.currentTarget.blur();}}} onBlur={e=>{const value=e.target.value===''?null:Number(e.target.value);if(value!==line.priceOverride)edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=value;});}}/>{line.priceOverride!==null && <button type="button" className={styles.restore} aria-label={`Restore price · ${line.name}`} title="Restore computed price" onClick={()=>edit(next=>{next.lines.find(l=>l.id===line.id)!.priceOverride=null;})}>↺</button>}</div></td>
             <td className={styles.finalPrice}>{row ? amount(row.finalPrice) : '—'}</td>
             {outputs.map(([key])=><td key={key} title={install&&['laborBudget','buildBudget'].includes(key)?'Installation costs remain in project economics; review Install Labor for details.':undefined}>{install&&['laborBudget','buildBudget'].includes(key)?'':row ? (key==='hoursAllowed'?numeric(row[key]):key==='margin'?<MarginDetail row={row}>{amount(row.margin)}</MarginDetail>:amount(row[key])) : '—'}</td>)}
             <td className={row?.belowOverhead?styles.belowOverhead:undefined} title="Red means margin is below the OpEx recovery percentage.">{row?.marginPercent != null ? <MarginDetail row={row}>{`${(row.marginPercent*100).toFixed(1)}%`}</MarginDetail> : '—'}</td>

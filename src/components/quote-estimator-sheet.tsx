@@ -1,21 +1,22 @@
 'use client';
-import {quoteMoney} from '@/lib/quote-format';
+import {QuoteNumberInput} from './quote-number-input';
+import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import type {ReactNode} from 'react';
 import {INSTALLERS,PEOPLE,PERSON_LABELS,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
 import {type QuoteV27} from '@/lib/quote-v27';
 import styles from './quote-estimator-sheet.module.css';
 const money=quoteMoney;
 function NumberCell({label,value,change,nullable=false,placeholder='',signed=false}:{label:string;value:number|null;change:(value:number|null)=>void;nullable?:boolean;placeholder?:string;signed?:boolean}){
- return <input aria-label={label} key={value??'auto'} type="number" step="any" min={signed?undefined:0} defaultValue={value===0&&!nullable?'':value??''} placeholder={placeholder} onBlur={event=>{const next=event.target.value===''?(nullable?null:0):Number(event.target.value);if(next!==value)change(next);}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}}/>;
+ return <QuoteNumberInput aria-label={label} key={value??'auto'} type="number" step="any" min={signed?undefined:0} defaultValue={value===0&&!nullable?'':value??''} placeholder={placeholder} onBlur={event=>{const next=event.target.value===''?(nullable?null:0):Number(event.target.value);if(next!==value)change(next);}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}}/>;
 }
 export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{kind:'Install'|'Travel';laborRate:number;quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
  const e=quote.estimators!,s=quote.settings;
  const people=kind==='Install'?INSTALLERS:PEOPLE;
- const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{cell}</td>)}</tr>;
+ const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{typeof cell==='number'?quoteNumber(cell):cell}</td>)}</tr>;
  const section=(label:string)=><tr key={label} className={styles.section}><th colSpan={people.length+1}>{label}</th></tr>;
  const travelNumber=(key:'installDays'|'offDays'|'dismantleDays'|'daysPerTrip'|'hotelAdjustment',label:string)=>row(label,PEOPLE.map(id=>{
   const person=e.travel.people[id];const follows=person.useInstallDays&&id!=='pm'&&['installDays','offDays','dismantleDays'].includes(key);
-  return follows?<span title="Follows Install Labor">{e.install[id as typeof INSTALLERS[number]][key as 'installDays'|'offDays'|'dismantleDays']}</span>:<NumberCell label={`${PERSON_LABELS[id]} ${label}`} value={person[key]} signed={key==='hotelAdjustment'} change={value=>update(next=>{next.travel.people[id][key]=value??0;})}/>;
+  return follows?<span title="Follows Install Labor">{quoteNumber(e.install[id as typeof INSTALLERS[number]][key as 'installDays'|'offDays'|'dismantleDays'])}</span>:<NumberCell label={`${PERSON_LABELS[id]} ${label}`} value={person[key]} signed={key==='hotelAdjustment'} change={value=>update(next=>{next.travel.people[id][key]=value??0;})}/>;
  }));
  const travelSwitch=(key:'traveling'|'stays'|'roadBonus',label:string)=>row(label,PEOPLE.map(id=><select aria-label={`${PERSON_LABELS[id]} ${label}`} value={e.travel.people[id][key]?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id][key]=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>));
  const support=e.install.support;
@@ -68,7 +69,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  {row('Uber/Lyft/Rental (count × $/day × longest road days)',[money(e.travel.rates.vehicles*e.travel.rates.vehicle*Math.max(0,...(result?.travel.map(p=>p.roadDays)??[])))],true)}
  {row('Other',[money(e.travel.rates.other)],true)}
  {row('TOTAL TRAVEL COST',[money(result?.travelCost??0)],true)}
- {row('Markup on travel',[`${s.travelMarkup*100}%`],true)}
+ {row('Markup on travel',[`${quoteNumber(s.travelMarkup*100)}%`],true)}
  {row('PRICE TO CLIENT (before commission)',[money((result?.travelCost??0)*(1+s.travelMarkup))],true)}
  {section('Per-person split (to quote travel separately)')}
  {row('Share of Uber/Lyft/Rental & other',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.shared??0)),true)}
@@ -80,7 +81,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
 export function QuoteShippingSheet({quote,result,update,links}:{quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
  const shipping=quote.estimators!.shipping;
  const legs=['outbound','return'] as const;
- const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{cell}</td>)}</tr>;
+ const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{typeof cell==='number'?quoteNumber(cell):cell}</td>)}</tr>;
  return <div className={styles.sheet}><h2>Shipping Estimator</h2><p>Outbound and return shipments use the shared rates below. Green rows calculate automatically.</p><div className={styles.scroll} role="region" aria-label="Shipping estimator scroll area" tabIndex={0}><table aria-label="Shipping estimator worksheet"><thead><tr><th>Shipping inputs</th><th>Outbound shipment</th><th>Return shipment</th></tr></thead><tbody>
  {row('Ship this leg?',legs.map(id=><select aria-label={`Ship ${id}`} value={shipping[id].enabled?'Yes':'No'} onChange={event=>update(next=>{next.shipping[id].enabled=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>))}
  {row('Mode',legs.map(id=><select aria-label={`${id} shipping mode`} value={shipping[id].mode} onChange={event=>update(next=>{next.shipping[id].mode=event.target.value;})}>{['Our truck','Rented truck','LTL freight','FTL freight'].map(mode=><option key={mode}>{mode}</option>)}</select>))}
