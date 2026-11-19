@@ -1,5 +1,7 @@
 'use client';
 import {confirmAction,confirmLinkNavigation} from './confirm-action';
+import {salespersonOptions} from '@/lib/quote-salesperson';
+import {salespersonProjectIds} from '@/lib/capacity-salesperson';
 import {QuoteLibrary} from './quote-library';
 import {forecastLabel} from '@/lib/quote-schedule';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
@@ -24,6 +26,9 @@ type SavedQuote=CapacityQuote&{version:number;canEdit:boolean};
 function Entry({label,value,onChange,nullable=false}:{label:string;value:number|null;onChange:(value:number|null)=>void;nullable?:boolean}){return <input aria-label={label} type="number" min="0" step="any" key={value??'auto'} defaultValue={value??''} placeholder={nullable?'Quoted':''} onBlur={event=>{const next=event.target.value===''&&nullable?null:Number(event.target.value);if(next!==value)onChange(next);}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}}/>;}
 export function CapacityTracker(){
  const [tab,setTab]=useState('Dashboard'),[quotes,setQuotes]=useState<SavedQuote[]>([]),[document,setDocument]=useState<CapacityDocument>(emptyCapacity),[version,setVersion]=useState(0),[canEdit,setCanEdit]=useState(false),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[settingsError,setSettingsError]=useState(''),[scenario,setScenario]=useState<string[]>([]),[editing,setEditing]=useState<string|null>(null),[plan,setPlan]=useState<CapacityOverride>(emptyOverride);
+ const [salespersonFilter,setSalespersonFilter]=useState('all');
+ const salespeople=useMemo(()=>salespersonOptions(quotes.map(q=>q.document?.salesperson)),[quotes]);
+ const salespersonIds=useMemo(()=>salespersonProjectIds(quotes,salespersonFilter),[quotes,salespersonFilter]);
  const [visited,setVisited]=useState(()=>new Set(['Dashboard']));
  const [activations,setActivations]=useState<Record<string,string>>({});
  const [productionPlans,setProductionPlans]=useState<Record<string,ProductionPlan>>({}),[planError,setPlanError]=useState('');
@@ -41,7 +46,7 @@ export function CapacityTracker(){
   refreshRef.current=controller;
   const visibility=()=>{if(window.document.visibilityState==='hidden')controller.pause();else void controller.request(true);};
   const saved=()=>{window.dispatchEvent(new Event('capacity-schedules-refresh'));void controller.request(true);};
-  const identity=()=>{setQuotes([]);setScenario([]);setEditing(null);setPlan(emptyOverride());editingRef.current=null;controller.pause();void controller.request(true);};
+  const identity=()=>{setSalespersonFilter('all');setQuotes([]);setScenario([]);setEditing(null);setPlan(emptyOverride());editingRef.current=null;controller.pause();void controller.request(true);};
   window.document.addEventListener('visibilitychange',visibility);
   window.addEventListener('quote-workbook-saved',saved);
   window.addEventListener('quote-library-identity-changed',identity);
@@ -66,8 +71,9 @@ export function CapacityTracker(){
  <nav role="tablist" aria-label="Capacity sections">{['Dashboard','Projects','Team Schedule','Capacity Planning','Field Load','Roster & Settings'].map(name=><button role="tab" aria-selected={tab===name} key={name} onClick={()=>{setVisited(current=>current.has(name)?current:new Set([...current,name]));setTab(name);}}>{name}</button>)}</nav>
  {notice&&<p role="status">{notice}</p>}{error&&<p role="alert" className={styles.error}>{error}</p>}{settingsError&&<p role="alert" className={styles.error}>{settingsError}</p>}
  {planError&&<div role="alert" className={styles.error}>{planError} <button type="button" onClick={()=>window.dispatchEvent(new Event('capacity-schedules-refresh'))}>Retry loading schedules</button></div>}
- {visited.has('Team Schedule')&&<div hidden={tab!=='Team Schedule'}><TeamSchedule active={tab==='Team Schedule'}/></div>}
- {visited.has('Dashboard')&&<div hidden={tab!=='Dashboard'}><CapacityDashboard projects={projects} settings={document.settings} settingsUnavailable={Boolean(settingsError)}/></div>}
+ {(tab==='Dashboard'||tab==='Team Schedule')&&<div className={styles.toolbar}><label>Salesperson<select aria-label="Filter capacity salesperson" value={salespersonFilter} onChange={e=>setSalespersonFilter(e.target.value)}><option value="all">All salespeople</option><option value="unassigned">Unassigned</option>{salespeople.map(name=><option key={name} value={`person:${name}`}>{name}</option>)}</select></label>{salespersonFilter!=='all'&&<small>Showing matching projects. Shared staff capacity and schedule assignments still account for all projects.</small>}</div>}
+ {visited.has('Team Schedule')&&<div hidden={tab!=='Team Schedule'}><TeamSchedule active={tab==='Team Schedule'} salespersonIds={salespersonIds}/></div>}
+ {visited.has('Dashboard')&&<div hidden={tab!=='Dashboard'}><CapacityDashboard salespersonIds={salespersonIds} projects={projects} settings={document.settings} settingsUnavailable={Boolean(settingsError)}/></div>}
  {visited.has('Field Load')&&<div hidden={tab!=='Field Load'}><CapacityDashboard mode="field" projects={projects} settings={document.settings} settingsUnavailable={Boolean(settingsError)}/></div>}
  {tab==='Roster & Settings'&&<><div className={styles.toolbar}><label>Week grid starts (Monday)<input aria-label="Week grid starts" type="date" value={document.settings.weekStart} disabled={!canEdit||busy} onChange={event=>{if(event.target.value)change(next=>{next.settings.weekStart=monday(event.target.value);});}}/></label><p>Production uses Monday–Friday by default. Set Saturday/Sunday work separately on each project’s capacity page.</p><label>Field hour distribution<select aria-label="Field hour distribution" disabled={!canEdit||busy} value={document.settings.fieldAllocation} onChange={event=>change(next=>{next.settings.fieldAllocation=event.target.value as 'install'|'build';})}><option value="install">Install date + estimated field days</option><option value="build">Build window (spreadsheet method)</option></select></label><button disabled={!canEdit||!dirty||busy} onClick={()=>void saveSettings()}>Save roster & settings</button><button disabled={busy} onClick={async ()=>{if(!dirty||await confirmAction('Discard unsaved roster changes?'))void loadSettings().catch(error=>setError(error.message));}}>Reload settings</button></div>
  <section aria-label="CAD capacity" className={styles.toolbar}><label>Total available CAD hours per week<input aria-label="Total available CAD hours per week" type="number" min="0" step="any" placeholder="Use CAD roster total" value={document.settings.cadHoursPerWeek??''} disabled={!canEdit||busy} onChange={event=>{const value=event.target.value;change(next=>{next.settings.cadHoursPerWeek=value===''?null:Number(value);});}}/></label><p>Total for the whole CAD team, spread across Monday–Friday. Replaces CAD roster capacity; leave blank to use the roster total. Enter 0 for no available CAD time. Save with “Save roster & settings” above.</p></section>

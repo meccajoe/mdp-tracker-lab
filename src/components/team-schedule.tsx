@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useState,useRef,useMemo} from 'react';
+import {filterTeamProjects} from '@/lib/capacity-salesperson';
 import {adaFetch} from '@/lib/ada-client';
 import {dateString,dayNumber} from '@/lib/capacity';
 import {validDate} from '@/lib/quote-schedule';
@@ -42,11 +43,11 @@ function SchedulingAttention({result}:{result:Result}){
   {!projects.size&&<p>No unassigned work in this schedule.</p>}
  </section>;
 }
-export function TeamSchedule({active:visible=true}:{active?:boolean}){
+export function TeamSchedule({active:visible=true,salespersonIds=null}:{active?:boolean;salespersonIds?:string[]|null}){
  const loaded=useRef({start:"",finish:"",at:0});
  const today=new Date().toLocaleDateString('en-CA');
  const [options,setOptions]=useState<TeamOptions>({start:today,finish:dateString(dayNumber(today)+27),priority:[],availability:[]});
- const [result,setResult]=useState<Result>(),[error,setError]=useState(''),[loading,setLoading]=useState(true),[person,setPerson]=useState(''),[project,setProject]=useState(''),[trade,setTrade]=useState('');
+ const [allResult,setResult]=useState<Result>(),[error,setError]=useState(''),[loading,setLoading]=useState(true),[person,setPerson]=useState(''),[project,setProject]=useState(''),[trade,setTrade]=useState('');
  const [refresh,setRefresh]=useState(0);
  useEffect(()=>{
   let active=true,running=false,generation=0;
@@ -74,13 +75,16 @@ export function TeamSchedule({active:visible=true}:{active?:boolean}){
   return()=>{active=false;clearTimeout(initial);clearInterval(timer);document.removeEventListener('visibilitychange',update);window.removeEventListener('production-plan-saved',update);window.removeEventListener('capacity-schedules-refresh',update);window.removeEventListener('quote-library-identity-changed',identity);};
  },[options.start,options.finish,refresh,visible]);
  useEffect(()=>{const invalidate=()=>{loaded.current.at=0;};const identity=()=>{invalidate();setResult(undefined);setPerson('');setProject('');setTrade('');};window.addEventListener('production-plan-saved',invalidate);window.addEventListener('capacity-schedules-refresh',invalidate);window.addEventListener('quote-library-identity-changed',identity);return()=>{window.removeEventListener('production-plan-saved',invalidate);window.removeEventListener('capacity-schedules-refresh',invalidate);window.removeEventListener('quote-library-identity-changed',identity);};},[]);
+ const result=useMemo(()=>filterTeamProjects(allResult,salespersonIds),[allResult,salespersonIds]);
+ useEffect(()=>{if(project&&result&&!result.projects.some(p=>p.id===project))setProject('');},[result,project]);
  const rows=useMemo(()=>result?.allocations.filter(a=>a.date>=options.start&&a.date<=options.finish&&(!person||a.personId===person)&&(!project||a.workspaceId===project)&&(!trade||capacityTrade(a.trade)===trade))??[],[result,options.start,options.finish,person,project,trade]);
  return <section aria-label="Team Schedule">
  <div className={styles.toolbar}><div className={styles.scheduleDateFields}><label>From<input aria-label="Schedule start date" type="date" value={options.start} onInput={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,start:value}));}} onBlur={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,start:value}));}}/></label><label>Through<input aria-label="Schedule end date" type="date" value={options.finish} onInput={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,finish:value}));}} onBlur={e=>{const value=e.currentTarget.value;setOptions(current=>({...current,finish:value}));}}/></label><button onClick={()=>setOptions({...options,start:today,finish:dateString(dayNumber(today)+27)})}>Next 4 weeks</button></div>
  <div aria-live="polite" className={styles.liveScheduleSummary}>
- {result?<><strong className={styles.liveScheduleTitle}>Live Schedule</strong><p>{options.start} — {options.finish} · {result.projects.length} projects · {n(result.assignedHours)} assigned / {n(result.totalHours)} required hours · {n(result.unfilled.reduce((sum,t)=>sum+t.hours-(t.futureHours??0),0))} unassigned{result.unfilled.some(t=>t.futureHours)&&<> · {n(result.unfilled.reduce((sum,t)=>sum+(t.futureHours??0),0))}h planned beyond view</>}</p><small>Includes all entered Active projects. Planned work after these dates is shown separately from unassigned hours.</small>{result.allocations.some(a=>a.workMode&&a.workMode!=='Regular')&&<p style={{color:'#9a4b0b'}}><strong>Extra shifts required: {n(result.allocations.filter(a=>a.workMode==='Weekday overtime').reduce((sum,a)=>sum+a.hours,0))}h weekday overtime · {n(result.allocations.filter(a=>a.workMode==='Weekend').reduce((sum,a)=>sum+a.hours,0))}h weekend</strong></p>}</>:loading?<p>Loading active projects…</p>:null}
+ {result?<><strong className={styles.liveScheduleTitle}>Live Schedule</strong><p>{options.start} — {options.finish} · {result.projects.length} projects · {n(result.assignedHours)} assigned / {n(result.totalHours)} required hours · {n(result.unfilled.reduce((sum,t)=>sum+t.hours-(t.futureHours??0),0))} unassigned{result.unfilled.some(t=>t.futureHours)&&<> · {n(result.unfilled.reduce((sum,t)=>sum+(t.futureHours??0),0))}h planned beyond view</>}</p><small>{salespersonIds===null?'Includes all entered Active projects.':'Includes Active projects matching the salesperson filter.'} Planned work after these dates is shown separately from unassigned hours.</small>{result.allocations.some(a=>a.workMode&&a.workMode!=='Regular')&&<p style={{color:'#9a4b0b'}}><strong>Extra shifts required: {n(result.allocations.filter(a=>a.workMode==='Weekday overtime').reduce((sum,a)=>sum+a.hours,0))}h weekday overtime · {n(result.allocations.filter(a=>a.workMode==='Weekend').reduce((sum,a)=>sum+a.hours,0))}h weekend</strong></p>}</>:loading?<p>Loading active projects…</p>:null}
  </div></div>
  {result&&<> <div className={styles.toolbar}><label>Employee<select value={person} onChange={e=>setPerson(e.target.value)}><option value="">All employees</option>{result.people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Project<select value={project} onChange={e=>setProject(e.target.value)}><option value="">All projects</option>{result.projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Trade<select value={trade} onChange={e=>setTrade(e.target.value)}><option value="">All trades</option>{Array.from(new Set([...result.allocations.map(a=>capacityTrade(a.trade)),...result.unfilled.map(a=>capacityTrade(a.trade)),...(result.preparation??[]).map(p=>p.kind==='CAD'?'CAD / Drawings':'Project Turnover')])).sort().map(t=><option key={t}>{t}</option>)}</select></label><button onClick={()=>{setPerson('');setProject('');setTrade('');}}>Show all</button></div>
+ {!result.projects.length&&<p role="status">No active projects match this salesperson.</p>}
  <TeamGantt result={result} filter={{person,project,trade}} range={{start:options.start,finish:options.finish}}/>
  <section className={styles.attention} aria-label="Overtime and shared capacity">
  <h3>Automatic staffing adjustments</h3>
@@ -89,7 +93,7 @@ export function TeamSchedule({active:visible=true}:{active?:boolean}){
  <p>Additional qualified people in normal hours first, then up to 4 extra hours per weekday, then up to 8 hours Saturday and 8 hours Sunday per person. Extra time is shared across all active projects. Saved absences, holidays, dependencies and fixed dates still apply. Quote prices and approved schedules stay unchanged.</p>
  {result.allocations.some(a=>a.workMode&&a.workMode!=='Regular')?<><p role="status"><strong>Regular hours are not enough. {n(result.allocations.filter(a=>a.workMode==='Weekday overtime').reduce((s,a)=>s+a.hours,0))} weekday overtime hours + {n(result.allocations.filter(a=>a.workMode==='Weekend').reduce((s,a)=>s+a.hours,0))} weekend hours are planned.</strong> Production team: review these extra shifts.</p>
  <ul>{result.projects.filter(p=>result.allocations.some(a=>a.workspaceId===p.id&&a.workMode&&a.workMode!=='Regular')).map(p=><li key={p.id}><strong>{p.name}</strong> — {n(result.allocations.filter(a=>a.workspaceId===p.id&&a.workMode==='Weekday overtime').reduce((s,a)=>s+a.hours,0))}h weekday overtime; {n(result.allocations.filter(a=>a.workspaceId===p.id&&a.workMode==='Weekend').reduce((s,a)=>s+a.hours,0))}h weekend</li>)}</ul></>:<p>No extra shifts could improve this schedule, or regular hours are sufficient. Review any unassigned work below.</p>}
- {!!result.pressure?.length&&<details><summary>Shared teams near capacity ({result.pressure.length})</summary><p>At least 85% of normal available hours are occupied. Projects listed share these people, including secondary trades.</p><ul>{result.pressure.map((p,i)=><li key={i}><strong>{p.trade} · week of {p.week} · {n(p.utilization*100)}%</strong> — {p.projects.join(', ')}</li>)}</ul></details>}
+ {!!result.pressure?.length&&<details><summary>Shared teams near capacity — all projects ({result.pressure.length})</summary><p>At least 85% of normal available hours are occupied. Projects listed share these people, including secondary trades.</p><ul>{result.pressure.map((p,i)=><li key={i}><strong>{p.trade} · week of {p.week} · {n(p.utilization*100)}%</strong> — {p.projects.join(', ')}</li>)}</ul></details>}
  </section>
 
 </>}
@@ -99,6 +103,6 @@ export function TeamSchedule({active:visible=true}:{active?:boolean}){
  <details><summary>Daily assignment list ({rows.length})</summary><div className={styles.scroll} style={{maxHeight:'60vh'}}><table aria-label="Team daily assignments"><thead><tr>{['Date','Employee','Project','Item','Trade','Hours','Shift','Skill'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((a,i)=><tr key={i}><td>{a.date}</td><th>{a.person}</th><td>{a.project}</td><td>{a.item}</td><td>{a.trade}</td><td>{n(a.hours)}</td><td>{a.workMode??'Regular'}</td><td>{a.secondary?'Secondary':'Primary'}</td></tr>)}</tbody></table>{!rows.length&&<p>No assignments in this view.</p>}</div></details>
  {!!result.preparation?.length&&<details><summary>CAD & project turnover details</summary><table aria-label="CAD and turnover schedule"><thead><tr>{['Project','Activity','Start','Finish','Working days','Quoted hours / staffing'].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{result.preparation.filter(p=>!project||p.workspaceId===project).map((p,i)=><tr key={i}><th>{p.project}</th><td>{p.kind==='CAD'?'CAD — maximum 15%':'Project turnover — maximum 20%'}</td><td>{p.start}</td><td>{p.finish}</td><td>{n(p.workdays)}</td><td>{p.hours===null?'No labor estimate':`${n(p.hours)}h`} · {p.staffingNote}</td></tr>)}</tbody></table></details>}
  <SchedulingAttention result={result}/>
- {result.warnings.length>0&&<details><summary>Planning assumptions and warnings ({result.warnings.length})</summary><ul>{result.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}</>}
+ {result.warnings.length>0&&<details><summary>Planning assumptions and warnings — all projects ({result.warnings.length})</summary><ul>{result.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>}</>}
  </section>;
 }
