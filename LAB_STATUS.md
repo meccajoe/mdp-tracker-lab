@@ -1,3 +1,7 @@
+## Storage monthly billing clarification — November 20, 2026
+- Paul confirmed $2/sqft/month and monthly amount only on the quote. New storage snapshots set billing=monthly; changing term only changes the reference contract total. New line named Storage (per month). UI displays quote billing basis. Previously saved storage snapshots retain contract pricing until explicitly switched; no saved quote rewrite. Manual selling overrides remain exact.
+- Seven storage tests, original calculator regressions and TypeScript passed. Deployment/hosted verification pending.
+
 ## Storage estimator — November 20, 2026
 - Added Storage workbook tab with all three source methods, Method1 default, per-quote editable rates/dimensions/multiplier, monthly/annual/contract comparison and explicit Add storage to quote. Default $2/sq ft/month, 12 months; new footprint empty. Source example625 is test data only. Existing quotes untouched until editing/adding storage.
 - Optional storage snapshot and Storage line type, with direct selling rate, saved rounding policy and separate price overrides. No added levies/PM fee or invented shop hours; commission stays margin expense. Standard revision/undo/autosave flow. Delete clears link, item clone freezes calculated inputs. No migration.

@@ -44,13 +44,13 @@ test('storage saves, updates a linked price, preserves overrides and does not cr
   const saved=parseQuoteV27(JSON.parse(JSON.stringify(quote)));
   assert.deepEqual(saved.storage,storage);
   let result=calculateQuoteV27(saved),line=result.lines.find(l=>l.id==='storage')!;
-  assert.equal(line.finalPrice,15000);assert.equal(line.buildBudget,100);
+  assert.equal(line.finalPrice,1250);assert.equal(line.buildBudget,100);
   assert.equal(line.hoursAllowed,0);assert.equal(line.indirect+line.contingency+line.waste,0);
   assert.deepEqual(result.lines.slice(0,-1),before.lines);
-  saved.storage!.method=2;assert.equal(calculateQuoteV27(saved).lines.at(-1)!.finalPrice,27000);
+  saved.storage!.method=2;assert.equal(calculateQuoteV27(saved).lines.at(-1)!.finalPrice,2250);
   saved.lines.at(-1)!.priceOverride=123.45;assert.equal(calculateQuoteV27(saved).lines.at(-1)!.finalPrice,123.45);
   saved.lines.at(-1)!.priceOverride=null;
-  const cloneId=cloneQuoteItem(saved,'storage');assert.equal(calculateQuoteV27(saved).lines.find(l=>l.id===cloneId)!.finalPrice,27000);
+  const cloneId=cloneQuoteItem(saved,'storage');assert.equal(calculateQuoteV27(saved).lines.find(l=>l.id===cloneId)!.finalPrice,2250);
   deleteQuoteItem(saved,'storage');assert.equal(saved.storage!.lineId,null);assert.doesNotThrow(()=>parseQuoteV27(saved));
   assert.equal(JSON.stringify(parseQuoteV27(JSON.parse(prior))),prior);
 });
@@ -66,3 +66,12 @@ test('old levy maps need no new key and storage uses saved upward rounding polic
   applyLevyPricing(quote);quote.pricingVersion='scoped-levies-v2';delete (quote.contingencyByType as Partial<NonNullable<typeof quote.contingencyByType>>).Storage;
   assert.equal(calculateQuoteV27(parseQuoteV27(quote)).lines.at(-1)!.calculatedPrice,1082);
 });
+
+ test('monthly quote amount ignores term changes; old contract snapshots retain their saved behavior',()=>{
+ const s=defaultStorage();s.footprint=625;
+ assert.equal(calculateStorage(s).quotedAmount,1250);
+ s.months=6;assert.equal(calculateStorage(s).quotedAmount,1250);
+ assert.equal(calculateStorage(s).selected.contract,7500);
+ delete s.billing;assert.equal(calculateStorage(parseStorage(s)).quotedAmount,7500);
+ assert.equal(parseStorage(s).billing,undefined);
+ });

@@ -157,7 +157,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
       calculatedInputs.hours = total?.hours ?? 0;
     }
     Object.assign(calculatedInputs, estimatorResult?.lineInputs[line.id] ?? {});
-    if(line.id===quote.storage?.lineId&&storageResult)calculatedInputs.rental=storageResult.selected.contract;
+    if(line.id===quote.storage?.lineId&&storageResult)calculatedInputs.rental=storageResult.quotedAmount;
     const input = { ...calculatedInputs };
     for (const key of Object.keys(EMPTY_INPUTS) as (keyof Inputs)[]) {
       nonnegative(calculatedInputs[key], `${line.id}.${key}`);
