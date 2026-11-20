@@ -1,6 +1,6 @@
 ## Storage monthly billing clarification — November 20, 2026
 - Paul confirmed $2/sqft/month and monthly amount only on the quote. New storage snapshots set billing=monthly; changing term only changes the reference contract total. New line named Storage (per month). UI displays quote billing basis. Previously saved storage snapshots retain contract pricing until explicitly switched; no saved quote rewrite. Manual selling overrides remain exact.
-- Seven storage tests, original calculator regressions and TypeScript passed. Deployment/hosted verification pending.
+- Seven storage tests, original calculator regressions and TypeScript passed. Commit c416595 deployed successfully (H7sGSmpPXy6DLwkBHDfrQ7MX2HUF; GitHub/Vercel success). Hosted temporary quote aa70f30a-6193-4170-b4fb-338e194c1476 verified default Method1/$2, footprint625 gives monthly1250, term12→6 leaves quote1250 with contract reference7500. Saved revision2/reload retained values and linkage; Client Quote displays Storage (per month), total1250. Test archived with confirmation; no working quotes changed. Screenshot /private/tmp/storage-monthly-verified.png.
 
 ## Storage estimator — November 20, 2026
 - Added Storage workbook tab with all three source methods, Method1 default, per-quote editable rates/dimensions/multiplier, monthly/annual/contract comparison and explicit Add storage to quote. Default $2/sq ft/month, 12 months; new footprint empty. Source example625 is test data only. Existing quotes untouched until editing/adding storage.
