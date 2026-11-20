@@ -45,6 +45,7 @@ test('group expansion reveals loaded older versions without requests or regroupi
 
 test('linked quotes expose job identity and job-number search without dropping the existing status controls',async()=>{
  const h=harness();h.row.job_number='26223';h.row.tracker_project_id='job';h.render();await h.settle();
+ assert.equal(h.nodes().find(n=>n.type==='DropdownMenuItem'&&n.props.children==='Rename').props.disabled,undefined);
  assert.match(h.text(),/Job number/);assert.match(h.text(),/26223/);assert.match(h.text(),/Refresh from HubSpot/);
  h.find('Search quotes').props.onChange({target:{value:'26223'}});h.render();assert.ok(h.find('Quote Status · Example'));
  h.find('Search quotes').props.onChange({target:{value:'no matching job'}});h.render();assert.equal(h.find('Quote Status · Example'),undefined);assert.match(h.text(),/No quotes found/);
