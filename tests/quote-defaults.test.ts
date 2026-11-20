@@ -24,3 +24,30 @@ test('bulk archive keeps failed selections, records partial success and restores
  const result=await changeQuoteArchives(['one','denied','offline','one'],false,fetcher);assert.deepEqual(result.succeeded,['one']);assert.deepEqual(result.failed,['denied','offline']);assert.equal(calls.length,3);
  await changeQuoteArchives(['one'],true,fetcher);assert.equal(calls.at(-1),'POST /api/quote-workspaces/one/restore');
 });
+
+import {defaultStorage} from '../src/lib/quote-storage';
+test('storage defaults snapshot all rates for new quotes without copying estimate inputs',()=>{
+ const source=createBlankQuoteV27();source.storage=defaultStorage();
+ Object.assign(source.storage,{footprint:625,method:3,months:6,lineId:null});
+ source.storage.settings={squareFootRate:3,cubicFootRate:.6,floorToCeilingRate:.7,ceilingHeight:24,nonStackableMultiplier:3};
+ const original=JSON.stringify(source),defaults=quoteDefaults(source);
+ const first=quoteFromDefaults(defaults);
+ assert.deepEqual(first.storage?.settings,source.storage.settings);
+ assert.equal(first.storage?.footprint,0);assert.equal(first.storage?.lineId,null);
+ assert.equal(first.storage?.method,1);assert.equal(first.storage?.billing,'monthly');
+ assert.equal(calculateQuoteV27(first).totals.price,0);
+ defaults.storageSettings!.squareFootRate=4;
+ const second=quoteFromDefaults(defaults);
+ assert.equal(first.storage?.settings.squareFootRate,3);assert.equal(second.storage?.settings.squareFootRate,4);
+ first.storage!.settings.squareFootRate=5;
+ assert.equal(second.storage?.settings.squareFootRate,4);
+ assert.equal(JSON.stringify(source),original);
+ assert.deepEqual(cloneQuoteDocument(source).storage,source.storage);
+});
+test('older global defaults get standard storage rates; invalid storage defaults are rejected',()=>{
+ const defaults=quoteDefaults(createBlankQuoteV27());delete defaults.storageSettings;
+ assert.deepEqual(quoteFromDefaults(defaults).storage,defaultStorage());
+ for(const storageSettings of [null,{}, {...defaultStorage().settings,squareFootRate:-1},{...defaultStorage().settings,ceilingHeight:Infinity}]){
+  assert.throws(()=>quoteFromDefaults({...defaults,storageSettings}));
+ }
+});

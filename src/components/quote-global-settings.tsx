@@ -3,6 +3,8 @@ import {confirmAction} from './confirm-action';
 import {useEffect,useRef,useState} from 'react';
 import {QuoteSectionNav} from './quote-section-nav';
 import {adaFetch} from '@/lib/ada-client';
+import {StorageSettings} from './quote-storage';
+import {defaultStorage} from '@/lib/quote-storage';
 import {QuoteRates} from './quote-rates';
 import {PageShell} from './ui/page-shell';
 import {Button} from './ui/button';
@@ -20,5 +22,5 @@ export function QuoteGlobalSettings(){
  return <PageShell><h1 className="text-2xl font-bold">Quotes — Global Settings</h1><QuoteSectionNav beforeNavigate={async ()=>!dirty||await confirmAction('Leave without saving global settings?')}/><p>These are starting settings for new quotes. Existing quotes, clones and spreadsheet imports keep their own saved settings. Each quote still has its own Settings tab.</p>
  <div className="flex gap-3"><Button disabled={busy||!canEdit||!dirty||!!calculationError} onClick={()=>void save()}>Save global settings</Button><Button variant="outline" disabled={busy} onClick={async ()=>{if(!dirty||await confirmAction('Discard unsaved global settings and reload?'))void load();}}>Reload saved settings</Button></div>
  {error||calculationError?<p role="alert" className="text-red-700">{error||calculationError}</p>:null}{message?<p role="status">{message}</p>:null}
- {quote?<fieldset disabled={busy||!canEdit}><QuoteRates quote={quote} laborRate={calculation?.laborRate??null} edit={fn=>{setQuote(previous=>{const next=structuredClone(previous!);fn(next);return next;});setMessage('');}}/></fieldset>:null}</PageShell>;
+ {quote?<fieldset disabled={busy||!canEdit}><QuoteRates quote={quote} laborRate={calculation?.laborRate??null} edit={fn=>{setQuote(previous=>{const next=structuredClone(previous!);fn(next);return next;});setMessage('');}}/><StorageSettings globalDefaults settings={(quote.storage??defaultStorage()).settings} onChange={settings=>{setQuote(previous=>{const next=structuredClone(previous!);next.storage??=defaultStorage();next.storage.settings=settings;return next;});setMessage('');}}/></fieldset>:null}</PageShell>;
 }

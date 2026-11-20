@@ -1,3 +1,7 @@
+## Global storage defaults — November 20, 2026
+- Added shared Storage settings controls to Global Settings (three rates, ceiling height, non-stackable multiplier). Global document persists only storage settings; new quotes snapshot them with Method1/monthly and blank footprint. Older globals fall back to standard rates. Existing quotes, clones and imports retain own data; no migration.
+- 13 defaults/storage tests and 13 management route tests passed, TypeScript passed; React checklist reviewed. Hosted deployment verification pending.
+
 ## Storage monthly billing clarification — November 20, 2026
 - Paul confirmed $2/sqft/month and monthly amount only on the quote. New storage snapshots set billing=monthly; changing term only changes the reference contract total. New line named Storage (per month). UI displays quote billing basis. Previously saved storage snapshots retain contract pricing until explicitly switched; no saved quote rewrite. Manual selling overrides remain exact.
 - Seven storage tests, original calculator regressions and TypeScript passed. Commit c416595 deployed successfully (H7sGSmpPXy6DLwkBHDfrQ7MX2HUF; GitHub/Vercel success). Hosted temporary quote aa70f30a-6193-4170-b4fb-338e194c1476 verified default Method1/$2, footprint625 gives monthly1250, term12→6 leaves quote1250 with contract reference7500. Saved revision2/reload retained values and linkage; Client Quote displays Storage (per month), total1250. Test archived with confirmation; no working quotes changed. Screenshot /private/tmp/storage-monthly-verified.png.

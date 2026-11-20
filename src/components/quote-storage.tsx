@@ -34,13 +34,19 @@ export function QuoteStorage({quote,edit,readOnly}:{quote:QuoteV27;edit:(change:
       </div>
     </div>
     <div className="overflow-x-auto rounded border"><table className="w-full text-sm"><thead className="bg-muted/50"><tr>{['Method','Billable space','Monthly','Annual','Contract total'].map(label=><th key={label} className="p-2 text-left">{label}</th>)}</tr></thead><tbody>{result.methods.map((method,i)=><tr key={method.method} className={storage.method===method.method?'bg-emerald-50/50':'border-t'}><th className="p-2 text-left font-medium">Method {method.method} — {methods[i]}</th><td className="p-2">{quoteNumber(i===0?storage.footprint:i===1?result.billableVolume:result.floorToCeilingVolume)} {i===0?'sq ft':'cu ft'}</td><td className="p-2">{quoteMoney(method.monthly)}</td><td className="p-2">{quoteMoney(method.annual)}</td><td className="p-2">{quoteMoney(method.contract)}</td></tr>)}</tbody></table></div>
-    <details className="rounded border p-3" open><summary className="cursor-pointer text-sm font-semibold">Storage settings</summary><div className="mt-3 grid gap-x-10 gap-y-3 lg:grid-cols-2">
-      {input('Method 1 rate ($/sq ft/month)',storage.settings.squareFootRate,v=>update(s=>{s.settings.squareFootRate=v;}))}
-      <div className="flex flex-wrap items-center gap-2 text-xs"><span>Method 1 presets:</span>{[[1.25,'Low'],[1.73,'Industry average'],[2,'Mecca mid-market'],[2.25,'Premium']].map(([rate,label])=><button type="button" key={label} className={control} onClick={()=>update(s=>{s.settings.squareFootRate=Number(rate);})}>{label} · {quoteMoney(Number(rate))}</button>)}</div>
-      {input('Method 2 rate ($/cu ft/month)',storage.settings.cubicFootRate,v=>update(s=>{s.settings.cubicFootRate=v;}))}
-      {input('Non-stackable multiplier — Method 2',storage.settings.nonStackableMultiplier,v=>update(s=>{s.settings.nonStackableMultiplier=v;}),0,100)}
-      {input('Method 3 rate ($/cu ft/month)',storage.settings.floorToCeilingRate,v=>update(s=>{s.settings.floorToCeilingRate=v;}))}
-      {input('Usable ceiling height (ft) — Method 3',storage.settings.ceilingHeight,v=>update(s=>{s.settings.ceilingHeight=v;}),0,1000)}
-    </div><p className="mt-3 text-xs text-muted-foreground">These settings are saved with this quote. Existing quotes keep their saved rates.</p></details>
+    <StorageSettings settings={storage.settings} onChange={settings=>update(s=>{s.settings=settings;})}/>
   </fieldset>;
+}
+
+export function StorageSettings({settings,onChange,globalDefaults=false}:{settings:StorageEstimate['settings'];onChange:(settings:StorageEstimate['settings'])=>void;globalDefaults?:boolean}){
+  function input(label:string,value:number,change:(value:number)=>void,min=0,max=1e6){return <label className="flex items-center justify-between gap-4 text-sm"><span>{label}</span><QuoteNumberInput aria-label={label} className={`${control} w-28 text-right`} value={value||''} min={min} max={max} step="any" onChange={e=>{const value=Number(e.target.value);if(Number.isFinite(value)&&value>=min&&value<=max)change(value);}}/></label>;}
+  return (    <details className="rounded border p-3" open><summary className="cursor-pointer text-sm font-semibold">Storage settings</summary><div className="mt-3 grid gap-x-10 gap-y-3 lg:grid-cols-2">
+      {input('Method 1 rate ($/sq ft/month)',settings.squareFootRate,v=>onChange({...settings,squareFootRate:v}))}
+      <div className="flex flex-wrap items-center gap-2 text-xs"><span>Method 1 presets:</span>{[[1.25,'Low'],[1.73,'Industry average'],[2,'Mecca mid-market'],[2.25,'Premium']].map(([rate,label])=><button type="button" key={label} className={control} onClick={()=>onChange({...settings,squareFootRate:Number(rate)})}>{label} · {quoteMoney(Number(rate))}</button>)}</div>
+      {input('Method 2 rate ($/cu ft/month)',settings.cubicFootRate,v=>onChange({...settings,cubicFootRate:v}))}
+      {input('Non-stackable multiplier — Method 2',settings.nonStackableMultiplier,v=>onChange({...settings,nonStackableMultiplier:v}),0,100)}
+      {input('Method 3 rate ($/cu ft/month)',settings.floorToCeilingRate,v=>onChange({...settings,floorToCeilingRate:v}))}
+      {input('Usable ceiling height (ft) — Method 3',settings.ceilingHeight,v=>onChange({...settings,ceilingHeight:v}),0,1000)}
+    </div><p className="mt-3 text-xs text-muted-foreground">{globalDefaults?'Defaults for new quotes only. Each quote keeps its own editable storage settings.':'These settings are saved with this quote. Existing quotes keep their saved rates.'}</p></details>
+  );
 }

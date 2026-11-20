@@ -1,17 +1,19 @@
+import {defaultStorage,parseStorage,type StorageEstimate} from './quote-storage';
 import {ALLOWANCE_DEFAULTS} from './travel-allowances';
 import {createBlankQuoteV27} from './quote-v27-template';
 import {parseQuoteV27} from './quote-v27-validation';
 import type {QuoteV27} from './quote-v27';
-export type QuoteDefaults=Pick<QuoteV27,'settings'|'trades'|'commission'|'pricingVersion'|'contingencyByType'>;
+export type QuoteDefaults=Pick<QuoteV27,'settings'|'trades'|'commission'|'pricingVersion'|'contingencyByType'> & {storageSettings?:StorageEstimate['settings']};
 export function quoteDefaults(quote:QuoteV27):QuoteDefaults {
  const {settings,trades,commission,pricingVersion,contingencyByType}=quote;
- return structuredClone({settings,trades,commission,pricingVersion,contingencyByType});
+ return structuredClone({settings,trades,commission,pricingVersion,contingencyByType,storageSettings:(quote.storage??defaultStorage()).settings});
 }
 export function quoteFromDefaults(value:unknown):QuoteV27 {
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid global settings.');
  const v=value as QuoteDefaults;
  if(v.pricingVersion!=='levies-v1'&&v.pricingVersion!=='scoped-levies-v2')throw new Error('Global settings require current levy pricing.');
- return parseQuoteV27({...createBlankQuoteV27(),settings:{...ALLOWANCE_DEFAULTS,...v.settings},trades:v.trades,commission:v.commission,pricingVersion:'scoped-levies-v2',contingencyByType:v.contingencyByType});
+ const storage=parseStorage({...defaultStorage(),settings:v.storageSettings===undefined?defaultStorage().settings:v.storageSettings});
+ return parseQuoteV27({...createBlankQuoteV27(),storage,settings:{...ALLOWANCE_DEFAULTS,...v.settings},trades:v.trades,commission:v.commission,pricingVersion:'scoped-levies-v2',contingencyByType:v.contingencyByType});
 }
 export function cloneQuoteDocument(source:QuoteV27,copySchedule=false):QuoteV27 {
  const copy=parseQuoteV27(structuredClone(source));
