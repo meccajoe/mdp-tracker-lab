@@ -236,7 +236,6 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
 
       <QuoteGridInteraction onSummary={setSelectionSummary}><fieldset className="min-w-0" disabled={!canEdit || busy}>
-      {tab==='Storage'&&<QuoteStorage key={restoreKey} quote={document} edit={edit} readOnly={!canEdit||busy}/>}
       {tab==='Quote Builder'&&!libraryItem&&canEdit&&<QuoteReusableToolbar quote={document} edit={edit} onSelect={setSelected}/>}
       {tab==='Storage'&&<QuoteStorage key={restoreKey} quote={document} edit={edit} readOnly={!canEdit||busy}/>}
       {tab==='Quote Builder' && <QuoteSheet readOnly={!canEdit||busy} libraryItem={libraryItem} onViewChange={()=>setSelectionSummary('')} quote={document} calculation={calculation} edit={edit} onAdd={libraryItem?undefined:addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
