@@ -148,6 +148,7 @@ test('all pricing branches have numeric expectations independent of implementati
     ['Freight', {cost:100}, 160,100,0],
     ['Installer Days', {siteDays:4,cost:5985}, 5985,0,40],
     ['Project Management Fee', {}, 0,0,0],
+    ['Storage', {rental:15000,cost:100}, 15000,100,0],
   ];
   assert.deepEqual(cases.map(c=>c[0]).sort(), [...LINE_TYPES].sort());
   for (const [type, inputs, sell, materials, hours] of cases) {

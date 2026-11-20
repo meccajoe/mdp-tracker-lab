@@ -1,3 +1,4 @@
+import {parseStorage} from './quote-storage';
 import {ALLOWANCE_KEYS} from './travel-allowances';
 import {parseProductionProgress} from './production-progress';
 import {parseProductionCalendar} from './production-calendar';
@@ -63,13 +64,14 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     if(v.pricingVersion!=='levies-v1'&&v.pricingVersion!=='scoped-levies-v2')throw new Error('Unsupported pricing version.');
     parsed.pricingVersion=v.pricingVersion;
     const eligibility=record(v.contingencyByType);
-    parsed.contingencyByType=Object.fromEntries(LINE_TYPES.map(type=>[type,bool(eligibility[type])])) as NonNullable<QuoteV27['contingencyByType']>;
+    parsed.contingencyByType=Object.fromEntries(LINE_TYPES.filter(type=>type!=='Storage'||eligibility[type]!==undefined).map(type=>[type,bool(eligibility[type])])) as NonNullable<QuoteV27['contingencyByType']>;
   }else if(v.contingencyByType!==undefined)throw new Error('Contingency choices require levy pricing.');
   if(v.planning!==undefined)parsed.planning=parsePlanning(v.planning);
   if(v.importNotes!==undefined){if(!Array.isArray(v.importNotes)||v.importNotes.length>10050)throw new Error('Invalid import notes.');parsed.importNotes=v.importNotes.map(note=>text(note,'Import note',5000));}
   if(v.productionProgress!==undefined)parsed.productionProgress=parseProductionProgress(v.productionProgress,parsed.lines.map(line=>line.id));
   if(v.productionCalendar!==undefined)parsed.productionCalendar=parseProductionCalendar(v.productionCalendar);
   if(v.schedule!==undefined)parsed.schedule=parseSchedule(v.schedule);
+  if(v.storage!==undefined)parsed.storage=parseStorage(v.storage);
   if(v.estimators !== undefined) parsed.estimators=parseEstimators(v.estimators);
   if(v.reusableItemIds!==undefined){
     if(!Array.isArray(v.reusableItemIds)||v.reusableItemIds.length>200)throw new Error('Invalid reusable item list.');

@@ -1,4 +1,5 @@
 "use client";
+import {QuoteStorage} from './quote-storage';
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import {confirmAction,confirmLinkNavigation} from "./confirm-action";
@@ -218,7 +219,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
     {!libraryItem&&document&&<QuoteStatusControl workspaceId={workspaceId} revision={version} dirty={dirty||pendingInput||saving} onChanged={()=>void load()}/>}
     {document&&<select aria-label="Load saved revision" className={control} value="" disabled={busy||saving} onChange={async e => { const revision=e.target.value; if (revision && (!dirty || await confirmAction('Discard unsaved edits and load this revision?'))) void load(Number(revision)); }}><option value="">Saved history</option>{history.map(row => <option key={row.revision} value={row.revision}>Revision {row.revision} · {row.created_by_email}</option>)}</select>}
     </div>
-    {document && <div className={styles.tabControls}><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Workback Schedule','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');if(name==='Workback Schedule')setWorkbackOpened(true);setTab(name);}}>{name}</button>)}</div>
+    {document && <div className={styles.tabControls}><div className="flex flex-wrap gap-2" role="tablist" aria-label="Workbook sections">{(libraryItem?['Settings','beMatrix Estimator','Takeoffs','Quote Builder','BOM','Pricing']:['Settings','beMatrix Estimator','Takeoffs','Quote Builder','Install Labor','Travel Estimator','Shipping Estimator','Storage','Client Quote','Budget Handoff','BOM','Legacy Decoder','Materials DB','Capacity','Workback Schedule','Pricing']).map(name => <button key={name} role="tab" aria-selected={tab===name} className={`${button} ${tab===name ? 'bg-accent font-semibold' : ''}`} onClick={() => {setSelectionSummary('');if(name==='Workback Schedule')setWorkbackOpened(true);setTab(name);}}>{name}</button>)}</div>
 
       </div>}
     </div>
@@ -235,7 +236,9 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {(tab==='Legacy Decoder')&&<div className="rounded border bg-white p-4"><h2>{tab} — upcoming</h2><p>This spreadsheet tab is not implemented in Tracker yet. Existing quote calculations and saved revisions are unaffected.</p></div>}
 
       <QuoteGridInteraction onSummary={setSelectionSummary}><fieldset className="min-w-0" disabled={!canEdit || busy}>
+      {tab==='Storage'&&<QuoteStorage key={restoreKey} quote={document} edit={edit} readOnly={!canEdit||busy}/>}
       {tab==='Quote Builder'&&!libraryItem&&canEdit&&<QuoteReusableToolbar quote={document} edit={edit} onSelect={setSelected}/>}
+      {tab==='Storage'&&<QuoteStorage key={restoreKey} quote={document} edit={edit} readOnly={!canEdit||busy}/>}
       {tab==='Quote Builder' && <QuoteSheet readOnly={!canEdit||busy} libraryItem={libraryItem} onViewChange={()=>setSelectionSummary('')} quote={document} calculation={calculation} edit={edit} onAdd={libraryItem?undefined:addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
       {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} libraryItem={libraryItem} onAddItem={addLine} readOnly={!canEdit || busy}/>}
       {tab==='Pricing' && selectedLine && <>

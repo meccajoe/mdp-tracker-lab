@@ -7,6 +7,7 @@ export function clearQuoteItem(quote:QuoteV27,id:string){
  if(quote.productionProgress)delete quote.productionProgress.items[id];
  quote.takeoffs=quote.takeoffs.filter(row=>row.lineId!==id);
  if(quote.reusableItemIds)quote.reusableItemIds=quote.reusableItemIds.filter(item=>item!==id);
+ if(quote.storage?.lineId===id)quote.storage.lineId=null;
  const e=quote.estimators;if(!e)return;
  e.beMatrix.walls=e.beMatrix.walls.filter(wall=>wall.lineId!==id);
  for(const person of ['lead','second','third','support'] as const)if(e.install[person].lineId===id)e.install[person].lineId=null;

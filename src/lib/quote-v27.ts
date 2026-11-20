@@ -1,3 +1,4 @@
+import {calculateStorage, type StorageEstimate} from './quote-storage.ts';
 import type {ProductionProgress} from './production-progress';
 import type {ProductionCalendar} from './production-calendar';
 import type {CapacityOverride} from './capacity';
@@ -10,7 +11,7 @@ export const LINE_TYPES = [
   "Off Days — Support", "Install Support Labor", "Travel — Lead Installer",
   "Travel — Project Manager", "Travel — Install Support", "Stage / Pack / Prep",
   "Disposal", "Equipment Rental", "Props / Resale", "Travel & Expenses", "Freight",
-  "Installer Days", "Project Management Fee",
+  "Installer Days", "Project Management Fee", "Storage",
 ] as const;
 export type LineType = typeof LINE_TYPES[number];
 export type Inputs = {
@@ -42,6 +43,7 @@ export type QuoteLine = {
   priceOverride: number | null; source?: string;
 };
 export type QuoteV27 = {
+  storage?: StorageEstimate;
   salesperson?: string;
   pricingVersion?: "levies-v1" | "scoped-levies-v2";
   contingencyByType?: Record<LineType, boolean>;
@@ -86,16 +88,18 @@ function unique<T extends { id: string }>(rows: T[], name: string) {
 export function calculateQuoteV27(quote: QuoteV27) {
   if (quote.schemaVersion !== 1 || !quote.assumptionsVersion) throw new Error("Unsupported quote snapshot version.");
   const estimatorResult = quote.estimators ? calculateEstimators(quote, quote.estimators) : null;
+  const storageResult=quote.storage?calculateStorage(quote.storage):null;
+  if(quote.storage?.lineId&&!quote.lines.some(line=>line.id===quote.storage!.lineId&&line.type==="Storage"))throw new Error("Storage must link to a Storage quote item.");
   const s = quote.settings;
   if (quote.pricingVersion !== undefined && quote.pricingVersion !== "levies-v1" && quote.pricingVersion !== "scoped-levies-v2") throw new Error("Unsupported pricing version.");
   const scoped = quote.pricingVersion === "scoped-levies-v2";
   const levies = quote.pricingVersion === "levies-v1" || scoped;
-  const levyApplies=(type:LineType)=>!scoped||(["Fabrication","beMatrix / SEG","Props / Resale","Equipment Rental"] as LineType[]).includes(type);
+  const levyApplies=(type:LineType)=>type!=="Storage"&&(!scoped||(["Fabrication","beMatrix / SEG","Props / Resale","Equipment Rental"] as LineType[]).includes(type));
   const sell=(value:number)=>scoped?Math.ceil(value):value;
-  if (levies && (typeof s.waste !== "number" || !quote.contingencyByType || LINE_TYPES.some(type=>typeof quote.contingencyByType?.[type] !== "boolean"))) throw new Error("Levy pricing requires a waste rate and contingency choice for every line type.");
+  if (levies && (typeof s.waste !== "number" || !quote.contingencyByType || LINE_TYPES.some(type=>type!=="Storage"&&typeof quote.contingencyByType?.[type] !== "boolean"))) throw new Error("Levy pricing requires a waste rate and contingency choice for every line type.");
   if (levies && quote.contingencyByType?.["Project Management Fee"]) throw new Error("Project Management Fee must not carry contingency.");
   const wasteRate=levies?s.waste!:0;
-  const contingencyRate=(type:LineType)=>(!levies||quote.contingencyByType![type])?s.contingency:0;
+  const contingencyRate=(type:LineType)=>(type!=="Storage"&&(!levies||quote.contingencyByType![type]))?s.contingency:0;
   const divisor=(type:LineType)=>{
     const value=1-quote.commission-(levies?(levyApplies(type)?s.indirect+wasteRate:0)+contingencyRate(type):0);
     if(value<=0)throw new Error(`${type}: commission, levies and contingency must total less than 100%.`);
@@ -153,6 +157,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
       calculatedInputs.hours = total?.hours ?? 0;
     }
     Object.assign(calculatedInputs, estimatorResult?.lineInputs[line.id] ?? {});
+    if(line.id===quote.storage?.lineId&&storageResult)calculatedInputs.rental=storageResult.selected.contract;
     const input = { ...calculatedInputs };
     for (const key of Object.keys(EMPTY_INPUTS) as (keyof Inputs)[]) {
       nonnegative(calculatedInputs[key], `${line.id}.${key}`);
@@ -190,9 +195,10 @@ export function calculateQuoteV27(quote: QuoteV27) {
       case "Travel & Expenses": price = x.cost * (1 + s.travelMarkup); materialsBudget = x.cost; break;
       case "Freight": price = x.cost * (1 + s.freightMarkup); materialsBudget = x.cost; break;
       case "Installer Days": price = x.cost; hoursAllowed = x.siteDays * s.siteHours; break;
+      case "Storage": price=x.rental; materialsBudget=x.cost; break;
       case "Project Management Fee": break; // Second pass: uses final hard-scope prices.
     }
-    const calculatedPrice = sell(price / divisor(line.type));
+    const calculatedPrice = line.type==="Storage"?sell(price):sell(price / divisor(line.type));
     const laborBudget = hoursAllowed * laborRate;
     // Do not silently rescale named trades when efficiency or input overrides differ.
     const tradeHours = { ...(total?.trades ?? {}) };
@@ -203,7 +209,7 @@ export function calculateQuoteV27(quote: QuoteV27) {
       tradeHours, untypedHours: Math.max(0, hoursAllowed - allocatedHours),
       overallocatedTradeHours: Math.max(0, allocatedHours - hoursAllowed) };
   });
-  const hardScope = lines.filter(line => !["Project Management Fee", "Travel & Expenses", "Freight"].includes(line.type)).reduce((sum, line) => sum + line.finalPrice, 0);
+  const hardScope = lines.filter(line => !["Project Management Fee", "Travel & Expenses", "Freight", "Storage"].includes(line.type)).reduce((sum, line) => sum + line.finalPrice, 0);
   for (const line of lines) if (line.type === "Project Management Fee") {
     // Legacy N36 had no gross-up. New rules gross up the fee on final hard scope.
     line.calculatedPrice = sell(hardScope * s.pmFee / (levies ? divisor(line.type) : 1));
