@@ -1,3 +1,7 @@
+## Travel destination disclosure — November 23, 2026
+- Wrapped the three existing Travel destination dropdowns in a native, initially collapsed “Where travel appears on the quote” disclosure. Existing labels, values, handlers and all calculation/data paths unchanged. Install/Shipping links unchanged.
+- TypeScript and 13 estimator regressions passed; hosted verification pending.
+
 ## Global storage defaults — November 20, 2026
 - Added shared Storage settings controls to Global Settings (three rates, ceiling height, non-stackable multiplier). Global document persists only storage settings; new quotes snapshot them with Method1/monthly and blank footprint. Older globals fall back to standard rates. Existing quotes, clones and imports retain own data; no migration.
 - Full lab:check/TypeScript passed, plus 13 defaults/storage, 13 management route and 11 levy tests. React checklist reviewed. Commit6bfd8a7 deployed successfully (GXiCvkM4EpHeyA2QXsiWxGnXovny; GitHub/Vercel status). Hosted Global Settings showed all five fields with standard saved defaults; editing Method1 to2.25 enabled Save, then discard/reload restored2.00. No live shared defaults or business quotes changed for testing. Snapshot isolation, custom defaults, clone preservation and invalid defaults verified in automated tests; hosted POST/custom-default quote creation not exercised. Screenshot /private/tmp/global-storage-settings-verified.png.
