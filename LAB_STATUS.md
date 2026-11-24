@@ -1,6 +1,6 @@
 ## Travel destination disclosure — November 23, 2026
 - Wrapped the three existing Travel destination dropdowns in a native, initially collapsed “Where travel appears on the quote” disclosure. Existing labels, values, handlers and all calculation/data paths unchanged. Install/Shipping links unchanged.
-- TypeScript and 13 estimator regressions passed; hosted verification pending.
+- TypeScript and 13 estimator regressions passed. Commit77c76b4 deployed successfully (7jrg349aincbutLRnw39UyVgMcvE). Hosted archived disposable quote aa70f30a-6193-4170-b4fb-338e194c1476 verified initially collapsed, expand shows same three saved destinations, collapse hides them. Saved revision2/quote1250 unchanged; no data writes. Screenshot /private/tmp/travel-destinations-collapsed.png.
 
 ## Global storage defaults — November 20, 2026
 - Added shared Storage settings controls to Global Settings (three rates, ceiling height, non-stackable multiplier). Global document persists only storage settings; new quotes snapshot them with Method1/monthly and blank footprint. Older globals fall back to standard rates. Existing quotes, clones and imports retain own data; no migration.
