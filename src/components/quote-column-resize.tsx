@@ -18,7 +18,7 @@ function queued<T>(work:()=>Promise<T>):Promise<T>{
  return result;
 }
 /** Account preferences, keyed by column identity so trade changes cannot shift widths. */
-export function RememberedColumns({labels, storageKey, defaultWidths, stickyColumnCount=0}:{labels:readonly string[];storageKey:string;defaultWidths?:readonly number[];stickyColumnCount?:number}) {
+export function RememberedColumns({labels, storageKey, defaultWidths, stickyColumnCount=0}:{labels:readonly string[];storageKey:string;defaultWidths?:readonly (number|undefined)[];stickyColumnCount?:number}) {
  const ref=useRef<HTMLTableColElement>(null);
  const signature=JSON.stringify(labels);
  useLayoutEffect(()=>{

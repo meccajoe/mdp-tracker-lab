@@ -1,3 +1,6 @@
+## Account-saved Takeoff column widths — November 25, 2026
+- Reused RememberedColumns with separate quote-takeoffs account metadata key, measured sticky offsets for first four columns, and existing resize controls. Defaults retained until first resize; preference shared across quotes/devices per signed-in user. Row marker 40px satisfies preference validation. No quote-data writes or migration. Five account-route tests and TypeScript passed; React checklist reviewed. Hosted verification pending.
+
 ## Takeoff text columns 35% wider — November 25, 2026
 - Item Name 240→324px; Materials & Labor 260→351px (exactly 35%). Table minimum increased by the same 175px to retain other column space. Layout only. TypeScript/diff checks passed. Release 94ed6e2 deployed successfully (HTQDBoXP1DuNCKswBfCgvvTJCDZc); archived test quote visually verified on hosted Lab without data edits. Screenshot /private/tmp/takeoff-35-percent-wider.png.
 

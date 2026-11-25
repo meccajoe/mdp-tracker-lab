@@ -8,8 +8,7 @@ import {insertTakeoffRow,applyTakeoffViewCells,isLaborTakeoff,TAKEOFF_VIEW_COLUM
 import {adaFetch} from '@/lib/ada-client';
 import {manualCatalogInput} from '@/lib/tracker-catalog';
 import {useQuoteCatalog} from './use-quote-catalog';
-import {useStickyTableColumns} from './use-sticky-table-columns';
-import {QuoteColumnResize} from './quote-column-resize';
+import {QuoteColumnResize,RememberedColumns} from './quote-column-resize';
 import styles from './quote-takeoffs.module.css';
 import {loadQuoteLibrary} from '@/lib/quote-library-client';
 import {QuoteExistingItemDialog} from './quote-existing-item-dialog';
@@ -22,7 +21,7 @@ type Cell=[number,number];
 export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false,scrollPosition}: {
   scrollPosition?:{current:{top:number;left:number}};libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
-  const tableRef=useStickyTableColumns(4);
+  const tableRef=useRef<HTMLTableElement>(null);
   const [existingOpen,setExistingOpen]=useState(false);
   const pickerRef=useRef<HTMLDivElement>(null);
   const scrollRef=useRef<HTMLDivElement>(null);
@@ -137,7 +136,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       }
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
-      <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[72+Math.max(0,String(quote.lines.length).length-2)*7,112,324,351,50,60,85,55,55,85,55,undefined].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
+      <table ref={tableRef} aria-label="Item takeoffs worksheet"><RememberedColumns labels={['#',...headers]} storageKey="quote-takeoffs" stickyColumnCount={4} defaultWidths={[40,72+Math.max(0,String(quote.lines.length).length-2)*7,112,324,351,50,60,85,55,55,85,55,undefined]}/>
         <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
         <tbody>{visibleRows.map(({row,index:r})=><tr key={row.id} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';

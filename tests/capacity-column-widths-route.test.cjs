@@ -31,3 +31,10 @@ test('Quotes widths save independently and preserve the compact selection column
  assert.deepEqual(JSON.parse(JSON.stringify(updates)),[{id:'signed-in-user',value:{user_metadata:{lab_quotes_list_widths_v1:{Selection:44,'Project name':360}}}}]);
  assert.deepEqual((await (await route.GET(new Request('https://lab.test?table=capacity-projects'))).json()).widths,{Project:350});
 });
+
+test('Takeoff widths save to the signed-in account independently of other tables',async()=>{
+ const {route,updates}=setup();const widths={'#':40,'Item #':72,'Item Type':112,'Item name':400,'Materials & Labor':420};
+ assert.equal((await route.PUT(put({table:'quote-takeoffs',widths,userId:'other'}))).status,200);
+ assert.deepEqual(JSON.parse(JSON.stringify(updates)),[{id:'signed-in-user',value:{user_metadata:{lab_quote_takeoffs_widths_v1:widths}}}]);
+ assert.equal((await route.GET(new Request('https://lab.test?table=quote-takeoffs'))).status,200);
+});
