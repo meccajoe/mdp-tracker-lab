@@ -2,7 +2,8 @@
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import {builderItemName,showBuilderLine} from '@/lib/quote-builder-display';
-import {useState} from "react";
+import {moveQuoteItemRelative} from '@/lib/quote-item-actions';
+import {useRef,useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
 
 import { calculateQuoteV27, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
@@ -43,6 +44,9 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
   libraryItem?: boolean;
 }) {
   const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem,allowReorder:!libraryItem});
+  const dragging=useRef<string|null>(null);
+  const [dropTarget,setDropTarget]=useState<{id:string;after:boolean}|null>(null);
+  function stopDrag(){dragging.current=null;setDropTarget(null);}
   const [showDetails,setShowDetails]=useState(false);
   const tableRef=useStickyTableColumns(2,showDetails);
   const visibleInputs=showDetails?inputs:inputs.slice(0,3);
@@ -74,7 +78,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
       <button type="button" aria-expanded={showDetails} onClick={()=>{setShowDetails(value=>!value);onViewChange?.();}}>{showDetails?'Hide estimate details':'Show estimate details'}</button>
     </div>
     {itemActions.feedback}
-    <div className={styles.scroll} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
+    <div className={styles.scroll} onDragOver={event=>{if(!dragging.current||readOnly)return;event.preventDefault();const bounds=event.currentTarget.getBoundingClientRect();if(event.clientY<bounds.top+65)event.currentTarget.scrollTop-=16;else if(event.clientY>bounds.bottom-40)event.currentTarget.scrollTop+=16;}} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
       <table ref={tableRef} key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{minWidth:tableWidth}}>
         <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
         <thead>
@@ -86,8 +90,9 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
           const displayName=builderItemName(line,index);
           const row=rows.get(line.id);
           const install=['Lead Installer — Install','Lead Installer — Dismantle','Install Support Labor','Installer Days'].includes(line.type);
-          return <tr key={line.id} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
+          return <tr key={line.id} data-drop-position={dropTarget?.id===line.id?(dropTarget.after?'after':'before'):undefined} onDragOver={event=>{if(!dragging.current||readOnly||libraryItem)return;event.preventDefault();event.dataTransfer.dropEffect='move';const rect=event.currentTarget.getBoundingClientRect();const after=event.clientY>rect.top+rect.height/2;setDropTarget(current=>current?.id===line.id&&current.after===after?current:{id:line.id,after});}} onDrop={event=>{const source=dragging.current;if(!source||readOnly||libraryItem)return;event.preventDefault();const rect=event.currentTarget.getBoundingClientRect();const after=event.clientY>rect.top+rect.height/2;edit(next=>moveQuoteItemRelative(next,source,line.id,after));stopDrag();}} data-section={line.type==='beMatrix / SEG'?'bematrix':line.type.includes('Travel')?'travel':line.type.includes('Design')?'design':line.type.includes('Project Management')?'management':/Installer|Labor|Stage/.test(line.type)?'labor':'items'}>
             <th scope="row" className={styles.rowNumber}><div className={styles.itemNumber}>
+              {!libraryItem&&<button type="button" className={styles.dragHandle} disabled={readOnly} draggable={!readOnly} aria-label={`Drag to move ${line.name}`} title="Drag to reorder item" onDragStart={event=>{if(readOnly){event.preventDefault();return;}dragging.current=line.id;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',line.id);}} onDragEnd={stopDrag}>⠿</button>}
               {itemActions.menu(line.id,`Item ${index+1} actions · ${line.name}`)}<span>{`Item ${index+1}`}</span></div></th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{displayName+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} value={displayName} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
             <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{typeLabel(line.type)}</span><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{!builderTypes.some(([type])=>type===line.type)&&<option hidden disabled value={line.type}>{line.type}</option>}{builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div></td>

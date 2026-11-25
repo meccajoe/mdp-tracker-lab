@@ -77,3 +77,9 @@
 .sheet .frozen { position:sticky; left:var(--column-offset-2,90px); z-index:2; }
 .sheet thead tr > :nth-child(-n+2) { z-index:5; }
 .sheet thead { box-shadow:0 1px 0 #9ca5b1; }
+
+.dragHandle {cursor:grab;touch-action:none;border:0;background:transparent;color:#697586;padding:0 2px;font-size:17px;line-height:1;}
+.dragHandle:active {cursor:grabbing;}
+.dragHandle:disabled {cursor:default;opacity:.4;}
+.sheet tr[data-drop-position=before]>td,.sheet tr[data-drop-position=before]>th {border-top:3px solid #558c88;}
+.sheet tr[data-drop-position=after]>td,.sheet tr[data-drop-position=after]>th {border-bottom:3px solid #558c88;}

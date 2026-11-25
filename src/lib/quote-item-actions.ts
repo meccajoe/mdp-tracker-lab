@@ -48,3 +48,11 @@ export function moveQuoteItem(quote:QuoteV27,id:string,position:number){
  const [line]=quote.lines.splice(index,1);
  quote.lines.splice(position,0,line);
 }
+
+/** Insert on either side of a drop target without off-by-one errors moving down. */
+export function moveQuoteItemRelative(quote:QuoteV27,id:string,targetId:string,after:boolean){
+ const source=quote.lines.findIndex(line=>line.id===id),target=quote.lines.findIndex(line=>line.id===targetId);
+ if(source<0||target<0)throw new Error('Choose an existing quote item.');
+ if(source===target)return;
+ moveQuoteItem(quote,id,target+(after?1:0)-(source<target?1:0));
+}

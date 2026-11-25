@@ -2,7 +2,7 @@
 import {quoteInputNumber} from '@/lib/quote-format';
 import {builderItemName} from '@/lib/quote-builder-display';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
 import {insertTakeoffRow,applyTakeoffViewCells,isLaborTakeoff,TAKEOFF_VIEW_COLUMNS,quoteItemLabel,takeoffWorksheetRows,EMPTY_TAKEOFF_DESCRIPTION,type SheetColumn} from '@/lib/quote-takeoff-grid';
 import {adaFetch} from '@/lib/ada-client';
@@ -19,13 +19,14 @@ import {QuoteMaterialCell} from './quote-material-cell';
 const columns=TAKEOFF_VIEW_COLUMNS;
 const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Ext hrs','Notes'];
 type Cell=[number,number];
-export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false}: {
-  libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
+export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false,scrollPosition}: {
+  scrollPosition?:{current:{top:number;left:number}};libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
   const tableRef=useStickyTableColumns(3);
   const [existingOpen,setExistingOpen]=useState(false);
   const pickerRef=useRef<HTMLDivElement>(null);
   const scrollRef=useRef<HTMLDivElement>(null);
+  useLayoutEffect(()=>{const node=scrollRef.current;if(node&&scrollPosition){node.scrollTop=scrollPosition.current.top;node.scrollLeft=scrollPosition.current.left;}},[scrollPosition]);
   const rowCapacity=quote.takeoffRowCapacity??50;
   const rowCount=Math.min(5000,Math.max(rowCapacity,Math.ceil(quote.takeoffs.length/50)*50));
   const defaultItem=selected;
@@ -124,7 +125,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       {active && active[0]<quote.takeoffs.length && <button disabled={readOnly||!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
     {error&&<p role="alert">{error}</p>}{catalogNotice&&<p role="status">{catalogNotice}</p>}
-    <div ref={scrollRef} className={styles.scroll}
+    <div ref={scrollRef} className={styles.scroll} onScroll={event=>{if(scrollPosition)scrollPosition.current={top:event.currentTarget.scrollTop,left:event.currentTarget.scrollLeft};}}
       onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=drag.current.column<=1?drag.current.column:Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
       onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);setEndColumn(null);}}
       onCopy={e=>{

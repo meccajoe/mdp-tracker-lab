@@ -21,3 +21,12 @@ test('moving items preserves all identities, links, pricing and persists through
  for(const position of [-1,q.lines.length,1.5])assert.throws(()=>moveQuoteItem(q,id,position));
  assert.throws(()=>moveQuoteItem(q,'missing',0));assert.deepEqual(q,before);
 });
+
+import {moveQuoteItemRelative} from '../src/lib/quote-item-actions';
+test('drag insertion works before/after targets in either direction and self-drop is unchanged',()=>{
+ for(const [source,target,after,expected] of [[0,2,false,[1,0,2,3]],[0,2,true,[1,2,0,3]],[3,1,false,[0,3,1,2]],[3,1,true,[0,1,3,2]],[0,3,true,[1,2,3,0]],[2,2,true,[0,1,2,3]]] as const){
+  const q=createBlankQuoteV27();q.lines=q.lines.slice(0,4);const original=[...q.lines];
+  moveQuoteItemRelative(q,original[source].id,original[target].id,after);
+  assert.deepEqual(q.lines,expected.map(i=>original[i]));
+ }
+});

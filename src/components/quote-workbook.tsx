@@ -10,7 +10,7 @@ import {WorkbackSchedule} from './workback-schedule';
 import {QuoteStatusControl} from "./quote-status-control";
 import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {QuoteReusableToolbar} from './quote-reusable-items';
 import {QuoteEconomics} from './quote-economics';
 import {QuoteBudgetHandoff} from './quote-budget-handoff';
@@ -63,6 +63,11 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
   const [error, setError] = useState('');
   const [selectionSummary,setSelectionSummary]=useState('');
   const [tab, setTab] = useState('Quote Builder');
+  const sheetViewportRef=useRef<HTMLDivElement>(null);
+  const scrollPositions=useRef<Record<string,{top:number;left:number}>>({});
+  const takeoffScroll=useRef({top:0,left:0});
+  useLayoutEffect(()=>{scrollPositions.current={};takeoffScroll.current={top:0,left:0};},[workspaceId]);
+  useLayoutEffect(()=>{const node=sheetViewportRef.current,position=scrollPositions.current[tab];if(node){node.scrollTop=position?.top??0;node.scrollLeft=position?.left??0;}},[tab,workspaceId]);
   useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('tab');if(requested==='BOM'||requested==='Budget Handoff')setTab(requested);},[workspaceId]);
   const [workbackOpened,setWorkbackOpened]=useState(false);
   const [workbackDirty,setWorkbackDirty]=useState(false);
@@ -223,7 +228,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
 
       </div>}
     </div>
-    <div className={styles.sheetViewport}>
+    <div ref={sheetViewportRef} className={styles.sheetViewport} onScroll={event=>{scrollPositions.current[tab]={top:event.currentTarget.scrollTop,left:event.currentTarget.scrollLeft};}}>
     {document && <>
       {tab!=='Takeoffs'&&<p className="mb-4 text-xs text-muted-foreground">{quoteStatus==='final'?'Final quote.':'Draft only.'} No quote is sent or published. Green cells calculate automatically. Pale yellow cells accept input. Pricing overrides take precedence.</p>}
       {calculation?.warnings.map(warning => <p key={warning} className="mb-2 text-sm text-amber-700">{warning}</p>)}
@@ -239,7 +244,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {tab==='Quote Builder'&&!libraryItem&&canEdit&&<QuoteReusableToolbar quote={document} edit={edit} onSelect={setSelected}/>}
       {tab==='Storage'&&<QuoteStorage key={restoreKey} quote={document} edit={edit} readOnly={!canEdit||busy}/>}
       {tab==='Quote Builder' && <QuoteSheet readOnly={!canEdit||busy} libraryItem={libraryItem} onViewChange={()=>setSelectionSummary('')} quote={document} calculation={calculation} edit={edit} onAdd={libraryItem?undefined:addLine} onTakeoffs={id=>{setSelected(id);setTab('Takeoffs');}}/>}
-      {tab==='Takeoffs' && <QuoteTakeoffs workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} libraryItem={libraryItem} onAddItem={addLine} readOnly={!canEdit || busy}/>}
+      {tab==='Takeoffs' && <QuoteTakeoffs scrollPosition={takeoffScroll} workspaceId={workspaceId} save={()=>void save()} restoreKey={restoreKey} quote={document} edit={edit} selected={selected} onSelectItem={setSelected} libraryItem={libraryItem} onAddItem={addLine} readOnly={!canEdit || busy}/>}
       {tab==='Pricing' && selectedLine && <>
         <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{(Object.keys(inputLabels) as (keyof Inputs)[]).map(key=><label key={key} className="rounded border p-3 text-sm"><span className="mb-2 block">{inputLabels[key]}</span><Numeric label={inputLabels[key]} nullable value={selectedLine.overrides[key]??null} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=v;})}/><span className="ml-2 text-xs">Calculated: {number(selectedCalculation?.calculatedInputs[key]??0)}</span>{selectedLine.overrides[key]!=null && <button className="ml-2 text-xs underline" onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.overrides[key]=null;})}>Restore</button>}</label>)}</div>
         <div className="flex flex-wrap items-center gap-4 rounded border p-4"><span>Computed price: {money(selectedCalculation?.calculatedPrice??0)}</span><label>Price override <Numeric label="Price override" nullable value={selectedLine.priceOverride} onChange={v=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=v;})}/></label><button className={button} disabled={selectedLine.priceOverride===null} onClick={()=>edit(next=>{next.lines.find(l=>l.id===selected)!.priceOverride=null;})}>Restore calculated price</button><strong>Final: {money(selectedCalculation?.finalPrice??0)}</strong></div>
