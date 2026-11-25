@@ -196,3 +196,19 @@ test('inserted row is one undoable edit and redo restores its identity and posit
  const history=recordEdit(newEditHistory(original),next),undo=moveEditHistory(history,'undo');
  assert.deepEqual(undo.present,original);assert.deepEqual(moveEditHistory(undo,'redo').present,next);
 });
+
+test('Item Type changes the linked item in both views without altering rows or snapshots',()=>{
+ const q=createBlankQuoteV27(),id=q.lines[0].id;
+ applyTakeoffViewCells(q,50,'',[0,1],0,0,[[id],[id]],null);
+ const before=structuredClone(q.takeoffs),catalog=structuredClone(q.catalog);
+ const col=TAKEOFF_VIEW_COLUMNS.indexOf('itemType');
+ applyTakeoffViewCells(q,50,'',[0,1],0,col,[['Equipment']],null);
+ assert.equal(q.lines[0].type,'Equipment Rental');assert.deepEqual(q.takeoffs,before);assert.deepEqual(q.catalog,catalog);
+ applyTakeoffViewCells(q,50,'',[0,1],1,col,[['Props/Decor']],null);
+ assert.equal(q.lines[0].type,'Props / Resale');assert.deepEqual(q.takeoffs,before);
+ const saved=JSON.stringify(q);
+ assert.throws(()=>applyTakeoffViewCells(q,50,'',[0,1],0,col,[['Not a type']],null));assert.equal(JSON.stringify(q),saved);
+ assert.throws(()=>applyTakeoffViewCells(q,50,'',[2],2,col,[['Fabrication']],null));assert.equal(JSON.stringify(q),saved);
+ applyTakeoffViewCells(q,50,'',[0],0,col,[['']],null);assert.equal(q.lines[0].type,'Props / Resale');
+ assert.deepEqual(TAKEOFF_VIEW_COLUMNS.slice(0,4),['lineId','itemType','itemName','description']);
+});

@@ -83,11 +83,14 @@
 .itemNumberCell {display:flex;align-items:center;padding-right:18px;}
 .itemNumberCell .itemChoice {flex:1;min-width:0;width:auto;padding-right:0;}
 
-/* Freeze the row marker, Item # and Item Name at their actual resized offsets. */
-.sheet tr > :nth-child(-n+3) { position:sticky; }
+/* Freeze the row marker, Item #, Item Type and Item Name at their actual resized offsets. */
+.sheet tr > :nth-child(-n+4) { position:sticky; }
 .sheet tr > :first-child { left:0; z-index:2; }
 .sheet tbody td:nth-child(2),.sheet thead th:nth-child(2) { left:var(--column-offset-2,32px); }
 .sheet tbody td:nth-child(3),.sheet thead th:nth-child(3) { position:sticky; left:var(--column-offset-3,112px); }
-.sheet thead th:nth-child(-n+3) { position:sticky; z-index:5; background:#354154; }
-.sheet tbody td:nth-child(3) { box-shadow:1px 0 0 #9ca5b1; }
+.sheet thead th:nth-child(-n+4) { position:sticky; z-index:5; background:#354154; }
+.sheet tbody td:nth-child(4) { box-shadow:1px 0 0 #9ca5b1; }
 .sheet thead { box-shadow:0 1px 0 #9ca5b1; }
+
+.sheet tbody td:nth-child(4),.sheet thead th:nth-child(4) {position:sticky;left:var(--column-offset-4,237px);}
+.sheet tbody td:nth-child(4) {z-index:2;background:#fff5bb;color:#23436b;}

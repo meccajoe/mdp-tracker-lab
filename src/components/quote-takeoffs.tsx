@@ -1,6 +1,6 @@
 'use client';
 import {quoteInputNumber} from '@/lib/quote-format';
-import {builderItemName} from '@/lib/quote-builder-display';
+import {builderItemName,builderTypes,typeLabel} from '@/lib/quote-builder-display';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
@@ -17,12 +17,12 @@ import {useQuoteItemActions} from './use-quote-item-actions';
 import {DropdownMenuItem} from './ui/dropdown-menu';
 import {QuoteMaterialCell} from './quote-material-cell';
 const columns=TAKEOFF_VIEW_COLUMNS;
-const headers=['Item #','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Ext hrs','Notes'];
+const headers=['Item #','Item Type','Item name','Materials & Labor','Qty','Unit','Unit cost $','Section ×','Resale?','Material $','Ext hrs','Notes'];
 type Cell=[number,number];
 export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOnly,restoreKey=0,save,workspaceId,libraryItem=false,scrollPosition}: {
   scrollPosition?:{current:{top:number;left:number}};libraryItem?:boolean;workspaceId:string;save:()=>void;restoreKey?:number;quote:QuoteV27;edit:(change:(next:QuoteV27)=>void)=>void;selected:string;onSelectItem?:(id:string)=>void;onAddItem:()=>void;readOnly:boolean;
 }) {
-  const tableRef=useStickyTableColumns(3);
+  const tableRef=useStickyTableColumns(4);
   const [existingOpen,setExistingOpen]=useState(false);
   const pickerRef=useRef<HTMLDivElement>(null);
   const scrollRef=useRef<HTMLDivElement>(null);
@@ -65,6 +65,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   function valueAt(r:number,key:SheetColumn):string {
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
+    if(key==='itemType'){const line=quote.lines.find(line=>line.id===row.lineId);return line?typeLabel(line.type):'';}
     if(key==='itemName'){const index=quote.lines.findIndex(line=>line.id===row.lineId);const name=index<0?'':builderItemName(quote.lines[index],index);return name===quoteItemLabel(quote,row.lineId)?'':name;}
     if(key==='quantity'&&isLaborTakeoff(quote,row))return saved&&row.hours?quoteInputNumber(row.hours):'';
     if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
@@ -111,7 +112,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     const range=drag.current;drag.current=null;setEnd(null);setEndColumn(null);
     if(range&&(range.end!==range.row||range.endColumn!==range.column)) {
       const first=Math.min(range.row,range.end),last=Math.max(range.row,range.end),col=Math.min(range.column,range.endColumn),lastCol=Math.max(range.column,range.endColumn);
-      const itemFill=range.column===1&&range.endColumn===1;
+      const itemFill=columns[range.column]==='itemName'&&columns[range.endColumn]==='itemName';
       const value=itemFill?rows[range.row].lineId:range.value;
       apply(first,itemFill?0:col,visibleIndices.filter(index=>index>=first&&index<=last).map(()=>Array.from({length:lastCol-col+1},()=>value)));
     }
@@ -122,11 +123,11 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
     <div className={styles.toolbar}><strong>Takeoffs</strong>
       {!libraryItem&&<button disabled={readOnly} onClick={()=>{resetSelection();onAddItem();}}>Add item</button>}
       <button disabled={readOnly||rowCount>=5000} onClick={()=>edit(next=>{next.takeoffRowCapacity=Math.min(5000,rowCount+50);})}>Add 50 rows</button><span>{rowCount} rows</span>
-      {active && active[0]<quote.takeoffs.length && <button disabled={readOnly||!live.materials} onClick={()=>apply(active[0],2,[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
+      {active && active[0]<quote.takeoffs.length && <button disabled={readOnly||!live.materials} onClick={()=>apply(active[0],columns.indexOf('description'),[[quote.takeoffs[active[0]].description]])}>Use latest price for selected row</button>}
     </div>
     {error&&<p role="alert">{error}</p>}{catalogNotice&&<p role="status">{catalogNotice}</p>}
     <div ref={scrollRef} className={styles.scroll} onScroll={event=>{if(scrollPosition)scrollPosition.current={top:event.currentTarget.scrollTop,left:event.currentTarget.scrollLeft};}}
-      onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=drag.current.column<=1?drag.current.column:Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
+      onPointerMove={e=>{if(!drag.current)return;const td=window.document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-takeoff-row]');if(td){const target=Number(td.getAttribute('data-takeoff-row'));drag.current.end=target;drag.current.endColumn=['lineId','itemName','itemType'].includes(columns[drag.current.column])?drag.current.column:Number(td.getAttribute('data-takeoff-column'));setEndColumn(drag.current.endColumn);setEnd(target);}}}
       onPointerUp={finish} onPointerCancel={()=>{drag.current=null;setEnd(null);setEndColumn(null);}}
       onCopy={e=>{
       if(!active||!selectionEnd)return;e.preventDefault();const copied=[];
@@ -136,7 +137,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       }
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
-      <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
+      <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,125,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
         <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
         <tbody>{visibleRows.map(({row,index:r})=><tr key={row.id} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
@@ -148,7 +149,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
             onMouseDown={e=>{if((e.target as HTMLElement).closest('[data-quote-item-menu],[role=menu]'))return;if(e.shiftKey&&active){e.preventDefault();setSelectionEnd([r,c]);}else setSelectionEnd(null);}}
             tabIndex={protectedCell?-1:undefined}
             onKeyDownCapture={e=>{if((e.target as HTMLElement).closest('[data-quote-item-menu],[role=menu]'))return;if((e.key==='Delete'||e.key==='Backspace')&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!e.shiftKey&&!readOnly&&!e.nativeEvent.isComposing){
-              if(protectedCell||key==='description'||isEditingText(e.target))return;
+              if(protectedCell||key==='itemType'||key==='description'||isEditingText(e.target))return;
               e.preventDefault();e.stopPropagation();
               if(e.target instanceof HTMLInputElement)e.target.value=key==='unitCostOverride'&&row.materialId?(catalog.get(row.materialId)?.unitCost??0).toLocaleString('en-US',{style:'currency',currency:'USD'}):'';
               apply(r,c,[['']]);setItemPicker(null);
@@ -167,7 +168,10 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
                 <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map((line,index)=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,index)===quoteItemLabel(quote,line.id)?'Name this item…':builderItemName(line,index)}</span></button>)}</div>
               </div>}
-            </>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
+            </>:key==='itemType'?<select aria-label={`Item Type row ${r+1}`} disabled={readOnly||!row.lineId} value={quote.lines.find(line=>line.id===row.lineId)?.type??''} onChange={e=>apply(r,c,[[e.target.value]])} title="Updates this item on every linked takeoff row and Quote Builder">
+              {!row.lineId?<option value="">Choose item first</option>:!builderTypes.some(([type])=>type===quote.lines.find(line=>line.id===row.lineId)?.type)&&<option hidden disabled value={quote.lines.find(line=>line.id===row.lineId)?.type}>{display}</option>}
+              {builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}
+            </select>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
                 onFocus={e=>{if(key==='itemName'||key==='notes')editTextCell(e.currentTarget);else selectTextCell(e.currentTarget);}}
                 onMouseUp={e=>{if(!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}

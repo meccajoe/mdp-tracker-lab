@@ -1,3 +1,4 @@
+import {builderTypes} from './quote-builder-display';
 import type { QuoteV27 } from './quote-v27';
 export const TAKEOFF_COLUMNS = ['lineId','description','materialId','quantity','unitCostOverride','sections','hours','tradeId','resale'] as const;
 export type TakeoffColumn = typeof TAKEOFF_COLUMNS[number];
@@ -76,7 +77,7 @@ export function applyWorksheetCells(quote: QuoteV27, count: number, selected: st
   quote.takeoffs = next.takeoffs;
 }
 
-export const SHEET_COLUMNS = ['lineId','itemName','description','quantity','unit','unitCostOverride','sections','resale','materialTotal','hours','extendedHours','notes','tradeId'] as const;
+export const SHEET_COLUMNS = ['lineId','itemName','description','quantity','unit','unitCostOverride','sections','resale','materialTotal','hours','extendedHours','notes','tradeId','itemType'] as const;
 export type SheetColumn = typeof SHEET_COLUMNS[number];
 /** Spreadsheet-facing edits use live choices, but never replace catalog prices already in use. */
 export function applySheetCells(quote: QuoteV27, count: number, selected: string, start: number,
@@ -93,6 +94,14 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
       if(!key)throw new Error('Paste extends beyond the worksheet.');
       if(key==='materialTotal'||key==='extendedHours') {
         if(value)throw new Error('Calculated columns are protected. Paste into editable columns only.');
+      } else if(key==='itemType') {
+        if(!value)continue; // An item always has a type; clearing cannot erase it.
+        const line=next.lines.find(line=>line.id===row.lineId);
+        if(!line)throw new Error('Choose an Item # or name before setting Item Type.');
+        if(value===line.type)continue; // Preserve historical service types when copying rows.
+        const choice=builderTypes.find(([type,label])=>type===value||label===value);
+        if(!choice)throw new Error('Choose Fabrication, Bematrix/SEG, Props/Decor or Equipment.');
+        line.type=choice[0];
       } else if(key==='itemName') {
         if(!value){row.lineId='';continue;}
         if(value.length>2000)throw new Error('Enter an item name (up to 2,000 characters).');
@@ -166,7 +175,7 @@ export function isLaborTakeoff(quote:QuoteV27,row:QuoteV27['takeoffs'][number]) 
  const unit=row.unit??quote.catalog.find(m=>m.id===row.materialId)?.unit??'';
  return !!row.tradeId||/^(hours?|hrs?)$/i.test(unit.trim())||(!row.quantity&&row.hours>0)||quote.trades.some(t=>t.name.toLowerCase()===row.description.toLowerCase());
 }
-export const TAKEOFF_VIEW_COLUMNS=SHEET_COLUMNS.filter(key=>key!=='tradeId'&&key!=='hours');
+export const TAKEOFF_VIEW_COLUMNS:SheetColumn[]=['lineId','itemType',...SHEET_COLUMNS.filter(key=>key!=='lineId'&&key!=='itemType'&&key!=='tradeId'&&key!=='hours')];
 export function applyTakeoffViewCells(quote:QuoteV27,count:number,selected:string,indices:number[],start:number,column:number,values:string[][],live:QuoteV27['catalog']|null){
  const offset=indices.indexOf(start);if(offset<0||offset+values.length>indices.length)throw new Error('Add more visible rows before pasting.');
  const next=structuredClone(quote);

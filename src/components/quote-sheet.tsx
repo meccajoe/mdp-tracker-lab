@@ -1,7 +1,7 @@
 "use client";
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
-import {builderItemName,showBuilderLine} from '@/lib/quote-builder-display';
+import {builderItemName,showBuilderLine,builderTypes,typeLabel} from '@/lib/quote-builder-display';
 import {moveQuoteItemRelative} from '@/lib/quote-item-actions';
 import {useRef,useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
@@ -21,15 +21,14 @@ const inputs: { key: keyof Inputs; heading: string }[] = [
   {key:'rental',heading:'beMatrix rental charge $'}, {key:'siteDays',heading:'Site days'},
   {key:'travelDays',heading:'Travel days'},
 ];
-const builderTypes=[['Fabrication','Fabrication'],['beMatrix / SEG','Bematrix/SEG'],['Props / Resale','Props/Decor'],['Equipment Rental','Equipment']] as const;
-const typeLabel=(type:string)=>builderTypes.find(([value])=>value===type)?.[1]??type;
+
 function MarginDetail({row,children}:{row:Calculation['lines'][number];children:React.ReactNode}){return <span className={styles.marginDetail} tabIndex={0}>{children}<span role="tooltip" className={styles.marginPopup}><strong>{row.name} · Margin breakdown</strong>{[['Final price',row.finalPrice],['− Materials / other budget',row.materialsBudget],['− Labor budget',row.laborBudget],['− Contingency',row.contingency],['− Indirect levy',row.indirect],['− Waste levy',row.waste],['− Commission',row.commission],['= Margin',row.margin]].map(([label,value])=><span key={label}>{label}: {amount(Number(value))}</span>)}</span></span>;}
 const outputs = [
   ['materialsBudget','Materials / other budget'], ['hoursAllowed','Hours allowed'],
   ['laborBudget','Labor $ (cost)'], ['buildBudget','Build budget'],
   ['contingency','Contingency'], ['indirect','Indirect levy'], ['waste','Waste levy'], ['margin','Margin'],
 ] as const;
-const headers = ['Item name','Line type',...inputs.map(i=>i.heading),'Support crew',
+const headers = ['Item name','Item Type',...inputs.map(i=>i.heading),'Support crew',
   'Cost $ (equip / props / expenses / freight / dump fees)','COMPUTED PRICE','Price override','FINAL PRICE',
   ...outputs.map(([,label])=>label),'Margin %'];
 
@@ -95,7 +94,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
               {!libraryItem&&<button type="button" className={styles.dragHandle} disabled={readOnly} draggable={!readOnly} aria-label={`Drag to move ${line.name}`} title="Drag to reorder item" onDragStart={event=>{if(readOnly){event.preventDefault();return;}dragging.current=line.id;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',line.id);}} onDragEnd={stopDrag}>⠿</button>}
               {itemActions.menu(line.id,`Item ${index+1} actions · ${line.name}`)}<span>{`Item ${index+1}`}</span></div></th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{displayName+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} value={displayName} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
-            <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{typeLabel(line.type)}</span><select aria-label={`Line type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{!builderTypes.some(([type])=>type===line.type)&&<option hidden disabled value={line.type}>{line.type}</option>}{builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div></td>
+            <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{typeLabel(line.type)}</span><select aria-label={`Item Type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{!builderTypes.some(([type])=>type===line.type)&&<option hidden disabled value={line.type}>{line.type}</option>}{builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div></td>
             {visibleInputs.map(({key,heading})=>inputCell(line,key,heading))}
             {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}
             {inputCell(line,'cost','Cost $')}
