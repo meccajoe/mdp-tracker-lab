@@ -1,7 +1,7 @@
 ## Shared Item Type on Takeoffs — November 25, 2026
 - Added Item Type between Item # and Item Name, sharing four choice labels/values with Quote Builder; renamed Builder header/accessibility label. Edits update stable linked line.type, reflecting on every linked row. Unassigned rows require item selection/name first. No schema or pricing formula changes.
 - Kept legacy sheet edit indices stable; updated view paste/fill mapping, name-fill indices, latest-price action and pinned name offset for inserted column. Existing service types display without implicit conversion.
-- Full lab:check/TypeScript passed, including 19 takeoff tests and linked type/atomic rejection coverage. React checklist reviewed. Hosted verification pending.
+- Full lab:check/TypeScript passed, including 19 takeoff tests and linked type/atomic rejection coverage. React checklist reviewed. Commit 05add88 deployed successfully (HAfnf9ngfGtY1AC77cLLnRRfwBEd). Hosted disposable quote 0b8797f8-e523-4666-b9a5-c5baf61c2c02 verified two linked rows change together, Takeoffs → Builder Equipment and Builder → Takeoffs Props/Decor, saved revision 3/reload persistence. Screenshot: /private/tmp/takeoff-item-type-verified.png. Test quote archived with confirmation; existing business quotes untouched.
 
 ## Drag item order and worksheet scroll — November 24, 2026
 - Added dedicated Quote Builder drag handles, before/after drop indicators and edge scrolling; uses stable-ID reorder through standard edit history. Existing menu alternatives retained. Disabled for read-only/library views.
