@@ -1,5 +1,5 @@
 ## Wider Takeoff names and materials — November 25, 2026
-- Increased Item Name to 240px and Materials & Labor to 260px while retaining compact Item #/Item Type. Table minimum 1500px preserves useful Notes space. View-only change; no saved quote changes. Verification pending.
+- Increased Item Name to 240px and Materials & Labor to 260px while retaining compact Item #/Item Type. Table minimum 1500px preserves useful Notes space. View-only change; no saved quote changes. TypeScript and diff checks passed. Release 35b27f1 deployed successfully (3YBijdbUQLjDKci8hWLt9BnpnhUn); hosted archived test quote visually verified. Screenshot /private/tmp/takeoff-wider-names.png.
 
 ## Compact Takeoff identity columns — November 25, 2026
 - Item # now 72px with extra width for longer numbers; Item Type 112px with wrapping visible labels over the native dropdown. Tightened item menu/arrow padding; flexible Notes absorbs spare table width so identity columns do not expand. View-only; no quote data/calculation changes. TypeScript passed. Release 7d5cc69 deployed successfully (DZKubLFif6uvqmyWgDaBW811NtLd). Hosted archived test quote verified 72px/112px identity columns and readable labels; screenshot /private/tmp/takeoff-compact-columns.png. No saved quote edits.
