@@ -38,3 +38,13 @@ export function cloneQuoteItem(quote:QuoteV27,id:string){
  quote.estimators?.beMatrix.walls.push(...walls.map(wall=>({...wall,id:crypto.randomUUID(),lineId:copyId})));
  return copyId;
 }
+
+/** Reorder only: stable IDs keep takeoffs, estimator links and overrides attached. */
+export function moveQuoteItem(quote:QuoteV27,id:string,position:number){
+ const index=quote.lines.findIndex(line=>line.id===id);
+ if(index<0)throw new Error('Choose an existing quote item.');
+ if(!Number.isInteger(position)||position<0||position>=quote.lines.length)throw new Error('Choose a valid item position.');
+ if(index===position)return;
+ const [line]=quote.lines.splice(index,1);
+ quote.lines.splice(position,0,line);
+}

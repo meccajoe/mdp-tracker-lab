@@ -42,7 +42,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
   readOnly?: boolean;
   libraryItem?: boolean;
 }) {
-  const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem});
+  const itemActions=useQuoteItemActions({quote,edit,readOnly,libraryItem,allowReorder:!libraryItem});
   const [showDetails,setShowDetails]=useState(false);
   const tableRef=useStickyTableColumns(2,showDetails);
   const visibleInputs=showDetails?inputs:inputs.slice(0,3);

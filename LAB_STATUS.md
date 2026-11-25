@@ -1,3 +1,7 @@
+## Quote Builder item ordering — November 24, 2026
+- Added Move up/down and Move to position to Quote Builder item menus only. Adjacent moves skip hidden installer rows. Reorders the lines array without changing IDs, inputs, takeoffs, estimator links or overrides; existing edit history/autosave/revision flow handles persistence. Item numbers follow order.
+- TypeScript, new order/persistence/undo regression and 12 reusable-item/history tests passed. React checklist reviewed. Deployment verification pending.
+
 ## Travel destination disclosure — November 23, 2026
 - Wrapped the three existing Travel destination dropdowns in a native, initially collapsed “Where travel appears on the quote” disclosure. Existing labels, values, handlers and all calculation/data paths unchanged. Install/Shipping links unchanged.
 - TypeScript and 13 estimator regressions passed. Commit77c76b4 deployed successfully (7jrg349aincbutLRnw39UyVgMcvE). Hosted archived disposable quote aa70f30a-6193-4170-b4fb-338e194c1476 verified initially collapsed, expand shows same three saved destinations, collapse hides them. Saved revision2/quote1250 unchanged; no data writes. Screenshot /private/tmp/travel-destinations-collapsed.png.
