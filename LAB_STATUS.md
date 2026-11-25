@@ -1,7 +1,7 @@
 ## Drag item order and worksheet scroll — November 24, 2026
 - Added dedicated Quote Builder drag handles, before/after drop indicators and edge scrolling; uses stable-ID reorder through standard edit history. Existing menu alternatives retained. Disabled for read-only/library views.
 - Workbook remembers per-tab outer scroll and Takeoffs inner vertical/horizontal scroll during tab switches; scoped to workspace, session-only. No quote data changes for scrolling.
-- TypeScript and five item-order/history tests passed; React checklist reviewed. Hosted verification pending.
+- TypeScript and five item-order/history tests passed; React checklist reviewed. Commit5107ba3 deployed successfully (5xfQphzH7fm2xQS46wUoDr6FeTtP). Hosted disposable quote942b5425-90fb-400f-8a4c-aa1690e0afcf: native mouse drag moved first item after fourth, saved revision3/reload retained order. Takeoffs scrolled to row33, switched to Builder and returned at identical visible row33 position. Screenshots /private/tmp/quote-drag-order-verified.png and /private/tmp/takeoff-scroll-restored.png. Test archived with confirmation; business quotes untouched. Horizontal retention implemented but not separately exercised in hosted browser; touch dragging not verified.
 
 ## Quote Builder item ordering — November 24, 2026
 - Added Move up/down and Move to position to Quote Builder item menus only. Adjacent moves skip hidden installer rows. Reorders the lines array without changing IDs, inputs, takeoffs, estimator links or overrides; existing edit history/autosave/revision flow handles persistence. Item numbers follow order.
