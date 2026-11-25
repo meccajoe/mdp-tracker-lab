@@ -94,3 +94,14 @@
 
 .sheet tbody td:nth-child(4),.sheet thead th:nth-child(4) {position:sticky;left:var(--column-offset-4,237px);}
 .sheet tbody td:nth-child(4) {z-index:2;background:#fff5bb;color:#23436b;}
+
+/* Keep identity columns compact; the flexible Notes column takes spare width. */
+.itemNumberCell {padding-right:14px;}
+.itemNumberCell .itemChoice {padding-left:2px;}
+.itemNumberCell [data-quote-item-menu] {width:14px;min-width:14px;padding:0;}
+.itemArrow {width:14px;}
+.itemTypeCell {position:relative;min-height:24px;}
+.itemTypeCell > span {display:block;padding:5px 17px 5px 3px;line-height:14px;overflow-wrap:anywhere;}
+.itemTypeCell::after {content:'▾';position:absolute;right:3px;top:5px;pointer-events:none;}
+.sheet .itemTypeCell > select {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.itemTypeCell:focus-within {outline:2px solid #467dad;outline-offset:-2px;}

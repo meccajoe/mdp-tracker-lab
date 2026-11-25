@@ -137,7 +137,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
       }
       e.clipboardData.setData('text/plain',copied.join('\n'));
     }}>
-      <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[80,125,180,125,50,60,85,55,55,85,55,320].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
+      <table ref={tableRef} aria-label="Item takeoffs worksheet"><colgroup><col style={{width:32}}/>{[72+Math.max(0,String(quote.lines.length).length-2)*7,112,180,125,50,60,85,55,55,85,55,undefined].map((width,i)=><col key={i} style={{width}}/>)}</colgroup>
         <thead><tr><th>#</th>{headers.map(h=><th key={h}>{h}<QuoteColumnResize label={h}/></th>)}</tr></thead>
         <tbody>{visibleRows.map(({row,index:r})=><tr key={row.id} className={r>0&&rows[r-1].lineId!==row.lineId?styles.itemStart:undefined}><th>{r+1}</th>{columns.map((key,c)=>{
           const display=valueAt(r,key), protectedCell=key==='materialTotal'||key==='extendedHours';
@@ -168,10 +168,10 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
                 <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map((line,index)=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,index)===quoteItemLabel(quote,line.id)?'Name this item…':builderItemName(line,index)}</span></button>)}</div>
               </div>}
-            </>:key==='itemType'?<select aria-label={`Item Type row ${r+1}`} disabled={readOnly||!row.lineId} value={quote.lines.find(line=>line.id===row.lineId)?.type??''} onChange={e=>apply(r,c,[[e.target.value]])} title="Updates this item on every linked takeoff row and Quote Builder">
+            </>:key==='itemType'?<div className={styles.itemTypeCell}><span aria-hidden="true">{row.lineId?display:'Choose item first'}</span><select aria-label={`Item Type row ${r+1}`} disabled={readOnly||!row.lineId} value={quote.lines.find(line=>line.id===row.lineId)?.type??''} onChange={e=>apply(r,c,[[e.target.value]])} title="Updates this item on every linked takeoff row and Quote Builder">
               {!row.lineId?<option value="">Choose item first</option>:!builderTypes.some(([type])=>type===quote.lines.find(line=>line.id===row.lineId)?.type)&&<option hidden disabled value={quote.lines.find(line=>line.id===row.lineId)?.type}>{display}</option>}
               {builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}
-            </select>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
+            </select></div>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}
                 onFocus={e=>{if(key==='itemName'||key==='notes')editTextCell(e.currentTarget);else selectTextCell(e.currentTarget);}}
                 onMouseUp={e=>{if(!isEditingText(e.currentTarget)){e.preventDefault();e.currentTarget.select();}}}

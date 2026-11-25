@@ -1,3 +1,6 @@
+## Compact Takeoff identity columns — November 25, 2026
+- Item # now 72px with extra width for longer numbers; Item Type 112px with wrapping visible labels over the native dropdown. Tightened item menu/arrow padding; flexible Notes absorbs spare table width so identity columns do not expand. View-only; no quote data/calculation changes. TypeScript passed; deployment verification pending.
+
 ## Shared Item Type on Takeoffs — November 25, 2026
 - Added Item Type between Item # and Item Name, sharing four choice labels/values with Quote Builder; renamed Builder header/accessibility label. Edits update stable linked line.type, reflecting on every linked row. Unassigned rows require item selection/name first. No schema or pricing formula changes.
 - Kept legacy sheet edit indices stable; updated view paste/fill mapping, name-fill indices, latest-price action and pinned name offset for inserted column. Existing service types display without implicit conversion.
