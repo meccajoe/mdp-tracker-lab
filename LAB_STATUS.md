@@ -1,5 +1,5 @@
 ## Compact Takeoff identity columns — November 25, 2026
-- Item # now 72px with extra width for longer numbers; Item Type 112px with wrapping visible labels over the native dropdown. Tightened item menu/arrow padding; flexible Notes absorbs spare table width so identity columns do not expand. View-only; no quote data/calculation changes. TypeScript passed; deployment verification pending.
+- Item # now 72px with extra width for longer numbers; Item Type 112px with wrapping visible labels over the native dropdown. Tightened item menu/arrow padding; flexible Notes absorbs spare table width so identity columns do not expand. View-only; no quote data/calculation changes. TypeScript passed. Release 7d5cc69 deployed successfully (DZKubLFif6uvqmyWgDaBW811NtLd). Hosted archived test quote verified 72px/112px identity columns and readable labels; screenshot /private/tmp/takeoff-compact-columns.png. No saved quote edits.
 
 ## Shared Item Type on Takeoffs — November 25, 2026
 - Added Item Type between Item # and Item Name, sharing four choice labels/values with Quote Builder; renamed Builder header/accessibility label. Edits update stable linked line.type, reflecting on every linked row. Unassigned rows require item selection/name first. No schema or pricing formula changes.
