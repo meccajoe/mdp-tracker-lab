@@ -75,7 +75,7 @@
 .materialList button[aria-selected=true],.materialList button:hover {background:#dceafa;}
 .materialList small {white-space:nowrap;color:#617083;}
 .listHint {position:sticky;top:0;background:#eef3f8;padding:7px;font-size:11px;}
-.sheet table {min-width:1500px;}
+.sheet table {min-width:1675px;}
 
 .itemChoice {padding-right:20px;}
 .itemArrow {position:absolute;right:0;top:0;width:18px;height:21px;color:#53627b;}
