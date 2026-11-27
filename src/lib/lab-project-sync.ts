@@ -1,4 +1,5 @@
 import {calculateQuoteV27} from './quote-v27';
+import {prepareBudgetHandoff} from './quote-budget-handoff';
 import {parseQuoteV27} from './quote-v27-validation';
 import {projectStatusFor} from './quote-schedule';
 import {approvedDefinition,readActivity,readDeal,resolveProjectLink,quoteIdentityKey,sha,SyncIssue,type SourceQuery,type ProjectLink} from './lab-project-sync-source';
@@ -14,7 +15,8 @@ export function eligibleQuote(row:any){
 }
 export function prepareBaseline(row:any,identity:any){
  const document=parseQuoteV27(row.document),calculation=calculateQuoteV27(document);
- return {schemaVersion:1,title:identity.name,schedule:document.schedule??{},sourceProjectStatus:projectStatusFor(document.schedule,document.planning?.status)==='Complete'?'Completed':'Active',laborRate:calculation.laborRate,lines:calculation.lines.filter(l=>l.name.trim()||l.finalPrice||l.buildBudget||l.hoursAllowed),totals:calculation.totals,warnings:[],hubspot:identity.hubspot};
+ const handoff=prepareBudgetHandoff(document,calculation);
+ return {budgetHandoff:{lines:handoff.budgetLines,workforceCandidates:handoff.workforceCandidates},schemaVersion:1,title:identity.name,schedule:document.schedule??{},sourceProjectStatus:projectStatusFor(document.schedule,document.planning?.status)==='Complete'?'Completed':'Active',laborRate:calculation.laborRate,lines:calculation.lines.filter(l=>l.name.trim()||l.finalPrice||l.buildBudget||l.hoursAllowed),totals:calculation.totals,warnings:[],hubspot:identity.hubspot};
 }
 export type SyncDb={rpc:(name:string,args?:any)=>PromiseLike<{data:any;error:any}>};
 async function rpc(db:SyncDb,name:string,args?:any){const result=await db.rpc(name,args);if(result.error)throw new SyncIssue(result.error.code==='57014'?'LAB_DATABASE_TIMEOUT':'LAB_TRANSACTION_FAILED');return result.data;}

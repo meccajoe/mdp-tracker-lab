@@ -47,6 +47,7 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  class SyncIssue extends Error{constructor(code){super(code);this.code=code}}
  const api=load('src/lib/lab-project-sync.ts',{
  './quote-v27':{calculateQuoteV27:()=>{baselineCalls++;return {laborRate:20,lines:[],totals:{price:100}}}},
+ './quote-budget-handoff':{prepareBudgetHandoff:()=>({budgetLines:[],workforceCandidates:[]})},
  './quote-v27-validation':{parseQuoteV27:x=>x},
  './quote-schedule':{projectStatusFor:s=>s.projectStatus},
  './lab-project-rate-approvals':{applyLabRateApprovals:(_capture,evidence,approvals)=>{assert.equal(approvals.length,0);return evidence;}},

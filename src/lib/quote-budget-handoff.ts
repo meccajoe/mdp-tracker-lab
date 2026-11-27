@@ -23,3 +23,31 @@ export function budgetHandoffHours(quote:QuoteV27,calculation:ReturnType<typeof 
  const trades=Object.entries(combined).filter(([,hours])=>hours!==0).map(([id,hours])=>({id,name:quote.trades.find(trade=>trade.id===id)?.name||`Unknown trade (${id})`,hours})).sort((a,b)=>a.name.localeCompare(b.name));
  return {lines,otherHours,purposeHours,needsTradeHours,total:calculation.totals.hoursAllowed,trades,assigned:trades.reduce((sum,trade)=>sum+trade.hours,0),untyped:lines.reduce((sum,line)=>sum+line.untypedHours,0),overallocated:lines.reduce((sum,line)=>sum+line.overallocatedTradeHours,0)};
 }
+
+type BudgetLine = ReturnType<typeof budgetHandoffHours>['lines'][number];
+
+export function hasBudgetHandoffValues(line: BudgetLine) {
+ return line.buildBudget !== 0 || line.finalPrice !== 0 || line.hoursAllowed !== 0 ||
+  Object.values(line.tradeHours).some(hours => hours !== 0);
+}
+
+const physicalItemTypes = new Set(['Fabrication', 'Graphics', 'beMatrix / SEG', 'Props / Resale', 'Equipment Rental']);
+
+/** Budget rows include project services. Only physical deliverables with budgeted work
+ * are candidates for Workforce. The persisted quote line ID survives renames and moves. */
+export function prepareBudgetHandoff(quote: QuoteV27, calculation: ReturnType<typeof calculateQuoteV27>) {
+ const hours = budgetHandoffHours(quote, calculation);
+ const budgetLines = hours.lines.filter(hasBudgetHandoffValues);
+ const workforceCandidates = budgetLines
+  .filter(line => physicalItemTypes.has(line.type) && line.name.trim() &&
+   (line.materialsBudget > 0 || line.hoursAllowed > 0))
+  .map(line => ({
+   quoteLineId: line.id,
+   name: line.name.trim(),
+   type: line.type,
+   materialsBudget: line.materialsBudget,
+   hoursAllowed: line.hoursAllowed,
+   laborBudget: line.laborBudget,
+  }));
+ return { hours, budgetLines, workforceCandidates };
+}

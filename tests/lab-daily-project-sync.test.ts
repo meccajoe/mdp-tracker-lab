@@ -39,7 +39,10 @@ test('CRM field mapping is explicit; quotes are references with separate totals 
 test('new baseline uses saved quote arithmetic without changing the quote',()=>{
  const document=quote.document??quote.quote??quote;
  const before=JSON.stringify(document);const baseline=prepareBaseline({document},{name:'Canonical',hubspot:{amount:1,quotes:[]}});
- assert.equal(baseline.title,'Canonical');assert.ok(baseline.totals.price>0);assert.ok(baseline.lines.length>0);assert.equal(JSON.stringify(document),before);
+ assert.equal(baseline.title,'Canonical');assert.ok(baseline.totals.price>0);assert.ok(baseline.lines.length>0);
+ assert.ok(baseline.budgetHandoff.workforceCandidates.length>0);
+ assert.equal(baseline.budgetHandoff.lines.reduce((hours,line)=>hours+line.hoursAllowed,0),baseline.totals.hoursAllowed);
+ assert.equal(JSON.stringify(document),before);
 });
 test('runner respects global overlap claim and records fatal source failures without touching projects',async()=>{
  const calls:string[]=[];

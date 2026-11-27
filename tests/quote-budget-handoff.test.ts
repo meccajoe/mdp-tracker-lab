@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
 import {calculateQuoteV27} from '../src/lib/quote-v27';
-import {budgetHandoffHours} from '../src/lib/quote-budget-handoff';
+import {budgetHandoffHours,prepareBudgetHandoff} from '../src/lib/quote-budget-handoff';
 function fixture(){
  const q=createBlankQuoteV27();q.estimators=undefined;q.settings.efficiency=1;
  q.lines=q.lines.slice(0,3);q.lines[2].type='Design / Engineering / CAD';q.lines[2].takeoffDriven=false;q.lines[2].inputs.hours=5;
@@ -41,4 +41,24 @@ test('named CAD and installer hours have purposes; only unexplained fabrication 
  assert.deepEqual(result.otherHours.filter(line=>line.purposeKnown).map(line=>[line.name,line.hours]),[[q.lines[2].name,32],['Lead Installer — Install/Dismantle/Off Days/Travel',5]]);
  assert.equal(result.otherHours.find(line=>!line.purposeKnown)?.id,q.lines[1].id);
  assert.equal(result.purposeHours+result.needsTradeHours,result.untyped);
+});
+
+test('project handoff keeps service budgets and uses stable quote IDs for physical deliverables',()=>{
+ const quote=fixture();
+ quote.lines[0].name='Back wall';
+ quote.lines[1].name='Cubbies';
+ quote.lines.push({...quote.lines[0],id:'empty',name:'Empty fabrication row'});
+ const wallId=quote.lines[0].id,cubbiesId=quote.lines[1].id;
+ const calculation=calculateQuoteV27(quote);
+ const handoff=prepareBudgetHandoff(quote,calculation);
+ assert.deepEqual(handoff.workforceCandidates.map(item=>item.quoteLineId),[wallId,cubbiesId]);
+ assert.equal(handoff.budgetLines.find(line=>line.id===quote.lines[2].id)?.hoursAllowed,5);
+ assert.equal(handoff.budgetLines.reduce((total,line)=>total+line.hoursAllowed,0),calculation.totals.hoursAllowed);
+ assert.equal(handoff.budgetLines.reduce((total,line)=>total+line.buildBudget,0),calculation.totals.buildBudget);
+
+ quote.lines[0].name='Main wall';
+ [quote.lines[0],quote.lines[1]]=[quote.lines[1],quote.lines[0]];
+ const edited=prepareBudgetHandoff(quote,calculateQuoteV27(quote));
+ assert.deepEqual(edited.workforceCandidates.map(item=>[item.quoteLineId,item.name]),[[cubbiesId,'Cubbies'],[wallId,'Main wall']]);
+ assert.equal(edited.workforceCandidates[1].hoursAllowed,handoff.workforceCandidates[0].hoursAllowed);
 });
