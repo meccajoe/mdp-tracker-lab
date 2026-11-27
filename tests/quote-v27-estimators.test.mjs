@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { calculateQuoteV27 } from '../src/lib/quote-v27.ts';
-import { emptyEstimators, parseEstimators } from '../src/lib/quote-v27-estimators.ts';
+import { emptyEstimators, parseEstimators, addInstaller, installerIds, peopleIds } from '../src/lib/quote-v27-estimators.ts';
 const source=JSON.parse(readFileSync(new URL('../src/data/quote-v27-fonroche.json',import.meta.url)));
 const fresh=()=>structuredClone(source);
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
@@ -118,4 +118,21 @@ test('No Flight Travel removes only airfare and baggage, persists and restores f
  for(let i=0;i<4;i++)for(const key of ['travelDays','hotelNights','roadDays','shared'])near(after.travel[i][key],before.travel[i][key]);
  q.estimators.travel.noFlight=false;near(calculateQuoteV27(q).estimators.travelCost,before.travelCost);
  q.estimators.travel.noFlight='yes';assert.throws(()=>parseEstimators(q.estimators));
+});
+
+test('additional installers persist and contribute labor and travel without changing existing estimates',()=>{
+ const q=fresh(),before=calculateQuoteV27(q),original=structuredClone(q.estimators);
+ const id=addInstaller(q);assert.equal(id,'installer-4');
+ assert.equal(installerIds(q.estimators).length,4);assert.equal(peopleIds(q.estimators).length,5);
+ near(calculateQuoteV27(q).totals.price,before.totals.price);
+ assert.deepEqual(q.estimators.install.lead,original.install.lead);
+ q.estimators.install[id].installDays=3;q.estimators.install[id].offDays=1;
+ q.estimators.travel.people[id].traveling=true;
+ const saved=parseEstimators(JSON.parse(JSON.stringify(q.estimators)));q.estimators=saved;
+ const result=calculateQuoteV27(q).estimators,person=result.travel.find(p=>p.id===id),labor=result.install.find(p=>p.id===id);
+ assert.equal(person.marketDays,4);assert.equal(person.travelDays,2);assert.equal(labor.days,6);
+ near(labor.billing,(3+q.settings.offFactor+2*q.settings.travelFactor)*q.settings.supportDay);
+ assert.ok(person.total>0);assert.ok(result.travelCost>before.estimators.travelCost);
+ assert.equal(addInstaller(q),'installer-5');
+ const invalid=structuredClone(q.estimators);delete invalid.travel.people['installer-5'];assert.throws(()=>parseEstimators(invalid));
 });

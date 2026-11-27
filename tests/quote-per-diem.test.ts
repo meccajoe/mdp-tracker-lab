@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {parseQuoteV27} from '../src/lib/quote-v27-validation';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
-import {emptyEstimators} from '../src/lib/quote-v27-estimators';
+import {emptyEstimators,addInstaller} from '../src/lib/quote-v27-estimators';
 import {parsePerDiemRecipients} from '../src/lib/per-diem-recipients';
 import {parseTravelAdjustments} from '../src/lib/per-diem-adjustments';
 import {quotePerDiem,validateTravelAdjustments} from '../src/lib/quote-per-diem';
@@ -25,3 +25,12 @@ test('PM travel adjustment raises only payment travel allowance, never quote or 
 test('new quotes enable lead work-day bonus and validate all day-type settings',()=>{const q=createBlankQuoteV27();assert.equal(q.estimators!.travel.people.lead.roadBonus,true);assert.equal(q.settings.perDiemTravel,50);assert.equal(q.settings.leadBonusTravel,0);});
 
 test('day-type allowances survive quote save/reopen and adjusted PDF keeps quoted comparison',async()=>{const q=fixture();Object.assign(q.settings,ALLOWANCE_DEFAULTS);assert.deepEqual(quotePerDiem(parseQuoteV27(JSON.parse(JSON.stringify(q)))),quotePerDiem(q));const bytes=await renderProjectDocument(q,{project:'Illustrative travel adjustment',client:'Example',revision:4},'per-diem',{lead:'Example Installer'},{lead:{rate:90,reason:'Long travel day'}});assert.ok((await PDFDocument.load(bytes)).getPageCount()>0);if(process.env.RENDER_PROJECT_DOCUMENT_SAMPLES==='1')await writeFile('/private/tmp/adjusted-per-diem.pdf',bytes);});
+
+test('additional installers appear in per diem with recipient and travel adjustments',()=>{
+ const q=createBlankQuoteV27(),id=addInstaller(q);q.estimators!.install[id].installDays=2;q.estimators!.install[id].offDays=1;q.estimators!.travel.people[id].traveling=true;
+ const saved=parseQuoteV27(JSON.parse(JSON.stringify(q))),p=quotePerDiem(saved).people.find(p=>p.id===id)!;
+ assert.equal(p.label,'Installer 4');assert.equal(p.perDiem,310);assert.equal(p.bonus,0);
+ assert.deepEqual(parsePerDiemRecipients({[id]:'Test Installer'}),{[id]:'Test Installer'});
+ const adjustment=parseTravelAdjustments({[id]:{rate:60,reason:'Long travel'}});validateTravelAdjustments(saved,adjustment);
+ assert.equal(quotePerDiem(saved,adjustment).perDiem,330);
+});

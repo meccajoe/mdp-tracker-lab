@@ -1,5 +1,5 @@
 import {travelAllowanceRows} from './travel-allowances.ts';
-import type { Inputs, QuoteV27 } from './quote-v27';
+import {EMPTY_INPUTS,type Inputs,type QuoteV27 } from './quote-v27.ts';
 
 export const PEOPLE = ['lead', 'pm', 'second', 'third'] as const;
 export const INSTALLERS = ['lead', 'second', 'third'] as const;
@@ -28,7 +28,25 @@ export function emptyEstimators() {
   };
 }
 export type SupportDay = {installDays:number;dismantleDays:number;offDays:number};
-export type Estimators = ReturnType<typeof emptyEstimators> & {install:{support:{daily?:SupportDay[]}};travel:{noFlight?:boolean}};
+export type ExtraInstallerId = `installer-${number}`;
+export type InstallerId = typeof INSTALLERS[number] | ExtraInstallerId;
+export type PersonId = InstallerId | 'pm';
+export type Estimators = ReturnType<typeof emptyEstimators> & {install:Record<ExtraInstallerId,ReturnType<typeof installer>>&{support:{daily?:SupportDay[]}};travel:{people:Record<ExtraInstallerId,ReturnType<typeof traveler>>;noFlight?:boolean}};
+export const isExtraInstallerId=(id:string):id is ExtraInstallerId=>/^installer-(?:[4-9]|[1-9][0-9]{1,2})$/.test(id)&&Number(id.slice(10))<=200;
+export const isPersonId=(id:string):id is PersonId=>PEOPLE.includes(id as typeof PEOPLE[number])||isExtraInstallerId(id);
+export const installerIds=(e:Estimators):InstallerId[]=>[...INSTALLERS,...Object.keys(e.install).filter(isExtraInstallerId).sort((a,b)=>Number(a.slice(10))-Number(b.slice(10)))];
+export const peopleIds=(e:Estimators):PersonId[]=>[...PEOPLE,...installerIds(e).filter(isExtraInstallerId)];
+export const personLabel=(id:PersonId)=>isExtraInstallerId(id)?`Installer ${id.slice(10)}`:PERSON_LABELS[id];
+export function addInstaller(quote:QuoteV27){
+ const e=quote.estimators;if(!e)throw Error('Enable estimators first.');
+ if(quote.lines.length>=200)throw Error('This quote has reached its 200-item limit.');
+ const number=Math.max(3,...installerIds(e).filter(isExtraInstallerId).map(id=>Number(id.slice(10))))+1;
+ if(number>200)throw Error('This quote has reached its installer limit.');
+ const id:ExtraInstallerId=`installer-${number}`,lineId=crypto.randomUUID();
+ e.install[id]={...installer(),lineId};e.travel.people[id]={...traveler(),useInstallDays:true};
+ quote.lines.push({id:lineId,name:`Installer ${number}`,type:'Installer Days',takeoffDriven:false,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null});
+ return id;
+}
 
 /** Accept only the versioned estimator schema, including signed hotel adjustments. */
 export function parseEstimators(value: unknown): Estimators {
@@ -52,6 +70,14 @@ export function parseEstimators(value: unknown): Estimators {
     return Object.fromEntries(Object.entries(shape as object).map(([k,v])=>[k,walk(v,(input as Record<string,unknown>)[k],k)]));
   }
   const parsed=walk(emptyEstimators(),value,'estimators') as Estimators;
+  const raw=value as Estimators;
+  const extraInstallers=Object.keys(raw.install).filter(key=>!['lead','second','third','support'].includes(key));
+  const extraTravelers=Object.keys(raw.travel.people).filter(key=>!PEOPLE.includes(key as typeof PEOPLE[number]));
+  if(extraInstallers.length>197||extraInstallers.some(id=>!isExtraInstallerId(id))||extraTravelers.length!==extraInstallers.length||extraTravelers.some(id=>!extraInstallers.includes(id)))throw Error('Invalid additional installer records.');
+  for(const id of extraInstallers as ExtraInstallerId[]){
+    parsed.install[id]=walk(installer(),raw.install[id],'installer') as ReturnType<typeof installer>;
+    parsed.travel.people[id]=walk(traveler(),raw.travel.people[id],'traveler') as ReturnType<typeof traveler>;
+  }
   const noFlight=(value as Estimators).travel?.noFlight;
   if(noFlight!==undefined){if(typeof noFlight!=='boolean')throw new Error('Invalid no-flight travel choice.');parsed.travel.noFlight=noFlight;}
   const daily=(value as Estimators).install?.support?.daily;
@@ -86,14 +112,14 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
     if(lineInputs[id])throw new Error('Two estimator outputs cannot target the same quote item.');
     lineInputs[id]=inputs;
   }
-  const travel = PEOPLE.map(id=>{
+  const travel = peopleIds(e).map(id=>{
     const p=e.travel.people[id];
     const days=p.useInstallDays && id!=='pm'?e.install[id]:p;
     const trips=!p.traveling?0:days.installDays>0&&days.dismantleDays>0&&!p.stays?2:1;
     const marketDays=p.traveling?days.installDays+days.dismantleDays+(p.stays?days.offDays:0):0;
     const travelDays=trips*p.daysPerTrip, roadDays=marketDays+travelDays;
     const hotelNights=p.traveling?marketDays+trips+p.hotelAdjustment:0;
-    if(hotelNights<0)throw new Error(`${PERSON_LABELS[id]}: hotel adjustment makes nights negative.`);
+    if(hotelNights<0)throw new Error(`${personLabel(id)}: hotel adjustment makes nights negative.`);
     const allowances=travelAllowanceRows(s,rates,{install:p.traveling?days.installDays:0,dismantle:p.traveling?days.dismantleDays:0,off:p.traveling&&p.stays?days.offDays:0,travel:travelDays},p.roadBonus);
     const perDiem=allowances.reduce((sum,r)=>sum+r.perDiem,0),bonus=allowances.reduce((sum,r)=>sum+r.bonus,0);
     const cost=(e.travel.noFlight?0:trips*(rates.airfare+rates.baggage))+hotelNights*rates.hotel+perDiem+bonus;
@@ -107,7 +133,7 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
   bind(e.travel.leadLineId,'Travel & Expenses',{cost:travel[0].total});
   bind(e.travel.otherLineId,'Travel & Expenses',{cost:travelCost-travel[0].total});
   bind(e.travel.pmLineId,'Travel — Project Manager',{travelDays:travel[1].travelDays});
-  const install=INSTALLERS.map(id=>{
+  const install=installerIds(e).map(id=>{
     const p=e.install[id],travelDays=p.travelDaysOverride??travel.find(t=>t.id===id)!.travelDays;
     const dayRate=id==='lead'?s.leadDay:s.supportDay;
     const days=p.installDays+p.dismantleDays+p.offDays+travelDays;

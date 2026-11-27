@@ -1,3 +1,4 @@
+import {installerIds} from './quote-v27-estimators';
 import {calculateQuoteV27,EMPTY_INPUTS,type QuoteV27} from './quote-v27';
 /** Reset a quote slot without changing any other item's stable identity. Undo retains the full prior snapshot. */
 export function clearQuoteItem(quote:QuoteV27,id:string){
@@ -10,7 +11,7 @@ export function clearQuoteItem(quote:QuoteV27,id:string){
  if(quote.storage?.lineId===id)quote.storage.lineId=null;
  const e=quote.estimators;if(!e)return;
  e.beMatrix.walls=e.beMatrix.walls.filter(wall=>wall.lineId!==id);
- for(const person of ['lead','second','third','support'] as const)if(e.install[person].lineId===id)e.install[person].lineId=null;
+ for(const person of [...installerIds(e),'support'] as const)if(e.install[person].lineId===id)e.install[person].lineId=null;
  for(const key of ['leadLineId','pmLineId','otherLineId'] as const)if(e.travel[key]===id)e.travel[key]=null;
  if(e.shipping.lineId===id)e.shipping.lineId=null;
 }

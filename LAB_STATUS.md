@@ -1,3 +1,7 @@
+## Additional installers and editable linked travel days — November 27, 2026
+- Install starts with existing three columns; Add installer creates paired stable installer-N labor/travel records and linked billing line. Dynamic calculation/UI/per-diem and link cleanup include extras; existing snapshots unchanged. Travel linked install/off/dismantle day cells now edit the Install Labor source rather than being read-only.
+- Full lab suites passed; TypeScript initially found optional adjustment typing, corrected and rerun successfully. Eleven per-diem tests passed including extra installer payments/names/adjustments; estimator regression covers zero-change addition, extra labor/travel math and parser roundtrip/pair validation. React checklist reviewed. Hosted verification pending.
+
 ## Quote Builder widths and automatic Takeoff items — November 27, 2026
 - Quote Builder now uses account-backed RememberedColumns with its own quote-builder key, stable header names across estimate-detail visibility, and measured pinned offsets. Takeoff preferences remain independent.
 - Typing a new Takeoff item name reuses an empty Item/Spare/New item slot or creates a takeoff-driven Fabrication line with stable ID. Repeated names link to it. Populated placeholder costs/overrides are protected; 200-item schema limit gives explicit error. Transactional paste and undo/save paths unchanged.

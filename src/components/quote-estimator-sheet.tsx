@@ -2,7 +2,7 @@
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import type {ReactNode} from 'react';
-import {INSTALLERS,PEOPLE,PERSON_LABELS,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
+import {installerIds,peopleIds,personLabel,type InstallerId,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
 import {type QuoteV27} from '@/lib/quote-v27';
 import styles from './quote-estimator-sheet.module.css';
 const money=quoteMoney;
@@ -11,29 +11,30 @@ function NumberCell({label,value,change,nullable=false,placeholder='',signed=fal
 }
 export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{kind:'Install'|'Travel';laborRate:number;quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
  const e=quote.estimators!,s=quote.settings;
- const people=kind==='Install'?INSTALLERS:PEOPLE;
+ const installers=installerIds(e),travelers=peopleIds(e);
+ const people=kind==='Install'?installers:travelers;
  const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{typeof cell==='number'?quoteNumber(cell):cell}</td>)}</tr>;
  const section=(label:string)=><tr key={label} className={styles.section}><th colSpan={people.length+1}>{label}</th></tr>;
- const travelNumber=(key:'installDays'|'offDays'|'dismantleDays'|'daysPerTrip'|'hotelAdjustment',label:string)=>row(label,PEOPLE.map(id=>{
+ const travelNumber=(key:'installDays'|'offDays'|'dismantleDays'|'daysPerTrip'|'hotelAdjustment',label:string)=>row(label,travelers.map(id=>{
   const person=e.travel.people[id];const follows=person.useInstallDays&&id!=='pm'&&['installDays','offDays','dismantleDays'].includes(key);
-  return follows?<span title="Follows Install Labor">{quoteNumber(e.install[id as typeof INSTALLERS[number]][key as 'installDays'|'offDays'|'dismantleDays'])}</span>:<NumberCell label={`${PERSON_LABELS[id]} ${label}`} value={person[key]} signed={key==='hotelAdjustment'} change={value=>update(next=>{next.travel.people[id][key]=value??0;})}/>;
+  return <NumberCell label={`${personLabel(id)} ${label}`} value={follows?e.install[id as InstallerId][key as 'installDays'|'offDays'|'dismantleDays']:person[key]} signed={key==='hotelAdjustment'} change={value=>update(next=>{if(follows)next.install[id as InstallerId][key as 'installDays'|'offDays'|'dismantleDays']=value??0;else next.travel.people[id][key]=value??0;})}/>;
  }));
- const travelSwitch=(key:'traveling'|'stays'|'roadBonus',label:string)=>row(label,PEOPLE.map(id=><select aria-label={`${PERSON_LABELS[id]} ${label}`} value={e.travel.people[id][key]?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id][key]=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>));
+ const travelSwitch=(key:'traveling'|'stays'|'roadBonus',label:string)=>row(label,travelers.map(id=><select aria-label={`${personLabel(id)} ${label}`} value={e.travel.people[id][key]?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id][key]=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>));
  const support=e.install.support;
  const days=support.daily??Array.from({length:10},(_,i)=>({installDays:i===0?support.installDays:0,dismantleDays:i===0?support.dismantleDays:0,offDays:i===0?support.offDays:0}));
  const internalCost=(result?.install.reduce((sum,p)=>sum+p.days,0)??0)*s.siteHours*laborRate+(result?.supportDays??0)*s.supportCost;
  const totalBilling=(result?.install.reduce((sum,p)=>sum+p.billing,0)??0)+(result?.supportBilling??0);
- return <div className={styles.sheet}><h2>{kind==='Install'?'Install Labor Estimator':'Travel Budget Estimator — up to 4 travelers'}</h2><p>{kind==='Install'?'Enter each installer’s day counts below. Green rows calculate automatically. Blank travel days follow the Travel Estimator; typing a value overrides them.':'Each traveler has a column. Set their trip shape, then shared unit costs. Green rows show calculated trip counts and costs.'}</p>
+ return <div className={styles.sheet}><h2>{kind==='Install'?'Install Labor Estimator':'Travel Budget Estimator'}</h2><p>{kind==='Install'?'Enter each installer’s day counts below. Green rows calculate automatically. Blank travel days follow the Travel Estimator; typing a value overrides them.':'Each traveler has a column. When Follow Install Labor is Yes, editing day counts here also updates Install Labor. Green rows show calculated trip counts and costs.'}</p>
  {kind==='Install'&&!support.daily&&(support.installDays+support.dismantleDays+support.offDays)>0&&<p role="note">This saved quote has crew totals without a daily breakdown. They appear in Day 1 for editing; distribute them across the actual days as needed.</p>}
- <div className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`}><thead><tr><th>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{PERSON_LABELS[id]}</th>)}</tr></thead><tbody>
+ <div className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`} style={{minWidth:Math.max(640,300+people.length*150)}}><thead><tr><th style={{width:300}}>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{personLabel(id)}</th>)}</tr></thead><tbody>
  {kind==='Install'?<>
- {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],INSTALLERS.map(id=><NumberCell label={`${PERSON_LABELS[id]} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
- {row('TOTAL DAYS',INSTALLERS.map(id=>result?.install.find(p=>p.id===id)?.days??0),true)}
+ {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],installers.map(id=><NumberCell label={`${personLabel(id)} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
+ {row('TOTAL DAYS',installers.map(id=>result?.install.find(p=>p.id===id)?.days??0),true)}
  {section('Billing (auto) — lead at lead rate, installers 2 & 3 at support rate')}
- {row('Install + dismantle days billing',INSTALLERS.map(id=>money((e.install[id].installDays+e.install[id].dismantleDays)*(id==='lead'?s.leadDay:s.supportDay))),true)}
- {row('Off days billing',INSTALLERS.map(id=>money(e.install[id].offDays*s.offFactor*(id==='lead'?s.leadDay:s.supportDay))),true)}
- {row('Travel days billing',INSTALLERS.map(id=>money((result?.install.find(p=>p.id===id)?.travelDays??0)*s.travelFactor*(id==='lead'?s.leadDay:s.supportDay))),true)}
- {row('TOTAL LABOR BILLING',INSTALLERS.map(id=>money(result?.install.find(p=>p.id===id)?.billing??0)),true)}
+ {row('Install + dismantle days billing',installers.map(id=>money((e.install[id].installDays+e.install[id].dismantleDays)*(id==='lead'?s.leadDay:s.supportDay))),true)}
+ {row('Off days billing',installers.map(id=>money(e.install[id].offDays*s.offFactor*(id==='lead'?s.leadDay:s.supportDay))),true)}
+ {row('Travel days billing',installers.map(id=>money((result?.install.find(p=>p.id===id)?.travelDays??0)*s.travelFactor*(id==='lead'?s.leadDay:s.supportDay))),true)}
+ {row('TOTAL LABOR BILLING',installers.map(id=>money(result?.install.find(p=>p.id===id)?.billing??0)),true)}
  {section('Hired local support crew — day by day (people on site each day)')}
  <tr className={styles.section}><th>Day</th><th>Install crew</th><th>Dismantle crew</th><th>Off-day crew</th></tr>
  {days.map((day,index)=>row(`Day ${index+1}`,(['installDays','dismantleDays','offDays'] as const).map(key=><NumberCell label={`Support day ${index+1} ${key}`} value={day[key]} change={value=>update(next=>{const grid=structuredClone(days);grid[index][key]=value??0;next.install.support.daily=grid;for(const field of ['installDays','dismantleDays','offDays'] as const)next.install.support[field]=grid.reduce((sum,d)=>sum+d[field],0);})}/>)))}
@@ -57,23 +58,23 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  {travelNumber('daysPerTrip','Travel days per round trip')}
  {travelNumber('hotelAdjustment','Hotel nights adjustment (+/−)')}
  {travelSwitch('roadBonus','Gets lead road bonus?')}
- {row('Follow Install Labor day counts',PEOPLE.map(id=>id==='pm'?'—':<select aria-label={`${PERSON_LABELS[id]} follow install days`} value={e.travel.people[id].useInstallDays?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id].useInstallDays=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>))}
+ {row('Follow Install Labor day counts',travelers.map(id=>id==='pm'?'—':<select aria-label={`${personLabel(id)} follow install days`} value={e.travel.people[id].useInstallDays?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id].useInstallDays=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>))}
  {section('Trip math (auto)')}
- {(['trips','marketDays','travelDays','roadDays','hotelNights'] as const).map((key,i)=>row(['Round trips','Days in market','Travel days','Road days','Hotel nights'][i],PEOPLE.map(id=>result?.travel.find(p=>p.id===id)?.[key]??0),true))}
+ {(['trips','marketDays','travelDays','roadDays','hotelNights'] as const).map((key,i)=>row(['Round trips','Days in market','Travel days','Road days','Hotel nights'][i],travelers.map(id=>result?.travel.find(p=>p.id===id)?.[key]??0),true))}
  {section('Unit costs (shared — tune per destination)')}
  {Object.entries({airfare:'Airfare ($/person/round trip)',hotel:'Hotel ($/room/night)',perDiem:'Per diem ($/person/road day)',vehicle:'Uber/Lyft/Rental ($/day)',vehicles:'Uber/Lyft/Rental (count)',baggage:'Baggage & misc ($/person/trip)',roadBonus:'Lead road bonus ($/road day)',other:'Other costs (lump $)'}).filter(([key])=>e&&quote.settings.perDiemInstall!==undefined?!['perDiem','roadBonus'].includes(key):true).map(([key,label])=>row(label,[<NumberCell key={key} label={label} value={e.travel.rates[key as keyof typeof e.travel.rates]} change={value=>update(next=>{next.travel.rates[key as keyof typeof e.travel.rates]=value??0;})}/>]))}
- {quote.settings.perDiemInstall!==undefined&&<tr><td colSpan={5}>Day-type per diem and lead bonus rates are editable in Rates / Settings.</td></tr>}
+ {quote.settings.perDiemInstall!==undefined&&<tr><td colSpan={people.length+1}>Day-type per diem and lead bonus rates are editable in Rates / Settings.</td></tr>}
  {section('Cost buildup (auto)')}
- {(['Airfare','Hotel','Per diem','Baggage & misc','Road bonus'] as const).map((label,index)=>row(label,PEOPLE.map(id=>{const p=result?.travel.find(p=>p.id===id),r=e.travel.rates;return money(!p?0:[e.travel.noFlight?0:p.trips*r.airfare,p.hotelNights*r.hotel,p.perDiem,e.travel.noFlight?0:p.trips*r.baggage,p.bonus][index]);}),true))}
- {row('PERSON TOTAL',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.cost??0)),true)}
+ {(['Airfare','Hotel','Per diem','Baggage & misc','Road bonus'] as const).map((label,index)=>row(label,travelers.map(id=>{const p=result?.travel.find(p=>p.id===id),r=e.travel.rates;return money(!p?0:[e.travel.noFlight?0:p.trips*r.airfare,p.hotelNights*r.hotel,p.perDiem,e.travel.noFlight?0:p.trips*r.baggage,p.bonus][index]);}),true))}
+ {row('PERSON TOTAL',travelers.map(id=>money(result?.travel.find(p=>p.id===id)?.cost??0)),true)}
  {row('Uber/Lyft/Rental (count × $/day × longest road days)',[money(e.travel.rates.vehicles*e.travel.rates.vehicle*Math.max(0,...(result?.travel.map(p=>p.roadDays)??[])))],true)}
  {row('Other',[money(e.travel.rates.other)],true)}
  {row('TOTAL TRAVEL COST',[money(result?.travelCost??0)],true)}
  {row('Markup on travel',[`${quoteNumber(s.travelMarkup*100)}%`],true)}
  {row('PRICE TO CLIENT (before commission)',[money((result?.travelCost??0)*(1+s.travelMarkup))],true)}
  {section('Per-person split (to quote travel separately)')}
- {row('Share of Uber/Lyft/Rental & other',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.shared??0)),true)}
- {row('PERSON COST (including shared)',PEOPLE.map(id=>money(result?.travel.find(p=>p.id===id)?.total??0)),true)}
+ {row('Share of Uber/Lyft/Rental & other',travelers.map(id=>money(result?.travel.find(p=>p.id===id)?.shared??0)),true)}
+ {row('PERSON COST (including shared)',travelers.map(id=>money(result?.travel.find(p=>p.id===id)?.total??0)),true)}
  </>}
  </tbody></table></div><div className={styles.links}>{links}</div></div>;
 }

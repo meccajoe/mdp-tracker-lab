@@ -1,3 +1,9 @@
+## Additional installers — November 27, 2026
+
+Existing lead/second/third/PM records remain unchanged. Add installer explicitly appends paired install and travel records keyed installer-4 onward plus a linked Installer Days quote line. Additional installers use the existing support day rate, off/travel factors and burdened labor calculation. They default to zero days, travel disabled, Follow Install Labor on, and no lead bonus. Travel shared-cost allocation, other-travel output, field capacity and per diem include every added installer. Parser requires matching valid install/travel keys; standard quote limit of 200 lines applies. No automatic data migration.
+
+Travel linked day-count cells are editable: edits write the same Install Labor day count while following it. Unlinked travel retains independent counts. Existing amounts do not change until a user edits a count or enables travel. Recipient names and travel-allowance adjustments accept the added stable installer keys; quote item deletion clears added installer links too.
+
 ## Storage estimator — November 20, 2026
 
 Source: Paul’s Storage Pricing — 625 sq ft Non-Stackable.xlsx, Untitled!A4:E30. The workbook contains cached numeric results rather than formula cells. Method 1 = footprint × square-foot monthly rate; Method 2 = footprint × average item height × non-stackable multiplier × cubic-foot monthly rate; Method 3 = footprint × usable ceiling height × floor-to-ceiling cubic-foot monthly rate. Annual = monthly × 12; contract = monthly × entered months. Method 1 defaults to Mecca $2/sq ft/month, term 12 months; empty footprint avoids inserting the source example. Settings default to 4ft item height, 20ft ceiling, multiplier2 and $0.45/cu ft for Methods2/3; Method1 presets retain $1.25/$1.73/$2/$2.25.
