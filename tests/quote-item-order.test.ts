@@ -1,3 +1,5 @@
+import {addInstaller} from '../src/lib/quote-v27-estimators';
+import {installerHasEnteredWork,removeInstaller} from '../src/lib/quote-installer-actions';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createBlankQuoteV27} from '../src/lib/quote-v27-template';
@@ -29,4 +31,34 @@ test('drag insertion works before/after targets in either direction and self-dro
   moveQuoteItemRelative(q,original[source].id,original[target].id,after);
   assert.deepEqual(q.lines,expected.map(i=>original[i]));
  }
+});
+
+test('extra installer removal clears paired records and billing, preserves others and supports undo',()=>{
+ const q=createBlankQuoteV27(),original=structuredClone(q);
+ const id=addInstaller(q),other=addInstaller(q),lineId=q.estimators!.install[id].lineId!;
+ assert.equal(installerHasEnteredWork(q,id),false);
+ q.estimators!.install[id].installDays=3;q.estimators!.travel.people[id].traveling=true;
+ q.lines.find(line=>line.id===lineId)!.priceOverride=900;
+ assert.equal(installerHasEnteredWork(q,id),true);
+ const before=structuredClone(q),history=recordEdit(newEditHistory(original),structuredClone(q));
+ removeInstaller(q,id);
+ assert.equal(q.estimators!.install[id],undefined);assert.equal(q.estimators!.travel.people[id],undefined);
+ assert.ok(!q.lines.some(line=>line.id===lineId));assert.ok(q.estimators!.install[other]);
+ const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));calculateQuoteV27(saved);
+ assert.deepEqual(saved.estimators!.install.lead,original.estimators!.install.lead);
+ const removalHistory=recordEdit(history,q);
+ assert.deepEqual(moveEditHistory(removalHistory,'undo').present,before);
+ assert.equal(addInstaller(saved),'installer-6');
+});
+test('removal confirmation detects travel-only days and quote overrides, ignores shared default rates',()=>{
+ const q=createBlankQuoteV27(),id=addInstaller(q),p=q.estimators!.travel.people[id];
+ assert.equal(installerHasEnteredWork(q,id),false);
+ p.offDays=2;assert.equal(installerHasEnteredWork(q,id),true);p.offDays=0;
+ q.estimators!.install[id].travelDaysOverride=0;assert.equal(installerHasEnteredWork(q,id),true);
+ q.estimators!.install[id].travelDaysOverride=null;
+ q.lines.find(l=>l.id===q.estimators!.install[id].lineId)!.overrides.cost=0;
+ assert.equal(installerHasEnteredWork(q,id),true);
+ assert.throws(()=>removeInstaller(q,'lead' as never));
+ removeInstaller(q,id);const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+ assert.equal(addInstaller(saved),'installer-5');
 });

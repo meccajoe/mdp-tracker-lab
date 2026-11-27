@@ -1,3 +1,7 @@
+## Removing extra installers — November 27, 2026
+
+Remove applies only to added installers. Both estimator records and their linked billing line (including linked takeoff rows) are removed atomically through workbook edit history. Entered days, active travel, explicit overrides or linked costs require confirmation; unchanged zero defaults do not. Shared Travel rates and remaining installers stay unchanged; totals recalculate normally. nextInstallerNumber persists the next unused role number so later additions never inherit a removed recipient identity. No historical revision rewrite.
+
 ## Additional installers — November 27, 2026
 
 Existing lead/second/third/PM records remain unchanged. Add installer explicitly appends paired install and travel records keyed installer-4 onward plus a linked Installer Days quote line. Additional installers use the existing support day rate, off/travel factors and burdened labor calculation. They default to zero days, travel disabled, Follow Install Labor on, and no lead bonus. Travel shared-cost allocation, other-travel output, field capacity and per diem include every added installer. Parser requires matching valid install/travel keys; standard quote limit of 200 lines applies. No automatic data migration.

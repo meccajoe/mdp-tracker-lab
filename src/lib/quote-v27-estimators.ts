@@ -31,8 +31,8 @@ export type SupportDay = {installDays:number;dismantleDays:number;offDays:number
 export type ExtraInstallerId = `installer-${number}`;
 export type InstallerId = typeof INSTALLERS[number] | ExtraInstallerId;
 export type PersonId = InstallerId | 'pm';
-export type Estimators = ReturnType<typeof emptyEstimators> & {install:Record<ExtraInstallerId,ReturnType<typeof installer>>&{support:{daily?:SupportDay[]}};travel:{people:Record<ExtraInstallerId,ReturnType<typeof traveler>>;noFlight?:boolean}};
-export const isExtraInstallerId=(id:string):id is ExtraInstallerId=>/^installer-(?:[4-9]|[1-9][0-9]{1,2})$/.test(id)&&Number(id.slice(10))<=200;
+export type Estimators = ReturnType<typeof emptyEstimators> & {nextInstallerNumber?:number;install:Record<ExtraInstallerId,ReturnType<typeof installer>>&{support:{daily?:SupportDay[]}};travel:{people:Record<ExtraInstallerId,ReturnType<typeof traveler>>;noFlight?:boolean}};
+export const isExtraInstallerId=(id:string):id is ExtraInstallerId=>/^installer-[1-9][0-9]{0,8}$/.test(id)&&Number(id.slice(10))>=4;
 export const isPersonId=(id:string):id is PersonId=>PEOPLE.includes(id as typeof PEOPLE[number])||isExtraInstallerId(id);
 export const installerIds=(e:Estimators):InstallerId[]=>[...INSTALLERS,...Object.keys(e.install).filter(isExtraInstallerId).sort((a,b)=>Number(a.slice(10))-Number(b.slice(10)))];
 export const peopleIds=(e:Estimators):PersonId[]=>[...PEOPLE,...installerIds(e).filter(isExtraInstallerId)];
@@ -40,8 +40,9 @@ export const personLabel=(id:PersonId)=>isExtraInstallerId(id)?`Installer ${id.s
 export function addInstaller(quote:QuoteV27){
  const e=quote.estimators;if(!e)throw Error('Enable estimators first.');
  if(quote.lines.length>=200)throw Error('This quote has reached its 200-item limit.');
- const number=Math.max(3,...installerIds(e).filter(isExtraInstallerId).map(id=>Number(id.slice(10))))+1;
- if(number>200)throw Error('This quote has reached its installer limit.');
+ const number=Math.max(e.nextInstallerNumber??4,Math.max(3,...installerIds(e).filter(isExtraInstallerId).map(id=>Number(id.slice(10))))+1);
+ if(number>999999998)throw Error('This quote has reached its installer limit.');
+ e.nextInstallerNumber=number+1;
  const id:ExtraInstallerId=`installer-${number}`,lineId=crypto.randomUUID();
  e.install[id]={...installer(),lineId};e.travel.people[id]={...traveler(),useInstallDays:true};
  quote.lines.push({id:lineId,name:`Installer ${number}`,type:'Installer Days',takeoffDriven:false,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null});
@@ -71,6 +72,10 @@ export function parseEstimators(value: unknown): Estimators {
   }
   const parsed=walk(emptyEstimators(),value,'estimators') as Estimators;
   const raw=value as Estimators;
+  if(raw.nextInstallerNumber!==undefined){
+    if(!Number.isInteger(raw.nextInstallerNumber)||raw.nextInstallerNumber<4||raw.nextInstallerNumber>999999999)throw Error('Invalid installer sequence.');
+    parsed.nextInstallerNumber=raw.nextInstallerNumber;
+  }
   const extraInstallers=Object.keys(raw.install).filter(key=>!['lead','second','third','support'].includes(key));
   const extraTravelers=Object.keys(raw.travel.people).filter(key=>!PEOPLE.includes(key as typeof PEOPLE[number]));
   if(extraInstallers.length>197||extraInstallers.some(id=>!isExtraInstallerId(id))||extraTravelers.length!==extraInstallers.length||extraTravelers.some(id=>!extraInstallers.includes(id)))throw Error('Invalid additional installer records.');

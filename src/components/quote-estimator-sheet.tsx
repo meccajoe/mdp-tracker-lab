@@ -2,14 +2,14 @@
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
 import type {ReactNode} from 'react';
-import {installerIds,peopleIds,personLabel,type InstallerId,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
+import {installerIds,peopleIds,personLabel,isExtraInstallerId,type ExtraInstallerId,type InstallerId,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
 import {type QuoteV27} from '@/lib/quote-v27';
 import styles from './quote-estimator-sheet.module.css';
 const money=quoteMoney;
 function NumberCell({label,value,change,nullable=false,placeholder='',signed=false}:{label:string;value:number|null;change:(value:number|null)=>void;nullable?:boolean;placeholder?:string;signed?:boolean}){
  return <QuoteNumberInput aria-label={label} key={value??'auto'} type="number" step="any" min={signed?undefined:0} defaultValue={value===0&&!nullable?'':value??''} placeholder={placeholder} onBlur={event=>{const next=event.target.value===''?(nullable?null:0):Number(event.target.value);if(next!==value)change(next);}} onKeyDown={event=>{if(event.key==='Enter')event.currentTarget.blur();}}/>;
 }
-export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{kind:'Install'|'Travel';laborRate:number;quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
+export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate,onRemoveInstaller}:{onRemoveInstaller?:(id:ExtraInstallerId)=>void;kind:'Install'|'Travel';laborRate:number;quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
  const e=quote.estimators!,s=quote.settings;
  const installers=installerIds(e),travelers=peopleIds(e);
  const people=kind==='Install'?installers:travelers;
@@ -26,7 +26,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  const totalBilling=(result?.install.reduce((sum,p)=>sum+p.billing,0)??0)+(result?.supportBilling??0);
  return <div className={styles.sheet}><h2>{kind==='Install'?'Install Labor Estimator':'Travel Budget Estimator'}</h2><p>{kind==='Install'?'Enter each installer’s day counts below. Green rows calculate automatically. Blank travel days follow the Travel Estimator; typing a value overrides them.':'Each traveler has a column. When Follow Install Labor is Yes, editing day counts here also updates Install Labor. Green rows show calculated trip counts and costs.'}</p>
  {kind==='Install'&&!support.daily&&(support.installDays+support.dismantleDays+support.offDays)>0&&<p role="note">This saved quote has crew totals without a daily breakdown. They appear in Day 1 for editing; distribute them across the actual days as needed.</p>}
- <div className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`} style={{minWidth:Math.max(640,300+people.length*150)}}><thead><tr><th style={{width:300}}>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{personLabel(id)}</th>)}</tr></thead><tbody>
+ <div className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`} style={{minWidth:Math.max(640,300+people.length*150)}}><thead><tr><th style={{width:300}}>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{personLabel(id)}{kind==='Install'&&isExtraInstallerId(id)&&onRemoveInstaller&&<button type="button" aria-label={`Remove ${personLabel(id)}`} className="ml-2 rounded border px-1 text-xs font-normal" onClick={()=>onRemoveInstaller(id)}>Remove</button>}</th>)}</tr></thead><tbody>
  {kind==='Install'?<>
  {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],installers.map(id=><NumberCell label={`${personLabel(id)} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
  {row('TOTAL DAYS',installers.map(id=>result?.install.find(p=>p.id===id)?.days??0),true)}
