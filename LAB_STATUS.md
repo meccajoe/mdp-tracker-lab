@@ -1,6 +1,6 @@
 ## Budget Handoff installer labels — November 27, 2026
 - Budget Handoff per-item rows and other-labor detail reuse Builder installer role/name labels with numbered fallback. Display-only mapping by stable line ID; saved names, budget projections, Workforce candidates and all amounts remain unchanged.
-- Twelve display/handoff regression tests and TypeScript passed. Hosted verification pending deployment.
+- Twelve display/handoff regression tests and TypeScript passed. Release 873b21d deployed successfully (wFfr3H1PqZxRyXcae2W5ChLHcUxX). Hosted archived additional-installer quote verified fallback labels for installers 2–4 in both detail sections; named label behavior covered by shared helper regression. Read-only check; no saved quote changes. Screenshot /private/tmp/budget-installer-labels.png.
 
 ## Assigned installer labels in Quote Builder — November 27, 2026
 - Linked Installer Days rows derive their displayed label from role + assigned name (Installer 2 — Name), falling back to role when blank. Applies to lead and added installers by stable link. Named second/third installers remain visible without entered days. Derived labels are read-only in Builder; names remain editable in Install Labor. Saved line names/IDs/pricing are untouched.
