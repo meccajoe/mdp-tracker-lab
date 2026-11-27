@@ -2,7 +2,7 @@
 import {InstallerNameInput} from './installer-name-input';
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
-import type {ReactNode} from 'react';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {installerIds,peopleIds,personLabel,isExtraInstallerId,type ExtraInstallerId,type InstallerId,type Estimators,type calculateEstimators} from '@/lib/quote-v27-estimators';
 import {type QuoteV27} from '@/lib/quote-v27';
 import styles from './quote-estimator-sheet.module.css';
@@ -13,24 +13,38 @@ function NumberCell({label,value,change,nullable=false,placeholder='',signed=fal
 export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate,onRemoveInstaller,rosterNames=[],readOnly=false}:{rosterNames?:string[];readOnly?:boolean;onRemoveInstaller?:(id:ExtraInstallerId)=>void;kind:'Install'|'Travel';laborRate:number;quote:QuoteV27;result?:ReturnType<typeof calculateEstimators>|null;update:(fn:(e:Estimators)=>void)=>void;links:ReactNode}){
  const e=quote.estimators!,s=quote.settings;
  const installers=installerIds(e),travelers=peopleIds(e);
+ const scrollRef=useRef<HTMLDivElement>(null);
+ const previousCount=useRef(0);
+ const [viewPerson,setViewPerson]=useState('');
  const people=kind==='Install'?installers:travelers;
+ const personKey=people.join(',');
+ const showPerson=(id:string)=>{
+  setViewPerson(id);
+  const pane=scrollRef.current,header=pane?.querySelector<HTMLElement>(`[data-person="${id}"]`);
+  if(pane&&header)pane.scrollTo({left:Math.max(0,header.offsetLeft-300),behavior:'smooth'});
+ };
+ useEffect(()=>{
+  if(previousCount.current>0&&people.length>previousCount.current)showPerson(people[people.length-1]);
+  previousCount.current=people.length;
+ },[personKey]);
  const row=(label:string,cells:ReactNode[],computed=false)=><tr key={label} className={computed?styles.computed:undefined}><th scope="row">{label}</th>{cells.map((cell,i)=><td key={i}>{typeof cell==='number'?quoteNumber(cell):cell}</td>)}</tr>;
  const section=(label:string)=><tr key={label} className={styles.section}><th colSpan={people.length+1}>{label}</th></tr>;
  const travelNumber=(key:'installDays'|'offDays'|'dismantleDays'|'daysPerTrip'|'hotelAdjustment',label:string)=>row(label,travelers.map(id=>{
   const person=e.travel.people[id];const follows=person.useInstallDays&&id!=='pm'&&['installDays','offDays','dismantleDays'].includes(key);
-  return <NumberCell label={`${personLabel(id)} ${label}`} value={follows?e.install[id as InstallerId][key as 'installDays'|'offDays'|'dismantleDays']:person[key]} signed={key==='hotelAdjustment'} change={value=>update(next=>{if(follows)next.install[id as InstallerId][key as 'installDays'|'offDays'|'dismantleDays']=value??0;else next.travel.people[id][key]=value??0;})}/>;
+  return <NumberCell label={`${personLabel(id,e)} ${label}`} value={follows?e.install[id as InstallerId][key as 'installDays'|'offDays'|'dismantleDays']:person[key]} signed={key==='hotelAdjustment'} change={value=>update(next=>{if(follows)next.install[id as InstallerId][key as 'installDays'|'offDays'|'dismantleDays']=value??0;else next.travel.people[id][key]=value??0;})}/>;
  }));
- const travelSwitch=(key:'traveling'|'stays'|'roadBonus',label:string)=>row(label,travelers.map(id=><select aria-label={`${personLabel(id)} ${label}`} value={e.travel.people[id][key]?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id][key]=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>));
+ const travelSwitch=(key:'traveling'|'stays'|'roadBonus',label:string)=>row(label,travelers.map(id=><select aria-label={`${personLabel(id,e)} ${label}`} value={e.travel.people[id][key]?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id][key]=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>));
  const support=e.install.support;
  const days=support.daily??Array.from({length:10},(_,i)=>({installDays:i===0?support.installDays:0,dismantleDays:i===0?support.dismantleDays:0,offDays:i===0?support.offDays:0}));
  const internalCost=(result?.install.reduce((sum,p)=>sum+p.days,0)??0)*s.siteHours*laborRate+(result?.supportDays??0)*s.supportCost;
  const totalBilling=(result?.install.reduce((sum,p)=>sum+p.billing,0)??0)+(result?.supportBilling??0);
  return <div className={styles.sheet}><h2>{kind==='Install'?'Install Labor Estimator':'Travel Budget Estimator'}</h2><p>{kind==='Install'?'Enter each installer’s day counts below. Green rows calculate automatically. Blank travel days follow the Travel Estimator; typing a value overrides them.':'Each traveler has a column. When Follow Install Labor is Yes, editing day counts here also updates Install Labor. Green rows show calculated trip counts and costs.'}</p>
  {kind==='Install'&&!support.daily&&(support.installDays+support.dismantleDays+support.offDays)>0&&<p role="note">This saved quote has crew totals without a daily breakdown. They appear in Day 1 for editing; distribute them across the actual days as needed.</p>}
- <div className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`} style={{minWidth:Math.max(640,300+people.length*150)}}><thead><tr><th style={{width:300}}>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id}>{personLabel(id)}{kind==='Travel'&&id!=='pm'&&e.install[id].name&&<div className="font-normal">{e.install[id].name}</div>}{kind==='Install'&&isExtraInstallerId(id)&&onRemoveInstaller&&<button type="button" aria-label={`Remove ${personLabel(id)}`} className="ml-2 rounded border px-1 text-xs font-normal" onClick={()=>onRemoveInstaller(id)}>Remove</button>}</th>)}</tr></thead><tbody>
+ <div className="flex items-center gap-3 px-2 pb-2"><span>{installers.length} installers{kind==='Travel'?' + project manager':''}</span><label>Show person <select aria-label="Show installer or traveler" value={people.includes(viewPerson as typeof people[number])?viewPerson:''} onChange={event=>showPerson(event.target.value)}><option value="" disabled>Choose a column…</option>{people.map(id=><option key={id} value={id}>{personLabel(id,e)}{id!=='pm'&&e.install[id].name?` — ${e.install[id].name}`:''}</option>)}</select></label></div>
+ <div ref={scrollRef} className={styles.scroll} role="region" aria-label={`${kind} estimator scroll area`} tabIndex={0}><table aria-label={`${kind} estimator worksheet`} style={{minWidth:Math.max(640,300+people.length*150)}}><thead><tr><th style={{width:300}}>{kind==='Install'?'Our installers — day counts':'Trip shape — per traveler'}</th>{people.map(id=><th key={id} data-person={id}>{personLabel(id,e)}{kind==='Travel'&&id!=='pm'&&e.install[id].name&&<div className="font-normal">{e.install[id].name}</div>}{kind==='Install'&&isExtraInstallerId(id)&&onRemoveInstaller&&<button type="button" aria-label={`Remove ${personLabel(id,e)}`} className="ml-2 rounded border px-1 text-xs font-normal" onClick={()=>onRemoveInstaller(id)}>Remove</button>}</th>)}</tr></thead><tbody>
  {kind==='Install'?<>
- {row('Installer name',installers.map(id=><InstallerNameInput label={`${personLabel(id)} name`} value={e.install[id].name??''} options={rosterNames} disabled={readOnly} onChange={name=>update(next=>{next.install[id].name=name;})}/>))}
- {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],installers.map(id=><NumberCell label={`${personLabel(id)} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
+ {row('Installer name',installers.map(id=><InstallerNameInput label={`${personLabel(id,e)} name`} value={e.install[id].name??''} options={rosterNames} disabled={readOnly} onChange={name=>update(next=>{next.install[id].name=name;})}/>))}
+ {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],installers.map(id=><NumberCell label={`${personLabel(id,e)} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
  {row('TOTAL DAYS',installers.map(id=>result?.install.find(p=>p.id===id)?.days??0),true)}
  {section('Billing (auto) — lead at lead rate, additional installers at support rate')}
  {row('Install + dismantle days billing',installers.map(id=>money((e.install[id].installDays+e.install[id].dismantleDays)*(id==='lead'?s.leadDay:s.supportDay))),true)}
@@ -60,7 +74,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate,on
  {travelNumber('daysPerTrip','Travel days per round trip')}
  {travelNumber('hotelAdjustment','Hotel nights adjustment (+/−)')}
  {travelSwitch('roadBonus','Gets lead road bonus?')}
- {row('Follow Install Labor day counts',travelers.map(id=>id==='pm'?'—':<select aria-label={`${personLabel(id)} follow install days`} value={e.travel.people[id].useInstallDays?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id].useInstallDays=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>))}
+ {row('Follow Install Labor day counts',travelers.map(id=>id==='pm'?'—':<select aria-label={`${personLabel(id,e)} follow install days`} value={e.travel.people[id].useInstallDays?'Yes':'No'} onChange={event=>update(next=>{next.travel.people[id].useInstallDays=event.target.value==='Yes';})}><option>No</option><option>Yes</option></select>))}
  {section('Trip math (auto)')}
  {(['trips','marketDays','travelDays','roadDays','hotelNights'] as const).map((key,i)=>row(['Round trips','Days in market','Travel days','Road days','Hotel nights'][i],travelers.map(id=>result?.travel.find(p=>p.id===id)?.[key]??0),true))}
  {section('Unit costs (shared — tune per destination)')}

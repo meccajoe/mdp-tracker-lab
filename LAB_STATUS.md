@@ -1,6 +1,11 @@
+## Installer numbering and column access — November 27, 2026
+- Visible extra-installer numbering now follows current roster order while retired internal IDs remain unreused. Install/Travel, Builder/Handoff, billing-link labels and Per Diem use the same sequential labels. Full-width estimator sheets show installer counts, a Show person column selector, and scroll newly added columns into view.
+- KBIS 2027 read-only review (5f9d5327-94c4-4459-bd5f-68fea8c0bbe8, revision 198) found extras 6/7/8 in both Install and Travel; no seven-person cap. Installer 7 Josh? has Traveling No and zero manual travel-day override; preserved. These extras will display as 4/5/6.
+- TypeScript, 23 installer/per-diem/display checks and 14 estimator regression checks passed. Added remove/re-add through 12 installers with paired travel/save/reload verification. React checklist reviewed; deployment pending.
+
 ## Item Type in Budget Handoff and BOM — November 27, 2026
 - Added Item Type after Item Name in Budget Handoff per-item budgets, other labor detail, and the per-item BOM tab. Uses the same saved category/fallback helper as Builder/Takeoffs; combined purchasing totals remain consolidated across categories. First two identity columns remain pinned. No pricing or quote mutations.
-- TypeScript and handoff/takeoff regression checks passed; React checklist reviewed. Deployment verification pending.
+- TypeScript and handoff/takeoff regression checks passed; React checklist reviewed. Release 2607641 deployed successfully (6bEL7yAc3nnTaWnwVKWozawwSzRT); hosted archived quote verified Item Type headers on both tabs without data edits.
 
 ## Item Type categories independent of pricing — November 27, 2026
 - Paul confirmed categories only. Builder/Takeoffs now offer Fabrication, SEG, Bematrix, Equipment, Materials and Props/Decor. Optional per-line itemCategory persists independently from existing pricing type; legacy items derive display labels without migration. Linked takeoff rows share category; drag/paste and undo use existing transactions. Existing service labels retained until explicitly categorized.

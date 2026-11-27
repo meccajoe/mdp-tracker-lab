@@ -1,4 +1,4 @@
-import {addInstaller} from '../src/lib/quote-v27-estimators';
+import {addInstaller,installerIds,peopleIds,personLabel} from '../src/lib/quote-v27-estimators';
 import {installerHasEnteredWork,removeInstaller} from '../src/lib/quote-installer-actions';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -61,4 +61,24 @@ test('removal confirmation detects travel-only days and quote overrides, ignores
  assert.throws(()=>removeInstaller(q,'lead' as never));
  removeInstaller(q,id);const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
  assert.equal(addInstaller(saved),'installer-5');
+});
+
+test('removed installer IDs stay retired while labels are sequential and every added installer reaches Travel beyond seven',()=>{
+ let q=createBlankQuoteV27();
+ const fourth=addInstaller(q),fifth=addInstaller(q);
+ removeInstaller(q,fourth);removeInstaller(q,fifth);
+ for(let n=4;n<=12;n++){
+  const id=addInstaller(q),e=q.estimators!;
+  assert.equal(personLabel(id,e),`Installer ${n}`);
+  e.install[id].installDays=n;e.travel.people[id].traveling=true;
+  q=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+  const saved=q.estimators!,calc=calculateQuoteV27(q);
+  assert.equal(installerIds(saved).length,n);
+  assert.equal(peopleIds(saved).length,n+1);
+  assert.ok(calc.estimators!.install.some(p=>p.id===id));
+  assert.ok(saved.travel.people[id]);
+  assert.equal(saved.travel.people[id].useInstallDays,true);
+  assert.equal(saved.install[id].installDays,n);
+ }
+ assert.ok(!q.estimators!.install[fourth]);assert.ok(!q.estimators!.travel.people[fifth]);
 });

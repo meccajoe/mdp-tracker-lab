@@ -36,7 +36,7 @@ export const isExtraInstallerId=(id:string):id is ExtraInstallerId=>/^installer-
 export const isPersonId=(id:string):id is PersonId=>PEOPLE.includes(id as typeof PEOPLE[number])||isExtraInstallerId(id);
 export const installerIds=(e:Estimators):InstallerId[]=>[...INSTALLERS,...Object.keys(e.install).filter(isExtraInstallerId).sort((a,b)=>Number(a.slice(10))-Number(b.slice(10)))];
 export const peopleIds=(e:Estimators):PersonId[]=>[...PEOPLE,...installerIds(e).filter(isExtraInstallerId)];
-export const personLabel=(id:PersonId)=>isExtraInstallerId(id)?`Installer ${id.slice(10)}`:PERSON_LABELS[id];
+export const personLabel=(id:PersonId,e?:Estimators)=>isExtraInstallerId(id)?`Installer ${e?installerIds(e).indexOf(id)+1:id.slice(10)}`:PERSON_LABELS[id];
 export function addInstaller(quote:QuoteV27){
  const e=quote.estimators;if(!e)throw Error('Enable estimators first.');
  if(quote.lines.length>=200)throw Error('This quote has reached its 200-item limit.');
@@ -45,7 +45,7 @@ export function addInstaller(quote:QuoteV27){
  e.nextInstallerNumber=number+1;
  const id:ExtraInstallerId=`installer-${number}`,lineId=crypto.randomUUID();
  e.install[id]={...installer(),lineId};e.travel.people[id]={...traveler(),useInstallDays:true};
- quote.lines.push({id:lineId,name:`Installer ${number}`,type:'Installer Days',takeoffDriven:false,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null});
+ quote.lines.push({id:lineId,name:personLabel(id,e),type:'Installer Days',takeoffDriven:false,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null});
  return id;
 }
 
@@ -128,7 +128,7 @@ export function calculateEstimators(quote: Pick<QuoteV27,'settings'|'lines'>, so
     const marketDays=p.traveling?days.installDays+days.dismantleDays+(p.stays?days.offDays:0):0;
     const travelDays=trips*p.daysPerTrip, roadDays=marketDays+travelDays;
     const hotelNights=p.traveling?marketDays+trips+p.hotelAdjustment:0;
-    if(hotelNights<0)throw new Error(`${personLabel(id)}: hotel adjustment makes nights negative.`);
+    if(hotelNights<0)throw new Error(`${personLabel(id,e)}: hotel adjustment makes nights negative.`);
     const allowances=travelAllowanceRows(s,rates,{install:p.traveling?days.installDays:0,dismantle:p.traveling?days.dismantleDays:0,off:p.traveling&&p.stays?days.offDays:0,travel:travelDays},p.roadBonus);
     const perDiem=allowances.reduce((sum,r)=>sum+r.perDiem,0),bonus=allowances.reduce((sum,r)=>sum+r.bonus,0);
     const cost=(e.travel.noFlight?0:trips*(rates.airfare+rates.baggage))+hotelNights*rates.hotel+perDiem+bonus;

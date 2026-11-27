@@ -6,7 +6,7 @@ export function builderItemName(line:QuoteV27['lines'][number],index:number){ret
 export function builderInstallerLabel(quote:QuoteV27,line:QuoteV27['lines'][number]){
  const e=quote.estimators;if(!e||line.type!=='Installer Days')return null;
  const id=installerIds(e).find(id=>e.install[id].lineId===line.id);if(!id)return null;
- const name=e.install[id].name?.trim();return name?`${personLabel(id)} — ${name}`:personLabel(id);
+ const name=e.install[id].name?.trim();return name?`${personLabel(id,e)} — ${name}`:personLabel(id,e);
 }
 /** Never hide a historical/custom installer row that carries entered work or an override. */
 export function showBuilderLine(quote:QuoteV27,line:QuoteV27['lines'][number]){

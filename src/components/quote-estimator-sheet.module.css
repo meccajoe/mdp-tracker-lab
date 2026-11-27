@@ -1,4 +1,4 @@
-.sheet {max-width:1050px;background:white;border:1px solid #cbd5df;font:12px Arial,sans-serif;color:#273549;min-width:0;}
+.sheet {max-width:100%;width:100%;background:white;border:1px solid #cbd5df;font:12px Arial,sans-serif;color:#273549;min-width:0;}
 .sheet h2 {font-size:17px;font-weight:700;padding:8px;}
 .sheet p {padding:0 8px 8px;font-size:11px;line-height:1.4;max-width:960px;}
 .sheet table {border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;min-width:640px;}
