@@ -1,3 +1,9 @@
+## Installer names and cost-of-sales reporting — November 27, 2026
+
+Optional install role name fields (120 characters) are quote snapshots, shared by Install Labor and Travel. Per Diem uses the pinned source quote name unless a project recipient override exists; no day/rate overrides or automatic project baseline changes. Roster supplies suggestions only; custom names are retained independent of later roster changes.
+
+For every pricing version, reporting COS = build budget + contingency + indirect levy + waste levy + commission; Gross Profit = final selling total − COS, reconciling to existing totals.margin. PM bonus reserve and OpEx remain below Gross Profit. This corrects the earlier gross-profit display (sell minus build budget only), without changing selling price, margin, net profit or saved inputs.
+
 ## Removing extra installers — November 27, 2026
 
 Remove applies only to added installers. Both estimator records and their linked billing line (including linked takeoff rows) are removed atomically through workbook edit history. Entered days, active travel, explicit overrides or linked costs require confirmation; unchanged zero defaults do not. Shared Travel rates and remaining installers stay unchanged; totals recalculate normally. nextInstallerNumber persists the next unused role number so later additions never inherit a removed recipient identity. No historical revision rewrite.

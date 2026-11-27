@@ -10,7 +10,7 @@ export function quotePerDiem(q:QuoteV27,adjustments:TravelAdjustments={}){
   const p=e.travel.people[id],days=p.useInstallDays&&id!=='pm'?e.install[id]:p,t=result.travel.find(t=>t.id===id)!;
   const rows=travelAllowanceRows(q.settings,e.travel.rates,{travel:t.travelDays,install:days.installDays,dismantle:days.dismantleDays,off:p.stays?days.offDays:0},p.roadBonus,adjustments[id]?.rate);
   if(id!=='pm'){const labor=e.install[id],billed=result.install.find(i=>i.id===id)!;if(labor.installDays!==days.installDays||labor.dismantleDays!==days.dismantleDays||labor.offDays!==(p.stays?days.offDays:0)||billed.travelDays!==t.travelDays)warnings.push(`${personLabel(id)}: Install Labor and Travel Estimator day counts differ. This payment summary uses Travel Estimator days; review before issuing funds.`);}
-  return {id,label:personLabel(id),trips:t.trips,rows,days:t.roadDays,perDiem:rows.reduce((sum,r)=>sum+r.perDiem,0),quotedPerDiem:t.perDiem,adjustment:adjustments[id],bonus:t.bonus};
+  return {id,name:id==='pm'?'':e.install[id].name??'',label:personLabel(id),trips:t.trips,rows,days:t.roadDays,perDiem:rows.reduce((sum,r)=>sum+r.perDiem,0),quotedPerDiem:t.perDiem,adjustment:adjustments[id],bonus:t.bonus};
  });
  warnings.push('Calendar dates for each travel/install/off/dismantle day are not recorded in this quote. Recipient names are project assignments, separate from the quoted amounts. Confirm the recipient and daily itinerary before issuing payment. Counts are not a dated itinerary.');
  if(!people.length)warnings.push('No travelers are enabled in the saved Travel Estimator. No per diem or lead road bonus is quoted.');

@@ -14,7 +14,7 @@ export const FRAME_SIZES = [
   {id:'19x39.5',label:'19″ × 39.5″',width:19/12,height:39.5/12},
 ] as const;
 const traveler = () => ({traveling:false,installDays:0,offDays:0,dismantleDays:0,useInstallDays:false,stays:true,daysPerTrip:2,hotelAdjustment:0,roadBonus:false});
-const installer = () => ({installDays:0,offDays:0,dismantleDays:0,travelDaysOverride:null as number|null,lineId:null as string|null});
+const installer = (): {name?:string;installDays:number;offDays:number;dismantleDays:number;travelDaysOverride:number|null;lineId:string|null} => ({installDays:0,offDays:0,dismantleDays:0,travelDaysOverride:null as number|null,lineId:null as string|null});
 const leg = () => ({enabled:false,mode:'Our truck',driver:'Lead installer',miles:0,carrierQuote:0,misc:0});
 export function emptyEstimators() {
   return {
@@ -82,6 +82,10 @@ export function parseEstimators(value: unknown): Estimators {
   for(const id of extraInstallers as ExtraInstallerId[]){
     parsed.install[id]=walk(installer(),raw.install[id],'installer') as ReturnType<typeof installer>;
     parsed.travel.people[id]=walk(traveler(),raw.travel.people[id],'traveler') as ReturnType<typeof traveler>;
+  }
+  for(const id of installerIds(parsed)){
+    const name=raw.install[id].name;
+    if(name!==undefined){if(typeof name!=='string'||name.length>120||/[\u0000-\u001f\u007f]/.test(name))throw Error('Enter an installer name of up to 120 characters.');parsed.install[id].name=name.trim();}
   }
   const noFlight=(value as Estimators).travel?.noFlight;
   if(noFlight!==undefined){if(typeof noFlight!=='boolean')throw new Error('Invalid no-flight travel choice.');parsed.travel.noFlight=noFlight;}

@@ -1,3 +1,4 @@
+import {quoteCostOfSales} from '../src/lib/quote-cost-of-sales';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -107,4 +108,15 @@ test('new blank quotes use current policy even with old global defaults; existin
   assert.equal(saved.pricingVersion,'levies-v1');assert.deepEqual(calculateQuoteV27(saved),oldResult);
  }
  assert.equal(JSON.stringify(old),before);
+});
+
+test('all quote versions classify contingency, levies and commission above gross profit without repricing',()=>{
+ for(const version of [undefined,'levies-v1','scoped-levies-v2'] as const){
+  const q=example();q.pricingVersion=version;q.commission=.1;
+  const before=JSON.stringify(q),r=calculateQuoteV27(q),t=r.totals;
+  const report=quoteCostOfSales(t);
+  close(report.costOfSales,t.buildBudget+t.contingency+t.indirect+t.waste+t.commission);
+  close(report.grossProfit,t.margin);close(report.grossProfit-t.pmBonus-t.opex,t.netProfit);
+  assert.equal(JSON.stringify(q),before);
+ }
 });

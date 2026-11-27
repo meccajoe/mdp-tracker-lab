@@ -6,3 +6,12 @@ test('viewers, baseline changes and conflicting revisions cannot overwrite assig
 test('lab boundary and malformed names fail closed',async()=>{const x=setup();x.block();assert.equal((await x.route.POST(request(),params)).status,403);const y=setup();assert.equal((await y.route.POST(request({names:null}),params)).status,400);assert.equal(y.writes.length,0);});
 
 test('roster suggestions contain unique active names only',async()=>{const x=setup(),r=await x.route.GET(new Request('https://lab.test'),params);assert.equal(r.status,200);assert.deepEqual((await r.json()).rosterNames,['Active Installer']);});
+
+test('quote installer roster returns only unique active names and checks access',async()=>{
+ let denied=false,blocked=false;
+ const query={select(){return this;},order(){return this;},limit(){return this;},async maybeSingle(){return {data:{document:{settings:{roster:[{active:true,name:' Pat ',wage:999},{active:true,name:'Pat'},{active:false,name:'Inactive'},{active:true,name:'Custom Roster'}]}}}};}};
+ const imports={'@/lib/ada-server':{requireQuoteProductAccess:async()=>denied?{ok:false,response:Response.json({}, {status:401})}:{ok:true,actorSupabase:{from:()=>query}}},'@/lib/quote-management-server':{labManagementGuard:()=>blocked?Response.json({}, {status:403}):null,managementJson:(b,s=200)=>Response.json(b,{status:s})}};
+ const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/quotes/installer-roster/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,require:n=>imports[n]});
+ assert.deepEqual(await (await module.exports.GET()).json(),{names:['Custom Roster','Pat']});
+ denied=true;assert.equal((await module.exports.GET()).status,401);blocked=true;assert.equal((await module.exports.GET()).status,403);
+});

@@ -34,3 +34,13 @@ test('additional installers appear in per diem with recipient and travel adjustm
  const adjustment=parseTravelAdjustments({[id]:{rate:60,reason:'Long travel'}});validateTravelAdjustments(saved,adjustment);
  assert.equal(quotePerDiem(saved,adjustment).perDiem,330);
 });
+
+test('installer names survive quote revisions and feed per diem without changing amounts',async()=>{
+ const q=createBlankQuoteV27(),id=addInstaller(q);q.estimators!.install[id].installDays=2;q.estimators!.travel.people[id].traveling=true;
+ const before=quotePerDiem(q);q.estimators!.install[id].name='Outside Installer';q.estimators!.install.lead.name='Roster Person';
+ const saved=parseQuoteV27(JSON.parse(JSON.stringify(q))),report=quotePerDiem(saved);
+ assert.equal(report.people.find(p=>p.id===id)!.name,'Outside Installer');assert.equal(report.perDiem,before.perDiem);
+ assert.equal(saved.estimators!.install.lead.name,'Roster Person');
+ const pdf=await renderProjectDocument(saved,{project:'Named quote installer',client:'Lab',revision:1},'per-diem');assert.ok((await PDFDocument.load(pdf)).getPageCount()>0);
+ const bad=structuredClone(q);bad.estimators!.install[id].name='Bad\nName';assert.throws(()=>parseQuoteV27(bad));
+});
