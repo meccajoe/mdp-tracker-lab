@@ -1,3 +1,8 @@
+## Quote Builder widths and automatic Takeoff items — November 27, 2026
+- Quote Builder now uses account-backed RememberedColumns with its own quote-builder key, stable header names across estimate-detail visibility, and measured pinned offsets. Takeoff preferences remain independent.
+- Typing a new Takeoff item name reuses an empty Item/Spare/New item slot or creates a takeoff-driven Fabrication line with stable ID. Repeated names link to it. Populated placeholder costs/overrides are protected; 200-item schema limit gives explicit error. Transactional paste and undo/save paths unchanged.
+- Full lab:check/TypeScript passed, then targeted 22 Takeoff tests including exhausted slots, repeated names, reload/cost linkage, rollback, limit and empty-slot reuse. Hosted verification pending. No schema or pricing formula changes.
+
 ## Hosted Budget Handoff rollout
 - Joe explicitly approved the hosted Lab migration, release, and nine-project backfill including Fossil revision 29. The guarded migration applied to Lab only. Vercel deployment dpl_GeSPGiUAKi1hWWxZ218mu43ZgGMp reached READY on the Lab primary URL at 09990b066c5c7570f637fdb54f57816463d6822c.
 - Hosted preview 61255f68-b116-4416-9e9e-703c6e894a74 verified all nine active projects. Apply 9590dc03-b1b5-4ec9-8891-0dbf624c177d saved all nine current budgets and 72 Workforce candidates. The original-budget checksum f8042e1cb3baeadc63aef18ab36aec8d matched before, after and on repeat e4f2cca8-7436-4af9-a4e3-2dbfebbd7b81. Repeat retained exactly nine history rows. Eight build budgets unchanged; Fossil 26218 revision 29 applied at 53,839.28 and 339 hours, revision 22 still original.

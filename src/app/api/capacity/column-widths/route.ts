@@ -2,7 +2,7 @@ import {NextResponse} from 'next/server';
 import {requireQuoteProductAccess} from '@/lib/ada-server';
 export const dynamic='force-dynamic';
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}});
-const keys:Record<string,string>={'capacity-projects':'lab_capacity_projects_widths_v1','capacity-roster':'lab_capacity_roster_widths_v1','quotes-list':'lab_quotes_list_widths_v1','quote-takeoffs':'lab_quote_takeoffs_widths_v1'};
+const keys:Record<string,string>={'capacity-projects':'lab_capacity_projects_widths_v1','capacity-roster':'lab_capacity_roster_widths_v1','quotes-list':'lab_quotes_list_widths_v1','quote-takeoffs':'lab_quote_takeoffs_widths_v1','quote-builder':'lab_quote_builder_widths_v1'};
 async function access(){
  if(process.env.NEXT_PUBLIC_SUPABASE_URL!=='https://gkvaeqlqrthztobxitvn.supabase.co')return {ok:false as const,response:json({error:'Available only in Tracker Lab.'},403)};
  return requireQuoteProductAccess();

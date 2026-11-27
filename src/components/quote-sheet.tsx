@@ -7,8 +7,7 @@ import {useRef,useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
 
 import { calculateQuoteV27, type Inputs, type QuoteV27 } from '@/lib/quote-v27';
-import {useStickyTableColumns} from './use-sticky-table-columns';
-import {QuoteColumnResize} from './quote-column-resize';
+import {QuoteColumnResize,RememberedColumns} from './quote-column-resize';
 import styles from './quote-sheet.module.css';
 
 type Calculation = ReturnType<typeof calculateQuoteV27>;
@@ -47,7 +46,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
   const [dropTarget,setDropTarget]=useState<{id:string;after:boolean}|null>(null);
   function stopDrag(){dragging.current=null;setDropTarget(null);}
   const [showDetails,setShowDetails]=useState(false);
-  const tableRef=useStickyTableColumns(2,showDetails);
+  const tableRef=useRef<HTMLTableElement>(null);
   const visibleInputs=showDetails?inputs:inputs.slice(0,3);
   // Keep workbook letters stable when estimator-detail columns F–L are collapsed.
   const visibleHeaders=headers.map((label,index)=>({label,index})).filter(({index})=>showDetails||index<5||index>11);
@@ -79,7 +78,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
     {itemActions.feedback}
     <div className={styles.scroll} onDragOver={event=>{if(!dragging.current||readOnly)return;event.preventDefault();const bounds=event.currentTarget.getBoundingClientRect();if(event.clientY<bounds.top+65)event.currentTarget.scrollTop-=16;else if(event.clientY>bounds.bottom-40)event.currentTarget.scrollTop+=16;}} role="region" aria-label="Quote spreadsheet" tabIndex={0}>
       <table ref={tableRef} key={String(showDetails)} aria-label="Quote Builder estimates and budgets" style={{minWidth:tableWidth}}>
-        <colgroup>{columnWidths.map((width,index)=><col key={index} style={{width:`${width/tableWidth*100}%`}}/>)}</colgroup>
+        <RememberedColumns labels={['Item #',...visibleHeaders.map(({label})=>label)]} storageKey="quote-builder" defaultWidths={columnWidths} stickyColumnCount={2}/>
         <thead>
           <tr className={styles.letters}><th aria-label="Item number"/>{visibleHeaders.map(({index})=><th key={index} scope="col" className={index===0?styles.frozen:undefined}>{String.fromCharCode(65+index)}</th>)}</tr>
           <tr className={styles.columnHeaders}><th>Item #</th>{visibleHeaders.map(({label,index})=><th key={label} scope="col" className={index===0?styles.frozen:undefined} style={{position:index===0?'sticky':'relative'}}>{label}<QuoteColumnResize label={label}/></th>)}</tr>

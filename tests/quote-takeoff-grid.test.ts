@@ -212,3 +212,37 @@ test('Item Type changes the linked item in both views without altering rows or s
  applyTakeoffViewCells(q,50,'',[0],0,col,[['']],null);assert.equal(q.lines[0].type,'Props / Resale');
  assert.deepEqual(TAKEOFF_VIEW_COLUMNS.slice(0,4),['lineId','itemType','itemName','description']);
 });
+
+test('Takeoff names create linked items when all existing item slots are used',()=>{
+ const q=createBlankQuoteV27();q.lines.forEach((line,i)=>line.name=`Existing ${i}`);
+ const original=structuredClone(q.lines),col=SHEET_COLUMNS.indexOf('itemName');
+ applySheetCells(q,50,'',0,col,[['Golden Arch'],['Golden Arch'],['New Cabinet']],null);
+ assert.equal(q.lines.length,original.length+2);
+ assert.equal(q.takeoffs[0].lineId,q.takeoffs[1].lineId);
+ assert.notEqual(q.takeoffs[0].lineId,q.takeoffs[2].lineId);
+ assert.deepEqual(q.lines.slice(0,original.length),original);
+ const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+ applySheetCells(saved,50,'',0,SHEET_COLUMNS.indexOf('description'),[['Plywood','2','sheet','10']],null);
+ const calculated=calculateQuoteV27(saved).lines.find(line=>line.id===saved.takeoffs[0].lineId)!;
+ assert.equal(calculated.calculatedInputs.materials,20);
+ const before=structuredClone(saved);
+ assert.throws(()=>applySheetCells(saved,50,'',3,col,[['Another item','Wood','bad quantity']],null));
+ assert.deepEqual(saved,before);
+});
+test('Takeoff creation respects item limit atomically',()=>{
+ const q=createBlankQuoteV27(),base=q.lines[0];q.lines=Array.from({length:200},(_,i)=>({...structuredClone(base),id:`limit-${i}`,name:`Named ${i}`}));
+ const before=structuredClone(q);
+ assert.throws(()=>applySheetCells(q,50,'',0,SHEET_COLUMNS.indexOf('itemName'),[['Overflow']],null),/200-item limit/);
+ assert.deepEqual(q,before);
+});
+test('Takeoffs reuse empty added slots without overwriting priced placeholder items',()=>{
+ const q=createBlankQuoteV27();q.lines.forEach((line,i)=>line.name=`Existing ${i}`);
+ const slot={...structuredClone(q.lines[0]),id:'empty-added',name:'New item',inputs:{...q.lines[0].inputs},overrides:{},priceOverride:null};
+ q.lines.push(slot);const count=q.lines.length;
+ applySheetCells(q,50,'',0,SHEET_COLUMNS.indexOf('itemName'),[['Added from Takeoff']],null);
+ assert.equal(q.lines.length,count);assert.equal(q.takeoffs[0].lineId,'empty-added');
+ q.lines[0].name='Item 1';q.lines[0].priceOverride=123;
+ applySheetCells(q,50,'',1,SHEET_COLUMNS.indexOf('itemName'),[['Different item']],null);
+ assert.equal(q.lines[0].name,'Item 1');assert.equal(q.lines[0].priceOverride,123);
+ assert.equal(q.lines.length,count+1);
+});

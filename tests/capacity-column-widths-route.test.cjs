@@ -38,3 +38,10 @@ test('Takeoff widths save to the signed-in account independently of other tables
  assert.deepEqual(JSON.parse(JSON.stringify(updates)),[{id:'signed-in-user',value:{user_metadata:{lab_quote_takeoffs_widths_v1:widths}}}]);
  assert.equal((await route.GET(new Request('https://lab.test?table=quote-takeoffs'))).status,200);
 });
+
+test('Quote Builder widths use their own account preference key',async()=>{
+ const {route,updates}=setup();const widths={'Item #':90,'Item name':400,'Item Type':220};
+ assert.equal((await route.PUT(put({table:'quote-builder',widths}))).status,200);
+ assert.deepEqual(JSON.parse(JSON.stringify(updates)),[{id:'signed-in-user',value:{user_metadata:{lab_quote_builder_widths_v1:widths}}}]);
+ assert.equal((await route.GET(new Request('https://lab.test?table=quote-builder'))).status,200);
+});

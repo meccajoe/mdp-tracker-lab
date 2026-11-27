@@ -1,5 +1,5 @@
 import {builderTypes} from './quote-builder-display';
-import type { QuoteV27 } from './quote-v27';
+import { EMPTY_INPUTS,type QuoteV27 } from './quote-v27';
 export const TAKEOFF_COLUMNS = ['lineId','description','materialId','quantity','unitCostOverride','sections','hours','tradeId','resale'] as const;
 export type TakeoffColumn = typeof TAKEOFF_COLUMNS[number];
 /** Apply a rectangular paste/fill atomically. IDs are resolved, never copied from sheet text. */
@@ -109,8 +109,12 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
         if(!line) {
           const matches=next.lines.filter(item=>item.name.toLowerCase()===value.toLowerCase());
           if(matches.length>1)throw new Error('Choose an item number for this duplicate name.');
-          line=matches[0]??next.lines.find(item=>/^(Item|Spare) \d+$/.test(item.name)&&!next.takeoffs.some(t=>t.lineId===item.id));
-          if(!line)throw new Error('Add an item or choose its number before naming this row.');
+          line=matches[0]??next.lines.find(item=>(/^(Item|Spare) \d+$/.test(item.name)||item.name==='New item')&&item.takeoffDriven&&Object.values(item.inputs).every(v=>v===0)&&Object.values(item.overrides).every(v=>v==null)&&item.priceOverride===null&&!next.takeoffs.some(t=>t.lineId===item.id));
+          if(!line){
+            if(next.lines.length>=200)throw new Error('This quote has reached its 200-item limit.');
+            line={id:crypto.randomUUID(),name:value,type:'Fabrication',takeoffDriven:true,inputs:{...EMPTY_INPUTS},overrides:{},priceOverride:null};
+            next.lines.push(line);
+          }
           row.lineId=line.id;
         }
         if(next.lines.some(other=>other.id!==line.id&&other.name.toLowerCase()===value.toLowerCase()))throw new Error('Another item already uses that name. Choose a unique name.');
