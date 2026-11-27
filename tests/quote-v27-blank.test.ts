@@ -49,7 +49,7 @@ test('blank template estimator links feed service rows and survive a saved snaps
   assert.deepEqual(result.warnings,[]);
 });
 
-import {builderItemName,showBuilderLine} from '../src/lib/quote-builder-display';
+import {builderInstallerLabel,builderItemName,showBuilderLine} from '../src/lib/quote-builder-display';
 import {parseSchedule} from '../src/lib/quote-schedule';
 test('spares become regular item names; inactive linked installers hide without losing entered data',()=>{
  const q=createBlankQuoteV27();assert.equal(q.lines[15].name,'Item 16');assert.equal(q.lines[21].name,'Item 22');assert.ok(!q.lines.some(l=>/^Spare /.test(l.name)));
@@ -65,4 +65,13 @@ test('dismantle date round trips without making older quotes invalid',()=>{
  const base={buildStart:'',buildFinish:'',installDate:'',status:''};assert.equal(parseSchedule(base).dismantleDate,undefined);
  assert.equal(parseSchedule({...base,dismantleDate:'2026-11-30'}).dismantleDate,'2026-11-30');
  assert.throws(()=>parseSchedule({...base,dismantleDate:'2026-02-30'}));
+});
+
+test('Quote Builder installer labels follow assigned names with role fallback and preserve saved item data',()=>{
+ const q=createBlankQuoteV27(),e=q.estimators!,line=q.lines.find(l=>l.id===e.install.second.lineId)!;
+ const before=structuredClone(line);
+ assert.equal(builderInstallerLabel(q,line),'Installer 2');
+ e.install.second.name='Custom Installer';assert.equal(builderInstallerLabel(q,line),'Installer 2 — Custom Installer');assert.equal(showBuilderLine(q,line),true);
+ e.install.second.name='';assert.equal(builderInstallerLabel(q,line),'Installer 2');assert.deepEqual(line,before);
+ assert.equal(builderInstallerLabel(q,q.lines[0]),null);
 });

@@ -1,3 +1,7 @@
+## Assigned installer labels in Quote Builder — November 27, 2026
+- Linked Installer Days rows derive their displayed label from role + assigned name (Installer 2 — Name), falling back to role when blank. Applies to lead and added installers by stable link. Named second/third installers remain visible without entered days. Derived labels are read-only in Builder; names remain editable in Install Labor. Saved line names/IDs/pricing are untouched.
+- Six blank/display tests and TypeScript passed; React checklist reviewed. Hosted verification pending.
+
 ## Installer names and COS presentation — November 27, 2026
 - Install Labor uses the existing keyboard-searchable InstallerNameInput with a names-only authenticated roster endpoint; custom names remain valid. Optional per-installer name persists in quotes and displays in Travel headers. Per Diem reports default to the saved source quote name; explicit project recipient assignments retain precedence. Pinned document counts/rates/revision remain unchanged.
 - Project economics now lists build budget, contingency, indirect levy, waste levy and commission as COS above Gross Profit. Gross Profit equals existing post-cost margin for all pricing versions; selling prices, net profit, rates and stored snapshots are unchanged.
