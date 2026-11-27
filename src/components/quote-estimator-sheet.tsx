@@ -30,7 +30,7 @@ export function QuoteEstimatorSheet({kind,quote,result,update,links,laborRate}:{
  {kind==='Install'?<>
  {(['installDays','offDays','dismantleDays','travelDaysOverride'] as const).map((key,i)=>row(['Install days (on site)','Off days (in market, not working)','Dismantle days (on site)','Travel days (auto; type to override)'][i],installers.map(id=><NumberCell label={`${personLabel(id)} ${key}`} value={e.install[id][key]} nullable={key==='travelDaysOverride'} placeholder={key==='travelDaysOverride'?String(result?.install.find(p=>p.id===id)?.travelDays??0):''} change={value=>update(next=>{Object.assign(next.install[id],{[key]:value});})}/>)))}
  {row('TOTAL DAYS',installers.map(id=>result?.install.find(p=>p.id===id)?.days??0),true)}
- {section('Billing (auto) — lead at lead rate, installers 2 & 3 at support rate')}
+ {section('Billing (auto) — lead at lead rate, additional installers at support rate')}
  {row('Install + dismantle days billing',installers.map(id=>money((e.install[id].installDays+e.install[id].dismantleDays)*(id==='lead'?s.leadDay:s.supportDay))),true)}
  {row('Off days billing',installers.map(id=>money(e.install[id].offDays*s.offFactor*(id==='lead'?s.leadDay:s.supportDay))),true)}
  {row('Travel days billing',installers.map(id=>money((result?.install.find(p=>p.id===id)?.travelDays??0)*s.travelFactor*(id==='lead'?s.leadDay:s.supportDay))),true)}
