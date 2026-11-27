@@ -1,6 +1,6 @@
 'use client';
 import {quoteInputNumber} from '@/lib/quote-format';
-import {builderItemName,builderTypes,typeLabel} from '@/lib/quote-builder-display';
+import {builderItemName,builderTypes,itemTypeLabel} from '@/lib/quote-builder-display';
 import {selectTextCell,editTextCell,isEditingText} from './quote-cell-editing';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {calculateQuoteV27,type QuoteV27,type Takeoff} from '@/lib/quote-v27';
@@ -64,7 +64,7 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
   function valueAt(r:number,key:SheetColumn):string {
     const row:Takeoff=rows[r], saved=r<quote.takeoffs.length;
     if(key==='lineId')return quoteItemLabel(quote,row.lineId);
-    if(key==='itemType'){const line=quote.lines.find(line=>line.id===row.lineId);return line?typeLabel(line.type):'';}
+    if(key==='itemType'){const line=quote.lines.find(line=>line.id===row.lineId);return line?itemTypeLabel(line):'';}
     if(key==='itemName'){const index=quote.lines.findIndex(line=>line.id===row.lineId);const name=index<0?'':builderItemName(quote.lines[index],index);return name===quoteItemLabel(quote,row.lineId)?'':name;}
     if(key==='quantity'&&isLaborTakeoff(quote,row))return saved&&row.hours?quoteInputNumber(row.hours):'';
     if(key==='description')return row.description===EMPTY_TAKEOFF_DESCRIPTION?'':row.description;
@@ -167,8 +167,8 @@ export function QuoteTakeoffs({quote,edit,selected,onSelectItem,onAddItem,readOn
                 <div className={styles.pickerTools}><strong>Assign this row to an item</strong><button type="button" aria-label="Close item chooser" onClick={()=>setItemPicker(null)}>×</button></div>
                 <div className={styles.choices}><button type="button" onClick={()=>{if(apply(r,c,[['']]))setItemPicker(null);}}>Clear assignment</button>{quote.lines.map((line,index)=><button type="button" key={line.id} autoFocus={line.id===row.lineId} onClick={()=>{if(apply(r,c,[[line.id]]))setItemPicker(null);}}><strong>{quoteItemLabel(quote,line.id)}</strong><span>{builderItemName(line,index)===quoteItemLabel(quote,line.id)?'Name this item…':builderItemName(line,index)}</span></button>)}</div>
               </div>}
-            </>:key==='itemType'?<div className={styles.itemTypeCell}><span aria-hidden="true">{row.lineId?display:'Choose item first'}</span><select aria-label={`Item Type row ${r+1}`} disabled={readOnly||!row.lineId} value={quote.lines.find(line=>line.id===row.lineId)?.type??''} onChange={e=>apply(r,c,[[e.target.value]])} title="Updates this item on every linked takeoff row and Quote Builder">
-              {!row.lineId?<option value="">Choose item first</option>:!builderTypes.some(([type])=>type===quote.lines.find(line=>line.id===row.lineId)?.type)&&<option hidden disabled value={quote.lines.find(line=>line.id===row.lineId)?.type}>{display}</option>}
+            </>:key==='itemType'?<div className={styles.itemTypeCell}><span aria-hidden="true">{row.lineId?display:'Choose item first'}</span><select aria-label={`Item Type row ${r+1}`} disabled={readOnly||!row.lineId} value={display} onChange={e=>apply(r,c,[[e.target.value]])} title="Updates this item on every linked takeoff row and Quote Builder">
+              {!row.lineId?<option value="">Choose item first</option>:!builderTypes.some(([type])=>type===display)&&<option hidden disabled value={display}>{display}</option>}
               {builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}
             </select></div>:key==='resale'?<select aria-label={`Resale row ${r+1}`} disabled={readOnly} value={display} onChange={e=>apply(r,c,[[e.target.value]])}><option>No</option><option>Yes</option></select>:key==='unit'?<select aria-label={`Unit row ${r+1}`} value={display} disabled={readOnly} onChange={e=>apply(r,c,[[e.target.value]])}><option value=""/>{units.map(unit=><option key={unit}>{unit}</option>)}</select>:
               <input key={`${restoreKey}-${key}-${display}`} aria-label={`${headers[c]} row ${r+1}`} defaultValue={display} disabled={readOnly}

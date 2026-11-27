@@ -16,5 +16,6 @@ export function showBuilderLine(quote:QuoteV27,line:QuoteV27['lines'][number]){
  return Boolean(person.name?.trim())||person.installDays+person.dismantleDays+person.offDays>0||Boolean(person.travelDaysOverride)||quote.estimators.travel.people[id].traveling||line.priceOverride!==null||Object.values(line.inputs).some(v=>v!==0)||Object.values(line.overrides).some(v=>v!=null)||quote.takeoffs.some(t=>t.lineId===line.id);
 }
 
-export const builderTypes=[['Fabrication','Fabrication'],['beMatrix / SEG','Bematrix/SEG'],['Props / Resale','Props/Decor'],['Equipment Rental','Equipment']] as const;
-export const typeLabel=(type:string)=>builderTypes.find(([value])=>value===type)?.[1]??type;
+export const builderTypes=['Fabrication','SEG','Bematrix','Equipment','Materials','Props/Decor'].map(value=>[value,value] as const);
+export function itemTypeLabel(line:QuoteV27['lines'][number]){return line.itemCategory??typeLabel(line.type);}
+export const typeLabel=(type:string)=>({'Graphics':'SEG','beMatrix / SEG':'Bematrix','Equipment Rental':'Equipment','Props / Resale':'Props/Decor'} as Record<string,string>)[type]??type;

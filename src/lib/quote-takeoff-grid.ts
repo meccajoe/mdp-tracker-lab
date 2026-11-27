@@ -98,10 +98,10 @@ export function applySheetCells(quote: QuoteV27, count: number, selected: string
         if(!value)continue; // An item always has a type; clearing cannot erase it.
         const line=next.lines.find(line=>line.id===row.lineId);
         if(!line)throw new Error('Choose an Item # or name before setting Item Type.');
-        if(value===line.type)continue; // Preserve historical service types when copying rows.
+        if(value===line.type&&!builderTypes.some(([type])=>type===value))continue; // Preserve historical service types when copying rows.
         const choice=builderTypes.find(([type,label])=>type===value||label===value);
-        if(!choice)throw new Error('Choose Fabrication, Bematrix/SEG, Props/Decor or Equipment.');
-        line.type=choice[0];
+        if(!choice)throw new Error('Choose Fabrication, SEG, Bematrix, Equipment, Materials or Props/Decor.');
+        line.itemCategory=choice[0] as NonNullable<typeof line.itemCategory>;
       } else if(key==='itemName') {
         if(!value){row.lineId='';continue;}
         if(value.length>2000)throw new Error('Enter an item name (up to 2,000 characters).');

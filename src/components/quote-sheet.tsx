@@ -1,7 +1,7 @@
 "use client";
 import {QuoteNumberInput} from './quote-number-input';
 import {quoteMoney,quoteNumber} from '@/lib/quote-format';
-import {builderInstallerLabel,builderItemName,showBuilderLine,builderTypes,typeLabel} from '@/lib/quote-builder-display';
+import {builderInstallerLabel,builderItemName,showBuilderLine,builderTypes,itemTypeLabel} from '@/lib/quote-builder-display';
 import {moveQuoteItemRelative} from '@/lib/quote-item-actions';
 import {useRef,useState} from "react";
 import {useQuoteItemActions} from "./use-quote-item-actions";
@@ -94,7 +94,7 @@ export function QuoteSheet({ quote, calculation, edit, onTakeoffs, onAdd, onView
               {!libraryItem&&<button type="button" className={styles.dragHandle} disabled={readOnly} draggable={!readOnly} aria-label={`Drag to move ${line.name}`} title="Drag to reorder item" onDragStart={event=>{if(readOnly){event.preventDefault();return;}dragging.current=line.id;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',line.id);}} onDragEnd={stopDrag}>⠿</button>}
               {itemActions.menu(line.id,`Item ${index+1} actions · ${line.name}`)}<span>{`Item ${index+1}`}</span></div></th>
             <td className={`${styles.entry} ${styles.frozen}`}><div className={styles.nameCell}><div className={styles.growingName}><span aria-hidden="true">{displayName+" "}</span><textarea rows={1} aria-label={`Line item ${index+1}`} readOnly={installerLabel!==null} title={installerLabel!==null?'Installer names are assigned in Install Labor':undefined} value={displayName} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}}} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.name=e.target.value.replace(/\n/g,' ');})}/></div><button type="button" aria-label={`Open takeoffs · ${line.name}`} title="Open takeoffs" onClick={()=>onTakeoffs(line.id)}>↗</button></div></td>
-            <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{typeLabel(line.type)}</span><select aria-label={`Item Type · ${line.name}`} value={line.type} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.type=e.target.value as typeof line.type;})}>{!builderTypes.some(([type])=>type===line.type)&&<option hidden disabled value={line.type}>{line.type}</option>}{builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div></td>
+            <td className={styles.entry}><div className={styles.typeCell}><span aria-hidden="true">{itemTypeLabel(line)}</span><select aria-label={`Item Type · ${line.name}`} value={itemTypeLabel(line)} onChange={e=>edit(next=>{next.lines.find(l=>l.id===line.id)!.itemCategory=e.target.value as NonNullable<typeof line.itemCategory>;})}>{!builderTypes.some(([type])=>type===itemTypeLabel(line))&&<option hidden disabled value={itemTypeLabel(line)}>{itemTypeLabel(line)}</option>}{builderTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div></td>
             {visibleInputs.map(({key,heading})=>inputCell(line,key,heading))}
             {showDetails&&<td title="Support person-days are entered in Estimators → Install. This template column does not feed pricing." className={styles.unused}>—</td>}
             {inputCell(line,'cost','Cost $')}

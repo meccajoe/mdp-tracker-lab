@@ -1,3 +1,7 @@
+## Item Type categories independent of pricing — November 27, 2026
+- Paul confirmed categories only. Builder/Takeoffs now offer Fabrication, SEG, Bematrix, Equipment, Materials and Props/Decor. Optional per-line itemCategory persists independently from existing pricing type; legacy items derive display labels without migration. Linked takeoff rows share category; drag/paste and undo use existing transactions. Existing service labels retained until explicitly categorized.
+- 29 takeoff/display tests and TypeScript passed, including all six category save/reload and exact calculation equality. React checklist reviewed. Deployment pending.
+
 ## Budget Handoff installer labels — November 27, 2026
 - Budget Handoff per-item rows and other-labor detail reuse Builder installer role/name labels with numbered fallback. Display-only mapping by stable line ID; saved names, budget projections, Workforce candidates and all amounts remain unchanged.
 - Twelve display/handoff regression tests and TypeScript passed. Release 873b21d deployed successfully (wFfr3H1PqZxRyXcae2W5ChLHcUxX). Hosted archived additional-installer quote verified fallback labels for installers 2–4 in both detail sections; named label behavior covered by shared helper regression. Read-only check; no saved quote changes. Screenshot /private/tmp/budget-installer-labels.png.

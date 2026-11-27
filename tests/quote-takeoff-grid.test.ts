@@ -203,13 +203,13 @@ test('Item Type changes the linked item in both views without altering rows or s
  const before=structuredClone(q.takeoffs),catalog=structuredClone(q.catalog);
  const col=TAKEOFF_VIEW_COLUMNS.indexOf('itemType');
  applyTakeoffViewCells(q,50,'',[0,1],0,col,[['Equipment']],null);
- assert.equal(q.lines[0].type,'Equipment Rental');assert.deepEqual(q.takeoffs,before);assert.deepEqual(q.catalog,catalog);
+ assert.equal(q.lines[0].itemCategory,'Equipment');assert.equal(q.lines[0].type,'Fabrication');assert.deepEqual(q.takeoffs,before);assert.deepEqual(q.catalog,catalog);
  applyTakeoffViewCells(q,50,'',[0,1],1,col,[['Props/Decor']],null);
- assert.equal(q.lines[0].type,'Props / Resale');assert.deepEqual(q.takeoffs,before);
+ assert.equal(q.lines[0].itemCategory,'Props/Decor');assert.equal(q.lines[0].type,'Fabrication');assert.deepEqual(q.takeoffs,before);
  const saved=JSON.stringify(q);
  assert.throws(()=>applyTakeoffViewCells(q,50,'',[0,1],0,col,[['Not a type']],null));assert.equal(JSON.stringify(q),saved);
  assert.throws(()=>applyTakeoffViewCells(q,50,'',[2],2,col,[['Fabrication']],null));assert.equal(JSON.stringify(q),saved);
- applyTakeoffViewCells(q,50,'',[0],0,col,[['']],null);assert.equal(q.lines[0].type,'Props / Resale');
+ applyTakeoffViewCells(q,50,'',[0],0,col,[['']],null);assert.equal(q.lines[0].itemCategory,'Props/Decor');assert.equal(q.lines[0].type,'Fabrication');
  assert.deepEqual(TAKEOFF_VIEW_COLUMNS.slice(0,4),['lineId','itemType','itemName','description']);
 });
 
@@ -245,4 +245,15 @@ test('Takeoffs reuse empty added slots without overwriting priced placeholder it
  applySheetCells(q,50,'',1,SHEET_COLUMNS.indexOf('itemName'),[['Different item']],null);
  assert.equal(q.lines[0].name,'Item 1');assert.equal(q.lines[0].priceOverride,123);
  assert.equal(q.lines.length,count+1);
+});
+
+test('all six item categories survive saving without changing pricing',()=>{
+ const q=fixture();q.takeoffs[0].quantity=5;q.takeoffs[0].unitCostOverride=100;
+ const before=calculateQuoteV27(q);
+ for(const category of ['Fabrication','SEG','Bematrix','Equipment','Materials','Props/Decor']){
+ applyTakeoffViewCells(q,50,'',[0],0,TAKEOFF_VIEW_COLUMNS.indexOf('itemType'),[[category]],null);
+ const saved=parseQuoteV27(JSON.parse(JSON.stringify(q)));
+ assert.equal(saved.lines[0].itemCategory,category);
+ assert.deepEqual(calculateQuoteV27(saved),before);
+ }
 });

@@ -52,7 +52,8 @@ export function parseQuoteV27(value: unknown): QuoteV27 {
     lines: list(v.lines, 200).map(row => {
       const inputs = record(row.inputs), overrides = record(row.overrides);
       if (!(LINE_TYPES as readonly unknown[]).includes(row.type)) throw new Error('Unknown line type.');
-      return {id:id(row.id),name:text(row.name,'Line name'),type:row.type as QuoteV27['lines'][number]['type'],takeoffDriven:bool(row.takeoffDriven),
+      if(row.itemCategory!==undefined&&!['Fabrication','SEG','Bematrix','Equipment','Materials','Props/Decor'].includes(String(row.itemCategory)))throw new Error('Unknown item category.');
+      return {...(row.itemCategory!==undefined?{itemCategory:row.itemCategory as NonNullable<QuoteV27['lines'][number]['itemCategory']>}:{}),id:id(row.id),name:text(row.name,'Line name'),type:row.type as QuoteV27['lines'][number]['type'],takeoffDriven:bool(row.takeoffDriven),
         inputs:Object.fromEntries(Object.keys(EMPTY_INPUTS).map(key => [key,num(inputs[key])])) as QuoteV27['lines'][number]['inputs'],
         overrides:Object.fromEntries(Object.keys(EMPTY_INPUTS).filter(key => overrides[key] !== undefined).map(key => [key,nullable(overrides[key])])),
         priceOverride:nullable(row.priceOverride)};

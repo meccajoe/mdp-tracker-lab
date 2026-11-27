@@ -38,7 +38,7 @@ export type Takeoff = {
   unit?: string; notes?: string;
 };
 export type QuoteLine = {
-  id: string; name: string; type: LineType; takeoffDriven: boolean;
+  id: string; name: string; type: LineType; itemCategory?: "Fabrication" | "SEG" | "Bematrix" | "Equipment" | "Materials" | "Props/Decor"; takeoffDriven: boolean;
   inputs: Inputs; overrides: Partial<Record<keyof Inputs, number | null>>;
   priceOverride: number | null; source?: string;
 };
