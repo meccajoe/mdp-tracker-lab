@@ -77,6 +77,12 @@ function preview({lab,workforce}:Export){
   differences.push({id:row.id,reason:'Workforce only',canonicalHours:null,workforceHours:row.seconds/3600});
  }
  return {job:lab.job,revision:lab.revision,jobcode:workforce.jobcode,links:[...links.values()],review,
+  catalogPreview:{
+   keep:[...links.values()].map(({quoteLineId,name,workforceItemId})=>({quoteLineId,name,workforceItemId})),
+   addCandidates:review.filter(item=>item.reason==='no exact match'),
+   reviewExisting:workforce.items.filter(item=>!links.has(item.packageId))
+    .map(({id,name,active})=>({workforceItemId:id,name,active})),
+  },
   unallocated:[...unallocated.values()],differences,totalCanonicalHours:total,allocatedCanonicalHours:allocated,
   unallocatedCanonicalHours:total-allocated};
 }

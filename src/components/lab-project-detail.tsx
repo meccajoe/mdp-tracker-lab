@@ -2,6 +2,8 @@
 import { LabProjectActivityProvider } from '@/components/lab-project-activity-provider';
 import { LabProjectOverview } from '@/components/lab-project-overview';
 import { LabProjectActivity } from '@/components/lab-project-activity';
+import {LabWorkforceHandoff} from './lab-workforce-handoff';
+import type {WorkforceCandidate} from '@/lib/lab-workforce-handoff';
 import {LabQuoteAllocation} from '@/components/lab-quote-allocation';
 import type {SkuReference} from '@/lib/lab-quote-allocation';
 import {ProjectPerDiemRecipients} from '@/components/project-per-diem-recipients';
@@ -17,14 +19,14 @@ type Quote = { id:string; title:string; status:string; total:number|null; url:st
 type BudgetTotals = {price:number;buildBudget:number;hoursAllowed:number;materialsBudget:number;laborBudget:number};
 type BudgetHistory = {id:number;workspace_id:string;workbook_revision:number;applied_at:string;totals:BudgetTotals};
 export type Payload = {
- currentBudget?: (BudgetHistory & {snapshot:{totals:BudgetTotals;lines:Line[];budgetHandoff:{lines:Line[]}}}) | null;
+ currentBudget?: (BudgetHistory & {snapshot:{totals:BudgetTotals;lines:Line[];budgetHandoff:{lines:Line[];workforceCandidates?:WorkforceCandidate[]}}}) | null;
  budgetHistory?: BudgetHistory[];
  liveProjectStatus?:string;
  project: { notes?:string|null; id:string; name:string; client:string|null; job_number:string|null; pm:string|null; close_date:string|null; due_date:string|null; status:string; hubspot_deal_url:string|null; qbo_project_url:string|null; monday_board_url:string|null };
  source: { workspace_id:string; workbook_revision:number; imported_at:string; snapshot: {
   title:string; warnings:string[]; schedule:Record<string,string>; sourceProjectStatus:string;
   totals:{ price:number; buildBudget:number; hoursAllowed:number; materialsBudget:number; laborBudget:number };
-  lines:Line[]; budgetHandoff?:{lines:Line[]}; hubspot:{ amount:number|null; accountManager:string|null; quotes:Quote[]; selectedQuoteId:string|null;skuReference?:SkuReference };
+  lines:Line[]; budgetHandoff?:{lines:Line[];workforceCandidates?:WorkforceCandidate[]}; hubspot:{ amount:number|null; accountManager:string|null; quotes:Quote[]; selectedQuoteId:string|null;skuReference?:SkuReference };
  } };
 };
 const money=(v:number|null|undefined)=>v==null?'Pending':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(v);
@@ -64,6 +66,7 @@ export function LabProjectDetail({projectId}:{projectId:string}){
   {(tab==='expenses'||tab==='labor')&&<div className="pm-allocation-switch" role="group" aria-label="Activity type">{[['expenses','Expenses'],['labor','Labor']].map(([key,label])=><button key={key} aria-pressed={tab===key} className={tab===key?'pm-primary-action':'pm-text-action'} onClick={()=>setTab(key)}>{label}</button>)}</div>}
   {tab==='overview'&&<LabProjectOverview data={overviewData} onNavigate={setTab}/>}
   {(tab==='budget'||tab==='expenses'||tab==='labor')&&<LabProjectActivity projectId={projectId} view={tab} budget={budget.totals} lines={budgetLines} revision={budgetRevision}/>}
+  {tab==='budget'&&<LabWorkforceHandoff key={projectId} projectId={projectId} workspaceId={currentBudget?.workspace_id??source.workspace_id} candidates={budget.budgetHandoff?.workforceCandidates??[]}/>}
   {tab==='budget'&&<details className="rounded border p-4 text-sm">
    <summary className="cursor-pointer font-semibold">Budget history</summary>
    <p className="mt-2">Original quote revision {source.workbook_revision} · {money(s.totals.buildBudget)} · {s.totals.hoursAllowed} hrs</p>
