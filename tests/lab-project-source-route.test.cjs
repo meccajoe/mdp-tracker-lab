@@ -3,7 +3,7 @@ test('project baseline reads require Lab, identity and actor RLS; failures never
  let blocked=false,authorized=false,source={workspace_id:'w',snapshot:{totals:{price:12}}},sourceError=null,project={id:'job'},projectError=null;
  const reads=[];
  const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Cache-Control':'private, no-store'}});
- const actorSupabase={from(table){reads.push(table);return {select(){return this;},eq(key,value){assert.equal(key,table==='lab_project_quote_sources'?'project_id':'id');assert.equal(value,'job');return this;},async maybeSingle(){return table==='lab_project_quote_sources'?{data:source,error:sourceError}:{data:project,error:projectError};}};}};
+ const actorSupabase={from(table){reads.push(table);return {select(){return this;},eq(key,value){assert.equal(key,table==='projects'?'id':'project_id');assert.equal(value,'job');return this;},order(){return this;},async limit(){return {data:[],error:null};},async maybeSingle(){return table==='lab_project_quote_sources'?{data:source,error:sourceError}:{data:project,error:projectError};}};}};
  const module={exports:{}};
  const imports={
   '@/lib/ada-server':{requireQuoteProductAccess:async()=>authorized?{ok:true,actorSupabase}:{ok:false,response:json({error:'auth'},401)}},

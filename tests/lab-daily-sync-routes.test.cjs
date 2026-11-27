@@ -43,7 +43,7 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  const complete={...fresh,group_id:'complete',workspace_id:'w3',hubspot_deal_id:'3',job_number:'30',document:{schedule:{status:'Closed won',projectStatus:'Complete'}}};
  const unresolved={...fresh,group_id:'unlinked',hubspot_deal_id:null};
  const open={...fresh,group_id:'open',document:{schedule:{status:'Possible',projectStatus:'Active'}}};
- const calls=[];let baselineCalls=0,quotePresent=true;
+ const calls=[];let baselineCalls=0,quotePresent=true,pending=false;
  class SyncIssue extends Error{constructor(code){super(code);this.code=code}}
  const api=load('src/lib/lab-project-sync.ts',{
  './quote-v27':{calculateQuoteV27:()=>{baselineCalls++;return {laborRate:20,lines:[],totals:{price:100}}}},
@@ -58,7 +58,7 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
   readActivity:async()=>({capture:{expenses:[],labor:[]},evidence:{expected:{hours:0,knownCost:0,missingHours:0}}})},
  },{Intl,Date,Set,fetch});
  let dataset=[source,fresh,complete,unresolved,open];
- const db={async rpc(name,args){calls.push({name,args});return {data:name==='lab_claim_project_sync'?'run':name==='lab_project_rate_approvals'?[]:name==='lab_project_sync_scope_v2'?dataset:name==='lab_project_sync_document'?[fresh,complete].find(row=>row.workspace_id===args.p_workspace).document:null,error:null}}};
+ const db={async rpc(name,args){calls.push({name,args});return {data:name==='lab_claim_project_sync'?'run':name==='lab_project_rate_approvals'?[]:name==='lab_project_sync_scope_v2'?dataset:name==='lab_quote_budget_control'?{pending}:name==='lab_project_sync_document'?[fresh,complete,source].find(row=>row.workspace_id===args.p_workspace).document:null,error:null}}};
  await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'preview'});
  assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.filter(c=>c.name==='lab_record_project_sync_result'&&c.args.p_outcome==='preview').length,3);assert.equal(calls.find(c=>c.args?.p_scope==='unlinked').args.p_code,'MISSING_DEAL_OR_JOB');assert.equal(baselineCalls,2);
  calls.length=0;baselineCalls=0;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});
@@ -67,5 +67,12 @@ test('mixed-scope runner previews without publishing, isolates failed links and 
  calls.length=0;const failedLog={async rpc(name,args){if(name==='lab_record_project_sync_result'&&args.p_outcome==='exception'){calls.push({name,args});return {error:{code:'57014'},data:null}}return db.rpc(name,args)}};const failure=await api.runProjectSync({db:failedLog,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(failure.failed,true);assert.equal(calls.at(-1).args.p_code,'RESULT_LOG_FAILED');
  calls.length=0;dataset=[{...fresh,title:'Big 12 Pop Up',client_name:'Game Seven',hubspot_deal_id:null},{...fresh,group_id:'other-group',workspace_id:'other-workspace',title:'Game Seven - Big 12 Pop Up',client_name:'Game Seven',hubspot_deal_id:null}];await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'preview'});assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.filter(c=>c.args?.p_code==='PROJECT_LINK_CONFLICT').length,2);
  calls.length=0;dataset=[{...fresh,group_id:'scope-proof',client_name:'Scope Client',hubspot_deal_id:null}];await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(calls.filter(c=>c.name==='lab_project_sync_document').length,1);assert.equal(calls.find(c=>c.name==='lab_apply_project_sync').args.p_payload.baseline.identityResolution.method,'client-date-scope');
- calls.length=0;quotePresent=false;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.find(c=>c.name==='lab_record_project_sync_result').args.p_code,'SOURCE_QUOTE_LINK_CHANGED');
+ calls.length=0;dataset=[{...source,document:{schedule:{status:'Closed won',projectStatus:'Active'}}},fresh];
+ pending=true;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});
+ assert.equal(calls.find(c=>c.args?.p_scope==='new').args.p_code,'BUDGET_PENDING');
+ assert.equal(calls.find(c=>c.name==='lab_apply_project_sync').args.p_payload.currentBudget,null);
+ assert.equal(calls.filter(c=>c.name==='lab_project_sync_document').length,0);
+ calls.length=0;pending=false;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});
+ assert.equal(calls.find(c=>c.name==='lab_apply_project_sync'&&c.args.p_scope==='existing').args.p_payload.currentBudget.totals.price,100);
+ calls.length=0;dataset=[{...fresh,group_id:'scope-proof',client_name:'Scope Client',hubspot_deal_id:null}];quotePresent=false;await api.runProjectSync({db,query:async()=>[],hubspotToken:'fixture',mode:'manual'});assert.equal(calls.some(c=>c.name==='lab_apply_project_sync'),false);assert.equal(calls.find(c=>c.name==='lab_record_project_sync_result').args.p_code,'SOURCE_QUOTE_LINK_CHANGED');
 });

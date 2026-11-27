@@ -13,6 +13,7 @@ import {invalidateQuoteLibrary} from '@/lib/quote-library-client';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {QuoteReusableToolbar} from './quote-reusable-items';
 import {QuoteEconomics} from './quote-economics';
+import {QuoteBudgetControl} from './quote-budget-control';
 import {QuoteBudgetHandoff} from './quote-budget-handoff';
 import {QuoteBOM,QuoteMaterialsDB} from './quote-reference-sheets';
 import {EMPTY_SCHEDULE,FORECAST_STATUSES,parseSchedule} from '@/lib/quote-schedule';
@@ -252,7 +253,7 @@ export function QuoteWorkbook({ workspaceId, quoteName, onDirtyChange, libraryIt
       {tab==='Settings' && <QuoteRates key={restoreKey} quote={document} edit={edit} laborRate={calculation?.laborRate??null}/>}
       </fieldset></QuoteGridInteraction>
       {tab==='Client Quote' && calculation && <div className="mx-auto max-w-3xl rounded-lg border p-6"><h2 className="text-xl font-semibold">Client quote · {quoteStatus==='final'?'Final':'Draft'}</h2><table className="mt-5 w-full text-sm"><thead><tr><th className={cell}>Scope</th><th className="p-2 text-right">Amount</th></tr></thead><tbody>{calculation.lines.filter(line=>line.finalPrice!==0).map(line=><tr key={line.id} className="border-t"><td className={cell}>{line.name}</td><td className="p-2 text-right tabular-nums">{money(line.finalPrice)}</td></tr>)}</tbody><tfoot><tr className="border-t font-bold"><td className={cell}>Total</td><td className="p-2 text-right">{money(calculation.totals.price)}</td></tr></tfoot></table></div>}
-      {tab==='Budget Handoff' && calculation && <QuoteBudgetHandoff quote={document} calculation={calculation}/>}
+      {tab==='Budget Handoff' && calculation && <><QuoteBudgetControl key={workspaceId} workspaceId={workspaceId} revision={version} dirty={dirty||pendingInput} saving={busy||saving}/><QuoteBudgetHandoff quote={document} calculation={calculation}/></>}
     </>}
     </div>
     <footer className={styles.selectionFooter} role="status" aria-label="Selection summary">{selectionSummary||'Select numeric cells to see their total here.'}</footer>
