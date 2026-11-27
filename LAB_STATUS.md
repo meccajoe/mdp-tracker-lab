@@ -1,6 +1,6 @@
 ## Assigned installer labels in Quote Builder — November 27, 2026
 - Linked Installer Days rows derive their displayed label from role + assigned name (Installer 2 — Name), falling back to role when blank. Applies to lead and added installers by stable link. Named second/third installers remain visible without entered days. Derived labels are read-only in Builder; names remain editable in Install Labor. Saved line names/IDs/pricing are untouched.
-- Six blank/display tests and TypeScript passed; React checklist reviewed. Hosted verification pending.
+- Six blank/display tests and TypeScript passed; React checklist reviewed. Release 46dcbb6 deployed successfully (DH1SppwKXiV9MhknYVYbcpeDG5gw). Hosted archived name test a1762c23-0e0e-4f12-ba09-d6fa2362d70a showed lead and Installer 2 with assigned names, including zero-day named row. Archived additional-installer test da2b98e8-83b5-4b3e-abc1-8c464fd07b65 showed fallback labels for lead and installers 2–5. Read-only verification; no quote edits. Screenshot /private/tmp/builder-installer-labels.png.
 
 ## Installer names and COS presentation — November 27, 2026
 - Install Labor uses the existing keyboard-searchable InstallerNameInput with a names-only authenticated roster endpoint; custom names remain valid. Optional per-installer name persists in quotes and displays in Travel headers. Per Diem reports default to the saved source quote name; explicit project recipient assignments retain precedence. Pinned document counts/rates/revision remain unchanged.
